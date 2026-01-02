@@ -15,4 +15,18 @@ tasks:
   test:
     cmds:
       - go test -v ./...
-      - ./atkins -file test/pipelines/atkins.yml
+
+  record:
+    cmds:
+      - task: install
+      - rm -f atkins_demo.cast atkins_demo.gif
+      - asciinema rec -t "Atkins CI runner example" -c "task run" atkins_demo.cast
+      - $HOME/.cargo/bin/agg atkins_demo.cast atkins_demo.gif
+
+  run:
+    cmds:
+      - atkins -file test/pipelines/atkins.yml
+
+  run:error:
+    cmds:
+      - atkins -file test/pipelines/atkins-err.yml

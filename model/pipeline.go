@@ -48,7 +48,19 @@ type Service struct {
 
 // ExecutionContext holds runtime state during pipeline execution
 type ExecutionContext struct {
-	Variables map[string]interface{}
-	Env       map[string]string
-	Results   map[string]interface{}
+	Variables   map[string]interface{}
+	Env         map[string]string
+	Results     map[string]interface{}
+	QuietMode   int         // 0 = normal, 1 = quiet (no stdout), 2 = very quiet (no stdout/stderr)
+	Pipeline    string      // Current pipeline name
+	Job         string      // Current job name
+	JobDesc     string      // Current job description
+	Step        string      // Current step name
+	Depth       int         // Nesting depth for indentation
+	StepsCount  int         // Total number of steps executed
+	StepsPassed int         // Number of steps that passed
+	Tree        interface{} // *ExecutionTree (avoid circular import)
+	CurrentJob  interface{} // *TreeNode for current job
+	CurrentStep interface{} // *TreeNode for current step
+	Renderer    interface{} // *TreeRenderer for in-place rendering
 }

@@ -2,3 +2,5 @@
 /atkins
 /*.test
 /*.cov
+*.rec
+*.cast

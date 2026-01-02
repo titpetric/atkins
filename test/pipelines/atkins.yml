@@ -1,7 +1,7 @@
-name: Example CI Pipeline
-
 matrix:
   goarch: ["amd64", "arm64"]
+
+name: Pipeline ${goarch}
 
 jobs:
   build:
@@ -14,6 +14,10 @@ jobs:
         run: go test ./...
       - name: "Build binary"
         run: go build -o ./bin/atkins ./cmd/atkins
+      - name: "Sleep 5"
+        run: sleep 5
+      - name: "Sleep 3"
+        run: sleep 3
 
   lint:
     desc: "Run linters"
@@ -25,13 +29,13 @@ jobs:
         run: go vet ./...
 
   matrix_build:
-    desc: "Build for ${goarch}"
+    desc: "Build"
     runs_on: ubuntu-latest
     steps:
       - name: "Print architecture"
         run: |
           echo "Architecture: ${goarch}"
-      - name: "Build for target arch"
+      - name: "Build"
         run: |
           echo "Building binary for ${goarch}"
 

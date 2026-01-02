@@ -12,6 +12,8 @@ const (
 	colorCyan    = "\033[36m"
 	colorMagenta = "\033[35m"
 	colorRed     = "\033[31m"
+	colorWhite   = "\033[37m"
+	colorGray    = "\033[90m"
 )
 
 func colorize(color, text string) string {
@@ -40,6 +42,14 @@ func BrightRed(text string) string {
 
 func Dim(text string) string {
 	return colorDim + text + colorReset
+}
+
+func BrightWhite(text string) string {
+	return colorBright + colorWhite + text + colorReset
+}
+
+func Gray(text string) string {
+	return colorGray + text + colorReset
 }
 
 func PrintHeader(title string) {

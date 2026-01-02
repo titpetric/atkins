@@ -1,5 +1,11 @@
 # Atkins CI
 
+## Demo
+
+![Atkins CI Pipeline Demo](./atkins_demo.gif)
+
+---
+
 Goals for the project:
 
 - define a JSON/yaml forward execution script
