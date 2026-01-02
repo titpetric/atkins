@@ -1,15 +1,30 @@
 # Atkins CI
 
-## Demo
+Atkins CI is a minimal runner focused on usage in local testing and
+CI/CD environments. It features a nice CLI status tree, where you can
+see which jobs are running, and run jobs and steps in parallel.
 
 ![Atkins CI Pipeline Demo](./atkins.gif)
 
----
+It should be simple to use:
 
-Goals for the project:
+- provide `atkins.yml`
+- run `atkins`
 
-- define a JSON/yaml forward execution script
-- inspired by GHA, Drone CI, Taskfile
+## Status
+
+While the runner implements basic pipelines, work is still needed to:
+
+- cover with unit tests
+- test with more examples
+- adopt usage on real projects
+- implement docker
+
+## Project outline
+
+Atkins CI has a few basic goals:
+
+- [x] define a JSON/yaml forward execution script
 - should allow exec into environment
 - should allow exec into docker
 
@@ -17,7 +32,9 @@ The project builds around [titpetric/yamlexpr](https://github.com/titpetric/yaml
 yaml support for `for`, `if` and interpolation. The interpolation uses GitHub action syntax for
 variables, `${{ ... }}`.
 
-The main problem the project tries to work around is this:
+The project is inspired by by GHA, Drone CI, Taskfile.
+
+The main problem the project tries to work around is very awkward taskfiles this:
 
 ```go
 version: '3'
@@ -60,7 +77,7 @@ tasks:
     desc: "Check last inbox match and send reply if needed"
     if: last_sent_match < last_inbox_match
     cmds:
-      - ./tp-link-cli sms send {{.TARGET_NUMBER}} "{{.RESPONSE_MESSAGE}}"
+      - ./tp-link-cli sms send ${{ target_number }} "{{ target_message }}"
       - ./tp-link-cli sms send 0038631265642 "Quota router reset after 200G limit."
 ```
 
@@ -74,9 +91,11 @@ messages:
     message: ${{ message }}
 ```
 
+This can support `curl` or [titpetric/etl](https://github.com/titpetric/etl) for example.
+
 ## Design
 
-Options for the runner are:
+The Taskfile flavored options for the runner are:
 
 ```
 name: string
@@ -134,14 +153,16 @@ So a summary of the formats is:
 
 - should be documentation friendly (name, desc)
 - should provide or include a service description (docker compose, optional)
-- should allow to run multiple commands (steps, commands, cmds)
+- should allow to run multiple commands (steps, commands, cmds, depends_on, detach)
 - in case of docker, ideally network env is a docker net, avoiding `ports` definitions
 
-In practice, we need to orchestrate:
+In practice, Atkins still needs to orchestrate:
 
-- any docker services (with or without `--wait`),
-- shell commands, asume json outputs (`docker compose inspect`, `docker compose config`, `jq`, `tool --json`...)
-- drone is "flat" in the sense that it just gives you a steps: []step.
+- start any docker services (with or without `--wait`) (optional, GHA could use `services:`, problem domain is what you run in local),
+- shell commands, asume json outputs (`docker compose inspect`, `docker compose config`, `curl`, `jq`, `tool --json`...)
+- drone is "flat" in the sense that it just gives you a steps: []step (1 file, sequential pipeline).
+- git devops triggers? Atkins doesn't really care about those, you integrate it in your runtime env which does
+- add documentation for running in environment of choice (GHA,...).
 
 Drone is actually the simple approach, as it gives you a file for each
 pipeline. Yamlexpr supports include, so the question is, can we compose
