@@ -25,8 +25,8 @@ While the runner implements basic pipelines, work is still needed to:
 Atkins CI has a few basic goals:
 
 - [x] define a JSON/yaml forward execution script
-- should allow exec into environment
-- should allow exec into docker
+- [x] should allow exec into environment
+- [ ] should allow exec into docker
 
 The project builds around [titpetric/yamlexpr](https://github.com/titpetric/yamlexpr), providing
 yaml support for `for`, `if` and interpolation. The interpolation uses GitHub action syntax for
