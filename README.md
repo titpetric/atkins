@@ -36,7 +36,7 @@ The project is inspired by by GHA, Drone CI, Taskfile.
 
 The main problem the project tries to work around is very awkward taskfiles this:
 
-```go
+```yaml
 version: '3'
 
 tasks:
@@ -83,7 +83,7 @@ tasks:
 
 The intent is also to consume yaml/json with `$(...)`.
 
-```
+```yaml
 inbox_list: $(./tp-link-cli sms list --json)
 
 messages:
@@ -97,7 +97,7 @@ This can support `curl` or [titpetric/etl](https://github.com/titpetric/etl) for
 
 The Taskfile flavored options for the runner are:
 
-```
+```yaml
 name: string
 
 tasks:
@@ -111,7 +111,7 @@ tasks:
 
 The alternative is GHA flavored:
 
-```
+```yaml
 name: string
 
 jobs:
@@ -134,7 +134,7 @@ jobs:
 
 And Drone CI flavoured:
 
-```
+```yaml
 workspace:
   base: /app
 
@@ -168,7 +168,7 @@ Drone is actually the simple approach, as it gives you a file for each
 pipeline. Yamlexpr supports include, so the question is, can we compose
 multiple pipelines from individual files.
 
-```
+```yaml
 name: ...
 
 jobs:
