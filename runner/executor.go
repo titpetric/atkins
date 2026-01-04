@@ -3,58 +3,36 @@ package runner
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/titpetric/atkins-ci/model"
 	"github.com/titpetric/atkins-ci/spinner"
+	"github.com/titpetric/atkins-ci/treeview"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/term"
 )
 
 // TreeRenderer manages in-place tree rendering with ANSI cursor control
+// Kept for backward compatibility, wraps treeview.Display
 type TreeRenderer struct {
-	lastLineCount int
-	mu            sync.Mutex
-	isTerminal    bool
+	display *treeview.Display
+	mu      sync.Mutex
 }
 
 // NewTreeRenderer creates a new tree renderer
 func NewTreeRenderer() *TreeRenderer {
-	// Check if stdout is a TTY (interactive terminal)
-	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 	return &TreeRenderer{
-		lastLineCount: 0,
-		isTerminal:    isTerminal,
+		display: treeview.NewDisplay(),
 	}
 }
 
 // Render outputs the tree, updating in-place if previously rendered
-func (tr *TreeRenderer) Render(tree *ExecutionTree) {
+func (tr *TreeRenderer) Render(tree *treeview.ExecutionTree) {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
 
-	// Only render if stdout is a TTY (interactive terminal)
-	// This prevents duplicate output when piped or redirected
-	if !tr.isTerminal {
-		return
-	}
-
-	if tr.lastLineCount > 0 {
-		// Move cursor up, clear to end of display
-		fmt.Printf("\033[%dA\033[J", tr.lastLineCount)
-	}
-
-	output := tree.RenderTree()
-	fmt.Print(output)
-
-	tr.lastLineCount = countOutputLines(output)
-}
-
-func indent(depth int) string {
-	return strings.Repeat("  ", depth)
+	tr.display.Render(tree.Root.Node)
 }
 
 // Options provides configuration for the executor
@@ -105,7 +83,7 @@ func parseTimeout(timeoutStr string, defaultTimeout time.Duration) time.Duration
 }
 
 // ExecuteJob runs a single job
-func (e *Executor) ExecuteJob(parentCtx context.Context, ctx *model.ExecutionContext, jobName string, job *model.Job) error {
+func (e *Executor) ExecuteJob(parentCtx context.Context, ctx *ExecutionContext, jobName string, job *model.Job) error {
 	// Parse job timeout
 	jobTimeout := parseTimeout(job.Timeout, e.opts.DefaultTimeout)
 
@@ -157,7 +135,7 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, ctx *model.ExecutionCon
 }
 
 // executeSteps runs a sequence of steps (deferred steps are already at the end of the list)
-func (e *Executor) executeSteps(jobCtx context.Context, execCtx *model.ExecutionContext, steps []model.Step) error {
+func (e *Executor) executeSteps(jobCtx context.Context, execCtx *ExecutionContext, steps []*model.Step) error {
 	eg := new(errgroup.Group)
 	detached := 0
 
@@ -182,16 +160,16 @@ func (e *Executor) executeSteps(jobCtx context.Context, execCtx *model.Execution
 }
 
 // executeStep runs a single step
-func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionContext, step model.Step, stepIndex int) error {
+func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int) error {
 	// Handle step-level environment variables
-	stepCtx := &model.ExecutionContext{
+	stepCtx := &ExecutionContext{
 		Variables: execCtx.Variables,
 		Env:       make(map[string]string),
 		Results:   execCtx.Results,
 		QuietMode: execCtx.QuietMode,
 		Pipeline:  execCtx.Pipeline,
 		Job:       execCtx.Job,
-		Step:      step.Name,
+		Step:      step,
 		Depth:     execCtx.Depth + 1,
 		Context:   jobCtx,
 	}
@@ -207,19 +185,20 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionC
 	}
 
 	// Get step node from tree
-	var stepNode *TreeNode
-	if jobNode, ok := execCtx.CurrentJob.(*TreeNode); ok {
-		if stepIndex < len(jobNode.Children) {
-			stepNode = jobNode.Children[stepIndex]
+	var stepNode *treeview.Node
+	if jobNode := execCtx.CurrentJob; jobNode != nil {
+		children := jobNode.GetChildren()
+		if stepIndex < len(children) {
+			stepNode = children[stepIndex].Node
 		}
 	}
 
 	// Evaluate if condition
-	shouldRun, err := step.EvaluateIf(stepCtx)
+	shouldRun, err := EvaluateIf(stepCtx)
 	if err != nil {
 		// If condition evaluation fails, skip the step
 		if stepNode != nil {
-			stepNode.SetStatus(StatusSkipped)
+			stepNode.SetStatus(treeview.StatusSkipped)
 		}
 		return fmt.Errorf("failed to evaluate if condition for step %q: %w", step.Name, err)
 	}
@@ -227,7 +206,7 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionC
 	if !shouldRun {
 		// Mark step as skipped
 		if stepNode != nil {
-			stepNode.SetStatus(StatusSkipped)
+			stepNode.SetStatus(treeview.StatusSkipped)
 		}
 		return nil
 	}
@@ -255,12 +234,12 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionC
 
 // executeStepWithForLoop handles for loop expansion and execution
 // Each iteration becomes a separate execution with iteration variables overlaid on context
-func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *model.ExecutionContext, step model.Step, _ int, stepNode *TreeNode) error {
+func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, _ int, stepNode *treeview.Node) error {
 	// Expand the for loop to get all iterations
-	iterations, err := step.ExpandFor(execCtx, ExecuteCommand)
+	iterations, err := ExpandFor(execCtx, ExecuteCommand)
 	if err != nil {
 		if stepNode != nil {
-			stepNode.SetStatus(StatusFailed)
+			stepNode.SetStatus(treeview.StatusFailed)
 		}
 		return fmt.Errorf("failed to expand for loop for step %q: %w", step.Name, err)
 	}
@@ -268,25 +247,41 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *model
 	if len(iterations) == 0 {
 		// Empty for loop - mark as passed
 		if stepNode != nil {
-			stepNode.SetStatus(StatusPassed)
+			stepNode.SetStatus(treeview.StatusPassed)
 		}
 		execCtx.StepsCount++
 		execCtx.StepsPassed++
 		return nil
 	}
 
+	// Add sub-nodes for each iteration to expand the tree
+	iterationNodes := make([]*treeview.Node, 0, len(iterations))
+	if stepNode != nil {
+		for i := range iterations {
+			iterName := fmt.Sprintf("[%d]", i+1)
+			iterNode := &treeview.Node{
+				Name:   iterName,
+				Status: treeview.StatusPending,
+			}
+			stepNode.Children = append(stepNode.Children, iterNode)
+			iterationNodes = append(iterationNodes, iterNode)
+		}
+	}
+
+	// Render tree with expanded iterations
+	execCtx.Renderer.Render(execCtx.CurrentStep)
+
 	// Execute each iteration
 	var lastErr error
-	for _, iteration := range iterations {
+	for idx, iteration := range iterations {
 		// Create iteration context by overlaying iteration variables on parent context
-		iterCtx := &model.ExecutionContext{
+		iterCtx := &ExecutionContext{
 			Variables:   copyVariables(execCtx.Variables),
 			Env:         execCtx.Env,
 			Results:     execCtx.Results,
 			QuietMode:   execCtx.QuietMode,
 			Pipeline:    execCtx.Pipeline,
 			Job:         execCtx.Job,
-			JobDesc:     execCtx.JobDesc,
 			Step:        execCtx.Step,
 			Depth:       execCtx.Depth,
 			Tree:        execCtx.Tree,
@@ -313,10 +308,14 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *model
 			continue // Skip if no command
 		}
 
-		// Execute this iteration
-		// For now, treat all iterations as part of the same step node
-		// TODO: Consider creating sub-nodes for each iteration in the tree
-		if err := e.executeStepIteration(jobCtx, iterCtx, step, stepNode, cmd); err != nil {
+		// Get the iteration sub-node
+		var iterNode *treeview.Node
+		if len(iterationNodes) > idx {
+			iterNode = iterationNodes[idx]
+		}
+
+		// Execute this iteration with the iteration sub-node
+		if err := e.executeStepIteration(jobCtx, iterCtx, step, iterNode, cmd); err != nil {
 			lastErr = err
 			// Continue to next iteration even on error (collect all failures)
 			// This matches yamlexpr behavior of processing all items
@@ -333,10 +332,10 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *model
 }
 
 // executeStepIteration executes a single step (or iteration of a step) with the given context
-func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *model.ExecutionContext, step model.Step, stepNode *TreeNode, cmd string) error {
+func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, cmd string) error {
 	// Mark step as running
 	if stepNode != nil {
-		stepNode.SetStatus(StatusRunning)
+		stepNode.SetStatus(treeview.StatusRunning)
 	}
 
 	// Start spinner and execute command
@@ -346,29 +345,15 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *model.E
 	// Channel to signal command completion
 	cmdDone := make(chan error)
 	go func() {
-		// In TTY mode (interactive terminal), suppress output from detached steps
-		// to prevent breaking the tree rendering. The output will be shown at the end if there's an error.
-		var quietMode int
-		if step.Detach {
-			if renderer, ok := stepCtx.Renderer.(*TreeRenderer); ok {
-				if renderer.isTerminal {
-					quietMode = 1 // suppress stdout for detached steps in TTY mode
-				}
-			}
-		}
-
-		// Execute command with appropriate quiet mode
-		if quietMode > 0 {
-			_, err := ExecuteCommandWithQuiet(cmd, quietMode)
-			cmdDone <- err
-		} else {
-			cmdDone <- e.executeCommand(jobCtx, stepCtx, cmd)
-		}
+		cmdDone <- e.executeCommand(jobCtx, stepCtx, cmd)
+		close(cmdDone)
 	}()
 
 	// Update spinner in tree while command runs
 	tickerTicker := time.NewTicker(100 * time.Millisecond)
 	defer tickerTicker.Stop()
+
+	display := treeview.NewDisplay()
 
 	for {
 		select {
@@ -379,10 +364,10 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *model.E
 			// Update tree node status
 			if stepNode != nil {
 				if err != nil {
-					stepNode.SetStatus(StatusFailed)
+					stepNode.SetStatus(treeview.StatusFailed)
 					return err
 				}
-				stepNode.SetStatus(StatusPassed)
+				stepNode.SetStatus(treeview.StatusPassed)
 				// Clear error log on successful step
 				ErrorLogMutex.Lock()
 				ErrorLog.Reset()
@@ -390,22 +375,14 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *model.E
 			}
 
 			// Render tree with final state
-			if tree, ok := stepCtx.Tree.(*ExecutionTree); ok {
-				if renderer, ok := stepCtx.Renderer.(*TreeRenderer); ok {
-					renderer.Render(tree)
-				}
-			}
+			display.Render(stepCtx.Tree.Root.Node)
 			return nil
 
 		case <-tickerTicker.C:
 			if stepNode != nil {
 				stepNode.SetSpinner(s.String())
-				// Render tree with updated spinner
-				if tree, ok := stepCtx.Tree.(*ExecutionTree); ok {
-					if renderer, ok := stepCtx.Renderer.(*TreeRenderer); ok {
-						renderer.Render(tree)
-					}
-				}
+
+				display.Render(stepCtx.Tree.Root.Node)
 			}
 		}
 	}
@@ -432,7 +409,7 @@ func countOutputLines(output string) int {
 }
 
 // executeCommand runs a single command with interpolation and respects context timeout
-func (e *Executor) executeCommand(ctx context.Context, execCtx *model.ExecutionContext, cmd string) error {
+func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext, cmd string) error {
 	// Interpolate the command
 	interpolated, err := InterpolateCommand(cmd, execCtx)
 	if err != nil {

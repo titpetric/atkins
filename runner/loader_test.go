@@ -1,10 +1,11 @@
-package runner
+package runner_test
 
 import (
 	"os"
 	"testing"
 
 	"github.com/titpetric/atkins-ci/model"
+	"github.com/titpetric/atkins-ci/runner"
 )
 
 // TestLoadPipeline_WithIfConditions tests loading a pipeline with if conditions
@@ -24,7 +25,7 @@ jobs:
 	tmpFile := createTempYaml(t, yamlContent)
 	defer os.Remove(tmpFile)
 
-	pipelines, err := LoadPipeline(tmpFile)
+	pipelines, err := runner.LoadPipeline(tmpFile)
 	if err != nil {
 		t.Fatalf("LoadPipeline failed: %v", err)
 	}
@@ -69,7 +70,7 @@ jobs:
 	tmpFile := createTempYaml(t, yamlContent)
 	defer os.Remove(tmpFile)
 
-	pipelines, err := LoadPipeline(tmpFile)
+	pipelines, err := runner.LoadPipeline(tmpFile)
 	if err != nil {
 		t.Fatalf("LoadPipeline failed: %v", err)
 	}
@@ -110,7 +111,7 @@ jobs:
 	tmpFile := createTempYaml(t, yamlContent)
 	defer os.Remove(tmpFile)
 
-	pipelines, err := LoadPipeline(tmpFile)
+	pipelines, err := runner.LoadPipeline(tmpFile)
 	if err != nil {
 		t.Fatalf("LoadPipeline failed: %v", err)
 	}
@@ -127,14 +128,15 @@ jobs:
 
 	// Test the new Step.ExpandFor() method with index pattern
 	step := &model.Step{For: "(idx, item) in items"}
-	ctx := &model.ExecutionContext{
+	ctx := &runner.ExecutionContext{
 		Variables: map[string]interface{}{
 			"items": []interface{}{"alpha", "beta", "gamma"},
 		},
-		Env: make(map[string]string),
+		Step: step,
+		Env:  make(map[string]string),
 	}
 
-	iterations, err := step.ExpandFor(ctx, nil)
+	iterations, err := runner.ExpandFor(ctx, nil)
 	if err != nil {
 		t.Fatalf("ExpandFor failed: %v", err)
 	}
@@ -179,12 +181,13 @@ func TestEvaluateIfInContext(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			step := &model.Step{If: tt.ifCond}
-			ctx := &model.ExecutionContext{
+			ctx := &runner.ExecutionContext{
 				Variables: tt.vars,
 				Env:       tt.env,
+				Step:      step,
 			}
 
-			result, err := step.EvaluateIf(ctx)
+			result, err := runner.EvaluateIf(ctx)
 			if err != nil {
 				t.Fatalf("EvaluateIf failed: %v", err)
 			}
@@ -230,12 +233,13 @@ func TestExpandForWithVariables(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			step := &model.Step{For: tt.forSpec}
-			ctx := &model.ExecutionContext{
+			ctx := &runner.ExecutionContext{
 				Variables: tt.vars,
 				Env:       make(map[string]string),
+				Step:      step,
 			}
 
-			iterations, err := step.ExpandFor(ctx, nil)
+			iterations, err := runner.ExpandFor(ctx, nil)
 			if err != nil {
 				t.Fatalf("ExpandFor failed: %v", err)
 			}
@@ -278,29 +282,31 @@ func createTempYaml(t *testing.T, content string) string {
 // BenchmarkEvaluateIfExpression benchmarks if condition evaluation
 func BenchmarkEvaluateIfExpression(b *testing.B) {
 	step := &model.Step{If: "matrix_os == 'linux' && GOARCH == 'amd64'"}
-	ctx := &model.ExecutionContext{
+	ctx := &runner.ExecutionContext{
 		Variables: map[string]interface{}{"matrix_os": "linux"},
 		Env:       map[string]string{"GOARCH": "amd64"},
+		Step:      step,
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		step.EvaluateIf(ctx)
+		runner.EvaluateIf(ctx)
 	}
 }
 
 // BenchmarkExpandForLoop benchmarks for loop expansion
 func BenchmarkExpandForLoop(b *testing.B) {
 	step := &model.Step{For: "(i, item) in items"}
-	ctx := &model.ExecutionContext{
+	ctx := &runner.ExecutionContext{
 		Variables: map[string]interface{}{
 			"items": []interface{}{"a", "b", "c", "d", "e"},
 		},
-		Env: make(map[string]string),
+		Step: step,
+		Env:  make(map[string]string),
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		step.ExpandFor(ctx, nil)
+		runner.ExpandFor(ctx, nil)
 	}
 }

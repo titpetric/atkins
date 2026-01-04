@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-
-	"github.com/titpetric/atkins-ci/model"
 )
 
 var (
@@ -16,7 +14,7 @@ var (
 )
 
 // InterpolateString replaces ${{ variable }} with values from context
-func InterpolateString(s string, ctx *model.ExecutionContext) (string, error) {
+func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
 	result := s
 
 	// Handle variable interpolation: ${{ var }}
@@ -60,7 +58,7 @@ func InterpolateString(s string, ctx *model.ExecutionContext) (string, error) {
 }
 
 // InterpolateMap recursively interpolates all string values in a map
-func InterpolateMap(m map[string]interface{}, ctx *model.ExecutionContext) error {
+func InterpolateMap(m map[string]interface{}, ctx *ExecutionContext) error {
 	for k, v := range m {
 		switch val := v.(type) {
 		case string:
@@ -89,7 +87,7 @@ func InterpolateMap(m map[string]interface{}, ctx *model.ExecutionContext) error
 }
 
 // InterpolateCommand interpolates a command string
-func InterpolateCommand(cmd string, ctx *model.ExecutionContext) (string, error) {
+func InterpolateCommand(cmd string, ctx *ExecutionContext) (string, error) {
 	return InterpolateString(cmd, ctx)
 }
 

@@ -1,22 +1,23 @@
-package runner
+package runner_test
 
 import (
 	"testing"
 
 	"github.com/titpetric/atkins-ci/model"
+	"github.com/titpetric/atkins-ci/runner"
 )
 
 func TestExecuteStepWithForLoop(t *testing.T) {
 	tests := []struct {
 		name          string
-		step          model.Step
+		step          *model.Step
 		variables     map[string]interface{}
 		expectedCount int
 		expectError   bool
 	}{
 		{
 			name: "simple for loop with list",
-			step: model.Step{
+			step: &model.Step{
 				Name: "test step",
 				Run:  "echo ${{ item }}",
 				For:  "item in fruits",
@@ -29,7 +30,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 		},
 		{
 			name: "for loop with custom variable name",
-			step: model.Step{
+			step: &model.Step{
 				Name: "test step",
 				Run:  "echo ${{ pkg }}",
 				For:  "pkg in packages",
@@ -42,7 +43,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 		},
 		{
 			name: "empty for loop",
-			step: model.Step{
+			step: &model.Step{
 				Name: "test step",
 				Run:  "echo ${{ item }}",
 				For:  "item in empty",
@@ -57,12 +58,13 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := &model.ExecutionContext{
+			ctx := &runner.ExecutionContext{
 				Variables: tt.variables,
+				Step:      tt.step,
 				Env:       make(map[string]string),
 			}
 
-			iterations, err := tt.step.ExpandFor(ctx, func(cmd string) (string, error) {
+			iterations, err := runner.ExpandFor(ctx, func(cmd string) (string, error) {
 				return "", nil
 			})
 
@@ -131,12 +133,12 @@ func TestInterpolationInForLoop(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := &model.ExecutionContext{
+			ctx := &runner.ExecutionContext{
 				Variables: tt.variables,
 				Env:       make(map[string]string),
 			}
 
-			result, err := InterpolateCommand(tt.cmd, ctx)
+			result, err := runner.InterpolateCommand(tt.cmd, ctx)
 
 			if (err != nil) != tt.expectError {
 				t.Errorf("InterpolateCommand error = %v, expectError %v", err, tt.expectError)
@@ -155,17 +157,18 @@ func TestForLoopStepExecution(t *testing.T) {
 		// Executor not needed for this test
 
 		// Create step with for loop
-		step := model.Step{
+		step := &model.Step{
 			Name: "process items",
 			Run:  "echo ${{ item }} >> /tmp/test-for-exec.log",
 			For:  "item in items",
 		}
 
 		// Create execution context with iteration items
-		ctx := &model.ExecutionContext{
+		ctx := &runner.ExecutionContext{
 			Variables: map[string]interface{}{
 				"items": []interface{}{"one", "two", "three"},
 			},
+			Step:      step,
 			Env:       make(map[string]string),
 			Results:   make(map[string]interface{}),
 			QuietMode: 1, // quiet mode to not print output
@@ -179,7 +182,7 @@ func TestForLoopStepExecution(t *testing.T) {
 		}
 
 		// Expand and verify
-		iterations, err := step.ExpandFor(ctx, mockExecuteFunc)
+		iterations, err := runner.ExpandFor(ctx, mockExecuteFunc)
 		if err != nil {
 			t.Fatalf("ExpandFor failed: %v", err)
 		}
