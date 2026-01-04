@@ -140,15 +140,21 @@ func (e *Executor) executeSteps(jobCtx context.Context, execCtx *ExecutionContex
 func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int) error {
 	// Handle step-level environment variables
 	stepCtx := &ExecutionContext{
-		Variables: execCtx.Variables,
-		Env:       make(map[string]string),
-		Results:   execCtx.Results,
-		Verbose:   execCtx.Verbose,
-		Pipeline:  execCtx.Pipeline,
-		Job:       execCtx.Job,
-		Step:      step,
-		Depth:     execCtx.Depth + 1,
-		Context:   jobCtx,
+		Variables:   execCtx.Variables,
+		Env:         make(map[string]string),
+		Results:     execCtx.Results,
+		Verbose:     execCtx.Verbose,
+		Pipeline:    execCtx.Pipeline,
+		Job:         execCtx.Job,
+		Step:        step,
+		Depth:       execCtx.Depth + 1,
+		Context:     jobCtx,
+		Display:     execCtx.Display,
+		Builder:     execCtx.Builder,
+		CurrentJob:  execCtx.CurrentJob,
+		StepsCount:  execCtx.StepsCount,
+		StepsPassed: execCtx.StepsPassed,
+		JobNodes:    execCtx.JobNodes,
 	}
 
 	// Copy parent env and add step-specific env
@@ -188,9 +194,14 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 		return nil
 	}
 
+	// Handle task invocation
+	if step.Task != "" {
+		return e.executeTaskStep(jobCtx, stepCtx, step, stepNode)
+	}
+
 	// Handle for loop expansion
 	if step.For != "" {
-		return e.executeStepWithForLoop(jobCtx, execCtx, step, stepIndex, stepNode)
+		return e.executeStepWithForLoop(jobCtx, stepCtx, step, stepIndex, stepNode)
 	}
 
 	// Determine which command to run
@@ -206,7 +217,7 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 	}
 
 	// Execute single iteration of the step
-	return e.executeStepIteration(jobCtx, execCtx, step, stepNode, cmd)
+	return e.executeStepIteration(jobCtx, stepCtx, step, stepNode, cmd)
 }
 
 // executeStepWithForLoop handles for loop expansion and execution
@@ -231,22 +242,69 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 		return nil
 	}
 
-	// Add sub-nodes for each iteration to expand the tree
+	// Build iteration nodes with interpolated command names
 	iterationNodes := make([]*treeview.Node, 0, len(iterations))
 	if stepNode != nil {
-		for i := range iterations {
-			iterName := fmt.Sprintf("[%d]", i+1)
+		// Replace the for-loop step node with actual iteration nodes as siblings
+		// Get the command template
+		var cmdTemplate string
+		if step.Run != "" {
+			cmdTemplate = step.Run
+		} else if step.Cmd != "" {
+			cmdTemplate = step.Cmd
+		} else if len(step.Cmds) > 0 {
+			cmdTemplate = strings.Join(step.Cmds, " && ")
+		}
+
+		// Create node for each iteration with interpolated command
+		for _, iteration := range iterations {
+			// Interpolate command with iteration variables
+			iterCtx := &ExecutionContext{
+				Variables: copyVariables(execCtx.Variables),
+				Env:       execCtx.Env,
+				Results:   execCtx.Results,
+			}
+			for k, v := range iteration.Variables {
+				iterCtx.Variables[k] = v
+			}
+
+			interpolated, _ := InterpolateCommand(cmdTemplate, iterCtx)
+
 			iterNode := &treeview.Node{
-				Name:   iterName,
+				Name:   interpolated,
 				Status: treeview.StatusPending,
 			}
-			stepNode.Children = append(stepNode.Children, iterNode)
+
+			// Add as sibling to stepNode by adding to parent's children
+			if execCtx.CurrentJob != nil {
+				jobChildren := execCtx.CurrentJob.Node.GetChildren()
+				// Find the step node's index and replace/insert
+				for i, child := range jobChildren {
+					if child == stepNode {
+						// Insert after this node
+						jobChildren = append(jobChildren[:i+1], append([]*treeview.Node{iterNode}, jobChildren[i+1:]...)...)
+						execCtx.CurrentJob.Node.Children = jobChildren
+						break
+					}
+				}
+			}
 			iterationNodes = append(iterationNodes, iterNode)
+		}
+
+		// Remove the original step node since iterations replace it
+		if execCtx.CurrentJob != nil {
+			jobChildren := make([]*treeview.Node, 0)
+			for _, child := range execCtx.CurrentJob.Node.GetChildren() {
+				if child != stepNode {
+					jobChildren = append(jobChildren, child)
+				}
+			}
+			execCtx.CurrentJob.Node.Children = jobChildren
 		}
 	}
 
 	// Render tree with expanded iterations
-	execCtx.Display.Render(execCtx.CurrentStep)
+	execCtx.Display.Render(execCtx.Builder.Root())
 
 	// Execute each iteration
 	var lastErr error
@@ -261,9 +319,13 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 			Job:         execCtx.Job,
 			Step:        execCtx.Step,
 			Depth:       execCtx.Depth,
+			StepsCount:  execCtx.StepsCount,
+			StepsPassed: execCtx.StepsPassed,
 			Builder:     execCtx.Builder,
 			CurrentJob:  execCtx.CurrentJob,
 			CurrentStep: execCtx.CurrentStep,
+			Display:     execCtx.Display,
+			JobNodes:    execCtx.JobNodes,
 			Context:     jobCtx,
 		}
 
@@ -356,6 +418,81 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *Executi
 			}
 		}
 	}
+}
+
+// executeTaskStep executes a task/job from within a step
+func (e *Executor) executeTaskStep(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
+	// Get the task name from the step
+	taskName := step.Task
+
+	// Find the task in the pipeline
+	allJobs := execCtx.Pipeline.Jobs
+	if len(allJobs) == 0 {
+		allJobs = execCtx.Pipeline.Tasks
+	}
+
+	taskJob, exists := allJobs[taskName]
+	if !exists {
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusFailed)
+		}
+		return fmt.Errorf("task %q not found in pipeline", taskName)
+	}
+
+	// Get the existing tree node for this task
+	taskJobNode := execCtx.JobNodes[taskName]
+	if taskJobNode == nil {
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusFailed)
+		}
+		return fmt.Errorf("task %q node not found in tree", taskName)
+	}
+
+	// Mark the task as running
+	if stepNode != nil {
+		stepNode.SetStatus(treeview.StatusRunning)
+	}
+
+	// Mark the task node itself as running
+	taskJobNode.SetStatus(treeview.StatusRunning)
+	execCtx.Display.Render(execCtx.Builder.Root())
+
+	// Create a new execution context for the task using the task's existing tree node
+	taskCtx := &ExecutionContext{
+		Variables:   copyVariables(execCtx.Variables),
+		Env:         execCtx.Env,
+		Results:     execCtx.Results,
+		Verbose:     execCtx.Verbose,
+		Pipeline:    execCtx.Pipeline,
+		Job:         taskJob,
+		Depth:       execCtx.Depth + 1,
+		StepsCount:  execCtx.StepsCount,
+		StepsPassed: execCtx.StepsPassed,
+		Builder:     execCtx.Builder,
+		CurrentJob:  taskJobNode,
+		Display:     execCtx.Display,
+		JobNodes:    execCtx.JobNodes,
+		Context:     jobCtx,
+	}
+
+	// Execute the task job steps
+	if err := e.executeSteps(jobCtx, taskCtx, taskJob.Steps); err != nil {
+		taskJobNode.SetStatus(treeview.StatusFailed)
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusFailed)
+		}
+		execCtx.Display.Render(execCtx.Builder.Root())
+		return err
+	}
+
+	// Mark task and step as passed
+	taskJobNode.SetStatus(treeview.StatusPassed)
+	if stepNode != nil {
+		stepNode.SetStatus(treeview.StatusPassed)
+	}
+	execCtx.Display.Render(execCtx.Builder.Root())
+
+	return nil
 }
 
 // copyVariables creates a shallow copy of a variables map

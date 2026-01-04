@@ -29,6 +29,7 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 		Builder:   tree,
 		Display:   display,
 		Context:   ctx,
+		JobNodes:  make(map[string]*treeview.TreeNode),
 	}
 
 	// Copy environment variables
@@ -63,14 +64,20 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 		// Get job dependencies
 		deps := GetDependencies(job.DependsOn)
 
-		jobNode := tree.AddJob(jobLabel, job, deps)
+		jobNode := tree.AddJobWithoutSteps(jobLabel, job.Nested, deps)
 
 		// Populate children
 		for _, step := range job.Steps {
+			// Get the step command/name
+			stepName := getStepCommand(step)
+			if stepName == "" {
+				stepName = step.Name // Fallback to explicit name if no command found
+			}
+
 			var stepNode *treeview.Node
 			if step.Deferred {
 				stepNode = &treeview.Node{
-					Name:      step.Name,
+					Name:      stepName,
 					Status:    treeview.StatusPending,
 					UpdatedAt: time.Now(),
 					Children:  make([]*treeview.Node, 0),
@@ -78,7 +85,7 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 				}
 			} else {
 				stepNode = &treeview.Node{
-					Name:      step.Name,
+					Name:      stepName,
 					Status:    treeview.StatusPending,
 					UpdatedAt: time.Now(),
 					Children:  make([]*treeview.Node, 0),
@@ -89,6 +96,7 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 
 		jobNodes[jobName] = jobNode
 	}
+	pipelineCtx.JobNodes = jobNodes
 	display.Render(root)
 
 	executor := NewExecutor()
@@ -213,6 +221,24 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 
 	//	fmt.Print(colors.BrightGreen(fmt.Sprintf("✓ PASS (%d jobs passing)\n", count)))
 	return nil
+}
+
+func getStepCommand(step *model.Step) string {
+	if step.Defer != "" {
+		// Deferred step - show the defer command
+		return step.Defer
+	} else if step.Task != "" {
+		// Task invocation - show as "task: <task-name>"
+		return "task: " + step.Task
+	} else if step.Run != "" {
+		return step.Run
+	} else if step.Cmd != "" {
+		return step.Cmd
+	} else if len(step.Cmds) > 0 {
+		// For cmds array, just show the first one as a placeholder
+		return step.Cmds[0]
+	}
+	return ""
 }
 
 func indent(depth int) string {

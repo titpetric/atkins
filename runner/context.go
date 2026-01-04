@@ -33,6 +33,7 @@ type ExecutionContext struct {
 	CurrentJob  *treeview.TreeNode
 	CurrentStep *treeview.Node
 
-	Display *treeview.Display
-	Builder *treeview.Builder
+	Display  *treeview.Display
+	Builder  *treeview.Builder
+	JobNodes map[string]*treeview.TreeNode // Map of job names to their tree nodes
 }

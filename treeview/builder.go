@@ -42,6 +42,20 @@ func (b *Builder) AddJob(jobName string, job *model.Job, deps []string) *TreeNod
 	}
 }
 
+// AddJobWithoutSteps adds a job node to the tree without steps
+// (steps should be added manually afterwards)
+func (b *Builder) AddJobWithoutSteps(jobName string, nested bool, deps []string) *TreeNode {
+	// Create job node
+	jobNode := NewJobNode(jobName, nested)
+	jobNode.Dependencies = deps
+
+	b.root.AddChild(jobNode)
+
+	return &TreeNode{
+		Node: jobNode,
+	}
+}
+
 // buildStepNode constructs a step node from a step definition
 func (b *Builder) buildStepNode(step *model.Step) *Node {
 	// Build step command/label
@@ -50,9 +64,6 @@ func (b *Builder) buildStepNode(step *model.Step) *Node {
 	// Build the name with annotations
 	// Note: (deferred) is added by the renderer if node.Deferred is true
 	stepName := cmd
-	if step.For != "" {
-		stepName = stepName + " (waiting)"
-	}
 	if step.If != "" {
 		stepName = stepName + " (conditional)"
 	}
@@ -68,6 +79,9 @@ func (b *Builder) getStepCommand(step *model.Step) string {
 	if step.Defer != "" {
 		// Deferred step - show the defer command
 		return step.Defer
+	} else if step.Task != "" {
+		// Task invocation - show as "task: <task-name>"
+		return "task: " + step.Task
 	} else if step.Run != "" {
 		return step.Run
 	} else if step.Cmd != "" {

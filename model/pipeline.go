@@ -41,6 +41,7 @@ type Step struct {
 	Run      string                 `yaml:"run,omitempty"`
 	Cmd      string                 `yaml:"cmd,omitempty"`
 	Cmds     []string               `yaml:"cmds,omitempty"`
+	Task     string                 `yaml:"task,omitempty"` // Task/job name to invoke
 	If       string                 `yaml:"if,omitempty"`
 	For      string                 `yaml:"for,omitempty"`
 	Env      map[string]string      `yaml:"env,omitempty"`

@@ -43,8 +43,14 @@ func (r *Renderer) RenderStatic(root *Node) string {
 
 	output := colors.BrightGreen(root.Name) + "\n"
 
-	//return output + r.renderNode(root, "", true)
-	return output + r.renderStaticNode(root, "", true)
+	// Render only the children, not the root again
+	children := root.GetChildren()
+	for i, child := range children {
+		isLast := i == len(children)-1
+		output += r.renderStaticNode(child, "", isLast)
+	}
+
+	return output
 }
 
 func statusBadge(node *Node) (string, string) {
