@@ -20,7 +20,7 @@ tasks:
 
   test:
     cmds:
-      - go test -v ./...
+      - gotestsum ./... -- -count 1
 
   record:
     cmds:
