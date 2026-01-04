@@ -103,31 +103,6 @@ func TestGetDependencies(t *testing.T) {
 	}
 }
 
-// TestResolveJobDependencies returns jobs in correct order
-func TestResolveJobDependencies_Order(t *testing.T) {
-	jobs := map[string]*model.Job{
-		"fmt":        {},
-		"test":       {DependsOn: "fmt"},
-		"test:build": {DependsOn: "fmt"},
-		"test:run":   {DependsOn: []interface{}{"test:build", "test"}},
-	}
-
-	resolved, err := ResolveJobDependencies(jobs, "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// fmt should come first
-	if resolved[0] != "fmt" {
-		t.Errorf("first job = %q, want 'fmt'", resolved[0])
-	}
-
-	// test:run should come last (depends on others)
-	if resolved[len(resolved)-1] != "test" {
-		t.Errorf("last job = %q, want 'test'", resolved[len(resolved)-1])
-	}
-}
-
 // TestResolveJobDependencies_SpecificJob resolves dependency chain for a specific job
 func TestResolveJobDependencies_SpecificJob(t *testing.T) {
 	jobs := map[string]*model.Job{

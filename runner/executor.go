@@ -42,16 +42,15 @@ func (tr *TreeRenderer) Render(tree *ExecutionTree) {
 		return
 	}
 
-	output := tree.RenderTree()
-	lineCount := countOutputLines(output)
-
 	if tr.lastLineCount > 0 {
 		// Move cursor up, clear to end of display
 		fmt.Printf("\033[%dA\033[J", tr.lastLineCount)
 	}
 
+	output := tree.RenderTree()
 	fmt.Print(output)
-	tr.lastLineCount = lineCount
+
+	tr.lastLineCount = countOutputLines(output)
 }
 
 func indent(depth int) string {
@@ -235,7 +234,6 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionC
 
 	// Handle for loop expansion
 	if step.For != "" {
-		fmt.Fprintf(os.Stderr, "DEBUG: executeStep detected for loop: %q\n", step.For)
 		return e.executeStepWithForLoop(jobCtx, execCtx, step, stepIndex, stepNode)
 	}
 
@@ -302,9 +300,6 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *model
 		for k, v := range iteration.Variables {
 			iterCtx.Variables[k] = v
 		}
-
-		// DEBUG: Log iteration variables
-		fmt.Fprintf(os.Stderr, "DEBUG: For loop iteration variables: %v\n", iterCtx.Variables)
 
 		// Determine which command to run
 		var cmd string

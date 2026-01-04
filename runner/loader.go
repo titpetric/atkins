@@ -27,5 +27,13 @@ func LoadPipeline(filePath string) ([]*model.Pipeline, error) {
 	if err := decoder.Decode(result[0]); err != nil {
 		return nil, fmt.Errorf("error decoding pipeline: %w", err)
 	}
+
+	for jobName, job := range result[0].Jobs {
+		job.Name = jobName
+		if strings.Contains(jobName, ":") {
+			job.Nested = true
+		}
+	}
+
 	return result, nil
 }

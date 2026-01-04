@@ -13,45 +13,47 @@ import (
 
 // Pipeline represents the root structure of an atkins.yml file
 type Pipeline struct {
-	Name  string          `yaml:"name"`
-	Jobs  map[string]*Job `yaml:"jobs"`
-	Tasks map[string]*Job `yaml:"tasks"`
+	Name  string          `yaml:"name,omitempty"`
+	Jobs  map[string]*Job `yaml:"jobs,omitempty"`
+	Tasks map[string]*Job `yaml:"tasks,omitempty"`
 }
 
 // Job represents a job/task in the pipeline
 type Job struct {
-	Desc      string                 `yaml:"desc"`
-	RunsOn    string                 `yaml:"runs_on"`
-	Container string                 `yaml:"container"`
-	If        string                 `yaml:"if"`
-	Cmd       string                 `yaml:"cmd"`
-	Cmds      []string               `yaml:"cmds"`
-	Run       string                 `yaml:"run"`
-	Steps     []Step                 `yaml:"steps"`
-	Services  map[string]*Service    `yaml:"services"`
-	Vars      map[string]interface{} `yaml:"vars"`
-	Env       map[string]string      `yaml:"env"`
-	Matrix    map[string]interface{} `yaml:"matrix"`
-	Detach    bool                   `yaml:"detach"`
-	DependsOn interface{}            `yaml:"depends_on"` // string or []string
-	Timeout   string                 `yaml:"timeout"`    // e.g., "10m", "300s"
+	Desc      string                 `yaml:"desc,omitempty"`
+	RunsOn    string                 `yaml:"runs_on,omitempty"`
+	Container string                 `yaml:"container,omitempty"`
+	If        string                 `yaml:"if,omitempty"`
+	Cmd       string                 `yaml:"cmd,omitempty"`
+	Cmds      []string               `yaml:"cmds,omitempty"`
+	Run       string                 `yaml:"run,omitempty"`
+	Steps     []Step                 `yaml:"steps,omitempty"`
+	Services  map[string]*Service    `yaml:"services,omitempty"`
+	Vars      map[string]interface{} `yaml:"vars,omitempty"`
+	Env       map[string]string      `yaml:"env,omitempty"`
+	Detach    bool                   `yaml:"detach,omitempty"`
+	DependsOn interface{}            `yaml:"depends_on,omitempty"` // string or []string
+	Timeout   string                 `yaml:"timeout,omitempty"`    // e.g., "10m", "300s"
+
+	Name   string `yaml:"-"`
+	Nested bool   `yaml:"-"`
 }
 
 // Step represents a step within a job
 type Step struct {
-	Name     string                 `yaml:"name"`
-	Desc     string                 `yaml:"desc"`
-	Run      string                 `yaml:"run"`
-	Cmd      string                 `yaml:"cmd"`
-	Cmds     []string               `yaml:"cmds"`
-	If       string                 `yaml:"if"`
-	For      string                 `yaml:"for"`
-	Env      map[string]string      `yaml:"env"`
-	Uses     string                 `yaml:"uses"`
-	With     map[string]interface{} `yaml:"with"`
-	Detach   bool                   `yaml:"detach"`
-	Defer    string                 `yaml:"defer"`
-	Deferred bool                   `yaml:"deferred"`
+	Name     string                 `yaml:"name,omitempty"`
+	Desc     string                 `yaml:"desc,omitempty"`
+	Run      string                 `yaml:"run,omitempty"`
+	Cmd      string                 `yaml:"cmd,omitempty"`
+	Cmds     []string               `yaml:"cmds,omitempty"`
+	If       string                 `yaml:"if,omitempty"`
+	For      string                 `yaml:"for,omitempty"`
+	Env      map[string]string      `yaml:"env,omitempty"`
+	Uses     string                 `yaml:"uses,omitempty"`
+	With     map[string]interface{} `yaml:"with,omitempty"`
+	Detach   bool                   `yaml:"detach,omitempty"`
+	Defer    string                 `yaml:"defer,omitempty"`
+	Deferred bool                   `yaml:"deferred,omitempty"`
 
 	// Internal: cached compiled expr program for If evaluation
 	ifProgram *vm.Program
@@ -304,12 +306,12 @@ func copyMap(m map[string]interface{}) map[string]interface{} {
 
 // Service represents a service (e.g., Docker container) used in a job
 type Service struct {
-	Image    string            `yaml:"image"`
-	Pull     string            `yaml:"pull"`
-	Options  string            `yaml:"options"`
-	Ports    []string          `yaml:"ports"`
-	Env      map[string]string `yaml:"env"`
-	Networks []string          `yaml:"networks"`
+	Image    string            `yaml:"image,omitempty"`
+	Pull     string            `yaml:"pull,omitempty"`
+	Options  string            `yaml:"options,omitempty"`
+	Ports    []string          `yaml:"ports,omitempty"`
+	Env      map[string]string `yaml:"env,omitempty"`
+	Networks []string          `yaml:"networks,omitempty"`
 }
 
 // ExecutionContext holds runtime state during pipeline execution

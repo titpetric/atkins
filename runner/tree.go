@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/titpetric/atkins-ci/colors"
+	"github.com/titpetric/atkins-ci/model"
 )
 
 // NodeStatus represents the execution status of a node
@@ -17,6 +18,7 @@ const (
 	StatusPassed
 	StatusFailed
 	StatusSkipped
+	StatusConditional
 )
 
 // TreeNode represents a node in the execution tree
@@ -49,13 +51,18 @@ func NewExecutionTree(pipelineName string) *ExecutionTree {
 }
 
 // AddJob adds a job node to the tree
-func (et *ExecutionTree) AddJob(jobName string) *TreeNode {
+func (et *ExecutionTree) AddJob(job *model.Job) *TreeNode {
 	et.mu.Lock()
 	defer et.mu.Unlock()
 
+	status := StatusPending
+	if job.Nested {
+		status = StatusConditional
+	}
+
 	node := &TreeNode{
-		Name:         jobName,
-		Status:       StatusPending,
+		Name:         job.Name,
+		Status:       status,
 		Children:     make([]*TreeNode, 0),
 		Dependencies: make([]string, 0),
 	}
@@ -175,6 +182,9 @@ func renderNode(node *TreeNode, prefix string, isLast bool) string {
 		} else {
 			nameColor = colors.BrightGreen(node.Name)
 		}
+	case StatusConditional:
+		status = colors.BrightYellow("?")
+		nameColor = colors.Gray(node.Name)
 	case StatusFailed:
 		status = colors.BrightRed("✗")
 		nameColor = colors.BrightRed(node.Name)

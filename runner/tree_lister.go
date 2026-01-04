@@ -49,7 +49,11 @@ func ListPipeline(pipeline *model.Pipeline) {
 			jobLabel = jobLabel + fmt.Sprintf(" (depends_on: %s)", depsStr)
 		}
 
-		fmt.Printf("%s%s\n", prefix, jobLabel)
+		if job.Nested {
+			fmt.Printf("%s%s %s\n", prefix, jobLabel, colors.BrightYellow("(conditional)"))
+		} else {
+			fmt.Printf("%s%s\n", prefix, jobLabel)
+		}
 
 		// Show steps with their commands in orange
 		if len(job.Steps) > 0 {

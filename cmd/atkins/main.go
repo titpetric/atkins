@@ -14,6 +14,7 @@ import (
 	"github.com/titpetric/atkins-ci/model"
 	"github.com/titpetric/atkins-ci/runner"
 	"golang.org/x/sync/errgroup"
+	"gopkg.in/yaml.v2"
 )
 
 func fatalf(message string, args ...any) {
@@ -30,11 +31,13 @@ func main() {
 	var job string
 	var listFlag bool
 	var lintFlag bool
+	var debug bool
 
 	flag.StringVar(&pipelineFile, "file", "atkins.yml", "Path to pipeline file")
 	flag.StringVar(&job, "job", "", "Specific job to run (optional)")
 	flag.BoolVar(&listFlag, "l", false, "List pipeline jobs and dependencies")
 	flag.BoolVar(&lintFlag, "lint", false, "Lint pipeline for errors")
+	flag.BoolVar(&debug, "debug", false, "Print debug data")
 	flag.Parse()
 
 	// Handle positional argument as job name
@@ -92,6 +95,12 @@ func main() {
 				}
 				os.Exit(1)
 			}
+
+			if debug {
+				b, _ := yaml.Marshal(pipeline)
+				fmt.Printf("%s\n", string(b))
+			}
+
 			runner.ListPipeline(pipeline)
 		}
 		return
@@ -179,30 +188,26 @@ func runPipeline(wg *sync.WaitGroup, pipeline *model.Pipeline, job string) error
 		fatalf("%s %s\n", colors.BrightRed("ERROR:"), err)
 	}
 
-	jobsToRun := make(map[string]*model.Job)
-	for _, jobName := range jobOrder {
-		jobsToRun[jobName] = allJobs[jobName]
-	}
-
 	// Pre-populate all jobs as pending
 	jobNodes := make(map[string]*runner.TreeNode)
-	for jobName, jobDef := range jobsToRun {
+	for _, jobName := range jobOrder {
+		job := allJobs[jobName]
 		jobLabel := jobName
-		if jobDef.Desc != "" {
-			jobLabel = jobName + " - " + jobDef.Desc
+		if job.Desc != "" {
+			jobLabel = jobName + " - " + job.Desc
 		}
 
 		// Get job dependencies
-		deps := runner.GetDependencies(jobDef.DependsOn)
+		deps := runner.GetDependencies(job.DependsOn)
 		var jobNode *runner.TreeNode
 		if len(deps) > 0 {
 			jobNode = tree.AddJobWithDeps(jobLabel, deps)
 		} else {
-			jobNode = tree.AddJob(jobLabel)
+			jobNode = tree.AddJob(job)
 		}
 
 		// Populate children
-		for _, step := range jobDef.Steps {
+		for _, step := range job.Steps {
 			var pendingNode *runner.TreeNode
 			if step.Deferred {
 				pendingNode = &runner.TreeNode{
@@ -235,9 +240,9 @@ func runPipeline(wg *sync.WaitGroup, pipeline *model.Pipeline, job string) error
 	var jobMutex sync.Mutex
 
 	// Helper to execute a job (with dependency checking)
-	executeJobWithDeps := func(jobName string, jobDef *model.Job) error {
+	executeJobWithDeps := func(jobName string, job *model.Job) error {
 		// Wait for dependencies if any
-		deps := runner.GetDependencies(jobDef.DependsOn)
+		deps := runner.GetDependencies(job.DependsOn)
 		for _, dep := range deps {
 			for {
 				jobMutex.Lock()
@@ -252,7 +257,7 @@ func runPipeline(wg *sync.WaitGroup, pipeline *model.Pipeline, job string) error
 
 		jobCtx := *ctx
 		jobCtx.Job = jobName
-		jobCtx.JobDesc = jobDef.Desc
+		jobCtx.JobDesc = job.Desc
 		jobCtx.Depth = 1
 
 		// Get pre-created job node and mark it as running
@@ -261,7 +266,7 @@ func runPipeline(wg *sync.WaitGroup, pipeline *model.Pipeline, job string) error
 		jobCtx.CurrentJob = jobNode
 		renderer.Render(tree)
 
-		if err := executor.ExecuteJob(rootCtx, &jobCtx, jobName, jobDef); err != nil {
+		if err := executor.ExecuteJob(rootCtx, &jobCtx, jobName, job); err != nil {
 			jobMutex.Lock()
 			jobCompleted[jobName] = true
 			jobMutex.Unlock()
@@ -285,17 +290,23 @@ func runPipeline(wg *sync.WaitGroup, pipeline *model.Pipeline, job string) error
 	detached := 0
 	count := 0
 
-	for name, job := range jobsToRun {
+	for _, name := range jobOrder {
+		job := allJobs[name]
+
+		if job.Nested {
+			continue
+		}
+
 		if job.Detach {
 			detached++
 			count++
 			eg.Go(func() error {
-				return executeJobWithDeps(name, jobsToRun[name])
+				return executeJobWithDeps(name, job)
 			})
 			continue
 		}
 
-		if err := executeJobWithDeps(name, jobsToRun[name]); err != nil {
+		if err := executeJobWithDeps(name, job); err != nil {
 			// Mark pipeline as failed
 			tree.Root.Status = runner.StatusFailed
 			tree.Root.UpdatedAt = time.Now()

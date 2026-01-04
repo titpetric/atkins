@@ -18,7 +18,7 @@ var LastExitCode int
 
 // ExecuteCommand executes a shell command using bash -c
 func ExecuteCommand(cmdStr string) (string, error) {
-	return ExecuteCommandWithQuiet(cmdStr, 0)
+	return ExecuteCommandWithQuiet(cmdStr, 2)
 }
 
 // ExecuteCommandWithQuiet executes a shell command with quiet mode

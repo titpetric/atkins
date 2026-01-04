@@ -2,6 +2,8 @@ package runner
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/titpetric/atkins-ci/model"
@@ -99,25 +101,18 @@ func ResolveJobDependencies(jobs map[string]*model.Job, startingJob string) ([]s
 	}
 
 	// Otherwise, resolve root jobs (those without ':' in name)
-	rootJobs := make(map[string]*model.Job)
 	for name, job := range jobs {
-		if !strings.Contains(name, ":") {
-			rootJobs[name] = job
+		if strings.Contains(name, ":") {
+			job.Nested = true
 		}
 	}
 
 	// If 'default' job exists, start with that
-	if _, hasDefault := rootJobs["default"]; hasDefault && len(rootJobs) > 0 {
-		return resolveDependencyChain(rootJobs, "default")
+	if _, hasDefault := jobs["default"]; hasDefault && len(jobs) > 0 {
+		return resolveDependencyChain(jobs, "default")
 	}
 
-	// Otherwise resolve all root jobs
-	if len(rootJobs) > 0 {
-		return resolveAllJobs(rootJobs)
-	}
-
-	// Fallback: if no root jobs, resolve all jobs
-	return resolveAllJobs(jobs)
+	return resolveJobs(jobs)
 }
 
 // resolveDependencyChain returns a job and all its dependencies in execution order
@@ -157,8 +152,8 @@ func resolveDependencyChain(jobs map[string]*model.Job, jobName string) ([]strin
 	return resolved, nil
 }
 
-// resolveAllJobs returns all jobs in dependency order (topological sort)
-func resolveAllJobs(jobs map[string]*model.Job) ([]string, error) {
+// resolveJobs returns all jobs in dependency order (topological sort)
+func resolveJobs(jobs map[string]*model.Job) ([]string, error) {
 	resolved := make([]string, 0)
 	visited := make(map[string]bool)
 	var visit func(string) error
@@ -187,8 +182,8 @@ func resolveAllJobs(jobs map[string]*model.Job) ([]string, error) {
 		return nil
 	}
 
-	// Visit all jobs
-	for jobName := range jobs {
+	names := slices.Sorted(maps.Keys(jobs))
+	for _, jobName := range names {
 		if err := visit(jobName); err != nil {
 			return nil, err
 		}
