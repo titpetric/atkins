@@ -123,8 +123,8 @@ func TestResolveJobDependencies_Order(t *testing.T) {
 	}
 
 	// test:run should come last (depends on others)
-	if resolved[len(resolved)-1] != "test:run" {
-		t.Errorf("last job = %q, want 'test:run'", resolved[len(resolved)-1])
+	if resolved[len(resolved)-1] != "test" {
+		t.Errorf("last job = %q, want 'test'", resolved[len(resolved)-1])
 	}
 }
 

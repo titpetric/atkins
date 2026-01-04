@@ -59,7 +59,7 @@ func TestStepUnmarshalYAML_ObjectStep(t *testing.T) {
 		yaml       string
 		wantRun    string
 		wantName   string
-		wantDefer  bool
+		wantDefer  string
 		wantDetach bool
 	}{
 		{
@@ -74,11 +74,11 @@ name: "test step"
 		{
 			name: "step with defer",
 			yaml: `
-defer: true
-run: "cleanup cmd"
+defer: "cleanup cmd"
+run: "main task"
 `,
-			wantDefer: true,
-			wantRun:   "cleanup cmd",
+			wantDefer: "cleanup cmd",
+			wantRun:   "main task",
 		},
 		{
 			name: "step with detach",
@@ -90,9 +90,12 @@ detach: true
 			wantDetach: true,
 		},
 		{
-			name:      "defer-only step",
-			yaml:      `run: "docker compose down"\ndefer: true`,
-			wantDefer: true,
+			name: "defer-only step",
+			yaml: `
+run: "docker compose down"
+defer: "cleanup"
+`,
+			wantDefer: "cleanup",
 			wantRun:   "docker compose down",
 		},
 	}

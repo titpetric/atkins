@@ -79,12 +79,28 @@ func ListPipeline(pipeline *model.Pipeline) {
 
 				if cmd != "" {
 					label := colors.White(cmd)
+					if step.For != "" {
+						label = label + " " + colors.BrightYellow("(waiting)")
+					}
+					if step.If != "" {
+						label = label + " " + colors.BrightYellow("(conditional)")
+					}
 					if step.Deferred {
 						label = label + " " + colors.BrightCyan("(deferred)")
 					}
 					fmt.Printf("%s%s\n", stepFullPrefix, label)
 				} else if step.Name != "" {
-					fmt.Printf("%s%s\n", stepFullPrefix, step.Name)
+					label := step.Name
+					if step.For != "" {
+						label = label + " " + colors.BrightYellow("(waiting)")
+					}
+					if step.If != "" {
+						label = label + " " + colors.BrightYellow("(conditional)")
+					}
+					if step.Deferred {
+						label = label + " " + colors.BrightCyan("(deferred)")
+					}
+					fmt.Printf("%s%s\n", stepFullPrefix, colors.White(label))
 				}
 			}
 		}

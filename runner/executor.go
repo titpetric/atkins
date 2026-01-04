@@ -207,6 +207,38 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionC
 		}
 	}
 
+	// Get step node from tree
+	var stepNode *TreeNode
+	if jobNode, ok := execCtx.CurrentJob.(*TreeNode); ok {
+		if stepIndex < len(jobNode.Children) {
+			stepNode = jobNode.Children[stepIndex]
+		}
+	}
+
+	// Evaluate if condition
+	shouldRun, err := step.EvaluateIf(stepCtx)
+	if err != nil {
+		// If condition evaluation fails, skip the step
+		if stepNode != nil {
+			stepNode.SetStatus(StatusSkipped)
+		}
+		return fmt.Errorf("failed to evaluate if condition for step %q: %w", step.Name, err)
+	}
+
+	if !shouldRun {
+		// Mark step as skipped
+		if stepNode != nil {
+			stepNode.SetStatus(StatusSkipped)
+		}
+		return nil
+	}
+
+	// Handle for loop expansion
+	if step.For != "" {
+		fmt.Fprintf(os.Stderr, "DEBUG: executeStep detected for loop: %q\n", step.For)
+		return e.executeStepWithForLoop(jobCtx, execCtx, step, stepIndex, stepNode)
+	}
+
 	// Determine which command to run
 	var cmd string
 	if step.Run != "" {
@@ -219,14 +251,94 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionC
 		return nil
 	}
 
-	// Get step node from tree
-	var stepNode *TreeNode
-	if jobNode, ok := execCtx.CurrentJob.(*TreeNode); ok {
-		if stepIndex < len(jobNode.Children) {
-			stepNode = jobNode.Children[stepIndex]
+	// Execute single iteration of the step
+	return e.executeStepIteration(jobCtx, execCtx, step, stepNode, cmd)
+}
+
+// executeStepWithForLoop handles for loop expansion and execution
+// Each iteration becomes a separate execution with iteration variables overlaid on context
+func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *model.ExecutionContext, step model.Step, _ int, stepNode *TreeNode) error {
+	// Expand the for loop to get all iterations
+	iterations, err := step.ExpandFor(execCtx, ExecuteCommand)
+	if err != nil {
+		if stepNode != nil {
+			stepNode.SetStatus(StatusFailed)
+		}
+		return fmt.Errorf("failed to expand for loop for step %q: %w", step.Name, err)
+	}
+
+	if len(iterations) == 0 {
+		// Empty for loop - mark as passed
+		if stepNode != nil {
+			stepNode.SetStatus(StatusPassed)
+		}
+		execCtx.StepsCount++
+		execCtx.StepsPassed++
+		return nil
+	}
+
+	// Execute each iteration
+	var lastErr error
+	for _, iteration := range iterations {
+		// Create iteration context by overlaying iteration variables on parent context
+		iterCtx := &model.ExecutionContext{
+			Variables:   copyVariables(execCtx.Variables),
+			Env:         execCtx.Env,
+			Results:     execCtx.Results,
+			QuietMode:   execCtx.QuietMode,
+			Pipeline:    execCtx.Pipeline,
+			Job:         execCtx.Job,
+			JobDesc:     execCtx.JobDesc,
+			Step:        execCtx.Step,
+			Depth:       execCtx.Depth,
+			Tree:        execCtx.Tree,
+			CurrentJob:  execCtx.CurrentJob,
+			CurrentStep: execCtx.CurrentStep,
+			Renderer:    execCtx.Renderer,
+			Context:     jobCtx,
+		}
+
+		// Overlay iteration variables (they override parent variables)
+		for k, v := range iteration.Variables {
+			iterCtx.Variables[k] = v
+		}
+
+		// DEBUG: Log iteration variables
+		fmt.Fprintf(os.Stderr, "DEBUG: For loop iteration variables: %v\n", iterCtx.Variables)
+
+		// Determine which command to run
+		var cmd string
+		if step.Run != "" {
+			cmd = step.Run
+		} else if step.Cmd != "" {
+			cmd = step.Cmd
+		} else if len(step.Cmds) > 0 {
+			cmd = strings.Join(step.Cmds, " && ")
+		} else {
+			continue // Skip if no command
+		}
+
+		// Execute this iteration
+		// For now, treat all iterations as part of the same step node
+		// TODO: Consider creating sub-nodes for each iteration in the tree
+		if err := e.executeStepIteration(jobCtx, iterCtx, step, stepNode, cmd); err != nil {
+			lastErr = err
+			// Continue to next iteration even on error (collect all failures)
+			// This matches yamlexpr behavior of processing all items
 		}
 	}
 
+	if lastErr != nil {
+		return lastErr
+	}
+
+	execCtx.StepsCount++
+	execCtx.StepsPassed++
+	return nil
+}
+
+// executeStepIteration executes a single step (or iteration of a step) with the given context
+func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *model.ExecutionContext, step model.Step, stepNode *TreeNode, cmd string) error {
 	// Mark step as running
 	if stepNode != nil {
 		stepNode.SetStatus(StatusRunning)
@@ -243,7 +355,7 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionC
 		// to prevent breaking the tree rendering. The output will be shown at the end if there's an error.
 		var quietMode int
 		if step.Detach {
-			if renderer, ok := execCtx.Renderer.(*TreeRenderer); ok {
+			if renderer, ok := stepCtx.Renderer.(*TreeRenderer); ok {
 				if renderer.isTerminal {
 					quietMode = 1 // suppress stdout for detached steps in TTY mode
 				}
@@ -282,13 +394,9 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionC
 				ErrorLogMutex.Unlock()
 			}
 
-			// Increment step counters
-			execCtx.StepsCount++
-			execCtx.StepsPassed++
-
 			// Render tree with final state
-			if tree, ok := execCtx.Tree.(*ExecutionTree); ok {
-				if renderer, ok := execCtx.Renderer.(*TreeRenderer); ok {
+			if tree, ok := stepCtx.Tree.(*ExecutionTree); ok {
+				if renderer, ok := stepCtx.Renderer.(*TreeRenderer); ok {
 					renderer.Render(tree)
 				}
 			}
@@ -298,14 +406,23 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *model.ExecutionC
 			if stepNode != nil {
 				stepNode.SetSpinner(s.String())
 				// Render tree with updated spinner
-				if tree, ok := execCtx.Tree.(*ExecutionTree); ok {
-					if renderer, ok := execCtx.Renderer.(*TreeRenderer); ok {
+				if tree, ok := stepCtx.Tree.(*ExecutionTree); ok {
+					if renderer, ok := stepCtx.Renderer.(*TreeRenderer); ok {
 						renderer.Render(tree)
 					}
 				}
 			}
 		}
 	}
+}
+
+// copyVariables creates a shallow copy of a variables map
+func copyVariables(vars map[string]interface{}) map[string]interface{} {
+	copy := make(map[string]interface{})
+	for k, v := range vars {
+		copy[k] = v
+	}
+	return copy
 }
 
 // countOutputLines counts the number of newlines in output

@@ -16,6 +16,7 @@ const (
 	StatusRunning
 	StatusPassed
 	StatusFailed
+	StatusSkipped
 )
 
 // TreeNode represents a node in the execution tree
@@ -165,7 +166,7 @@ func renderNode(node *TreeNode, prefix string, isLast bool) string {
 	var status string
 	var nameColor string
 	isJob := len(node.Children) > 0
-	
+
 	switch node.Status {
 	case StatusPassed:
 		status = colors.BrightGreen("✓")
@@ -177,6 +178,9 @@ func renderNode(node *TreeNode, prefix string, isLast bool) string {
 	case StatusFailed:
 		status = colors.BrightRed("✗")
 		nameColor = colors.BrightRed(node.Name)
+	case StatusSkipped:
+		status = colors.BrightYellow("⊘")
+		nameColor = colors.BrightYellow(node.Name)
 	case StatusRunning:
 		if isJob {
 			// Job in orange
@@ -238,7 +242,7 @@ func renderNode(node *TreeNode, prefix string, isLast bool) string {
 }
 
 // sortChildrenByStatus reorders children so completed items appear first
-// Order: Passed, Failed, Running, Pending
+// Order: Passed, Failed, Skipped, Running, Pending
 func sortChildrenByStatus(children []*TreeNode) []*TreeNode {
 	sorted := make([]*TreeNode, len(children))
 	copy(sorted, children)
@@ -270,6 +274,8 @@ func statusPriority(status NodeStatus) int {
 		return 4
 	case StatusFailed:
 		return 3
+	case StatusSkipped:
+		return 2
 	case StatusRunning:
 		return 2
 	case StatusPending:

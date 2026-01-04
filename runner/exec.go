@@ -65,7 +65,7 @@ func ExecuteCommandWithQuietAndCapture(cmdStr string, quietMode int) (string, er
 		return stdoutStr, fmt.Errorf("command failed: %w", err)
 	}
 
-	return "", nil
+	return stdoutStr, nil
 }
 
 // ExecuteCommandWithEnv executes a shell command with custom environment

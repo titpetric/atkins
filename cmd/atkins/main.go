@@ -191,7 +191,7 @@ func runPipeline(wg *sync.WaitGroup, pipeline *model.Pipeline, job string) error
 		if jobDef.Desc != "" {
 			jobLabel = jobName + " - " + jobDef.Desc
 		}
-		
+
 		// Get job dependencies
 		deps := runner.GetDependencies(jobDef.DependsOn)
 		var jobNode *runner.TreeNode
