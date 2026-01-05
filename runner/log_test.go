@@ -42,7 +42,7 @@ func TestStepLogger_LogRun(t *testing.T) {
 	content, err := os.ReadFile(tmpFile)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "RUN")
-	assert.Contains(t, string(content), "test-job.0")
+	assert.Contains(t, string(content), "jobs.test-job.steps.0")
 	assert.Contains(t, string(content), "test-pipeline")
 }
 
@@ -58,7 +58,7 @@ func TestStepLogger_LogPass(t *testing.T) {
 	content, err := os.ReadFile(tmpFile)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "PASS")
-	assert.Contains(t, string(content), "test-job.0")
+	assert.Contains(t, string(content), "jobs.test-job.steps.0")
 	assert.Contains(t, string(content), "test-pipeline")
 	assert.Contains(t, string(content), "0.1000")
 }
@@ -76,7 +76,7 @@ func TestStepLogger_LogFail(t *testing.T) {
 	content, err := os.ReadFile(tmpFile)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "FAIL")
-	assert.Contains(t, string(content), "test-job.0")
+	assert.Contains(t, string(content), "jobs.test-job.steps.0")
 	assert.Contains(t, string(content), "test-pipeline")
 	assert.Contains(t, string(content), "0.1500")
 }
@@ -93,7 +93,7 @@ func TestStepLogger_LogSkip(t *testing.T) {
 	content, err := os.ReadFile(tmpFile)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "SKIP")
-	assert.Contains(t, string(content), "test-job.0")
+	assert.Contains(t, string(content), "jobs.test-job.steps.0")
 	assert.Contains(t, string(content), "test-pipeline")
 }
 

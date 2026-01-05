@@ -6,22 +6,27 @@ import (
 	"strings"
 )
 
+// ExecError represents an error from command execution.
 type ExecError struct {
 	Message      string
 	Output       string
 	LastExitCode int
 }
 
+// Error returns the error message.
 func (r ExecError) Error() string {
 	return r.Message
 }
 
+// Len returns the length of the error message.
 func (r ExecError) Len() int {
 	return len(r.Message)
 }
 
+// Exec runs shell commands.
 type Exec struct{}
 
+// NewExec creates a new Exec instance.
 func NewExec() *Exec {
 	return &Exec{}
 }
@@ -31,12 +36,12 @@ func (e *Exec) ExecuteCommand(cmdStr string) (string, error) {
 	return e.ExecuteCommandWithQuiet(cmdStr, false)
 }
 
-// ExecuteCommandWithQuiet executes a shell command with quiet mode
+// ExecuteCommandWithQuiet executes a shell command with quiet mode.
 func (e *Exec) ExecuteCommandWithQuiet(cmdStr string, verbose bool) (string, error) {
 	return e.ExecuteCommandWithQuietAndCapture(cmdStr, verbose)
 }
 
-// ExecuteCommandWithQuietAndCapture executes a shell command with quiet mode and captures stderr
+// ExecuteCommandWithQuietAndCapture executes a shell command with quiet mode and captures stderr.
 // Returns (stdout, error). If error occurs, stderr is logged to the global buffer.
 func (e *Exec) ExecuteCommandWithQuietAndCapture(cmdStr string, verbose bool) (string, error) {
 	if cmdStr == "" {

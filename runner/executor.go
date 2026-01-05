@@ -13,31 +13,31 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Options provides configuration for the executor
+// Options provides configuration for the executor.
 type Options struct {
 	DefaultTimeout time.Duration
 }
 
-// DefaultOptions returns the default executor options
+// DefaultOptions returns the default executor options.
 func DefaultOptions() *Options {
 	return &Options{
 		DefaultTimeout: 300 * time.Second, // 5 minutes default
 	}
 }
 
-// Executor runs pipeline jobs and steps
+// Executor runs pipeline jobs and steps.
 type Executor struct {
 	opts *Options
 }
 
-// NewExecutor creates a new executor with default options
+// NewExecutor creates a new executor with default options.
 func NewExecutor() *Executor {
 	return &Executor{
 		opts: DefaultOptions(),
 	}
 }
 
-// NewExecutorWithOptions creates a new executor with custom options
+// NewExecutorWithOptions creates a new executor with custom options.
 func NewExecutorWithOptions(opts *Options) *Executor {
 	if opts == nil {
 		opts = DefaultOptions()
@@ -60,8 +60,8 @@ func parseTimeout(timeoutStr string, defaultTimeout time.Duration) time.Duration
 	return duration
 }
 
-// ExecuteJob runs a single job
-func (e *Executor) ExecuteJob(parentCtx context.Context, ctx *ExecutionContext, jobName string, job *model.Job) error {
+// ExecuteJob runs a single job.
+func (e *Executor) ExecuteJob(parentCtx context.Context, job *model.Job, ctx *ExecutionContext, jobName string) error {
 	// Ensure job.Name is set
 	if job.Name == "" {
 		job.Name = jobName
@@ -120,13 +120,25 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, ctx *ExecutionContext, 
 // executeSteps runs a sequence of steps (deferred steps are already at the end of the list)
 func (e *Executor) executeSteps(jobCtx context.Context, execCtx *ExecutionContext, steps []*model.Step) error {
 	eg := new(errgroup.Group)
+
 	detached := 0
 	deferredSteps := []*model.Step{}
 	deferredIndices := []int{}
 
+	// Wait for all detached steps to complete before running deferred steps.
+	wait := func() error {
+		if detached > 0 {
+			if err := eg.Wait(); err != nil {
+				return err
+			}
+			detached = 0
+		}
+		return nil
+	}
+
 	// First pass: execute non-detached steps and collect deferred steps
 	for idx, step := range steps {
-		if step.Deferred {
+		if step.IsDeferred() {
 			// Collect deferred steps for later execution
 			deferredSteps = append(deferredSteps, step)
 			deferredIndices = append(deferredIndices, idx)
@@ -141,16 +153,17 @@ func (e *Executor) executeSteps(jobCtx context.Context, execCtx *ExecutionContex
 			continue
 		}
 
+		if err := wait(); err != nil {
+			return err
+		}
+
 		if err := e.executeStep(jobCtx, execCtx, steps[idx], idx); err != nil {
 			return err
 		}
 	}
 
-	// Wait for all detached steps to complete before running deferred steps
-	if detached > 0 {
-		if err := eg.Wait(); err != nil {
-			return err
-		}
+	if err := wait(); err != nil {
+		return err
 	}
 
 	// Second pass: execute deferred steps after all detached steps are done
@@ -204,9 +217,24 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 	}
 
 	if !shouldRun {
-		// Mark step as skipped
+		// Mark step as skipped and log it
 		if stepNode != nil {
 			stepNode.SetStatus(treeview.StatusSkipped)
+		}
+		// Get step name for logging
+		stepName := step.Name
+		if stepName == "" && stepNode != nil {
+			stepName = stepNode.Name
+		}
+		// Get sequential step index from the parent execution context
+		seqIndex := execCtx.NextStepIndex()
+		// Log SKIP event
+		jobName := ""
+		if execCtx.Job != nil {
+			jobName = execCtx.Job.Name
+		}
+		if execCtx.Logger != nil {
+			execCtx.Logger.LogSkip(jobName, seqIndex, stepName)
 		}
 		return nil
 	}
@@ -278,7 +306,7 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 		}
 
 		// Create node for each iteration with interpolated command
-		for _, iteration := range iterations {
+		for idx, iteration := range iterations {
 			// Interpolate command with iteration variables
 			iterCtx := &ExecutionContext{
 				Variables: copyVariables(execCtx.Variables),
@@ -291,8 +319,19 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 
 			interpolated, _ := InterpolateCommand(cmdTemplate, iterCtx)
 
+			// Get job name for ID generation
+			jobName := ""
+			if execCtx.Job != nil {
+				jobName = execCtx.Job.Name
+			}
+
+			// Generate unique ID for this iteration
+			iterSeqIndex := execCtx.StepSequence + idx
+			iterID := fmt.Sprintf("jobs.%s.steps.%d", jobName, iterSeqIndex)
+
 			iterNode := &treeview.Node{
 				Name:   interpolated,
+				ID:     iterID,
 				Status: treeview.StatusPending,
 			}
 
@@ -383,13 +422,18 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *Executi
 		stepName = stepNode.Name
 	}
 
+	// Get the next sequential step index for this job
+	// Note: We use the original stepCtx to increment the counter
+	// This ensures that all steps/iterations in a job get unique sequential indices
+	seqIndex := stepCtx.NextStepIndex()
+
 	// Log RUN event
 	jobName := ""
 	if stepCtx.Job != nil {
 		jobName = stepCtx.Job.Name
 	}
 	if stepCtx.Logger != nil {
-		stepCtx.Logger.LogRun(jobName, stepIndex, stepName)
+		stepCtx.Logger.LogRun(jobName, seqIndex, stepName)
 	}
 
 	// Track start time for duration
@@ -429,24 +473,24 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *Executi
 				if err != nil {
 					stepNode.SetStatus(treeview.StatusFailed)
 					if stepCtx.Logger != nil {
-						stepCtx.Logger.LogFail(jobName, stepIndex, stepName, err, duration)
+						stepCtx.Logger.LogFail(jobName, seqIndex, stepName, err, duration)
 					}
 					return err
 				}
 				stepNode.SetStatus(treeview.StatusPassed)
 				if stepCtx.Logger != nil {
-					stepCtx.Logger.LogPass(jobName, stepIndex, stepName, duration)
+					stepCtx.Logger.LogPass(jobName, seqIndex, stepName, duration)
 				}
 			} else {
 				// No node, still log the result
 				if err != nil {
 					if stepCtx.Logger != nil {
-						stepCtx.Logger.LogFail(jobName, stepIndex, stepName, err, duration)
+						stepCtx.Logger.LogFail(jobName, seqIndex, stepName, err, duration)
 					}
 					return err
 				}
 				if stepCtx.Logger != nil {
-					stepCtx.Logger.LogPass(jobName, stepIndex, stepName, duration)
+					stepCtx.Logger.LogPass(jobName, seqIndex, stepName, duration)
 				}
 			}
 

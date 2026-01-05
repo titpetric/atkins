@@ -8,7 +8,7 @@ import (
 	"golang.org/x/term"
 )
 
-// Display manages in-place tree rendering with ANSI cursor control
+// Display manages in-place tree rendering with ANSI cursor control.
 type Display struct {
 	lastLineCount int
 	mu            sync.Mutex
@@ -16,7 +16,7 @@ type Display struct {
 	renderer      *Renderer
 }
 
-// NewDisplay creates a new display manager
+// NewDisplay creates a new display manager.
 func NewDisplay() *Display {
 	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 	return &Display{
@@ -26,12 +26,12 @@ func NewDisplay() *Display {
 	}
 }
 
-// IsTerminal returns whether stdout is a TTY
+// IsTerminal returns whether stdout is a TTY.
 func (d *Display) IsTerminal() bool {
 	return d.isTerminal
 }
 
-// Render outputs the tree, updating in-place if previously rendered
+// Render outputs the tree, updating in-place if previously rendered.
 func (d *Display) Render(root *Node) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -52,7 +52,7 @@ func (d *Display) Render(root *Node) {
 	d.lastLineCount = countOutputLines(output)
 }
 
-// RenderStatic displays a static tree view (for list)
+// RenderStatic displays a static tree view (for list).
 func (d *Display) RenderStatic(root *Node) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

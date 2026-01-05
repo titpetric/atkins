@@ -54,19 +54,13 @@ type Step struct {
 
 // IsDeferred returns true if defer is filled.
 func (s *Step) IsDeferred() bool {
-	if s.Defer.Value != "" {
-		return true
-	}
-	return false
+	_, err := s.DeferStep()
+	return err == nil
 }
 
 // DeferStep returns a *Step by decodidng s.Defer.
 // If no defer is defined, it returns nil, nil.
 func (s *Step) DeferStep() (*Step, error) {
-	if !s.IsDeferred() {
-		return nil, nil
-	}
-
 	var step Step
 	if err := s.Defer.Decode(&step); err != nil {
 		return nil, err

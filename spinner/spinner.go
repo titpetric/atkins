@@ -8,7 +8,7 @@ import (
 	"github.com/titpetric/atkins-ci/colors"
 )
 
-// Spinner displays an animated three-dot spinner with one green dot rotating
+// Spinner displays an animated three-dot spinner with one green dot rotating.
 type Spinner struct {
 	position int
 	mu       sync.Mutex
@@ -16,7 +16,7 @@ type Spinner struct {
 	running  bool
 }
 
-// New creates a new spinner
+// New creates a new spinner.
 func New() *Spinner {
 	return &Spinner{
 		position: 0,
@@ -25,7 +25,7 @@ func New() *Spinner {
 	}
 }
 
-// Start begins the spinner animation
+// Start begins the spinner animation.
 func (s *Spinner) Start() {
 	s.mu.Lock()
 	if s.running {
@@ -52,7 +52,7 @@ func (s *Spinner) Start() {
 	}()
 }
 
-// Stop halts the spinner animation
+// Stop halts the spinner animation.
 func (s *Spinner) Stop() {
 	s.mu.Lock()
 	if !s.running {
@@ -65,7 +65,7 @@ func (s *Spinner) Stop() {
 	s.done <- true
 }
 
-// String returns the current spinner state
+// String returns the current spinner state.
 func (s *Spinner) String() string {
 	s.mu.Lock()
 	pos := s.position

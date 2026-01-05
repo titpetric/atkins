@@ -6,25 +6,25 @@ import (
 	"github.com/titpetric/atkins-ci/model"
 )
 
-// Builder constructs tree nodes from pipeline data
+// Builder constructs tree nodes from pipeline data.
 type Builder struct {
 	root *Node
 }
 
-// NewBuilder creates a new tree builder
+// NewBuilder creates a new tree builder.
 func NewBuilder(pipelineName string) *Builder {
 	return &Builder{
 		root: NewNode(pipelineName),
 	}
 }
 
-// Root returns the root node
+// Root returns the root node.
 func (b *Builder) Root() *Node {
 	return b.root
 }
 
-// AddJob adds a job node to the tree with all its steps
-func (b *Builder) AddJob(jobName string, job *model.Job, deps []string) *TreeNode {
+// AddJob adds a job node to the tree with all its steps.
+func (b *Builder) AddJob(job *model.Job, deps []string, jobName string) *TreeNode {
 	// Create job node
 	jobNode := NewJobNode(jobName, job.Nested)
 	jobNode.Dependencies = deps
@@ -42,9 +42,8 @@ func (b *Builder) AddJob(jobName string, job *model.Job, deps []string) *TreeNod
 	}
 }
 
-// AddJobWithoutSteps adds a job node to the tree without steps
-// (steps should be added manually afterwards)
-func (b *Builder) AddJobWithoutSteps(jobName string, nested bool, deps []string) *TreeNode {
+// AddJobWithoutSteps adds a job node to the tree without steps (steps should be added manually afterwards).
+func (b *Builder) AddJobWithoutSteps(deps []string, jobName string, nested bool) *TreeNode {
 	// Create job node
 	jobNode := NewJobNode(jobName, nested)
 	jobNode.Dependencies = deps
@@ -59,7 +58,7 @@ func (b *Builder) AddJobWithoutSteps(jobName string, nested bool, deps []string)
 // buildStepNode constructs a step node from a step definition
 func (b *Builder) buildStepNode(step *model.Step) *Node {
 	// Build step command/label
-	cmd := b.getStepCommand(step)
+	cmd := step.String()
 
 	// Build the name with annotations
 	// Note: (deferred) is added by the renderer if node.Deferred is true
@@ -69,34 +68,12 @@ func (b *Builder) buildStepNode(step *model.Step) *Node {
 	}
 
 	stepNode := NewNode(stepName)
-	stepNode.Deferred = step.Defer != "" || step.Deferred
 
 	return stepNode
 }
 
-// getStepCommand extracts the command from a step
-func (b *Builder) getStepCommand(step *model.Step) string {
-	if step.Defer != "" {
-		// Deferred step - show the defer command
-		return step.Defer
-	} else if step.Task != "" {
-		// Task invocation - show as "task: <task-name>"
-		return "task: " + step.Task
-	} else if step.Run != "" {
-		return step.Run
-	} else if step.Cmd != "" {
-		return step.Cmd
-	} else if len(step.Cmds) > 0 {
-		// For cmds array, just show the first one as a placeholder
-		return step.Cmds[0]
-	} else if step.Name != "" {
-		return step.Name
-	}
-	return ""
-}
-
-// BuildFromPipeline constructs a complete tree from a pipeline
-// Returns the root node ready to be rendered
+// BuildFromPipeline constructs a complete tree from a pipeline.
+// Returns the root node ready to be rendered.
 func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*model.Job, string) ([]string, error)) (*Node, error) {
 	jobs := pipeline.Jobs
 	if len(jobs) == 0 {
@@ -115,7 +92,7 @@ func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*mo
 	for _, jobName := range jobOrder {
 		job := jobs[jobName]
 
-		builder.AddJob(jobName, job, job.DependsOn)
+		builder.AddJob(job, job.DependsOn, jobName)
 	}
 
 	return builder.Root(), nil

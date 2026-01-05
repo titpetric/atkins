@@ -7,7 +7,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/titpetric/atkins-ci/model"
 	"github.com/titpetric/atkins-ci/treeview"
+	"gopkg.in/yaml.v3"
 )
+
+func deferStep(cmd string) yaml.Node {
+	return yaml.Node{
+		Kind:  yaml.MappingNode,
+		Value: cmd,
+	}
+}
 
 // TestExecuteSteps_DeferredWaitsForDetached tests that deferred steps wait for detached steps to complete
 func TestExecuteSteps_DeferredWaitsForDetached(t *testing.T) {
@@ -29,9 +37,8 @@ func TestExecuteSteps_DeferredWaitsForDetached(t *testing.T) {
 
 	// Create deferred step
 	deferStep := &model.Step{
-		Name:     "defer-step",
-		Deferred: true,
-		Run:      "echo 'defer'",
+		Name:  "defer-step",
+		Defer: deferStep("echo 'defer'"),
 	}
 
 	steps := []*model.Step{detachStep1, detachStep2, deferStep}
@@ -97,15 +104,13 @@ func TestExecuteSteps_OnlyDeferred(t *testing.T) {
 	ctx := context.Background()
 
 	step1 := &model.Step{
-		Name:     "defer-1",
-		Deferred: true,
-		Run:      "echo 'test1'",
+		Name:  "defer-1",
+		Defer: deferStep("echo 'test1'"),
 	}
 
 	step2 := &model.Step{
-		Name:     "defer-2",
-		Deferred: true,
-		Run:      "echo 'test2'",
+		Name:  "defer-2",
+		Defer: deferStep("echo 'test2'"),
 	}
 
 	steps := []*model.Step{step1, step2}
@@ -147,9 +152,8 @@ func TestExecuteSteps_MixedOrder(t *testing.T) {
 
 	// Deferred step
 	deferStep := &model.Step{
-		Name:     "defer",
-		Deferred: true,
-		Run:      "echo 'defer'",
+		Name:  "defer",
+		Defer: deferStep("echo 'defer'"),
 	}
 
 	steps := []*model.Step{regularStep, detachStep, deferStep}
@@ -192,5 +196,3 @@ func TestExecuteSteps_EmptySteps(t *testing.T) {
 	err := executor.executeSteps(ctx, execCtx, []*model.Step{})
 	assert.NoError(t, err)
 }
-
-

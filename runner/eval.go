@@ -8,9 +8,9 @@ import (
 	"github.com/expr-lang/expr"
 )
 
-// EvaluateIf evaluates the If condition using expr-lang
-// Returns true if the condition is met, false if no condition or condition is false
-// Returns error only for invalid expressions
+// EvaluateIf evaluates the If condition using expr-lang.
+// Returns true if the condition is met, false if no condition or condition is false.
+// Returns error only for invalid expressions.
 func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 	s := ctx.Step
 	if s.If == "" {
@@ -58,12 +58,10 @@ func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 	}
 }
 
-// ExpandFor expands a for loop into multiple iteration contexts
-// Supports patterns:
-//   - "item in items" (items is a variable name)
-//   - "(index, item) in items"
-//   - "(key, value) in items"
-//   - Any of the above with bash expansion: "item in $(ls ./bin/*.test)"
+// ExpandFor expands a for loop into multiple iteration contexts.
+// Supports patterns: "item in items" (items is a variable name),
+// "(index, item) in items", "(key, value) in items",
+// or any of the above with bash expansion: "item in $(ls ./bin/*.test)".
 func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error) {
 	s := ctx.Step
 	if s.For == "" {

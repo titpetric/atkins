@@ -7,15 +7,15 @@ import (
 	"sync"
 )
 
-// StepLogger wraps slog.Logger for logging step execution
+// StepLogger wraps slog.Logger for logging step execution.
 type StepLogger struct {
 	logger       *slog.Logger
 	pipelineName string
 	mu           sync.Mutex
 }
 
-// NewStepLoggerWithPipeline creates a new step logger writing to the given file
-// If filePath is empty, no logging occurs
+// NewStepLoggerWithPipeline creates a new step logger writing to the given file.
+// If filePath is empty, no logging occurs.
 func NewStepLoggerWithPipeline(filePath string, pipelineName string) (*StepLogger, error) {
 	if filePath == "" {
 		return &StepLogger{logger: nil, pipelineName: pipelineName}, nil
@@ -37,13 +37,13 @@ func NewStepLoggerWithPipeline(filePath string, pipelineName string) (*StepLogge
 	return &StepLogger{logger: logger, pipelineName: pipelineName}, nil
 }
 
-// NewStepLogger creates a new step logger writing to the given file (for backward compatibility)
-// If filePath is empty, no logging occurs
+// NewStepLogger creates a new step logger writing to the given file (for backward compatibility).
+// If filePath is empty, no logging occurs.
 func NewStepLogger(filePath string) (*StepLogger, error) {
 	return NewStepLoggerWithPipeline(filePath, "")
 }
 
-// LogRun logs a RUN event for a step
+// LogRun logs a RUN event for a step.
 func (sl *StepLogger) LogRun(jobName string, stepIndex int, stepName string) {
 	if sl.logger == nil {
 		return
@@ -56,10 +56,11 @@ func (sl *StepLogger) LogRun(jobName string, stepIndex int, stepName string) {
 		slog.String("pipeline", sl.pipelineName),
 		slog.String("id", stepID),
 		slog.String("name", stepName),
+		slog.Int("sequence", stepIndex), // Add sequence as additional metadata
 	)
 }
 
-// LogPass logs a PASS event for a step
+// LogPass logs a PASS event for a step.
 func (sl *StepLogger) LogPass(jobName string, stepIndex int, stepName string, duration int64) {
 	if sl.logger == nil {
 		return
@@ -73,10 +74,11 @@ func (sl *StepLogger) LogPass(jobName string, stepIndex int, stepName string, du
 		slog.String("pipeline", sl.pipelineName),
 		slog.String("id", stepID),
 		slog.String("duration", durationStr),
+		slog.Int("sequence", stepIndex), // Add sequence as additional metadata
 	)
 }
 
-// LogFail logs a FAIL event for a step
+// LogFail logs a FAIL event for a step.
 func (sl *StepLogger) LogFail(jobName string, stepIndex int, stepName string, err error, duration int64) {
 	if sl.logger == nil {
 		return
@@ -96,10 +98,11 @@ func (sl *StepLogger) LogFail(jobName string, stepIndex int, stepName string, er
 		slog.String("id", stepID),
 		slog.String("error", errMsg),
 		slog.String("duration", durationStr),
+		slog.Int("sequence", stepIndex), // Add sequence as additional metadata
 	)
 }
 
-// LogSkip logs a SKIP event for a step
+// LogSkip logs a SKIP event for a step.
 func (sl *StepLogger) LogSkip(jobName string, stepIndex int, stepName string) {
 	if sl.logger == nil {
 		return
@@ -111,14 +114,16 @@ func (sl *StepLogger) LogSkip(jobName string, stepIndex int, stepName string) {
 	sl.logger.Info("SKIP",
 		slog.String("pipeline", sl.pipelineName),
 		slog.String("id", stepID),
+		slog.Int("sequence", stepIndex), // Add sequence as additional metadata
 	)
 }
 
-// generateStepID creates a step ID from job name and step index
+// generateStepID creates a step ID from job name and sequential step index
+// Format follows GitHub Actions: jobs.<jobName>.steps.<sequentialIndex>
 func generateStepID(jobName string, stepIndex int) string {
 	if jobName == "" {
 		return ""
 	}
-	// Format: jobname.0, jobname.1, etc.
-	return jobName + "." + fmt.Sprintf("%d", stepIndex)
+	// Format: jobs.<jobName>.steps.<sequentialIndex>
+	return "jobs." + jobName + ".steps." + fmt.Sprintf("%d", stepIndex)
 }

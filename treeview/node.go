@@ -5,9 +5,10 @@ import (
 	"time"
 )
 
-// Status represents the execution status of a node
+// Status represents the execution status of a node.
 type Status int
 
+// Status constants.
 const (
 	StatusPending Status = iota
 	StatusRunning
@@ -17,9 +18,10 @@ const (
 	StatusConditional
 )
 
-// Node represents a node in the tree (job, step, or iteration)
+// Node represents a node in the tree (job, step, or iteration).
 type Node struct {
 	Name         string
+	ID           string // Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
 	Status       Status
 	UpdatedAt    time.Time
 	Spinner      string
@@ -29,7 +31,7 @@ type Node struct {
 	mu           sync.Mutex
 }
 
-// SetStatus updates a node's status thread-safely
+// SetStatus updates a node's status thread-safely.
 func (n *Node) SetStatus(status Status) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -37,21 +39,21 @@ func (n *Node) SetStatus(status Status) {
 	n.UpdatedAt = time.Now()
 }
 
-// SetSpinner updates the spinner display thread-safely
+// SetSpinner updates the spinner display thread-safely.
 func (n *Node) SetSpinner(spinner string) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.Spinner = spinner
 }
 
-// AddChild adds a child node
+// AddChild adds a child node.
 func (n *Node) AddChild(child *Node) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.Children = append(n.Children, child)
 }
 
-// AddChildren adds multiple child nodes
+// AddChildren adds multiple child nodes.
 func (n *Node) AddChildren(children ...*Node) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -66,7 +68,7 @@ func (n *Node) HasChildren() bool {
 	return len(n.Children) > 0
 }
 
-// GetChildren returns a copy of the children slice (thread-safe)
+// GetChildren returns a copy of the children slice (thread-safe).
 func (n *Node) GetChildren() []*Node {
 	n.mu.Lock()
 	defer n.mu.Unlock()
@@ -75,7 +77,7 @@ func (n *Node) GetChildren() []*Node {
 	return children
 }
 
-// NewNode creates a new tree node
+// NewNode creates a new tree node.
 func NewNode(name string) *Node {
 	return &Node{
 		Name:         name,
@@ -86,7 +88,7 @@ func NewNode(name string) *Node {
 	}
 }
 
-// NewJobNode creates a new job node
+// NewJobNode creates a new job node.
 func NewJobNode(name string, nested bool) *Node {
 	node := NewNode(name)
 	if nested {
@@ -95,7 +97,7 @@ func NewJobNode(name string, nested bool) *Node {
 	return node
 }
 
-// NewStepNode creates a new step node
+// NewStepNode creates a new step node.
 func NewStepNode(name string, deferred bool) *Node {
 	node := NewNode(name)
 	node.Status = StatusRunning

@@ -9,20 +9,20 @@ import (
 	"github.com/titpetric/atkins-ci/model"
 )
 
-// LintError represents a linting error
+// LintError represents a linting error.
 type LintError struct {
 	Job    string
 	Issue  string
 	Detail string
 }
 
-// Linter validates a pipeline for correctness
+// Linter validates a pipeline for correctness.
 type Linter struct {
 	pipeline *model.Pipeline
 	errors   []LintError
 }
 
-// NewLinter creates a new linter
+// NewLinter creates a new linter.
 func NewLinter(pipeline *model.Pipeline) *Linter {
 	return &Linter{
 		pipeline: pipeline,
@@ -30,7 +30,7 @@ func NewLinter(pipeline *model.Pipeline) *Linter {
 	}
 }
 
-// Lint validates the pipeline and returns any errors
+// Lint validates the pipeline and returns any errors.
 func (l *Linter) Lint() []LintError {
 	l.validateDependencies()
 	return l.errors
@@ -61,7 +61,7 @@ func (l *Linter) validateDependencies() {
 	}
 }
 
-// GetDependencies converts depends_on field (string or []string) to a slice of job names
+// GetDependencies converts depends_on field (string or []string) to a slice of job names.
 func GetDependencies(dependsOn interface{}) []string {
 	if dependsOn == nil {
 		return []string{}
@@ -85,8 +85,8 @@ func GetDependencies(dependsOn interface{}) []string {
 	}
 }
 
-// ResolveJobDependencies returns jobs in dependency order
-// Returns the jobs to run and any resolution errors
+// ResolveJobDependencies returns jobs in dependency order.
+// Returns the jobs to run and any resolution errors.
 func ResolveJobDependencies(jobs map[string]*model.Job, startingJob string) ([]string, error) {
 	if len(jobs) == 0 {
 		return []string{}, nil

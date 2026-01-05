@@ -5,7 +5,7 @@ import (
 	"github.com/titpetric/atkins-ci/treeview"
 )
 
-// ListPipeline displays a pipeline's job tree with dependencies
+// ListPipeline displays a pipeline's job tree with dependencies.
 func ListPipeline(pipeline *model.Pipeline) error {
 	allJobs := pipeline.Jobs
 	if len(allJobs) == 0 {

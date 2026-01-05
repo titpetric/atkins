@@ -9,8 +9,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// LoadPipeline loads and parses a pipeline from a yaml file
-// Returns the number of documents loaded, the parsed pipeline, and any error
+// LoadPipeline loads and parses a pipeline from a yaml file.
+// Returns the number of documents loaded, the parsed pipeline, and any error.
 func LoadPipeline(filePath string) ([]*model.Pipeline, error) {
 	// Read the raw file content
 	data, err := os.ReadFile(filePath)

@@ -14,25 +14,26 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// RunPipelineWithLog runs a pipeline with optional logging to a file
+// RunPipelineWithLog runs a pipeline with optional logging to a file.
 func RunPipelineWithLog(ctx context.Context, pipeline *model.Pipeline, job string, logFile string) error {
 	return RunPipelineWithLogAndFile(ctx, pipeline, job, logFile, "")
 }
 
-// RunPipelineWithLogAndFile runs a pipeline with optional logging to a file and pipeline filename
+// RunPipelineWithLogAndFile runs a pipeline with optional logging to a file and pipeline filename.
 func RunPipelineWithLogAndFile(ctx context.Context, pipeline *model.Pipeline, job string, logFile string, pipelineFile string) error {
 	logger, err := NewStepLoggerWithPipeline(logFile, pipelineFile)
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %w", err)
 	}
-	return RunPipelineWithLogger(ctx, pipeline, job, logger)
+	return RunPipelineWithLogger(ctx, pipeline, logger, job)
 }
 
-// RunPipelineWithLogger runs a pipeline with the given logger
-func RunPipelineWithLogger(ctx context.Context, pipeline *model.Pipeline, job string, logger *StepLogger) error {
+// RunPipelineWithLogger runs a pipeline with the given logger.
+func RunPipelineWithLogger(ctx context.Context, pipeline *model.Pipeline, logger *StepLogger, job string) error {
 	return runPipeline(ctx, pipeline, job, logger)
 }
 
+// RunPipeline runs a pipeline without logging.
 func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) error {
 	return runPipeline(ctx, pipeline, job, nil)
 }
@@ -87,32 +88,18 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		// Get job dependencies
 		deps := GetDependencies(job.DependsOn)
 
-		jobNode := tree.AddJobWithoutSteps(jobLabel, job.Nested, deps)
+		jobNode := tree.AddJobWithoutSteps(deps, jobLabel, job.Nested)
 
 		// Populate children
 		for _, step := range job.Steps {
 			// Get the step command/name
-			stepName := getStepCommand(step)
-			if stepName == "" {
-				stepName = step.Name // Fallback to explicit name if no command found
-			}
-
-			var stepNode *treeview.Node
-			if step.Deferred {
-				stepNode = &treeview.Node{
-					Name:      stepName,
-					Status:    treeview.StatusPending,
-					UpdatedAt: time.Now(),
-					Children:  make([]*treeview.Node, 0),
-					Deferred:  true,
-				}
-			} else {
-				stepNode = &treeview.Node{
-					Name:      stepName,
-					Status:    treeview.StatusPending,
-					UpdatedAt: time.Now(),
-					Children:  make([]*treeview.Node, 0),
-				}
+			stepName := step.String()
+			stepNode := &treeview.Node{
+				Name:      stepName,
+				Status:    treeview.StatusPending,
+				UpdatedAt: time.Now(),
+				Children:  make([]*treeview.Node, 0),
+				Deferred:  step.IsDeferred(),
 			}
 			jobNode.AddChild(stepNode)
 		}
@@ -156,7 +143,7 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 
 		display.Render(root)
 
-		if err := executor.ExecuteJob(ctx, &jobCtx, jobName, job); err != nil {
+		if err := executor.ExecuteJob(ctx, job, &jobCtx, jobName); err != nil {
 			jobMutex.Lock()
 			jobCompleted[jobName] = true
 			jobMutex.Unlock()
@@ -247,24 +234,6 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 
 	//	fmt.Print(colors.BrightGreen(fmt.Sprintf("✓ PASS (%d jobs passing)\n", count)))
 	return nil
-}
-
-func getStepCommand(step *model.Step) string {
-	if step.Defer != "" {
-		// Deferred step - show the defer command
-		return step.Defer
-	} else if step.Task != "" {
-		// Task invocation - show as "task: <task-name>"
-		return "task: " + step.Task
-	} else if step.Run != "" {
-		return step.Run
-	} else if step.Cmd != "" {
-		return step.Cmd
-	} else if len(step.Cmds) > 0 {
-		// For cmds array, just show the first one as a placeholder
-		return step.Cmds[0]
-	}
-	return ""
 }
 
 func indent(depth int) string {

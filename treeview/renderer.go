@@ -8,22 +8,22 @@ import (
 	"github.com/titpetric/atkins-ci/colors"
 )
 
-// Renderer handles rendering of tree nodes to strings with proper formatting
+// Renderer handles rendering of tree nodes to strings with proper formatting.
 type Renderer struct {
 	mu sync.Mutex
 }
 
-// NewRenderer creates a new tree renderer
+// NewRenderer creates a new tree renderer.
 func NewRenderer() *Renderer {
 	return &Renderer{}
 }
 
-// Render converts a node to a string representation
+// Render converts a node to a string representation.
 func (r *Renderer) Render(root *Node) string {
 	return r.RenderStatic(root)
 }
 
-// RenderStatic renders a static tree (for list views) without spinners
+// RenderStatic renders a static tree (for list views) without spinners.
 func (r *Renderer) RenderStatic(root *Node) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -193,7 +193,7 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 	return output
 }
 
-// CountLines returns the number of lines the tree will render
+// CountLines returns the number of lines the tree will render.
 func CountLines(root *Node) int {
 	count := 1 // root line
 	children := root.GetChildren()

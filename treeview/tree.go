@@ -6,26 +6,26 @@ import (
 	"github.com/titpetric/atkins-ci/model"
 )
 
-// TreeNode represents a node in the execution tree (backward compatibility)
+// TreeNode represents a node in the execution tree (backward compatibility).
 type TreeNode struct {
 	*Node
 	mu sync.Mutex
 }
 
-// NewTreeNode creates a new tree node
+// NewTreeNode creates a new tree node.
 func NewTreeNode(name string) *TreeNode {
 	return &TreeNode{
 		Node: NewNode(name),
 	}
 }
 
-// ExecutionTree holds the entire execution tree
+// ExecutionTree holds the entire execution tree.
 type ExecutionTree struct {
 	Root *TreeNode
 	mu   sync.Mutex
 }
 
-// NewExecutionTree creates a new execution tree with a root node
+// NewExecutionTree creates a new execution tree with a root node.
 func NewExecutionTree(pipelineName string) *ExecutionTree {
 	return &ExecutionTree{
 		Root: &TreeNode{
@@ -38,7 +38,7 @@ func NewExecutionTree(pipelineName string) *ExecutionTree {
 	}
 }
 
-// AddJob adds a job node to the tree
+// AddJob adds a job node to the tree.
 func (et *ExecutionTree) AddJob(job *model.Job) *TreeNode {
 	et.mu.Lock()
 	defer et.mu.Unlock()
@@ -60,7 +60,7 @@ func (et *ExecutionTree) AddJob(job *model.Job) *TreeNode {
 	return node
 }
 
-// AddJobWithDeps adds a job node to the tree with dependencies
+// AddJobWithDeps adds a job node to the tree with dependencies.
 func (et *ExecutionTree) AddJobWithDeps(jobName string, deps []string) *TreeNode {
 	et.mu.Lock()
 	defer et.mu.Unlock()
@@ -77,7 +77,7 @@ func (et *ExecutionTree) AddJobWithDeps(jobName string, deps []string) *TreeNode
 	return node
 }
 
-// AddStep adds a step node to a job
+// AddStep adds a step node to a job.
 func (job *TreeNode) AddStep(stepName string) *TreeNode {
 	job.mu.Lock()
 	defer job.mu.Unlock()
@@ -92,7 +92,7 @@ func (job *TreeNode) AddStep(stepName string) *TreeNode {
 	return node
 }
 
-// AddStepDeferred adds a deferred step node to a job
+// AddStepDeferred adds a deferred step node to a job.
 func (job *TreeNode) AddStepDeferred(stepName string) *TreeNode {
 	job.mu.Lock()
 	defer job.mu.Unlock()
@@ -108,17 +108,17 @@ func (job *TreeNode) AddStepDeferred(stepName string) *TreeNode {
 	return node
 }
 
-// SetStatus updates a node's status
+// SetStatus updates a node's status.
 func (node *TreeNode) SetStatus(status Status) {
 	node.Node.SetStatus(status)
 }
 
-// SetSpinner updates the spinner display
+// SetSpinner updates the spinner display.
 func (node *TreeNode) SetSpinner(spinner string) {
 	node.Node.SetSpinner(spinner)
 }
 
-// RenderTree renders the entire tree to a string (live rendering)
+// RenderTree renders the entire tree to a string (live rendering).
 func (et *ExecutionTree) RenderTree() string {
 	et.mu.Lock()
 	defer et.mu.Unlock()
@@ -127,7 +127,7 @@ func (et *ExecutionTree) RenderTree() string {
 	return renderer.Render(et.Root.Node)
 }
 
-// CountLines returns the number of lines the tree will render
+// CountLines returns the number of lines the tree will render.
 func (et *ExecutionTree) CountLines() int {
 	et.mu.Lock()
 	defer et.mu.Unlock()
@@ -135,7 +135,7 @@ func (et *ExecutionTree) CountLines() int {
 	return CountLines(et.Root.Node)
 }
 
-// GetChildren returns the children of a node
+// GetChildren returns the children of a node.
 func (node *TreeNode) GetChildren() []*TreeNode {
 	children := node.Node.GetChildren()
 	result := make([]*TreeNode, len(children))
@@ -145,12 +145,12 @@ func (node *TreeNode) GetChildren() []*TreeNode {
 	return result
 }
 
-// GetName returns the name of the node
+// GetName returns the name of the node.
 func (node *TreeNode) GetName() string {
 	return node.Node.Name
 }
 
-// GetStatus returns the status of the node
+// GetStatus returns the status of the node.
 func (node *TreeNode) GetStatus() Status {
 	return node.Node.Status
 }
