@@ -62,6 +62,11 @@ func parseTimeout(timeoutStr string, defaultTimeout time.Duration) time.Duration
 
 // ExecuteJob runs a single job
 func (e *Executor) ExecuteJob(parentCtx context.Context, ctx *ExecutionContext, jobName string, job *model.Job) error {
+	// Ensure job.Name is set
+	if job.Name == "" {
+		job.Name = jobName
+	}
+
 	// Parse job timeout
 	jobTimeout := parseTimeout(job.Timeout, e.opts.DefaultTimeout)
 
@@ -116,8 +121,18 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, ctx *ExecutionContext, 
 func (e *Executor) executeSteps(jobCtx context.Context, execCtx *ExecutionContext, steps []*model.Step) error {
 	eg := new(errgroup.Group)
 	detached := 0
+	deferredSteps := []*model.Step{}
+	deferredIndices := []int{}
 
+	// First pass: execute non-detached steps and collect deferred steps
 	for idx, step := range steps {
+		if step.Deferred {
+			// Collect deferred steps for later execution
+			deferredSteps = append(deferredSteps, step)
+			deferredIndices = append(deferredIndices, idx)
+			continue
+		}
+
 		if step.Detach {
 			detached++
 			eg.Go(func() error {
@@ -125,13 +140,24 @@ func (e *Executor) executeSteps(jobCtx context.Context, execCtx *ExecutionContex
 			})
 			continue
 		}
+
 		if err := e.executeStep(jobCtx, execCtx, steps[idx], idx); err != nil {
 			return err
 		}
 	}
 
+	// Wait for all detached steps to complete before running deferred steps
 	if detached > 0 {
-		return eg.Wait()
+		if err := eg.Wait(); err != nil {
+			return err
+		}
+	}
+
+	// Second pass: execute deferred steps after all detached steps are done
+	for i, step := range deferredSteps {
+		if err := e.executeStep(jobCtx, execCtx, step, deferredIndices[i]); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -212,12 +238,12 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 	}
 
 	// Execute single iteration of the step
-	return e.executeStepIteration(jobCtx, stepCtx, step, stepNode, cmd)
+	return e.executeStepIteration(jobCtx, stepCtx, step, stepNode, cmd, stepIndex)
 }
 
 // executeStepWithForLoop handles for loop expansion and execution
 // Each iteration becomes a separate execution with iteration variables overlaid on context
-func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, _ int, stepNode *treeview.Node) error {
+func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int, stepNode *treeview.Node) error {
 	// Expand the for loop to get all iterations
 	iterations, err := ExpandFor(execCtx, NewExec().ExecuteCommand)
 	if err != nil {
@@ -333,7 +359,7 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 		}
 
 		// Execute this iteration with the iteration sub-node
-		if err := e.executeStepIteration(jobCtx, iterCtx, step, iterNode, cmd); err != nil {
+		if err := e.executeStepIteration(jobCtx, iterCtx, step, iterNode, cmd, stepIndex); err != nil {
 			lastErr = err
 			// Continue to next iteration even on error (collect all failures)
 			// This matches yamlexpr behavior of processing all items
@@ -350,7 +376,25 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 }
 
 // executeStepIteration executes a single step (or iteration of a step) with the given context
-func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, cmd string) error {
+func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, cmd string, stepIndex int) error {
+	// Get step name for logging
+	stepName := step.Name
+	if stepName == "" && stepNode != nil {
+		stepName = stepNode.Name
+	}
+
+	// Log RUN event
+	jobName := ""
+	if stepCtx.Job != nil {
+		jobName = stepCtx.Job.Name
+	}
+	if stepCtx.Logger != nil {
+		stepCtx.Logger.LogRun(jobName, stepIndex, stepName)
+	}
+
+	// Track start time for duration
+	startTime := time.Now()
+
 	// Mark step as running
 	if stepNode != nil {
 		stepNode.SetStatus(treeview.StatusRunning)
@@ -377,13 +421,33 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *Executi
 			s.Stop()
 			tickerTicker.Stop()
 
-			// Update tree node status
+			// Calculate duration in milliseconds
+			duration := time.Since(startTime).Milliseconds()
+
+			// Update tree node status and log result
 			if stepNode != nil {
 				if err != nil {
 					stepNode.SetStatus(treeview.StatusFailed)
+					if stepCtx.Logger != nil {
+						stepCtx.Logger.LogFail(jobName, stepIndex, stepName, err, duration)
+					}
 					return err
 				}
 				stepNode.SetStatus(treeview.StatusPassed)
+				if stepCtx.Logger != nil {
+					stepCtx.Logger.LogPass(jobName, stepIndex, stepName, duration)
+				}
+			} else {
+				// No node, still log the result
+				if err != nil {
+					if stepCtx.Logger != nil {
+						stepCtx.Logger.LogFail(jobName, stepIndex, stepName, err, duration)
+					}
+					return err
+				}
+				if stepCtx.Logger != nil {
+					stepCtx.Logger.LogPass(jobName, stepIndex, stepName, duration)
+				}
 			}
 
 			// Render tree with final state

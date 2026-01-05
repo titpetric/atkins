@@ -36,6 +36,7 @@ type ExecutionContext struct {
 	Display  *treeview.Display
 	Builder  *treeview.Builder
 	JobNodes map[string]*treeview.TreeNode // Map of job names to their tree nodes
+	Logger   *StepLogger
 }
 
 // Copy copies everything except Context and Variables.
@@ -55,5 +56,6 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 		Display:     e.Display,
 		Builder:     e.Builder,
 		JobNodes:    e.JobNodes,
+		Logger:      e.Logger,
 	}
 }

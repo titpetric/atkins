@@ -29,12 +29,14 @@ func main() {
 	var listFlag bool
 	var lintFlag bool
 	var debug bool
+	var logFile string
 
 	flag.StringVar(&pipelineFile, "file", "atkins.yml", "Path to pipeline file")
 	flag.StringVar(&job, "job", "", "Specific job to run")
 	flag.BoolVar(&listFlag, "l", false, "List pipeline jobs and dependencies")
 	flag.BoolVar(&lintFlag, "lint", false, "Lint pipeline for errors")
 	flag.BoolVar(&debug, "debug", false, "Print debug data")
+	flag.StringVar(&logFile, "log", "", "Log file path for command execution (e.g., atkins.log)")
 	flag.Parse()
 
 	// Handle positional argument as job name
@@ -113,7 +115,7 @@ func main() {
 	ctx := context.TODO()
 
 	for _, pipeline := range pipelines {
-		err := runner.RunPipeline(ctx, pipeline, job)
+		err := runner.RunPipelineWithLogAndFile(ctx, pipeline, job, logFile, pipelineFile)
 		if err != nil {
 			exitCode = 1
 			failedPipeline = pipeline.Name

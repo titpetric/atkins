@@ -3,6 +3,7 @@ package model
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
 
@@ -114,9 +115,15 @@ defer: "cleanup"
 			if step.Name != tt.wantName {
 				t.Errorf("Name = %q, want %q", step.Name, tt.wantName)
 			}
-			if step.Defer != tt.wantDefer {
-				t.Errorf("Defer = %v, want %v", step.Defer, tt.wantDefer)
-			}
+
+			assert.NotNil(t, step.Defer)
+
+			deferStep, err := step.DeferStep()
+			assert.NoError(t, err)
+			assert.NotNil(t, deferStep)
+
+			assert.Equal(t, tt.wantDefer, deferStep.Run)
+
 			if step.Detach != tt.wantDetach {
 				t.Errorf("Detach = %v, want %v", step.Detach, tt.wantDetach)
 			}
@@ -156,9 +163,7 @@ func TestStepsSliceUnmarshal(t *testing.T) {
 	}
 
 	// Third step: defer only
-	if steps[2].Defer != "cleanup" || steps[2].Run != "" {
-		t.Errorf("step[2]: Defer=%q Run=%q, want Defer='cleanup' Run=''", steps[2].Defer, steps[2].Run)
-	}
+	assert.Equal(t, "cleanup", steps[2].Defer.Value)
 
 	// Fourth step: detached
 	if steps[3].Run != "test" || !steps[3].Detach {
@@ -197,7 +202,6 @@ steps:
 	if job.Steps[1].Run != "go test ./..." {
 		t.Errorf("steps[1].Run = %q, want 'go test ./...'", job.Steps[1].Run)
 	}
-	if job.Steps[2].Defer != "docker compose down" {
-		t.Errorf("steps[2].Defer = %q, want 'docker compose down'", job.Steps[2].Defer)
-	}
+
+	assert.Equal(t, "docker compose down", job.Steps[2].Defer.Value)
 }

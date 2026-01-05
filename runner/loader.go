@@ -35,5 +35,12 @@ func LoadPipeline(filePath string) ([]*model.Pipeline, error) {
 		}
 	}
 
+	for taskName, task := range result[0].Tasks {
+		task.Name = taskName
+		if strings.Contains(taskName, ":") {
+			task.Nested = true
+		}
+	}
+
 	return result, nil
 }

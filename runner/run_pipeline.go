@@ -14,7 +14,30 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// RunPipelineWithLog runs a pipeline with optional logging to a file
+func RunPipelineWithLog(ctx context.Context, pipeline *model.Pipeline, job string, logFile string) error {
+	return RunPipelineWithLogAndFile(ctx, pipeline, job, logFile, "")
+}
+
+// RunPipelineWithLogAndFile runs a pipeline with optional logging to a file and pipeline filename
+func RunPipelineWithLogAndFile(ctx context.Context, pipeline *model.Pipeline, job string, logFile string, pipelineFile string) error {
+	logger, err := NewStepLoggerWithPipeline(logFile, pipelineFile)
+	if err != nil {
+		return fmt.Errorf("failed to create logger: %w", err)
+	}
+	return RunPipelineWithLogger(ctx, pipeline, job, logger)
+}
+
+// RunPipelineWithLogger runs a pipeline with the given logger
+func RunPipelineWithLogger(ctx context.Context, pipeline *model.Pipeline, job string, logger *StepLogger) error {
+	return runPipeline(ctx, pipeline, job, logger)
+}
+
 func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) error {
+	return runPipeline(ctx, pipeline, job, nil)
+}
+
+func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logger *StepLogger) error {
 	tree := treeview.NewBuilder(pipeline.Name)
 	root := tree.Root()
 
@@ -29,6 +52,7 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 		Display:   display,
 		Context:   ctx,
 		JobNodes:  make(map[string]*treeview.TreeNode),
+		Logger:    logger,
 	}
 
 	// Copy environment variables
