@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
 	"strings"
@@ -9,7 +8,7 @@ import (
 
 type ExecError struct {
 	Message      string
-	ErrorLog     string
+	Output       string
 	LastExitCode int
 }
 
@@ -49,14 +48,7 @@ func (e *Exec) ExecuteCommandWithQuietAndCapture(cmdStr string, verbose bool) (s
 	// Inherit current process environment
 	cmd.Env = os.Environ()
 
-	// Capture stdout and stderr separately
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	stdoutStr := stdout.String()
-	stderrStr := stderr.String()
+	output, err := cmd.CombinedOutput()
 
 	if err != nil {
 		// Extract exit code
@@ -66,18 +58,15 @@ func (e *Exec) ExecuteCommandWithQuietAndCapture(cmdStr string, verbose bool) (s
 		}
 
 		resErr := ExecError{
-			Message:      "failed to run command",
+			Message:      "failed to run command: " + err.Error(),
 			LastExitCode: exitCode,
-			ErrorLog:     stderrStr,
-		}
-		if resErr.ErrorLog == "" {
-			resErr.ErrorLog = err.Error()
+			Output:       string(output),
 		}
 
-		return stdoutStr, resErr
+		return "", resErr
 	}
 
-	return stdoutStr, nil
+	return string(output), nil
 }
 
 // removeEnvKey removes a key from environment variable list

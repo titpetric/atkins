@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/titpetric/atkins-ci/colors"
 	"github.com/titpetric/atkins-ci/model"
 	"github.com/titpetric/atkins-ci/spinner"
 	"github.com/titpetric/atkins-ci/treeview"
@@ -139,33 +140,22 @@ func (e *Executor) executeSteps(jobCtx context.Context, execCtx *ExecutionContex
 // executeStep runs a single step
 func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int) error {
 	// Handle step-level environment variables
-	stepCtx := &ExecutionContext{
-		Variables:   execCtx.Variables,
-		Env:         make(map[string]string),
-		Results:     execCtx.Results,
-		Verbose:     execCtx.Verbose,
-		Pipeline:    execCtx.Pipeline,
-		Job:         execCtx.Job,
-		Step:        step,
-		Depth:       execCtx.Depth + 1,
-		Context:     jobCtx,
-		Display:     execCtx.Display,
-		Builder:     execCtx.Builder,
-		CurrentJob:  execCtx.CurrentJob,
-		StepsCount:  execCtx.StepsCount,
-		StepsPassed: execCtx.StepsPassed,
-		JobNodes:    execCtx.JobNodes,
-	}
+	stepCtx := execCtx.Copy()
+	stepCtx.Context = jobCtx
+	stepCtx.Variables = execCtx.Variables
+	stepCtx.Step = step
 
+	env := make(map[string]string)
 	// Copy parent env and add step-specific env
 	for k, v := range execCtx.Env {
-		stepCtx.Env[k] = v
+		env[k] = v
 	}
 	if step.Env != nil {
 		for k, v := range step.Env {
-			stepCtx.Env[k] = v
+			env[k] = v
 		}
 	}
+	stepCtx.Env = env
 
 	// Get step node from tree
 	var stepNode *treeview.Node
@@ -173,6 +163,7 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 		children := jobNode.GetChildren()
 		if stepIndex < len(children) {
 			stepNode = children[stepIndex].Node
+			stepCtx.CurrentStep = stepNode
 		}
 	}
 
@@ -196,6 +187,10 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 
 	// Handle task invocation
 	if step.Task != "" {
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusRunning)
+			stepNode.Spinner = colors.BrightOrange("●")
+		}
 		return e.executeTaskStep(jobCtx, stepCtx, step, stepNode)
 	}
 
@@ -310,24 +305,9 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 	var lastErr error
 	for idx, iteration := range iterations {
 		// Create iteration context by overlaying iteration variables on parent context
-		iterCtx := &ExecutionContext{
-			Variables:   copyVariables(execCtx.Variables),
-			Env:         execCtx.Env,
-			Results:     execCtx.Results,
-			Verbose:     execCtx.Verbose,
-			Pipeline:    execCtx.Pipeline,
-			Job:         execCtx.Job,
-			Step:        execCtx.Step,
-			Depth:       execCtx.Depth,
-			StepsCount:  execCtx.StepsCount,
-			StepsPassed: execCtx.StepsPassed,
-			Builder:     execCtx.Builder,
-			CurrentJob:  execCtx.CurrentJob,
-			CurrentStep: execCtx.CurrentStep,
-			Display:     execCtx.Display,
-			JobNodes:    execCtx.JobNodes,
-			Context:     jobCtx,
-		}
+		iterCtx := execCtx.Copy()
+		iterCtx.Variables = copyVariables(execCtx.Variables)
+		iterCtx.Context = jobCtx
 
 		// Overlay iteration variables (they override parent variables)
 		for k, v := range iteration.Variables {
@@ -458,22 +438,12 @@ func (e *Executor) executeTaskStep(jobCtx context.Context, execCtx *ExecutionCon
 	execCtx.Display.Render(execCtx.Builder.Root())
 
 	// Create a new execution context for the task using the task's existing tree node
-	taskCtx := &ExecutionContext{
-		Variables:   copyVariables(execCtx.Variables),
-		Env:         execCtx.Env,
-		Results:     execCtx.Results,
-		Verbose:     execCtx.Verbose,
-		Pipeline:    execCtx.Pipeline,
-		Job:         taskJob,
-		Depth:       execCtx.Depth + 1,
-		StepsCount:  execCtx.StepsCount,
-		StepsPassed: execCtx.StepsPassed,
-		Builder:     execCtx.Builder,
-		CurrentJob:  taskJobNode,
-		Display:     execCtx.Display,
-		JobNodes:    execCtx.JobNodes,
-		Context:     jobCtx,
-	}
+	taskCtx := execCtx.Copy()
+	taskCtx.Variables = copyVariables(execCtx.Variables)
+	taskCtx.Depth++
+	taskCtx.Job = taskJob
+	taskCtx.CurrentJob = taskJobNode
+	taskCtx.Context = jobCtx
 
 	// Execute the task job steps
 	if err := e.executeSteps(jobCtx, taskCtx, taskJob.Steps); err != nil {

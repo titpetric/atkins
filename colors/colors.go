@@ -25,6 +25,10 @@ func BrightGreen(text string) string {
 	return colorBright + colorGreen + text + colorReset
 }
 
+func Green(text string) string {
+	return colorGreen + text + colorReset
+}
+
 func BrightYellow(text string) string {
 	return colorBright + colorYellow + text + colorReset
 }

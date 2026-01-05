@@ -124,7 +124,7 @@ func main() {
 				fmt.Fprintf(os.Stderr, "  Exit code: %d\n", errorLog.LastExitCode)
 				fmt.Fprintf(os.Stderr, "  Error output:\n")
 				// Indent the error output
-				for _, line := range strings.Split(errorLog.ErrorLog, "\n") {
+				for _, line := range strings.Split(errorLog.Output, "\n") {
 					if line != "" {
 						fmt.Fprintf(os.Stderr, "    %s\n", line)
 					}

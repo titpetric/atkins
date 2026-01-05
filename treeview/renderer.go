@@ -23,25 +23,12 @@ func (r *Renderer) Render(root *Node) string {
 	return r.RenderStatic(root)
 }
 
-func (r *Renderer) Render_old(root *Node) string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	output := colors.BrightGreen(root.Name) + "\n"
-	children := sortChildrenByStatus(root.GetChildren())
-	for i, child := range children {
-		isLast := i == len(children)-1
-		output += r.renderNode(child, "", isLast)
-	}
-	return output
-}
-
 // RenderStatic renders a static tree (for list views) without spinners
 func (r *Renderer) RenderStatic(root *Node) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	output := colors.BrightGreen(root.Name) + "\n"
+	output := colors.BrightWhite(root.Name) + "\n"
 
 	// Render only the children, not the root again
 	children := root.GetChildren()
@@ -60,7 +47,7 @@ func statusBadge(node *Node) (string, string) {
 	name, nameColor := node.Name, node.Name
 
 	switch node.Status {
-	case StatusRunning, StatusPending:
+	case StatusRunning:
 		if node.HasChildren() {
 			nameColor = colors.BrightOrange(name)
 		} else {
@@ -69,11 +56,22 @@ func statusBadge(node *Node) (string, string) {
 		if node.Spinner != "" {
 			badge = node.Spinner
 		} else {
-			badge = ""
+			if node.HasChildren() {
+				badge = colors.BrightOrange("●")
+			}
+		}
+	case StatusPending:
+		if node.HasChildren() {
+			nameColor = colors.BrightOrange(name)
+		} else {
+			nameColor = colors.White(name)
+		}
+		if node.HasChildren() {
+			badge = colors.Green("●")
 		}
 	case StatusPassed:
 		badge = colors.BrightGreen("✓")
-		nameColor = colors.BrightGreen(name)
+		nameColor = colors.BrightWhite(name)
 	case StatusFailed:
 		badge = colors.BrightRed("✗")
 		nameColor = colors.BrightRed(name)
@@ -81,7 +79,7 @@ func statusBadge(node *Node) (string, string) {
 		badge = colors.BrightYellow("⊘")
 		nameColor = colors.BrightYellow(name)
 	case StatusConditional:
-		badge = colors.BrightYellow("~")
+		badge = colors.Gray("●")
 		nameColor = colors.BrightYellow(name)
 	default:
 	}
@@ -113,7 +111,7 @@ func (r *Renderer) renderNode(node *Node, prefix string, isLast bool) string {
 		nodeLabel = nodeLabel + depsStr
 	}
 	if node.Deferred {
-		nodeLabel = nodeLabel + " " + colors.BrightCyan("(deferred)")
+		nodeLabel = nodeLabel + " " + colors.Gray("(deferred)")
 	}
 
 	// Render this node
@@ -166,8 +164,8 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		depsStr := strings.Join(depItems, ", ")
 		nodeLabel = nodeLabel + fmt.Sprintf(" (depends_on: %s)", depsStr)
 	}
-	if node.Deferred {
-		nodeLabel = nodeLabel + " " + colors.BrightCyan("(deferred)")
+	if node.Status == StatusPending && node.Deferred {
+		nodeLabel = nodeLabel + " " + colors.Gray("(deferred)")
 	}
 
 	// Render this node

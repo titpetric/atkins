@@ -2,7 +2,6 @@ package runner
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -118,7 +117,7 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 					break
 				}
 				jobMutex.Unlock()
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(250 * time.Millisecond)
 			}
 		}
 
@@ -179,15 +178,16 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 
 			display.Render(root)
 
-			fmt.Println(colors.BrightRed("✗ FAIL"))
+			/*
+				fmt.Println(colors.BrightRed("✗ FAIL"))
 
-			var errorLog ExecError
-			if errors.As(err, &errorLog) {
-				if errorLog.Len() > 0 {
-					fmt.Println(colors.BrightRed("Error: " + errorLog.Message))
-					fmt.Print(errorLog.ErrorLog)
-				}
-			}
+				var errorLog ExecError
+				if errors.As(err, &errorLog) {
+					if errorLog.Len() > 0 {
+						fmt.Println(colors.BrightRed("Error: " + errorLog.Message))
+						fmt.Print(errorLog.Output)
+					}
+				} */
 			return err
 		}
 		count++
@@ -201,15 +201,17 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 			root.UpdatedAt = time.Now()
 			display.Render(root)
 
-			fmt.Println(colors.BrightRed("✗ FAIL"))
-			// Print stderr if there's any error output
-			var errorLog ExecError
-			if errors.As(err, &errorLog) {
-				if errorLog.Len() > 0 {
-					fmt.Println(colors.BrightRed("Error: " + errorLog.Message))
-					fmt.Print(errorLog.ErrorLog)
+			/*
+				fmt.Println(colors.BrightRed("✗ FAIL"))
+				// Print stderr if there's any error output
+				var errorLog ExecError
+				if errors.As(err, &errorLog) {
+					if errorLog.Len() > 0 {
+						fmt.Println(colors.BrightRed("Error: " + errorLog.Message))
+						fmt.Print(errorLog.Output)
+					}
 				}
-			}
+			*/
 			return err
 		}
 	}

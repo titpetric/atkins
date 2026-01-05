@@ -7,17 +7,17 @@ import (
 )
 
 var (
-	// Matches ${{ variable_name }}
-	interpolationRegex = regexp.MustCompile(`\$\{\{\s*([^}]+)\s*\}\}`)
+	// Matches ${ variable_name }
+	interpolationRegex = regexp.MustCompile(`\$\{\s*([^}]+?)\s*\}`)
 	// Matches $(command)
 	commandExecRegex = regexp.MustCompile(`\$\(([^)]+)\)`)
 )
 
-// InterpolateString replaces ${{ variable }} with values from context
+// InterpolateString replaces ${ variable } with values from context
 func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
 	result := s
 
-	// Handle variable interpolation: ${{ var }}
+	// Handle variable interpolation: ${ var }
 	result = interpolationRegex.ReplaceAllStringFunc(result, func(match string) string {
 		varName := interpolationRegex.FindStringSubmatch(match)[1]
 		varName = strings.TrimSpace(varName)

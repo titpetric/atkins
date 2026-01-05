@@ -27,6 +27,10 @@ tasks:
       - task: install
       - rm -f atkins.cast atkins.gif
       - asciinema rec --cols 80 --rows 30 -t "Atkins CI runner example" -c "task run" atkins.cast
+      - task: record:gif
+
+  record:gif:
+    cmds:
       - $HOME/.cargo/bin/agg atkins.cast atkins.gif
 
   run:

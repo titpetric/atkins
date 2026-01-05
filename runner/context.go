@@ -7,20 +7,20 @@ import (
 	"github.com/titpetric/atkins-ci/treeview"
 )
 
-// IterationContext holds the variables for a single iteration of a for loop
+// IterationContext holds the variables for a single iteration of a for loop.
 type IterationContext struct {
 	Variables map[string]interface{}
 }
 
-// ExecutionContext holds runtime state during pipeline Exec
+// ExecutionContext holds runtime state during pipeline Exec.
 type ExecutionContext struct {
 	Context context.Context
 
-	Variables map[string]interface{}
-	Env       map[string]string
-	Results   map[string]interface{}
-
+	Env     map[string]string
+	Results map[string]interface{}
 	Verbose bool
+
+	Variables map[string]interface{}
 
 	Pipeline *model.Pipeline
 	Job      *model.Job
@@ -36,4 +36,24 @@ type ExecutionContext struct {
 	Display  *treeview.Display
 	Builder  *treeview.Builder
 	JobNodes map[string]*treeview.TreeNode // Map of job names to their tree nodes
+}
+
+// Copy copies everything except Context and Variables.
+func (e *ExecutionContext) Copy() *ExecutionContext {
+	return &ExecutionContext{
+		Env:         e.Env,
+		Results:     e.Results,
+		Verbose:     e.Verbose,
+		Pipeline:    e.Pipeline,
+		Job:         e.Job,
+		Step:        e.Step,
+		Depth:       e.Depth + 1,
+		StepsCount:  e.StepsCount,
+		StepsPassed: e.StepsPassed,
+		CurrentJob:  e.CurrentJob,
+		CurrentStep: e.CurrentStep,
+		Display:     e.Display,
+		Builder:     e.Builder,
+		JobNodes:    e.JobNodes,
+	}
 }

@@ -19,7 +19,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 			name: "simple for loop with list",
 			step: &model.Step{
 				Name: "test step",
-				Run:  "echo ${{ item }}",
+				Run:  "echo ${ item }",
 				For:  "item in fruits",
 			},
 			variables: map[string]interface{}{
@@ -32,7 +32,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 			name: "for loop with custom variable name",
 			step: &model.Step{
 				Name: "test step",
-				Run:  "echo ${{ pkg }}",
+				Run:  "echo ${ pkg }",
 				For:  "pkg in packages",
 			},
 			variables: map[string]interface{}{
@@ -45,7 +45,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 			name: "empty for loop",
 			step: &model.Step{
 				Name: "test step",
-				Run:  "echo ${{ item }}",
+				Run:  "echo ${ item }",
 				For:  "item in empty",
 			},
 			variables: map[string]interface{}{
@@ -110,14 +110,14 @@ func TestInterpolationInForLoop(t *testing.T) {
 	}{
 		{
 			name:        "simple variable interpolation",
-			cmd:         "echo Fruit: ${{ item }}",
+			cmd:         "echo Fruit: ${ item }",
 			variables:   map[string]interface{}{"item": "apple"},
 			expected:    "echo Fruit: apple",
 			expectError: false,
 		},
 		{
 			name:        "multiple variable interpolation",
-			cmd:         "echo ${{ key }} = ${{ value }}",
+			cmd:         "echo ${ key } = ${ value }",
 			variables:   map[string]interface{}{"key": "name", "value": "Alice"},
 			expected:    "echo name = Alice",
 			expectError: false,
@@ -159,7 +159,7 @@ func TestForLoopStepExecution(t *testing.T) {
 		// Create step with for loop
 		step := &model.Step{
 			Name: "process items",
-			Run:  "echo ${{ item }} >> /tmp/test-for-exec.log",
+			Run:  "echo ${ item } >> /tmp/test-for-exec.log",
 			For:  "item in items",
 		}
 
