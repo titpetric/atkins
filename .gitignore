@@ -1,4 +1,5 @@
 /bin
+atkins.log
 atkins
 /*.test
 /*.cov

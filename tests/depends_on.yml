@@ -1,0 +1,22 @@
+id: "depends_on"
+name: "Test case for depends_on"
+
+tasks:
+  fmt:
+    name: "Format source code"
+    steps:
+      - go fmt ./...
+
+  test:
+    depends_on: [test:build, test:run]
+
+  test:build:
+    depends_on: [fmt]
+    steps:
+      - go test -c -o ./bin ./...
+
+  test:run:
+    depends_on: [fmt, test:build]
+    steps:
+      - for: "item in $(ls ./bin/*.test)"
+        run: ${{ item }}

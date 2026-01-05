@@ -95,11 +95,10 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 			// Get the step command/name
 			stepName := step.String()
 			stepNode := &treeview.Node{
-				Name:      stepName,
-				Status:    treeview.StatusPending,
-				UpdatedAt: time.Now(),
-				Children:  make([]*treeview.Node, 0),
-				Deferred:  step.IsDeferred(),
+				Name:     stepName,
+				Status:   treeview.StatusPending,
+				Children: make([]*treeview.Node, 0),
+				Deferred: step.IsDeferred(),
 			}
 			jobNode.AddChild(stepNode)
 		}
@@ -128,7 +127,7 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 					break
 				}
 				jobMutex.Unlock()
-				time.Sleep(250 * time.Millisecond)
+				time.Sleep(50 * time.Millisecond)
 			}
 		}
 
@@ -184,21 +183,8 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		}
 
 		if err := executeJobWithDeps(name, job); err != nil {
-			root.Status = treeview.StatusFailed
-			root.UpdatedAt = time.Now()
-
+			root.SetStatus(treeview.StatusFailed)
 			display.Render(root)
-
-			/*
-				fmt.Println(colors.BrightRed("✗ FAIL"))
-
-				var errorLog ExecError
-				if errors.As(err, &errorLog) {
-					if errorLog.Len() > 0 {
-						fmt.Println(colors.BrightRed("Error: " + errorLog.Message))
-						fmt.Print(errorLog.Output)
-					}
-				} */
 			return err
 		}
 		count++
@@ -208,28 +194,15 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 	if detached > 0 {
 		if err := eg.Wait(); err != nil {
 			// Mark pipeline as failed
-			root.Status = treeview.StatusFailed
-			root.UpdatedAt = time.Now()
+			root.SetStatus(treeview.StatusFailed)
 			display.Render(root)
 
-			/*
-				fmt.Println(colors.BrightRed("✗ FAIL"))
-				// Print stderr if there's any error output
-				var errorLog ExecError
-				if errors.As(err, &errorLog) {
-					if errorLog.Len() > 0 {
-						fmt.Println(colors.BrightRed("Error: " + errorLog.Message))
-						fmt.Print(errorLog.Output)
-					}
-				}
-			*/
 			return err
 		}
 	}
 
 	// Mark pipeline as passed and render final tree
-	root.Status = treeview.StatusPassed
-	root.UpdatedAt = time.Now()
+	root.SetStatus(treeview.StatusPassed)
 	display.Render(root)
 
 	//	fmt.Print(colors.BrightGreen(fmt.Sprintf("✓ PASS (%d jobs passing)\n", count)))

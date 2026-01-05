@@ -42,16 +42,20 @@ func (r *Renderer) RenderStatic(root *Node) string {
 
 func statusBadge(node *Node) (string, string) {
 	var badge string
-	var nameColor string
 
-	name, nameColor := node.Name, node.Name
+	var (
+		name         = node.Name
+		label        = node.Name
+		haveChildren = node.HasChildren()
+		haveDeps     = len(node.Dependencies) > 0
+	)
 
 	switch node.Status {
 	case StatusRunning:
 		if node.HasChildren() {
-			nameColor = colors.BrightOrange(name)
+			label = colors.BrightOrange(name)
 		} else {
-			nameColor = colors.White(name)
+			label = colors.White(name)
 		}
 		if node.Spinner != "" {
 			badge = node.Spinner
@@ -60,86 +64,30 @@ func statusBadge(node *Node) (string, string) {
 				badge = colors.BrightOrange("●")
 			}
 		}
-	case StatusPending:
-		if node.HasChildren() {
-			nameColor = colors.BrightOrange(name)
-		} else {
-			nameColor = colors.White(name)
-		}
-		if node.HasChildren() {
-			badge = colors.Green("●")
-		}
 	case StatusPassed:
 		badge = colors.BrightGreen("✓")
-		nameColor = colors.BrightWhite(name)
+		label = colors.BrightWhite(name)
 	case StatusFailed:
 		badge = colors.BrightRed("✗")
-		nameColor = colors.BrightRed(name)
+		label = colors.BrightRed(name)
 	case StatusSkipped:
 		badge = colors.BrightYellow("⊘")
-		nameColor = colors.BrightYellow(name)
+		label = colors.BrightYellow(name)
 	case StatusConditional:
 		badge = colors.Gray("●")
-		nameColor = colors.BrightYellow(name)
+		label = colors.BrightYellow(name)
 	default:
-	}
-	return badge, nameColor
-}
-
-// renderNode renders a single node in the tree (used for execution views with spinners)
-func (r *Renderer) renderNode(node *Node, prefix string, isLast bool) string {
-	output := ""
-
-	// Determine branch character
-	branch := "├─ "
-	if isLast {
-		branch = "└─ "
-	}
-
-	status, nameColor := statusBadge(node)
-
-	isJob := len(node.GetChildren()) > 0
-
-	// Build the node label with dependencies and deferred info
-	nodeLabel := nameColor
-	if isJob && len(node.Dependencies) > 0 {
-		depItems := make([]string, len(node.Dependencies))
-		for j, dep := range node.Dependencies {
-			depItems[j] = colors.BrightOrange(dep)
+		if haveChildren || haveDeps {
+			label = colors.BrightOrange(name)
+			badge = colors.Green("●")
+		} else {
+			label = colors.White(name)
 		}
-		depsStr := colors.BrightWhite(" (depends_on: ") + colors.White(strings.Join(depItems, ", ")) + colors.BrightWhite(")")
-		nodeLabel = nodeLabel + depsStr
 	}
 	if node.Deferred {
-		nodeLabel = nodeLabel + " " + colors.Gray("(deferred)")
+		label = label + " " + colors.Gray("(deferred)")
 	}
-
-	// Render this node
-	output += prefix + branch + nodeLabel
-	if status != "" {
-		output += " " + status
-	}
-	output += "\n"
-
-	// Render children (sorted by completion status)
-	children := node.GetChildren()
-	if len(children) > 0 {
-		// Determine continuation character
-		continuation := "│  "
-		if isLast {
-			continuation = "   "
-		}
-
-		// Sort children by status
-		sortedChildren := sortChildrenByStatus(children)
-
-		for j, child := range sortedChildren {
-			childIsLast := j == len(sortedChildren)-1
-			output += r.renderNode(child, prefix+continuation, childIsLast)
-		}
-	}
-
-	return output
+	return badge, label
 }
 
 // renderStaticNode renders a static node without execution state (for list views)
@@ -152,24 +100,23 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		branch = "└─ "
 	}
 
-	status, nameColor := statusBadge(node)
+	status, label := statusBadge(node)
 
 	// Build the node label with dependencies and deferred info
-	nodeLabel := nameColor
-	if node.HasChildren() && len(node.Dependencies) > 0 {
+	if len(node.Dependencies) > 0 {
 		depItems := make([]string, len(node.Dependencies))
 		for j, dep := range node.Dependencies {
 			depItems[j] = colors.BrightOrange(dep)
 		}
 		depsStr := strings.Join(depItems, ", ")
-		nodeLabel = nodeLabel + fmt.Sprintf(" (depends_on: %s)", depsStr)
+		label = label + fmt.Sprintf(" (depends_on: %s)", depsStr)
 	}
 	if node.Status == StatusPending && node.Deferred {
-		nodeLabel = nodeLabel + " " + colors.Gray("(deferred)")
+		label = label + " " + colors.Gray("(deferred)")
 	}
 
 	// Render this node
-	output += prefix + branch + nodeLabel
+	output += prefix + branch + label
 	if status != "" {
 		output += " " + status
 	}

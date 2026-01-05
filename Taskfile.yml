@@ -21,6 +21,7 @@ tasks:
   test:
     cmds:
       - gotestsum ./... -- -count 1
+      - task: test:fixtures
 
   record:
     cmds:
@@ -43,7 +44,10 @@ tasks:
       - task: install
       - atkins -file test/pipelines/atkins-err.yml
 
-  test:detach:
+  test:fixtures:
+    depends_on: install
     cmds:
-      - task: install
-      - atkins -file test-detach.yml
+      - atkins -file tests/detach.yml -l
+      - atkins -file tests/detach.yml
+      - atkins -file tests/depends_on.yml -l
+      - atkins -file tests/depends_on.yml

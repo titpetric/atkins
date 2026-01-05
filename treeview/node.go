@@ -36,6 +36,7 @@ func (n *Node) SetStatus(status Status) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.Status = status
+	n.Deferred = false
 	n.UpdatedAt = time.Now()
 }
 
