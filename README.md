@@ -6,30 +6,38 @@ see which jobs are running, and run jobs and steps in parallel.
 
 ![](./examples/nested.yml.gif)
 
+See pipeline examples in [./tests](./tests).
+
+## Design
+
+The design was heavily influenced by [Taskfile](https://taskfile.dev)
+and GitHub Actions. The main intent of the tool is to run a single
+pipeline from a file, run the default job or any jobs, and nested steps
+within a job.
+
+Notable interpolation support:
+
+- `${{ expr }}` - interpolation with double brace and $ hint.
+- `$(shell)` - execution of subcommands to fill data
+
+This achieves two things:
+
+- Atkins variable interpolation not conflicting with bash `${var}`,
+- Atkins interpolation and shell exec is nicely parsed with YAML.
+
+Notably, it's been my ongoing issue with Taskfiles to nicely wrap bash,
+without adding complexity. Other things about taskfile like how it
+handles env variables have lead to the decision that we don't.
+
+Atkins passes along the environment and doesn't manage environment
+propagation. The complete pipeline runs using same environment vars.
+
 ## Status
-
-While the runner implements basic pipelines, work is still needed to:
-
-- cover with unit tests
-- test with more examples
-- adopt usage on real projects
-- implement docker
-
-## Project outline
-
-Atkins CI has a few basic goals:
-
-- [x] define a JSON/yaml forward execution script
-- [x] should allow exec into environment
-- [ ] should allow exec into docker
-
-The project builds around [titpetric/yamlexpr](https://github.com/titpetric/yamlexpr), providing
-yaml support for `for`, `if` and interpolation. The interpolation uses GitHub action syntax for
-variables, `${{ ... }}`.
 
 The project is inspired by by GHA, Drone CI, Taskfile.
 
-The main problem the project tries to work around is very awkward taskfiles this:
+The main problem the project tries to work around is very awkward
+taskfiles that end up looking like this:
 
 ```yaml
 version: '3'
@@ -51,7 +59,7 @@ tasks:
 
         if [ -z "$LAST_SENT" ] || [ "$LAST_SENT" -lt "$LAST_BRZINA" ]; then
           ./tp-link-cli sms send {{.TARGET_NUMBER}} "{{.RESPONSE_MESSAGE}}"
-          ./tp-link-cli sms send 0038631265642 "Quota router reset after 200G limit."
+          ./tp-link-cli sms send 0038631234567 "Quota router reset after 200G limit."
         else
           echo "Already responded to this message"
         fi
@@ -73,16 +81,14 @@ tasks:
     if: last_sent_match < last_inbox_match
     cmds:
       - ./tp-link-cli sms send ${{ target_number }} "{{ target_message }}"
-      - ./tp-link-cli sms send 0038631265642 "Quota router reset after 200G limit."
+      - ./tp-link-cli sms send 0038631234567 "Quota router reset after 200G limit."
 ```
 
-The intent is also to consume yaml/json with `$(...)`.
+The intent is also to consume yaml/json/text with `$(...)` syntax, like bash does.
 
 ```yaml
-inbox_list: $(./tp-link-cli sms list --json)
-
 messages:
-  - for: message in inbox_list
+  - for: message in $(./tp-link-cli sms list --json)
     message: ${{ message }}
 ```
 
