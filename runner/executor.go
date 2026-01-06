@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/titpetric/atkins-ci/colors"
 	"github.com/titpetric/atkins-ci/model"
 	"github.com/titpetric/atkins-ci/treeview"
 	"golang.org/x/sync/errgroup"
@@ -190,7 +189,7 @@ func (e *Executor) executeSteps(jobCtx context.Context, execCtx *ExecutionContex
 		if stepNode != nil {
 			// Update status to running and re-render to show the transition
 			stepNode.SetStatus(treeview.StatusRunning)
-			execCtx.Display.Render(execCtx.Builder.Root())
+
 			// Execute step with the actual found node
 			if err := e.executeStepWithNode(jobCtx, execCtx, step, stepNode); err != nil {
 				return err
@@ -264,7 +263,6 @@ func (e *Executor) executeStepWithNode(jobCtx context.Context, execCtx *Executio
 	if step.Task != "" {
 		if stepNode != nil {
 			stepNode.SetStatus(treeview.StatusRunning)
-			stepNode.Spinner = colors.BrightOrange("●")
 		}
 		return e.executeTaskStep(jobCtx, stepCtx, step, stepNode)
 	}
@@ -292,6 +290,8 @@ func (e *Executor) executeStepWithNode(jobCtx context.Context, execCtx *Executio
 
 // executeStep runs a single step
 func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int) error {
+	defer execCtx.Render()
+
 	// Handle step-level environment variables
 	stepCtx := execCtx.Copy()
 	stepCtx.Context = jobCtx
@@ -357,14 +357,19 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 	if step.Task != "" {
 		if stepNode != nil {
 			stepNode.SetStatus(treeview.StatusRunning)
-			stepNode.Spinner = colors.BrightOrange("●")
 		}
 		return e.executeTaskStep(jobCtx, stepCtx, step, stepNode)
 	}
 
 	// Handle for loop expansion
 	if step.For != "" {
-		return e.executeStepWithForLoop(jobCtx, stepCtx, step, stepIndex, stepNode)
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusRunning)
+		}
+		if err := e.executeStepWithForLoop(jobCtx, stepCtx, step, stepIndex, stepNode); err != nil {
+			stepNode.SetStatus(treeview.StatusFailed)
+			return err
+		}
 	}
 
 	// Determine which command to run
@@ -386,8 +391,6 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 // executeStepWithForLoop handles for loop expansion and execution
 // Each iteration becomes a separate execution with iteration variables overlaid on context
 func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int, stepNode *treeview.Node) error {
-	defer execCtx.Render()
-
 	// Expand the for loop to get all iterations
 	iterations, err := ExpandFor(execCtx, NewExec().ExecuteCommand)
 	if err != nil {
@@ -553,7 +556,6 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *Executi
 	// Mark step as running and render immediately to show state transition
 	if stepNode != nil {
 		stepNode.SetStatus(treeview.StatusRunning)
-		stepNode.SetSpinner(colors.BrightOrange("●"))
 		stepCtx.Display.Render(stepCtx.Builder.Root())
 	}
 
