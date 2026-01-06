@@ -428,11 +428,9 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 		// Create node for each iteration with interpolated command
 		for idx, iteration := range iterations {
 			// Interpolate command with iteration variables
-			iterCtx := &ExecutionContext{
-				Variables: copyVariables(execCtx.Variables),
-				Env:       execCtx.Env,
-				Results:   execCtx.Results,
-			}
+			iterCtx := execCtx.Copy()
+			iterCtx.Variables = copyVariables(execCtx.Variables)
+
 			for k, v := range iteration.Variables {
 				iterCtx.Variables[k] = v
 			}
