@@ -40,57 +40,6 @@ func (r *Renderer) RenderStatic(root *Node) string {
 	return output
 }
 
-func statusBadge(node *Node) (string, string) {
-	var badge string
-
-	var (
-		name         = node.Name
-		label        = node.Name
-		haveChildren = node.HasChildren()
-		haveDeps     = len(node.Dependencies) > 0
-	)
-
-	switch node.Status {
-	case StatusRunning:
-		if node.HasChildren() {
-			label = colors.BrightOrange(name)
-		} else {
-			label = colors.White(name)
-		}
-		if node.Spinner != "" {
-			badge = node.Spinner
-		} else {
-			if node.HasChildren() {
-				badge = colors.BrightOrange("●")
-			}
-		}
-	case StatusPassed:
-		badge = colors.BrightGreen("✓")
-		label = colors.BrightWhite(name)
-	case StatusFailed:
-		badge = colors.BrightRed("✗")
-		label = colors.BrightRed(name)
-	case StatusSkipped:
-		badge = colors.BrightYellow("⊘")
-		label = colors.BrightYellow(name)
-	case StatusConditional:
-		badge = colors.Gray("●")
-		label = colors.BrightYellow(name)
-	default:
-		if haveChildren || haveDeps {
-			label = colors.BrightOrange(name)
-			badge = colors.Green("●")
-		} else {
-			label = colors.White(name)
-		}
-	}
-	// Only show "(deferred)" label if status is still pending/not started
-	if node.Deferred && node.Status == StatusPending {
-		label = label + " " + colors.Gray("(deferred)")
-	}
-	return badge, label
-}
-
 // renderStaticNode renders a static node without execution state (for list views)
 func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) string {
 	output := ""
@@ -101,10 +50,8 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		branch = "└─ "
 	}
 
-	status, label := statusBadge(node)
-
-	// Replace newlines in label to prevent breaking the tree display
-	label = strings.ReplaceAll(label, "\n", " ")
+	label := node.Label()
+	status := node.StatusColor()
 
 	// Build the node label with dependencies and deferred info
 	if len(node.Dependencies) > 0 {

@@ -15,7 +15,7 @@ func TestNewNode(t *testing.T) {
 		assert.Equal(t, "test-job", node.Name)
 		assert.Equal(t, StatusPending, node.Status)
 		assert.Equal(t, "", node.ID)
-		assert.Equal(t, "", node.Spinner)
+		assert.Equal(t, "", node.StatusColor())
 		assert.False(t, node.Deferred)
 		assert.Equal(t, 0, len(node.Children))
 		assert.Equal(t, 0, len(node.Dependencies))
@@ -88,20 +88,6 @@ func TestSetStatus(t *testing.T) {
 		node.SetStatus(StatusRunning)
 
 		assert.True(t, node.UpdatedAt.After(oldTime))
-	})
-}
-
-// TestSetSpinner tests updating spinner display
-func TestSetSpinner(t *testing.T) {
-	t.Run("spinner update", func(t *testing.T) {
-		node := NewNode("test")
-		assert.Equal(t, "", node.Spinner)
-
-		node.SetSpinner("⠋")
-		assert.Equal(t, "⠋", node.Spinner)
-
-		node.SetSpinner("⠙")
-		assert.Equal(t, "⠙", node.Spinner)
 	})
 }
 

@@ -113,11 +113,6 @@ func (node *TreeNode) SetStatus(status Status) {
 	node.Node.SetStatus(status)
 }
 
-// SetSpinner updates the spinner display.
-func (node *TreeNode) SetSpinner(spinner string) {
-	node.Node.SetSpinner(spinner)
-}
-
 // RenderTree renders the entire tree to a string (live rendering).
 func (et *ExecutionTree) RenderTree() string {
 	et.mu.Lock()

@@ -3,6 +3,8 @@ package treeview
 import (
 	"sync"
 	"time"
+
+	"github.com/titpetric/atkins-ci/colors"
 )
 
 // Status represents the execution status of a node.
@@ -18,13 +20,71 @@ const (
 	StatusConditional
 )
 
+func (s Status) String() string {
+	switch s {
+	case StatusRunning:
+		return colors.BrightOrange("●")
+	case StatusPassed:
+		return colors.BrightGreen("✓")
+	case StatusFailed:
+		return colors.BrightRed("✗")
+	case StatusSkipped:
+		return colors.BrightYellow("⊘")
+	case StatusConditional:
+		return colors.Gray("●")
+	default:
+	}
+	return ""
+}
+
+func (n *Node) StatusColor() string {
+	var (
+		haveChildren = n.HasChildren()
+		haveDeps     = len(n.Dependencies) > 0
+	)
+
+	status := n.Status.String()
+	if status == "" && (haveChildren || haveDeps) {
+		return colors.Green("●")
+	}
+	return status
+}
+
+func (n *Node) Label() string {
+	var (
+		name         = n.Name
+		haveChildren = n.HasChildren()
+		haveDeps     = len(n.Dependencies) > 0
+	)
+
+	switch n.Status {
+	case StatusRunning:
+		if haveChildren {
+			return colors.BrightOrange(name)
+		}
+		return colors.White(name)
+	case StatusPassed:
+		return colors.BrightWhite(name)
+	case StatusFailed:
+		return colors.BrightRed(name)
+	case StatusSkipped:
+		return colors.BrightYellow(name)
+	case StatusConditional:
+		return colors.BrightYellow(name)
+	default:
+		if haveChildren || haveDeps {
+			return colors.BrightOrange(name)
+		}
+	}
+	return colors.White(name)
+}
+
 // Node represents a node in the tree (job, step, or iteration).
 type Node struct {
 	Name         string
 	ID           string // Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
 	Status       Status
 	UpdatedAt    time.Time
-	Spinner      string
 	Children     []*Node
 	Dependencies []string
 	Deferred     bool
@@ -38,13 +98,6 @@ func (n *Node) SetStatus(status Status) {
 	n.Status = status
 	n.Deferred = false
 	n.UpdatedAt = time.Now()
-}
-
-// SetSpinner updates the spinner display thread-safely.
-func (n *Node) SetSpinner(spinner string) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	n.Spinner = spinner
 }
 
 // AddChild adds a child node.
