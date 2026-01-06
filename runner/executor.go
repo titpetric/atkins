@@ -168,12 +168,127 @@ func (e *Executor) executeSteps(jobCtx context.Context, execCtx *ExecutionContex
 
 	// Second pass: execute deferred steps after all detached steps are done
 	for i, step := range deferredSteps {
-		if err := e.executeStep(jobCtx, execCtx, step, deferredIndices[i]); err != nil {
-			return err
+		stepIdx := deferredIndices[i]
+
+		// Find the deferred step node by looking for deferred nodes in the tree
+		// We need to find it by matching deferred status, not by index (since for loops may have expanded)
+		var stepNode *treeview.Node
+		if execCtx.CurrentJob != nil {
+			children := execCtx.CurrentJob.GetChildren()
+			deferredCount := 0
+			// Count deferred nodes to find the i-th deferred node
+			for _, child := range children {
+				if child.Node.Deferred {
+					if deferredCount == i {
+						stepNode = child.Node
+						break
+					}
+					deferredCount++
+				}
+			}
+		}
+
+		if stepNode != nil {
+			// Update status to running and re-render to show the transition
+			stepNode.SetStatus(treeview.StatusRunning)
+			execCtx.Display.Render(execCtx.Builder.Root())
+			// Execute step with the actual found node
+			if err := e.executeStepWithNode(jobCtx, execCtx, step, stepNode); err != nil {
+				return err
+			}
+		} else {
+			// Fallback to executeStep if node not found
+			if err := e.executeStep(jobCtx, execCtx, step, stepIdx); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
+}
+
+// executeStepWithNode runs a single step with a provided node
+func (e *Executor) executeStepWithNode(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
+	// Handle step-level environment variables
+	stepCtx := execCtx.Copy()
+	stepCtx.Context = jobCtx
+	stepCtx.Variables = execCtx.Variables
+	stepCtx.Step = step
+
+	env := make(map[string]string)
+	// Copy parent env and add step-specific env
+	for k, v := range execCtx.Env {
+		env[k] = v
+	}
+	if step.Env != nil {
+		for k, v := range step.Env {
+			env[k] = v
+		}
+	}
+	stepCtx.Env = env
+	stepCtx.CurrentStep = stepNode
+
+	// Evaluate if condition
+	shouldRun, err := EvaluateIf(stepCtx)
+	if err != nil {
+		// If condition evaluation fails, skip the step
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusSkipped)
+		}
+		return fmt.Errorf("failed to evaluate if condition for step %q: %w", step.Name, err)
+	}
+
+	if !shouldRun {
+		// Mark step as skipped and log it
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusSkipped)
+		}
+		// Get step name for logging
+		stepName := step.Name
+		if stepName == "" && stepNode != nil {
+			stepName = stepNode.Name
+		}
+		// Get sequential step index from the parent execution context
+		seqIndex := execCtx.NextStepIndex()
+		// Log SKIP event
+		jobName := ""
+		if execCtx.Job != nil {
+			jobName = execCtx.Job.Name
+		}
+		if execCtx.Logger != nil {
+			execCtx.Logger.LogSkip(jobName, seqIndex, stepName)
+		}
+		return nil
+	}
+
+	// Handle task invocation
+	if step.Task != "" {
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusRunning)
+			stepNode.Spinner = colors.BrightOrange("●")
+		}
+		return e.executeTaskStep(jobCtx, stepCtx, step, stepNode)
+	}
+
+	// Handle for loop expansion
+	if step.For != "" {
+		return e.executeStepWithForLoop(jobCtx, stepCtx, step, 0, stepNode)
+	}
+
+	// Determine which command to run
+	var cmd string
+	if step.Run != "" {
+		cmd = step.Run
+	} else if step.Cmd != "" {
+		cmd = step.Cmd
+	} else if len(step.Cmds) > 0 {
+		cmd = strings.Join(step.Cmds, " && ")
+	} else {
+		return nil
+	}
+
+	// Execute single iteration of the step
+	return e.executeStepIteration(jobCtx, stepCtx, step, stepNode, cmd, 0)
 }
 
 // executeStep runs a single step
@@ -409,6 +524,9 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 		return lastErr
 	}
 
+	// Render final state after all iterations complete
+	execCtx.Display.Render(execCtx.Builder.Root())
+
 	execCtx.StepsCount++
 	execCtx.StepsPassed++
 	return nil
@@ -439,9 +557,10 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *Executi
 	// Track start time for duration
 	startTime := time.Now()
 
-	// Mark step as running
+	// Mark step as running and render immediately to show state transition
 	if stepNode != nil {
 		stepNode.SetStatus(treeview.StatusRunning)
+		stepCtx.Display.Render(stepCtx.Builder.Root())
 	}
 
 	// Start spinner and execute command

@@ -84,7 +84,8 @@ func statusBadge(node *Node) (string, string) {
 			label = colors.White(name)
 		}
 	}
-	if node.Deferred {
+	// Only show "(deferred)" label if status is still pending/not started
+	if node.Deferred && node.Status == StatusPending {
 		label = label + " " + colors.Gray("(deferred)")
 	}
 	return badge, label
@@ -111,9 +112,7 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		depsStr := strings.Join(depItems, ", ")
 		label = label + fmt.Sprintf(" (depends_on: %s)", depsStr)
 	}
-	if node.Status == StatusPending && node.Deferred {
-		label = label + " " + colors.Gray("(deferred)")
-	}
+	// Note: deferred label is already handled in statusBadge() function above
 
 	// Render this node
 	output += prefix + branch + label
