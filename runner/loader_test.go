@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/titpetric/atkins-ci/model"
 	"github.com/titpetric/atkins-ci/runner"
 )
@@ -26,27 +27,15 @@ jobs:
 	defer os.Remove(tmpFile)
 
 	pipelines, err := runner.LoadPipeline(tmpFile)
-	if err != nil {
-		t.Fatalf("LoadPipeline failed: %v", err)
-	}
-
-	if len(pipelines) != 1 {
-		t.Fatalf("expected 1 pipeline, got %d", len(pipelines))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, pipelines, 1)
 
 	pipeline := pipelines[0]
-	if pipeline.Name != "If Conditions Test" {
-		t.Errorf("name = %q, want 'If Conditions Test'", pipeline.Name)
-	}
+	assert.Equal(t, "If Conditions Test", pipeline.Name)
 
 	testJob := pipeline.Jobs["test"]
-	if testJob == nil {
-		t.Fatal("test job not found")
-	}
-
-	if len(testJob.Steps) != 3 {
-		t.Fatalf("expected 3 steps, got %d", len(testJob.Steps))
-	}
+	assert.NotNil(t, testJob)
+	assert.Len(t, testJob.Steps, 3)
 }
 
 // TestLoadPipeline_WithForLoops tests loading a pipeline with for loops
@@ -71,24 +60,15 @@ jobs:
 	defer os.Remove(tmpFile)
 
 	pipelines, err := runner.LoadPipeline(tmpFile)
-	if err != nil {
-		t.Fatalf("LoadPipeline failed: %v", err)
-	}
-
-	if len(pipelines) != 1 {
-		t.Fatalf("expected 1 pipeline, got %d", len(pipelines))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, pipelines, 1)
 
 	pipeline := pipelines[0]
 	testJob := pipeline.Jobs["test"]
-	if testJob == nil {
-		t.Fatal("test job not found")
-	}
+	assert.NotNil(t, testJob)
 
-	// The current loader expands for loops, so we should have 3 steps
-	if len(testJob.Steps) != 1 {
-		t.Fatalf("expected 1 steps (unexpanded), got %d", len(testJob.Steps))
-	}
+	// The current loader expands for loops, so we should have 1 step
+	assert.Len(t, testJob.Steps, 1)
 }
 
 // TestLoadPipeline_WithForLoopsIndexPattern tests loading with (index, item) pattern
@@ -112,19 +92,12 @@ jobs:
 	defer os.Remove(tmpFile)
 
 	pipelines, err := runner.LoadPipeline(tmpFile)
-	if err != nil {
-		t.Fatalf("LoadPipeline failed: %v", err)
-	}
-
-	if len(pipelines) != 1 {
-		t.Fatalf("expected 1 pipeline, got %d", len(pipelines))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, pipelines, 1)
 
 	pipeline := pipelines[0]
 	testJob := pipeline.Jobs["test"]
-	if testJob == nil {
-		t.Fatal("test job not found")
-	}
+	assert.NotNil(t, testJob)
 
 	// Test the new Step.ExpandFor() method with index pattern
 	step := &model.Step{For: "(idx, item) in items"}
@@ -137,13 +110,8 @@ jobs:
 	}
 
 	iterations, err := runner.ExpandFor(ctx, nil)
-	if err != nil {
-		t.Fatalf("ExpandFor failed: %v", err)
-	}
-
-	if len(iterations) != 3 {
-		t.Fatalf("expected 3 iterations, got %d", len(iterations))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, iterations, 3)
 }
 
 // TestEvaluateIfInContext tests if conditions with context variables
@@ -188,13 +156,8 @@ func TestEvaluateIfInContext(t *testing.T) {
 			}
 
 			result, err := runner.EvaluateIf(ctx)
-			if err != nil {
-				t.Fatalf("EvaluateIf failed: %v", err)
-			}
-
-			if result != tt.wantBool {
-				t.Errorf("got %v, want %v", result, tt.wantBool)
-			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantBool, result)
 		})
 	}
 }
@@ -240,24 +203,14 @@ func TestExpandForWithVariables(t *testing.T) {
 			}
 
 			iterations, err := runner.ExpandFor(ctx, nil)
-			if err != nil {
-				t.Fatalf("ExpandFor failed: %v", err)
-			}
-
-			if len(iterations) != tt.wantCount {
-				t.Fatalf("got %d iterations, want %d", len(iterations), tt.wantCount)
-			}
+			assert.NoError(t, err)
+			assert.Len(t, iterations, tt.wantCount)
 
 			for i, expectedVars := range tt.wantVars {
 				for key, expectedVal := range expectedVars {
 					gotVal, ok := iterations[i].Variables[key]
-					if !ok {
-						t.Errorf("iteration[%d] missing variable %q", i, key)
-						continue
-					}
-					if gotVal != expectedVal {
-						t.Errorf("iteration[%d].%s = %v, want %v", i, key, gotVal, expectedVal)
-					}
+					assert.True(t, ok, "iteration[%d] missing variable %q", i, key)
+					assert.Equal(t, expectedVal, gotVal, "iteration[%d].%s", i, key)
 				}
 			}
 		})

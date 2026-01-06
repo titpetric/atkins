@@ -2,7 +2,6 @@ package treeview
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/titpetric/atkins-ci/model"
 )
@@ -96,12 +95,12 @@ func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*mo
 	}
 
 	// Build tree structure for static display - include all jobs
-	// Sort job names for consistent display
+	// Sort job names by depth, then alphabetically for consistent display
 	var jobNames []string
 	for jobName := range jobs {
 		jobNames = append(jobNames, jobName)
 	}
-	slices.Sort(jobNames)
+	jobNames = SortJobsByDepth(jobNames)
 
 	for _, jobName := range jobNames {
 		job := jobs[jobName]

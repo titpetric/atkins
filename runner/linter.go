@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/titpetric/atkins-ci/model"
+	"github.com/titpetric/atkins-ci/treeview"
 )
 
 // LintError represents a linting error.
@@ -198,7 +199,8 @@ func resolveJobs(jobs map[string]*model.Job) ([]string, error) {
 
 	// Only start traversal from root jobs
 	// This ensures nested jobs are only included if they're dependencies of root jobs
-	names := slices.Sorted(maps.Keys(jobs))
+	// Sort by depth for consistent ordering with static display
+	names := treeview.SortJobsByDepth(slices.Sorted(maps.Keys(jobs)))
 	for _, jobName := range names {
 		job := jobs[jobName]
 		if job.Name == "" {
