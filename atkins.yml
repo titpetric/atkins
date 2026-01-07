@@ -29,7 +29,8 @@ jobs:
     steps:
       - task: install
       - ./ci/release.yml build
-      - ./ci/release.yml build:docker
+      - ./ci/release.yml test
+      - ./ci/release.yml publish
 
   install:
     desc: "Install atkins"

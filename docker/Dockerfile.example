@@ -1,0 +1,24 @@
+FROM alpine:latest
+
+RUN apk update && apk add --no-cache coreutils
+
+# Verify that uname exists, used for tests
+RUN which uname
+
+# Create the nobody user if it does not already exist
+RUN id nobody 2>/dev/null || adduser -D -H -u 65534 nobody
+
+# Set working directory
+WORKDIR /app
+
+# Copy the atkins binary from the latest release
+COPY --from=titpetric/atkins:latest /usr/local/bin/atkins /usr/local/bin/atkins
+
+# Set permissions on the binary
+RUN chmod 755 /usr/local/bin/atkins
+
+# Configure container to run as nobody
+USER nobody
+
+# Default command
+ENTRYPOINT ["/usr/local/bin/atkins"]
