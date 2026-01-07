@@ -6,15 +6,11 @@ see which jobs are running, and run jobs and steps in parallel.
 
 ![](./examples/nested.yml.gif)
 
+To install the tool, see the [installation guide](./docs/install.md).
+
 See pipeline examples in [./tests](./tests).
 
-## Install
-
-Use the following command to install, needs the latest version of Go:
-
-```bash
-go install github.com/titpetric/atkins@latest
-```
+## Usage
 
 ```text
 $ atkins --help
@@ -35,7 +31,8 @@ Usage of atkins:
 To set up in your workspace, you'd:
 
 - provide `atkins.yml` and invoke `atkins` or
-- provide several configurations and invoke `atkins -file ${{ config }}`.
+- provide several configurations and invoke `atkins -file ${{ config }}`,
+- use `#!/usr/bin/env atkins` and provide executable pipelines
 
 You can use `atkins -l` in a project to view the projects pipeline:
 
