@@ -41,10 +41,11 @@ type EnvDecl struct {
 
 // Pipeline represents the root structure of an atkins.yml file.
 type Pipeline struct {
-	Name  string          `yaml:"name,omitempty"`
-	Env   *EnvDecl        `yaml:"env,omitempty"`
-	Jobs  map[string]*Job `yaml:"jobs,omitempty"`
-	Tasks map[string]*Job `yaml:"tasks,omitempty"`
+	Name  string                 `yaml:"name,omitempty"`
+	Vars  map[string]interface{} `yaml:"vars,omitempty"`
+	Env   *EnvDecl               `yaml:"env,omitempty"`
+	Jobs  map[string]*Job        `yaml:"jobs,omitempty"`
+	Tasks map[string]*Job        `yaml:"tasks,omitempty"`
 }
 
 // Job represents a job/task in the pipeline.

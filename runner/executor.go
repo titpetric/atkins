@@ -458,7 +458,14 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 			if step.Task != "" {
 				interpolated = step.Task
 			} else {
-				interpolated, _ = InterpolateCommand(cmdTemplate, iterCtx)
+				var err error
+				interpolated, err = InterpolateCommand(cmdTemplate, iterCtx)
+				if err != nil {
+					if stepNode != nil {
+						stepNode.SetStatus(treeview.StatusFailed)
+					}
+					return fmt.Errorf("failed to interpolate command for iteration %d: %w", idx, err)
+				}
 			}
 
 			// Get job name for ID generation
@@ -498,6 +505,15 @@ func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *Execu
 		// Overlay iteration variables (they override parent variables)
 		for k, v := range iteration.Variables {
 			iterCtx.Variables[k] = v
+		}
+
+		// Merge step-level env with interpolation
+		// This needs to happen before building the command so env vars can be interpolated
+		if err := MergeEnv(step.Env, iterCtx); err != nil {
+			if stepNode != nil {
+				stepNode.SetStatus(treeview.StatusFailed)
+			}
+			return fmt.Errorf("failed to process step env for iteration %d: %w", idx, err)
 		}
 
 		// Get the iteration sub-node
@@ -580,7 +596,13 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *Executi
 		stepCtx.Render()
 	}
 
-	err := e.executeCommand(jobCtx, stepCtx, cmd)
+	// Handle cmds: if step has multiple commands and child nodes exist, execute each command individually
+	var err error
+	if len(step.Cmds) > 0 && stepNode != nil && stepNode.HasChildren() {
+		err = e.executeCmdsStep(jobCtx, stepCtx, step, stepNode)
+	} else {
+		err = e.executeCommand(jobCtx, stepCtx, cmd)
+	}
 
 	// Calculate duration in milliseconds
 	duration := time.Since(startTime).Milliseconds()
@@ -589,8 +611,9 @@ func (e *Executor) executeStepIteration(jobCtx context.Context, stepCtx *Executi
 	if stepNode != nil {
 		if err != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
+		} else {
+			stepNode.SetStatus(treeview.StatusPassed)
 		}
-		stepNode.SetStatus(treeview.StatusPassed)
 	}
 
 	if err != nil {
@@ -846,6 +869,43 @@ func countOutputLines(output string) int {
 	return count
 }
 
+// executeCmdsStep executes multiple commands as children of a step node
+func (e *Executor) executeCmdsStep(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
+	children := stepNode.GetChildren()
+	var lastErr error
+
+	// Execute each command using its corresponding child node
+	for i, cmd := range step.Cmds {
+		var cmdNode *treeview.Node
+		if i < len(children) {
+			cmdNode = children[i]
+		}
+
+		// Mark command as running
+		if cmdNode != nil {
+			cmdNode.SetStatus(treeview.StatusRunning)
+			execCtx.Render()
+		}
+
+		// Execute the command
+		if err := e.executeCommand(ctx, execCtx, cmd); err != nil {
+			if cmdNode != nil {
+				cmdNode.SetStatus(treeview.StatusFailed)
+			}
+			execCtx.Render()
+			lastErr = err
+			// Continue to next command even on error to update all nodes
+		} else {
+			if cmdNode != nil {
+				cmdNode.SetStatus(treeview.StatusPassed)
+			}
+			execCtx.Render()
+		}
+	}
+
+	return lastErr
+}
+
 // executeCommand runs a single command with interpolation and respects context timeout
 func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext, cmd string) error {
 	// Interpolate the command
@@ -867,6 +927,10 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	exec := NewExecWithEnv(execCtx.Env)
 	output, err := exec.ExecuteCommandWithQuiet(interpolated, execCtx.Verbose)
 	if err != nil {
+		// Return the error as-is if it's an ExecError, otherwise wrap it
+		if execErr, ok := err.(ExecError); ok {
+			return execErr
+		}
 		return fmt.Errorf("command execution %s failed: %w", execCtx.CurrentStep.ID, err)
 	}
 

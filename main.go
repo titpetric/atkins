@@ -220,20 +220,26 @@ func main() {
 			failedPipeline = pipeline.Name
 
 			var errorLog runner.ExecError
-			if errors.As(err, &errorLog) && errorLog.Len() > 0 {
-				fmt.Fprintf(os.Stderr, "\nAn error occurred in %q pipeline:\n\n", failedPipeline)
-				fmt.Fprintf(os.Stderr, "  Exit code: %d\n", errorLog.LastExitCode)
-				fmt.Fprintf(os.Stderr, "  Error output:\n")
-				// Indent the error output
-				for _, line := range strings.Split(errorLog.Output, "\n") {
-					if line != "" {
-						fmt.Fprintf(os.Stderr, "    %s\n", line)
+			if errors.As(err, &errorLog) {
+				if errorLog.Len() > 0 {
+					fmt.Fprintf(os.Stderr, "\nAn error occurred in %q pipeline:\n\n", failedPipeline)
+					fmt.Fprintf(os.Stderr, "  Exit code: %d\n", errorLog.LastExitCode)
+					fmt.Fprintf(os.Stderr, "  Error output:\n")
+					// Indent the error output
+					for _, line := range strings.Split(errorLog.Output, "\n") {
+						if line != "" {
+							fmt.Fprintf(os.Stderr, "    %s\n", line)
+						}
 					}
+					fmt.Fprintf(os.Stderr, "\n")
+					fmt.Fprintf(os.Stderr, "  Stack trace:\n")
+					fmt.Fprintf(os.Stderr, "%s", errorLog.Trace)
 				}
-				fmt.Fprintf(os.Stderr, "\n")
-				fmt.Fprintf(os.Stderr, "  Stack trace:\n")
-				fmt.Fprintf(os.Stderr, "%s", errorLog.Trace)
 				exitCode = errorLog.LastExitCode
+			} else {
+				// Not an ExecError, print it as is
+				fmt.Fprintf(os.Stderr, "\nAn error occurred in %q pipeline:\n", failedPipeline)
+				fmt.Fprintf(os.Stderr, "  %s\n", err.Error())
 			}
 
 			if exitCode != 0 {

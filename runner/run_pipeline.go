@@ -65,6 +65,13 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		}
 	}
 
+	// Merge workflow-level vars (before env, so env can reference vars)
+	if pipeline.Vars != nil {
+		for k, v := range pipeline.Vars {
+			pipelineCtx.Variables[k] = v
+		}
+	}
+
 	// Merge workflow-level env with interpolation
 	if pipeline.Env != nil {
 		if err := MergeEnv(pipeline.Env, pipelineCtx); err != nil {
@@ -147,11 +154,25 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 				// Get the step command/name
 				stepName := step.String()
 				stepNode := &treeview.Node{
-					Name:     stepName,
-					Status:   treeview.StatusPending,
-					Children: make([]*treeview.Node, 0),
-					Deferred: step.IsDeferred(),
+					Name:      stepName,
+					Status:    treeview.StatusPending,
+					Children:  make([]*treeview.Node, 0),
+					Deferred:  step.IsDeferred(),
+					Summarize: step.Summarize,
 				}
+
+				// If step has multiple commands, create child nodes for each command
+				if len(step.Cmds) > 0 {
+					for _, cmd := range step.Cmds {
+						cmdNode := &treeview.Node{
+							Name:     cmd,
+							Status:   treeview.StatusPending,
+							Children: make([]*treeview.Node, 0),
+						}
+						stepNode.AddChild(cmdNode)
+					}
+				}
+
 				jobNode.AddChild(stepNode)
 			}
 
@@ -169,11 +190,25 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 				// Get the step command/name
 				stepName := step.String()
 				stepNode := &treeview.Node{
-					Name:     stepName,
-					Status:   treeview.StatusPending,
-					Children: make([]*treeview.Node, 0),
-					Deferred: step.IsDeferred(),
+					Name:      stepName,
+					Status:    treeview.StatusPending,
+					Children:  make([]*treeview.Node, 0),
+					Deferred:  step.IsDeferred(),
+					Summarize: step.Summarize,
 				}
+
+				// If step has multiple commands, create child nodes for each command
+				if len(step.Cmds) > 0 {
+					for _, cmd := range step.Cmds {
+						cmdNode := &treeview.Node{
+							Name:     cmd,
+							Status:   treeview.StatusPending,
+							Children: make([]*treeview.Node, 0),
+						}
+						stepNode.AddChild(cmdNode)
+					}
+				}
+
 				jobNode.AddChild(stepNode)
 			}
 

@@ -43,7 +43,12 @@ func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
 	})
 
 	// Handle command execution: $(command)
+	// We need to track errors since ReplaceAllStringFunc can't return errors
+	var cmdErr error
 	result = commandExecRegex.ReplaceAllStringFunc(result, func(match string) string {
+		if cmdErr != nil {
+			return match
+		}
 		cmd := commandExecRegex.FindStringSubmatch(match)[1]
 		cmd = strings.TrimSpace(cmd)
 
@@ -51,11 +56,16 @@ func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
 		exec := NewExecWithEnv(ctx.Env)
 		output, err := exec.ExecuteCommand(cmd)
 		if err != nil {
-			// Return original on error
+			// Capture error and return original string
+			cmdErr = fmt.Errorf("command execution failed: %w", err)
 			return match
 		}
 		return strings.TrimSpace(output)
 	})
+
+	if cmdErr != nil {
+		return "", cmdErr
+	}
 
 	return result, nil
 }
