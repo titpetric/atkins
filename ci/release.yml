@@ -16,3 +16,12 @@ jobs:
       - gh release create ${{ semver }} --title ${{semver}} --notes "Release ${{semver}}"
       - for: goarch in ${{build.goarch}}
         run: gh release upload ${{ semver }} ./bin/atkins-linux-${{goarch}}
+
+  build:docker:
+    passthru: true
+    vars:
+      semver: $(git tag | tail -n 1)
+    steps:
+      - docker buildx build --platform linux/amd64 -t titpetric/atkins:${{semver}} -t titpetric/atkins:latest -f docker/Dockerfile .
+      - docker push titpetric/atkins:latest
+      - docker push titpetric/atkins:${{semver}}
