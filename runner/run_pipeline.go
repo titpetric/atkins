@@ -256,6 +256,12 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		if err := executeJobWithDeps(name, job); err != nil {
 			root.SetStatus(treeview.StatusFailed)
 			display.Render(root)
+
+			// If not a TTY, print final tree at the end
+			if !display.IsTerminal() {
+				display.RenderStatic(root)
+			}
+
 			return err
 		}
 		count++
@@ -275,6 +281,11 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 	// Mark pipeline as passed and render final tree
 	root.SetStatus(treeview.StatusPassed)
 	display.Render(root)
+
+	// If not a TTY, print final tree at the end
+	if !display.IsTerminal() {
+		display.RenderStatic(root)
+	}
 
 	//	fmt.Print(colors.BrightGreen(fmt.Sprintf("✓ PASS (%d jobs passing)\n", count)))
 	return nil
