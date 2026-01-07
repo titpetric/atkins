@@ -6,9 +6,43 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+// EnvIncludeDecl represents file includes that can be either a single string or a list of strings.
+type EnvIncludeDecl struct {
+	Files []string
+}
+
+// UnmarshalYAML implements custom unmarshalling for EnvIncludeDecl to support string or []string.
+func (e *EnvIncludeDecl) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		// Single string
+		e.Files = []string{node.Value}
+		return nil
+	}
+
+	if node.Kind == yaml.SequenceNode {
+		// List of strings
+		var files []string
+		if err := node.Decode(&files); err != nil {
+			return err
+		}
+		e.Files = files
+		return nil
+	}
+
+	return fmt.Errorf("invalid include format: expected string or list of strings, got %v", node.Kind)
+}
+
+// EnvDecl represents an environment variable declaration that can contain
+// both manually-set variables and includes from external files.
+type EnvDecl struct {
+	Vars    map[string]interface{} `yaml:"vars,omitempty"`
+	Include *EnvIncludeDecl        `yaml:"include,omitempty"`
+}
+
 // Pipeline represents the root structure of an atkins.yml file.
 type Pipeline struct {
 	Name  string          `yaml:"name,omitempty"`
+	Env   *EnvDecl        `yaml:"env,omitempty"`
 	Jobs  map[string]*Job `yaml:"jobs,omitempty"`
 	Tasks map[string]*Job `yaml:"tasks,omitempty"`
 }
@@ -25,7 +59,7 @@ type Job struct {
 	Steps     []*Step                `yaml:"steps,omitempty"`
 	Services  map[string]*Service    `yaml:"services,omitempty"`
 	Vars      map[string]interface{} `yaml:"vars,omitempty"`
-	Env       map[string]string      `yaml:"env,omitempty"`
+	Env       *EnvDecl               `yaml:"env,omitempty"`
 	Detach    bool                   `yaml:"detach,omitempty"`
 	Show      *bool                  `yaml:"show,omitempty"` // Show in display (true=show, false=hide, nil=show if root level/ invoked)
 	DependsOn Dependencies           `yaml:"depends_on,omitempty"`
@@ -69,7 +103,7 @@ type Step struct {
 	Task      string                 `yaml:"task,omitempty"` // Task/job name to invoke
 	If        string                 `yaml:"if,omitempty"`
 	For       string                 `yaml:"for,omitempty"`
-	Env       map[string]string      `yaml:"env,omitempty"`
+	Env       *EnvDecl               `yaml:"env,omitempty"`
 	Uses      string                 `yaml:"uses,omitempty"`
 	With      map[string]interface{} `yaml:"with,omitempty"`
 	Detach    bool                   `yaml:"detach,omitempty"`
@@ -140,10 +174,10 @@ func (s *Step) UnmarshalYAML(node *yaml.Node) error {
 
 // Service represents a service (e.g., Docker container) used in a job.
 type Service struct {
-	Image    string            `yaml:"image,omitempty"`
-	Pull     string            `yaml:"pull,omitempty"`
-	Options  string            `yaml:"options,omitempty"`
-	Ports    []string          `yaml:"ports,omitempty"`
-	Env      map[string]string `yaml:"env,omitempty"`
-	Networks []string          `yaml:"networks,omitempty"`
+	Image    string   `yaml:"image,omitempty"`
+	Pull     string   `yaml:"pull,omitempty"`
+	Options  string   `yaml:"options,omitempty"`
+	Ports    []string `yaml:"ports,omitempty"`
+	Env      *EnvDecl `yaml:"env,omitempty"`
+	Networks []string `yaml:"networks,omitempty"`
 }

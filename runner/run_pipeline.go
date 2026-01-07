@@ -57,11 +57,19 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		Logger:    logger,
 	}
 
-	// Copy environment variables
+	// Copy environment variables from OS
 	for _, env := range os.Environ() {
 		k, v := parseEnv(env)
 		if k != "" {
 			pipelineCtx.Env[k] = v
+		}
+	}
+
+	// Merge workflow-level env with interpolation
+	if pipeline.Env != nil {
+		if err := MergeEnv(pipeline.Env, pipelineCtx); err != nil {
+			fmt.Printf("%s Failed to process workflow env: %v\n", colors.BrightRed("ERROR:"), err)
+			os.Exit(1)
 		}
 	}
 

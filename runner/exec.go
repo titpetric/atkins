@@ -27,11 +27,22 @@ func (r ExecError) Len() int {
 }
 
 // Exec runs shell commands.
-type Exec struct{}
+type Exec struct {
+	Env map[string]string // Optional environment variables to pass to commands
+}
 
 // NewExec creates a new Exec instance.
 func NewExec() *Exec {
-	return &Exec{}
+	return &Exec{
+		Env: make(map[string]string),
+	}
+}
+
+// NewExecWithEnv creates a new Exec instance with environment variables.
+func NewExecWithEnv(env map[string]string) *Exec {
+	return &Exec{
+		Env: env,
+	}
 }
 
 // ExecuteCommand will run the command quietly.
@@ -53,8 +64,14 @@ func (e *Exec) ExecuteCommandWithQuietAndCapture(cmdStr string, verbose bool) (s
 
 	cmd := exec.Command("bash", "-c", cmdStr)
 
-	// Inherit current process environment
-	cmd.Env = os.Environ()
+	// Build environment: start with OS environment, then overlay custom env
+	cmdEnv := os.Environ()
+	for k, v := range e.Env {
+		// Remove existing key if present and add new one
+		cmdEnv = removeEnvKey(cmdEnv, k)
+		cmdEnv = append(cmdEnv, k+"="+v)
+	}
+	cmd.Env = cmdEnv
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

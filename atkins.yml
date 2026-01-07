@@ -2,6 +2,14 @@
 
 name: Atkins CI Go project tests
 
+env:
+  vars:
+    GIT_COMMIT: $(git rev-parse HEAD)
+    GIT_BRANCH: $(git rev-parse --abbrev-ref HEAD)
+    GIT_TAG: $(git describe --tags --always --dirty 2>/dev/null || echo "no-tag")
+    GIT_TIME: $(git log -1 --format="format:%aI")
+    GIT_STATUS: $(git status --porcelain | wc -l)
+
 jobs:
   default:
     desc: "Run everything needed"
@@ -13,7 +21,7 @@ jobs:
   install:
     desc: "Install atkins-ci"
     steps:
-      - go install .
+      - go install -ldflags="-X 'main.Version=${GIT_TAG}' -X 'main.Commit=${GIT_COMMIT}' -X 'main.CommitTime=${GIT_TIME}' -X 'main.Branch=${GIT_BRANCH}' -X 'main.Modified=${GIT_MODIFIED}'" .
 
   fmt:
     desc: "Format the code"

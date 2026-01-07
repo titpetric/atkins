@@ -87,11 +87,9 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, job *model.Job, ctx *Ex
 		}
 	}
 
-	// Merge job environment
-	if job.Env != nil {
-		for k, v := range job.Env {
-			ctx.Env[k] = v
-		}
+	// Merge job environment with interpolation
+	if err := MergeEnv(job.Env, ctx); err != nil {
+		return err
 	}
 
 	// Execute steps
@@ -219,16 +217,20 @@ func (e *Executor) executeStepWithNode(jobCtx context.Context, execCtx *Executio
 	stepCtx.Step = step
 
 	env := make(map[string]string)
-	// Copy parent env and add step-specific env
+	// Copy parent env
 	for k, v := range execCtx.Env {
 		env[k] = v
 	}
-	if step.Env != nil {
-		for k, v := range step.Env {
-			env[k] = v
-		}
-	}
 	stepCtx.Env = env
+
+	// Merge step-level env with interpolation
+	if err := MergeEnv(step.Env, stepCtx); err != nil {
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusFailed)
+		}
+		return fmt.Errorf("failed to process step env: %w", err)
+	}
+
 	stepCtx.CurrentStep = stepNode
 
 	// Evaluate if condition
@@ -304,16 +306,14 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 	stepCtx.Step = step
 
 	env := make(map[string]string)
-	// Copy parent env and add step-specific env
+	// Copy parent env
 	for k, v := range execCtx.Env {
 		env[k] = v
 	}
-	if step.Env != nil {
-		for k, v := range step.Env {
-			env[k] = v
-		}
-	}
 	stepCtx.Env = env
+
+	// Merge step-level env with interpolation (will be done after getting stepNode)
+	// For now, deferred until we have the node reference
 
 	// Get step node from tree
 	var stepNode *treeview.Node
@@ -323,6 +323,14 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 			stepNode = children[stepIndex].Node
 			stepCtx.CurrentStep = stepNode
 		}
+	}
+
+	// Merge step-level env with interpolation
+	if err := MergeEnv(step.Env, stepCtx); err != nil {
+		if stepNode != nil {
+			stepNode.SetStatus(treeview.StatusFailed)
+		}
+		return fmt.Errorf("failed to process step env: %w", err)
 	}
 
 	// Evaluate if condition
@@ -399,7 +407,8 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 // Each iteration becomes a separate execution with iteration variables overlaid on context
 func (e *Executor) executeStepWithForLoop(jobCtx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int, stepNode *treeview.Node) error {
 	// Expand the for loop to get all iterations
-	iterations, err := ExpandFor(execCtx, NewExec().ExecuteCommand)
+	exec := NewExecWithEnv(execCtx.Env)
+	iterations, err := ExpandFor(execCtx, exec.ExecuteCommand)
 	if err != nil {
 		if stepNode != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
@@ -709,9 +718,8 @@ func (e *Executor) executeTaskStepWithLoop(jobCtx context.Context, execCtx *Exec
 	defer execCtx.Render()
 
 	// Expand the for loop to get iteration contexts
-	iterations, err := ExpandFor(execCtx, func(cmd string) (string, error) {
-		return NewExec().ExecuteCommand(cmd)
-	})
+	exec := NewExecWithEnv(execCtx.Env)
+	iterations, err := ExpandFor(execCtx, exec.ExecuteCommand)
 	if err != nil {
 		if stepNode != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
@@ -855,8 +863,9 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		}
 	}
 
-	// Execute the command via bash with quiet mode
-	output, err := NewExec().ExecuteCommandWithQuiet(interpolated, execCtx.Verbose)
+	// Execute the command via bash with quiet mode, passing execution context env
+	exec := NewExecWithEnv(execCtx.Env)
+	output, err := exec.ExecuteCommandWithQuiet(interpolated, execCtx.Verbose)
 	if err != nil {
 		return fmt.Errorf("command execution %s failed: %w", execCtx.CurrentStep.ID, err)
 	}
