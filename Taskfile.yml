@@ -4,13 +4,12 @@ version: "3"
 tasks:
   default:
     cmds:
-      - task: install
+      - atkins-ci install
       - atkins-ci
 
   install:
     cmds:
-      - task: fmt
-      - go install -trimpath .
+      - atkins-ci install
 
   fmt:
     silent: true
