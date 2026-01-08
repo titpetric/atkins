@@ -67,7 +67,7 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 	}
 }
 
-// Render() will refresh the treeview.
+// Render refreshes the treeview.
 func (e *ExecutionContext) Render() {
 	e.Display.Render(e.Builder.Root())
 }

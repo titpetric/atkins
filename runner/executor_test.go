@@ -344,3 +344,115 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 		assert.Contains(t, err.Error(), "component")
 	})
 }
+
+func TestJobVariablesInForLoop(t *testing.T) {
+	t.Run("job variable available in for loop expansion", func(t *testing.T) {
+		// Simulate a job with variables and a for loop step
+		// Like: vars: { testBinaries: "$(ls ./bin/*.test)" }
+		//       steps: [{ for: "item in testBinaries" }]
+
+		step := &model.Step{
+			Name: "process test binaries",
+			Task: "test:detail",
+			For:  "item in testBinaries",
+		}
+
+		// Job variables are merged into context BEFORE step execution
+		ctx := &runner.ExecutionContext{
+			Variables: map[string]any{
+				"testBinaries": "runner.test\nmodel.test\ntreeview.test",
+			},
+			Step: step,
+			Env:  make(map[string]string),
+		}
+
+		// Expand the for loop - should find testBinaries variable
+		iterations, err := runner.ExpandFor(ctx, func(cmd string) (string, error) {
+			return "", nil
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(iterations))
+
+		expectedBinaries := []string{"runner.test", "model.test", "treeview.test"}
+		for i, iter := range iterations {
+			assert.Equal(t, expectedBinaries[i], iter.Variables["item"], "Iteration %d item mismatch", i)
+		}
+	})
+
+	t.Run("job variables merged from Decl", func(t *testing.T) {
+		// Test that job variables in Decl are properly merged
+		job := &model.Job{
+			Name: "test_job",
+			Decl: &model.Decl{
+				Vars: map[string]any{
+					"testBinaries": "file1.test\nfile2.test",
+				},
+			},
+		}
+
+		ctx := &runner.ExecutionContext{
+			Variables: make(map[string]any),
+			Env:       make(map[string]string),
+		}
+
+		// Merge job variables
+		err := runner.MergeVariables(job.Decl, ctx)
+		assert.NoError(t, err)
+
+		// Check that testBinaries is in Variables
+		assert.NotNil(t, ctx.Variables["testBinaries"], "testBinaries should be in context variables")
+		assert.Equal(t, "file1.test\nfile2.test", ctx.Variables["testBinaries"])
+	})
+
+	t.Run("actual pipeline with for loop accessing job variable", func(t *testing.T) {
+		// Test the actual scenario from atkins.yml
+		// test:run job has vars: { testBinaries: ... }
+		// and a step: { for: "item in testBinaries", task: "test:detail" }
+
+		testBinariesValue := "runner.test\nmodel.test\ntreeview.test"
+
+		// Simulate the test:run job
+		job := &model.Job{
+			Name: "test:run",
+			Decl: &model.Decl{
+				Vars: map[string]any{
+					"testBinaries": testBinariesValue,
+				},
+			},
+			Steps: []*model.Step{
+				{
+					Name: "process items",
+					Task: "test:detail",
+					For:  "item in testBinaries",
+				},
+			},
+		}
+
+		// Simulate ExecuteJob flow
+		ctx := &runner.ExecutionContext{
+			Variables: make(map[string]any),
+			Env:       make(map[string]string),
+			Job:       job,
+		}
+
+		// Step 1: Merge job variables (from ExecuteJob line 119)
+		err := runner.MergeVariables(job.Decl, ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, testBinariesValue, ctx.Variables["testBinaries"], "testBinaries should be merged")
+
+		// Step 2: Simulate executeStep which calls Copy() then calls executeStepWithForLoop
+		stepCtx := ctx.Copy() // This should copy variables
+		stepCtx.Step = job.Steps[0]
+		stepCtx.Env = make(map[string]string)
+
+		// Verify variables are copied correctly
+		assert.Equal(t, testBinariesValue, stepCtx.Variables["testBinaries"], "stepCtx should have testBinaries after Copy()")
+
+		// Step 3: Call ExpandFor - it should find testBinaries
+		iterations, err := runner.ExpandFor(stepCtx, func(cmd string) (string, error) {
+			return "", nil
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(iterations), "Should have 3 iterations")
+	})
+}

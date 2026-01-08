@@ -14,25 +14,25 @@ import (
 	"github.com/titpetric/atkins/treeview"
 )
 
-// LineCapturingWriter captures all output written to it
+// LineCapturingWriter captures all output written to it.
 type LineCapturingWriter struct {
 	buffer bytes.Buffer
 	mu     sync.Mutex
 }
 
-// NewLineCapturingWriter creates a new LineCapturingWriter
+// NewLineCapturingWriter creates a new LineCapturingWriter.
 func NewLineCapturingWriter() *LineCapturingWriter {
 	return &LineCapturingWriter{}
 }
 
-// Write implements io.Writer
+// Write implements io.Writer.
 func (w *LineCapturingWriter) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.buffer.Write(p)
 }
 
-// GetLines returns all captured output as lines
+// GetLines returns all captured output as lines.
 func (w *LineCapturingWriter) GetLines() []string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -242,7 +242,6 @@ func (e *Executor) executeStepWithNode(jobCtx context.Context, execCtx *Executio
 	// Handle step-level environment variables
 	stepCtx := execCtx.Copy()
 	stepCtx.Context = jobCtx
-	stepCtx.Variables = execCtx.Variables
 	stepCtx.Step = step
 
 	env := make(map[string]string)
@@ -331,7 +330,6 @@ func (e *Executor) executeStep(jobCtx context.Context, execCtx *ExecutionContext
 	// Handle step-level environment variables
 	stepCtx := execCtx.Copy()
 	stepCtx.Context = jobCtx
-	stepCtx.Variables = execCtx.Variables
 	stepCtx.Step = step
 
 	env := make(map[string]string)

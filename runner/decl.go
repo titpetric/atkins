@@ -32,7 +32,9 @@ func ProcessDecl(decl *model.Decl, ctx *ExecutionContext) (map[string]any, error
 		if err != nil {
 			return nil, fmt.Errorf("failed to interpolate vars: %w", err)
 		}
-		return interpolated, nil
+		for k, v := range interpolated {
+			result[k] = v
+		}
 	}
 
 	return result, nil

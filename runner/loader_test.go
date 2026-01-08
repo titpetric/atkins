@@ -264,3 +264,48 @@ func BenchmarkExpandForLoop(b *testing.B) {
 		runner.ExpandFor(ctx, nil)
 	}
 }
+
+// TestLoadPipeline_JobVariablesDecl tests that job variables are properly loaded into Decl
+func TestLoadPipeline_JobVariablesDecl(t *testing.T) {
+	yamlContent := `
+name: Job Variables Test
+jobs:
+  test:run:
+    vars:
+      testBinaries: "file1.test\nfile2.test"
+    steps:
+      - for: item in testBinaries
+        task: test:detail
+`
+
+	tmpFile := createTempYaml(t, yamlContent)
+	defer os.Remove(tmpFile)
+
+	pipelines, err := runner.LoadPipeline(tmpFile)
+	assert.NoError(t, err)
+	assert.Len(t, pipelines, 1)
+
+	pipeline := pipelines[0]
+	testJob := pipeline.Jobs["test:run"]
+	assert.NotNil(t, testJob)
+
+	// Check that Decl is not nil
+	assert.NotNil(t, testJob.Decl, "Job.Decl should not be nil")
+
+	// Check that Vars are loaded
+	assert.NotNil(t, testJob.Decl.Vars, "Job.Decl.Vars should not be nil")
+	assert.NotNil(t, testJob.Decl.Vars["testBinaries"], "testBinaries should be in Decl.Vars")
+	assert.Equal(t, "file1.test\nfile2.test", testJob.Decl.Vars["testBinaries"])
+
+	// Now test that MergeVariables properly merges these into the ExecutionContext
+	ctx := &runner.ExecutionContext{
+		Variables: make(map[string]any),
+		Env:       make(map[string]string),
+		Job:       testJob,
+	}
+
+	err = runner.MergeVariables(testJob.Decl, ctx)
+	assert.NoError(t, err)
+	assert.NotNil(t, ctx.Variables["testBinaries"], "testBinaries should be in context after MergeVariables")
+	assert.Equal(t, "file1.test\nfile2.test", ctx.Variables["testBinaries"])
+}
