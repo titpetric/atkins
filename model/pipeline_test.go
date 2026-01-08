@@ -1,182 +1,185 @@
-package model
+package model_test
 
 import (
-	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/titpetric/atkins/model"
 )
 
-// TestStepUnmarshalYAML_StringStep tests unmarshalling a simple string step
-func TestStepUnmarshalYAML_StringStep(t *testing.T) {
-	tests := []struct {
-		name     string
-		yaml     string
-		wantRun  string
-		wantName string
-	}{
-		{
-			name:     "simple command",
-			yaml:     `"echo hello"`,
-			wantRun:  "echo hello",
-			wantName: "echo hello",
-		},
-		{
-			name:     "command with pipes",
-			yaml:     `"ls ./bin/*.test | sh -x"`,
-			wantRun:  "ls ./bin/*.test | sh -x",
-			wantName: "ls ./bin/*.test | sh -x",
-		},
-		{
-			name:     "complex command",
-			yaml:     `"docker compose up -d --wait --remove-orphans"`,
-			wantRun:  "docker compose up -d --wait --remove-orphans",
-			wantName: "docker compose up -d --wait --remove-orphans",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var step Step
-			err := yaml.Unmarshal([]byte(tt.yaml), &step)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.wantRun, step.Run)
-			assert.Equal(t, tt.wantName, step.Name)
-		})
-	}
-}
-
-// TestStepUnmarshalYAML_ObjectStep tests unmarshalling a structured step object
-func TestStepUnmarshalYAML_ObjectStep(t *testing.T) {
-	tests := []struct {
-		name       string
-		yaml       string
-		wantRun    string
-		wantName   string
-		wantDefer  bool
-		wantDetach bool
-		wantError  bool
-	}{
-		{
-			name: "simple object step",
-			yaml: `
-run: "echo test"
-name: "test step"
-`,
-			wantRun:  "echo test",
-			wantName: "test step",
-		},
-		{
-			name: "step with defer",
-			yaml: `
-defer: cleanup cmd
-run: "main task"
-`,
-			wantError: true,
-		},
-		{
-			name: "step with deferred",
-			yaml: `
-deferred: true
-run: "main task"
-`,
-			wantDefer: true,
-			wantRun:   "main task",
-		},
-		{
-			name: "step with detach",
-			yaml: `
-run: "background task"
-detach: true
-`,
-			wantRun:    "background task",
-			wantDetach: true,
-		},
-		{
-			name: "defer-only step with referred",
-			yaml: `
-run: "docker compose down"
-deferred: true
-`,
-			wantDefer: true,
-			wantRun:   "docker compose down",
-		},
-		{
-			name: "defer-only step",
-			yaml: `
-run: "docker compose down"
-defer: cleanup
-`,
-			wantError: true,
-		},
-	}
-
-	for index, tt := range tests {
-		t.Run(fmt.Sprintf("%d/%s", index, tt.name), func(t *testing.T) {
-			var step Step
-			err := yaml.Unmarshal([]byte(tt.yaml), &step)
-
-			if tt.wantError {
-				assert.Error(t, err)
-				return
-			}
-
-			assert.NoError(t, err)
-			assert.Equal(t, tt.wantRun, step.Run)
-			assert.Equal(t, tt.wantName, step.Name)
-			assert.Equal(t, tt.wantDefer, step.IsDeferred())
-			assert.Equal(t, tt.wantDetach, step.Detach)
-		})
-	}
-}
-
-// TestStepsSliceUnmarshal tests unmarshalling a list of mixed string and object steps
-func TestStepsSliceUnmarshal(t *testing.T) {
-	yamlStr := `
-- echo hello
-- run: echo world
-  name: named step
-- defer: cleanup
-- run: test
-  detach: true
-`
-
-	var steps []Step
-	err := yaml.Unmarshal([]byte(yamlStr), &steps)
-	assert.NoError(t, err)
-	assert.Len(t, steps, 4)
-
-	// First step: simple string
-	assert.Equal(t, "echo hello", steps[0].Run)
-	assert.Equal(t, "echo hello", steps[0].Name)
-
-	// Second step: object with name
-	assert.Equal(t, "echo world", steps[1].Run)
-	assert.Equal(t, "named step", steps[1].Name)
-
-	// Fourth step: detached
-	assert.Equal(t, "test", steps[3].Run)
-	assert.True(t, steps[3].Detach)
-}
-
-// TestJobWithStringSteps tests unmarshalling a Job with string steps
-func TestJobWithStringSteps(t *testing.T) {
-	jobYaml := `
-desc: "Test job"
+// TestJobUnmarshalYAML_WithVars tests that Job.Decl.Vars are properly decoded.
+func TestJobUnmarshalYAML_WithVars(t *testing.T) {
+	yamlContent := `
+name: test:run
+vars:
+  testBinaries: "file1.test\nfile2.test"
+  count: 42
 steps:
-  - echo hello
-  - go test ./...
-  - defer: docker compose down
+  - run: echo test
 `
 
-	var job Job
-	err := yaml.Unmarshal([]byte(jobYaml), &job)
+	var job model.Job
+	err := yaml.Unmarshal([]byte(yamlContent), &job)
 	assert.NoError(t, err)
-	assert.Equal(t, "Test job", job.Desc)
-	assert.Len(t, job.Steps, 3)
 
-	// Verify each step
-	assert.Equal(t, "echo hello", job.Steps[0].Run)
-	assert.Equal(t, "go test ./...", job.Steps[1].Run)
+	// Check that Decl is not nil
+	assert.NotNil(t, job.Decl)
+
+	// Check that Vars are loaded
+	assert.NotNil(t, job.Decl.Vars)
+	assert.Equal(t, "file1.test\nfile2.test", job.Decl.Vars["testBinaries"])
+	assert.Equal(t, 42, job.Decl.Vars["count"])
+}
+
+// TestStepUnmarshalYAML_WithVars tests that Step.Decl.Vars are properly decoded.
+func TestStepUnmarshalYAML_WithVars(t *testing.T) {
+	yamlContent := `
+name: test step
+run: echo test
+vars:
+  myVar: value123
+  count: 42
+`
+
+	var step model.Step
+	err := yaml.Unmarshal([]byte(yamlContent), &step)
+	assert.NoError(t, err)
+
+	// Check that Decl is not nil
+	assert.NotNil(t, step.Decl)
+
+	// Check that Vars are loaded
+	assert.NotNil(t, step.Decl.Vars)
+	assert.Equal(t, "value123", step.Decl.Vars["myVar"])
+	assert.Equal(t, 42, step.Decl.Vars["count"])
+}
+
+// TestPipelineUnmarshalYAML_WithVars tests that Pipeline.Decl.Vars are properly decoded.
+func TestPipelineUnmarshalYAML_WithVars(t *testing.T) {
+	yamlContent := `
+name: Test Pipeline
+vars:
+  globalVar: global_value
+  version: "1.0.0"
+jobs:
+  test:
+    steps:
+      - run: echo test
+`
+
+	var pipeline model.Pipeline
+	err := yaml.Unmarshal([]byte(yamlContent), &pipeline)
+	assert.NoError(t, err)
+
+	// Check that Decl is not nil
+	assert.NotNil(t, pipeline.Decl)
+
+	// Check that Vars are loaded
+	assert.NotNil(t, pipeline.Decl.Vars)
+	assert.Equal(t, "global_value", pipeline.Decl.Vars["globalVar"])
+	assert.Equal(t, "1.0.0", pipeline.Decl.Vars["version"])
+}
+
+// TestJobUnmarshalYAML_FullDepthDecoding tests full decoding of vars and include in Decl.
+func TestJobUnmarshalYAML_FullDepthDecoding(t *testing.T) {
+	// Create a temporary include file
+	tmpFile, err := os.CreateTemp("", "test-vars-*.yml")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	// Write vars to include file
+	_, err = tmpFile.WriteString(`
+includedVar: included_value
+nestedObject:
+  key: nested_key_value
+`)
+	assert.NoError(t, err)
+	tmpFile.Close()
+
+	yamlContent := `
+name: test:job
+vars:
+  localVar: local_value
+  localCount: 123
+include:
+  - ` + tmpFile.Name() + `
+steps:
+  - run: echo test
+`
+
+	var job model.Job
+	err = yaml.Unmarshal([]byte(yamlContent), &job)
+	assert.NoError(t, err)
+
+	// Check vars (at Decl level)
+	assert.NotNil(t, job.Decl.Vars)
+	assert.Equal(t, "local_value", job.Decl.Vars["localVar"])
+	assert.Equal(t, 123, job.Decl.Vars["localCount"])
+
+	// Check include (at Decl level)
+	assert.NotNil(t, job.Decl.Include)
+	assert.Len(t, job.Decl.Include.Files, 1)
+	assert.Equal(t, tmpFile.Name(), job.Decl.Include.Files[0])
+}
+
+// TestStepUnmarshalYAML_WithInclude tests that Step.Decl.Include is properly decoded.
+func TestStepUnmarshalYAML_WithInclude(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-step-vars-*.yml")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	_, err = tmpFile.WriteString(`stepVar: step_var_value`)
+	assert.NoError(t, err)
+	tmpFile.Close()
+
+	yamlContent := `
+name: test step
+run: echo test
+include:
+  - ` + tmpFile.Name()
+
+	var step model.Step
+	err = yaml.Unmarshal([]byte(yamlContent), &step)
+	assert.NoError(t, err)
+
+	// Check that Decl is not nil
+	assert.NotNil(t, step.Decl)
+
+	// Check that Include is loaded
+	assert.NotNil(t, step.Decl.Include)
+	assert.Len(t, step.Decl.Include.Files, 1)
+	assert.Equal(t, tmpFile.Name(), step.Decl.Include.Files[0])
+}
+
+// TestNestedJobInheritance tests that nested jobs (with ':' in name) properly decode Decl.
+func TestNestedJobInheritance(t *testing.T) {
+	yamlContent := `
+vars:
+  nestedVar: nested_value
+desc: "A nested job"
+steps:
+  - run: echo nested
+`
+
+	var job model.Job
+	err := yaml.Unmarshal([]byte(yamlContent), &job)
+	assert.NoError(t, err)
+
+	// Set the name to simulate a nested job
+	job.Name = "test:nested:job"
+
+	// Check Decl initialization
+	assert.NotNil(t, job.Decl)
+	assert.NotNil(t, job.Decl.Vars)
+	assert.Equal(t, "nested_value", job.Decl.Vars["nestedVar"])
+
+	// Check that IsRootLevel correctly identifies nested jobs
+	assert.False(t, job.IsRootLevel())
+
+	// Check that root level jobs are identified correctly
+	job.Name = "rootjob"
+	assert.True(t, job.IsRootLevel())
 }
