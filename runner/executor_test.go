@@ -13,7 +13,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 	tests := []struct {
 		name          string
 		step          *model.Step
-		variables     map[string]interface{}
+		variables     map[string]any
 		expectedCount int
 		expectError   bool
 	}{
@@ -24,8 +24,8 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 				Run:  "echo ${{ item }}",
 				For:  "item in fruits",
 			},
-			variables: map[string]interface{}{
-				"fruits": []interface{}{"apple", "banana", "orange"},
+			variables: map[string]any{
+				"fruits": []any{"apple", "banana", "orange"},
 			},
 			expectedCount: 3,
 			expectError:   false,
@@ -37,8 +37,8 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 				Run:  "echo ${{ pkg }}",
 				For:  "pkg in packages",
 			},
-			variables: map[string]interface{}{
-				"packages": []interface{}{"pkg1", "pkg2"},
+			variables: map[string]any{
+				"packages": []any{"pkg1", "pkg2"},
 			},
 			expectedCount: 2,
 			expectError:   false,
@@ -50,8 +50,8 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 				Run:  "echo ${{ item }}",
 				For:  "item in empty",
 			},
-			variables: map[string]interface{}{
-				"empty": []interface{}{},
+			variables: map[string]any{
+				"empty": []any{},
 			},
 			expectedCount: 0,
 			expectError:   false,
@@ -98,28 +98,28 @@ func TestInterpolationInForLoop(t *testing.T) {
 	tests := []struct {
 		name        string
 		cmd         string
-		variables   map[string]interface{}
+		variables   map[string]any
 		expected    string
 		expectError bool
 	}{
 		{
 			name:        "simple variable interpolation",
 			cmd:         "echo Fruit: ${{ item }}",
-			variables:   map[string]interface{}{"item": "apple"},
+			variables:   map[string]any{"item": "apple"},
 			expected:    "echo Fruit: apple",
 			expectError: false,
 		},
 		{
 			name:        "multiple variable interpolation",
 			cmd:         "echo ${{ key }} = ${{ value }}",
-			variables:   map[string]interface{}{"key": "name", "value": "Alice"},
+			variables:   map[string]any{"key": "name", "value": "Alice"},
 			expected:    "echo name = Alice",
 			expectError: false,
 		},
 		{
 			name:        "bash command execution",
 			cmd:         "echo $(echo 'hello')",
-			variables:   map[string]interface{}{},
+			variables:   map[string]any{},
 			expected:    "echo hello",
 			expectError: false,
 		},
@@ -158,12 +158,12 @@ func TestForLoopStepExecution(t *testing.T) {
 
 		// Create execution context with iteration items
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]interface{}{
-				"items": []interface{}{"one", "two", "three"},
+			Variables: map[string]any{
+				"items": []any{"one", "two", "three"},
 			},
 			Step:    step,
 			Env:     make(map[string]string),
-			Results: make(map[string]interface{}),
+			Results: make(map[string]any),
 		}
 
 		// Mock execute function for testing
@@ -191,7 +191,7 @@ func TestValidateJobRequirements(t *testing.T) {
 	tests := []struct {
 		name      string
 		job       *model.Job
-		variables map[string]interface{}
+		variables map[string]any
 		expectErr bool
 		errMsg    string
 	}{
@@ -201,7 +201,7 @@ func TestValidateJobRequirements(t *testing.T) {
 				Name:     "test_job",
 				Requires: []string{},
 			},
-			variables: map[string]interface{}{},
+			variables: map[string]any{},
 			expectErr: false,
 		},
 		{
@@ -210,7 +210,7 @@ func TestValidateJobRequirements(t *testing.T) {
 				Name:     "build_component",
 				Requires: []string{"component"},
 			},
-			variables: map[string]interface{}{
+			variables: map[string]any{
 				"component": "src/main",
 			},
 			expectErr: false,
@@ -221,7 +221,7 @@ func TestValidateJobRequirements(t *testing.T) {
 				Name:     "build_component",
 				Requires: []string{"component"},
 			},
-			variables: map[string]interface{}{},
+			variables: map[string]any{},
 			expectErr: true,
 			errMsg:    "requires variables [component] but missing: [component]",
 		},
@@ -231,7 +231,7 @@ func TestValidateJobRequirements(t *testing.T) {
 				Name:     "deploy_service",
 				Requires: []string{"service", "version", "env"},
 			},
-			variables: map[string]interface{}{
+			variables: map[string]any{
 				"service": "api",
 				"version": "1.0.0",
 			},
@@ -244,7 +244,7 @@ func TestValidateJobRequirements(t *testing.T) {
 				Name:     "deploy_service",
 				Requires: []string{"service", "version", "env"},
 			},
-			variables: map[string]interface{}{
+			variables: map[string]any{
 				"service": "api",
 				"version": "1.0.0",
 				"env":     "prod",
@@ -285,8 +285,8 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 
 		// Create execution context
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]interface{}{
-				"components": []interface{}{"src/main", "src/utils", "tests/"},
+			Variables: map[string]any{
+				"components": []any{"src/main", "src/utils", "tests/"},
 			},
 			Step: step,
 			Env:  make(map[string]string),
@@ -316,7 +316,7 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 
 		// Simulate iteration context with loop variable
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]interface{}{
+			Variables: map[string]any{
 				"component": "src/main",
 			},
 		}
@@ -335,7 +335,7 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 
 		// Iteration context without the required variable
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]interface{}{},
+			Variables: map[string]any{},
 		}
 
 		// Should fail validation

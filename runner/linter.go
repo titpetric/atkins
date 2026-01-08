@@ -90,7 +90,7 @@ func (l *Linter) validateTaskInvocations() {
 }
 
 // GetDependencies converts depends_on field (string or []string) to a slice of job names.
-func GetDependencies(dependsOn interface{}) []string {
+func GetDependencies(dependsOn any) []string {
 	if dependsOn == nil {
 		return []string{}
 	}
@@ -98,7 +98,7 @@ func GetDependencies(dependsOn interface{}) []string {
 	switch v := dependsOn.(type) {
 	case string:
 		return []string{v}
-	case []interface{}:
+	case []any:
 		result := make([]string, 0, len(v))
 		for _, item := range v {
 			if str, ok := item.(string); ok {

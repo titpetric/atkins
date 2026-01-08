@@ -9,17 +9,37 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// ProcessEnvDecl processes an EnvDecl and returns a map of environment variables.
+// mergeEnv merges environment variables from EnvDecl into the execution context.
+// Handles both workflow-level, job-level, and step-level env declarations.
+func mergeEnv(decl *model.EnvDecl, ctx *ExecutionContext) error {
+	if decl == nil {
+		return nil
+	}
+
+	processed, err := processEnv(decl, ctx)
+	if err != nil {
+		return err
+	}
+
+	// Merge into context
+	for k, v := range processed {
+		ctx.Env[k] = v
+	}
+
+	return nil
+}
+
+// processEnv processes an EnvDecl and returns a map of environment variables.
 // It handles:
 // - Manual vars with interpolation ($(...), ${{ ... }})
 // - Include files (.env format)
 // Vars take precedence over included files.
-func ProcessEnvDecl(envDecl *model.EnvDecl, ctx *ExecutionContext) (map[string]string, error) {
+func processEnv(decl *model.EnvDecl, ctx *ExecutionContext) (map[string]string, error) {
 	result := make(map[string]string)
 
 	// First, load included files
-	if envDecl != nil && envDecl.Include != nil {
-		for _, filePath := range envDecl.Include.Files {
+	if decl != nil && decl.Include != nil {
+		for _, filePath := range decl.Include.Files {
 			if err := loadEnvFile(filePath, result); err != nil {
 				return nil, fmt.Errorf("failed to load env file %q: %w", filePath, err)
 			}
@@ -27,8 +47,8 @@ func ProcessEnvDecl(envDecl *model.EnvDecl, ctx *ExecutionContext) (map[string]s
 	}
 
 	// Then, process and interpolate vars (they override included values)
-	if envDecl != nil && envDecl.Vars != nil {
-		interpolated, err := interpolateVariables(ctx, envDecl.Vars)
+	if decl != nil && decl.Vars != nil {
+		interpolated, err := interpolateVariables(ctx, decl.Vars)
 		if err != nil {
 			return nil, fmt.Errorf("failed to interpolate env vars: %w", err)
 		}
@@ -85,26 +105,6 @@ func loadEnvFile(filePath string, env map[string]string) error {
 
 	if err := scanner.Err(); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-// MergeEnv merges environment variables from EnvDecl into the execution context.
-// Handles both workflow-level, job-level, and step-level env declarations.
-func MergeEnv(envDecl *model.EnvDecl, ctx *ExecutionContext) error {
-	if envDecl == nil {
-		return nil
-	}
-
-	processed, err := ProcessEnvDecl(envDecl, ctx)
-	if err != nil {
-		return err
-	}
-
-	// Merge into context
-	for k, v := range processed {
-		ctx.Env[k] = v
 	}
 
 	return nil

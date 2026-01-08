@@ -23,7 +23,7 @@ func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 	}
 
 	// Build the environment for expression evaluation
-	env := make(map[string]interface{})
+	env := make(map[string]any)
 
 	// Add all context variables
 	for k, v := range ctx.Variables {
@@ -90,13 +90,13 @@ func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error
 	if indexVar != "" || keyVar != "" {
 		// (index, item) or (key, value) pattern
 		for i, item := range items {
-			vars := make(map[string]interface{})
+			vars := make(map[string]any)
 			for k, v := range ctx.Variables {
 				vars[k] = v
 			}
 
 			// Check if this is a map for (key, value) iteration
-			if mapItem, ok := item.(map[string]interface{}); ok && indexVar != "" && keyVar != "" {
+			if mapItem, ok := item.(map[string]any); ok && indexVar != "" && keyVar != "" {
 				// Could be either (index, item) with a map item, or (key, value) iteration
 				// If items contains only one map, treat as (key, value)
 				if len(items) == 1 {
@@ -125,7 +125,7 @@ func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error
 		// Simple "item in items" or "name in names" pattern
 		// Use the actual loop variable name (loopVar)
 		for _, item := range items {
-			vars := make(map[string]interface{})
+			vars := make(map[string]any)
 			for k, v := range ctx.Variables {
 				vars[k] = v
 			}
@@ -165,7 +165,7 @@ func parseForPattern(forSpec string) (string, string, string, string, error) {
 // itemsSpec can be:
 //   - A variable name: "items"
 //   - A bash command: "$(ls ./bin/*.test)"
-func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(string) (string, error)) ([]interface{}, error) {
+func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(string) (string, error)) ([]any, error) {
 	itemsSpec = strings.TrimSpace(itemsSpec)
 
 	// Check for bash command expansion: $(...)
@@ -185,7 +185,7 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 
 		// Split output by newlines
 		lines := strings.Split(strings.TrimSpace(output), "\n")
-		items := make([]interface{}, 0, len(lines))
+		items := make([]any, 0, len(lines))
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if line != "" {
@@ -204,12 +204,12 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 		// Evaluate expression (supports dot notation, operators, etc)
 		val, err := evaluateExpression(exprStr, ctx)
 		if err == nil && val != nil {
-			// Convert to []interface{}
+			// Convert to []any
 			switch v := val.(type) {
-			case []interface{}:
+			case []any:
 				return v, nil
 			case []string:
-				items := make([]interface{}, len(v))
+				items := make([]any, len(v))
 				for i, s := range v {
 					items[i] = s
 				}
@@ -217,7 +217,7 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 			case string:
 				// Split by newlines to support multi-line variables
 				lines := strings.Split(strings.TrimSpace(v), "\n")
-				items := make([]interface{}, 0, len(lines))
+				items := make([]any, 0, len(lines))
 				for _, line := range lines {
 					line = strings.TrimSpace(line)
 					if line != "" {
@@ -227,23 +227,23 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 				if len(items) > 0 {
 					return items, nil
 				}
-				return []interface{}{v}, nil
-			case map[string]interface{}:
-				return []interface{}{v}, nil
+				return []any{v}, nil
+			case map[string]any:
+				return []any{v}, nil
 			default:
-				return []interface{}{v}, nil
+				return []any{v}, nil
 			}
 		}
 	}
 
 	// Look up in variables
 	if val, ok := ctx.Variables[itemsSpec]; ok {
-		// Convert to []interface{}
+		// Convert to []any
 		switch v := val.(type) {
-		case []interface{}:
+		case []any:
 			return v, nil
 		case []string:
-			items := make([]interface{}, len(v))
+			items := make([]any, len(v))
 			for i, s := range v {
 				items[i] = s
 			}
@@ -251,7 +251,7 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 		case string:
 			// Split by newlines to support multi-line variables (e.g., from $(command) output)
 			lines := strings.Split(strings.TrimSpace(v), "\n")
-			items := make([]interface{}, 0, len(lines))
+			items := make([]any, 0, len(lines))
 			for _, line := range lines {
 				line = strings.TrimSpace(line)
 				if line != "" {
@@ -262,12 +262,12 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 				return items, nil
 			}
 			// If no non-empty lines, return the original string as a single item
-			return []interface{}{v}, nil
-		case map[string]interface{}:
+			return []any{v}, nil
+		case map[string]any:
 			// For key-value, return the map as a single item
-			return []interface{}{v}, nil
+			return []any{v}, nil
 		default:
-			return []interface{}{v}, nil
+			return []any{v}, nil
 		}
 	}
 
@@ -275,8 +275,8 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 }
 
 // copyMap creates a shallow copy of a map
-func copyMap(m map[string]interface{}) map[string]interface{} {
-	copy := make(map[string]interface{})
+func copyMap(m map[string]any) map[string]any {
+	copy := make(map[string]any)
 	for k, v := range m {
 		copy[k] = v
 	}

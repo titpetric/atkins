@@ -3,6 +3,7 @@ name: Release Atkins binaries
 
 vars:
   semver: $(git tag | tail -n 1)
+  image: titpetric/atkins
   build:
     goarch: [arm64, amd64]
 
@@ -22,14 +23,14 @@ jobs:
     desc: "Build docker image"
     passthru: true
     steps:
-      - docker buildx build --platform linux/amd64 -t titpetric/atkins:${{semver}} -t titpetric/atkins:latest -f docker/Dockerfile .
+      - docker buildx build --platform linux/amd64 -t ${{image}}:${{semver}} -t ${{image}}:latest -f docker/Dockerfile .
 
   test:
     desc: "Run tests required for release"
     passthru: true
     steps:
-      - docker buildx build --platform linux/amd64 -t titpetric/atkins-test -f docker/Dockerfile.example .
-      - docker run --rm titpetric/atkins-test -v $PWD/tests:/app -file nested.yml -l
+      - docker buildx build --platform linux/amd64 -t ${{image}}-test -f docker/Dockerfile.example .
+      - docker run --rm ${{image}}-test -v $PWD/tests:/app -file nested.yml -l
 
   publish:
     desc: "Publish release assets"
@@ -49,6 +50,6 @@ jobs:
     desc: "Push the Docker images"
     passthru: true
     steps:
-      - docker push titpetric/atkins:latest
-      - docker push titpetric/atkins:${{semver}}
+      - docker push ${{image}}:latest
+      - docker push ${{image}}:${{semver}}
 

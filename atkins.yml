@@ -52,6 +52,7 @@ jobs:
   fmt:
     desc: "Format the code"
     steps:
+      - goimports -w .
       - goimports-reviser -set-alias -format -imports-order "std,blanked,general,company,project" ./...
       - gofumpt -w .
       - go mod tidy

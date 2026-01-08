@@ -7,10 +7,12 @@ tasks:
       - task: install
       - atkins
 
-  install:
+  update:
     cmds:
       - which atkins || go install .
       - atkins install
+
+  install: go install .
 
   release: atkins release
   fmt: atkins fmt

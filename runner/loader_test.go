@@ -103,8 +103,8 @@ jobs:
 	// Test the new Step.ExpandFor() method with index pattern
 	step := &model.Step{For: "(idx, item) in items"}
 	ctx := &runner.ExecutionContext{
-		Variables: map[string]interface{}{
-			"items": []interface{}{"alpha", "beta", "gamma"},
+		Variables: map[string]any{
+			"items": []any{"alpha", "beta", "gamma"},
 		},
 		Step: step,
 		Env:  make(map[string]string),
@@ -120,28 +120,28 @@ func TestEvaluateIfInContext(t *testing.T) {
 	tests := []struct {
 		name     string
 		ifCond   string
-		vars     map[string]interface{}
+		vars     map[string]any
 		env      map[string]string
 		wantBool bool
 	}{
 		{
 			name:     "context variable comparison",
 			ifCond:   "matrix_os == 'linux'",
-			vars:     map[string]interface{}{"matrix_os": "linux"},
+			vars:     map[string]any{"matrix_os": "linux"},
 			env:      make(map[string]string),
 			wantBool: true,
 		},
 		{
 			name:     "env variable check",
 			ifCond:   "GOARCH == 'amd64'",
-			vars:     make(map[string]interface{}),
+			vars:     make(map[string]any),
 			env:      map[string]string{"GOARCH": "amd64"},
 			wantBool: true,
 		},
 		{
 			name:     "combined condition",
 			ifCond:   "matrix_os == 'linux' && GOARCH == 'amd64'",
-			vars:     map[string]interface{}{"matrix_os": "linux"},
+			vars:     map[string]any{"matrix_os": "linux"},
 			env:      map[string]string{"GOARCH": "amd64"},
 			wantBool: true,
 		},
@@ -168,16 +168,16 @@ func TestExpandForWithVariables(t *testing.T) {
 	tests := []struct {
 		name      string
 		forSpec   string
-		vars      map[string]interface{}
+		vars      map[string]any
 		wantCount int
-		wantVars  map[int]map[string]interface{}
+		wantVars  map[int]map[string]any
 	}{
 		{
 			name:      "simple item pattern",
 			forSpec:   "item in targets",
-			vars:      map[string]interface{}{"targets": []interface{}{"test1", "test2"}},
+			vars:      map[string]any{"targets": []any{"test1", "test2"}},
 			wantCount: 2,
-			wantVars: map[int]map[string]interface{}{
+			wantVars: map[int]map[string]any{
 				0: {"item": "test1"},
 				1: {"item": "test2"},
 			},
@@ -185,9 +185,9 @@ func TestExpandForWithVariables(t *testing.T) {
 		{
 			name:      "index, item pattern",
 			forSpec:   "(i, item) in targets",
-			vars:      map[string]interface{}{"targets": []interface{}{"test1", "test2"}},
+			vars:      map[string]any{"targets": []any{"test1", "test2"}},
 			wantCount: 2,
-			wantVars: map[int]map[string]interface{}{
+			wantVars: map[int]map[string]any{
 				0: {"i": 0, "item": "test1"},
 				1: {"i": 1, "item": "test2"},
 			},
@@ -237,7 +237,7 @@ func createTempYaml(t *testing.T, content string) string {
 func BenchmarkEvaluateIfExpression(b *testing.B) {
 	step := &model.Step{If: "matrix_os == 'linux' && GOARCH == 'amd64'"}
 	ctx := &runner.ExecutionContext{
-		Variables: map[string]interface{}{"matrix_os": "linux"},
+		Variables: map[string]any{"matrix_os": "linux"},
 		Env:       map[string]string{"GOARCH": "amd64"},
 		Step:      step,
 	}
@@ -252,8 +252,8 @@ func BenchmarkEvaluateIfExpression(b *testing.B) {
 func BenchmarkExpandForLoop(b *testing.B) {
 	step := &model.Step{For: "(i, item) in items"}
 	ctx := &runner.ExecutionContext{
-		Variables: map[string]interface{}{
-			"items": []interface{}{"a", "b", "c", "d", "e"},
+		Variables: map[string]any{
+			"items": []any{"a", "b", "c", "d", "e"},
 		},
 		Step: step,
 		Env:  make(map[string]string),

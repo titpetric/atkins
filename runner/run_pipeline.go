@@ -45,9 +45,9 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 
 	display := treeview.NewDisplay()
 	pipelineCtx := &ExecutionContext{
-		Variables: make(map[string]interface{}),
+		Variables: make(map[string]any),
 		Env:       make(map[string]string),
-		Results:   make(map[string]interface{}),
+		Results:   make(map[string]any),
 		Pipeline:  pipeline,
 		Depth:     0,
 		Builder:   tree,
@@ -65,19 +65,8 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		}
 	}
 
-	// Merge workflow-level vars (before env, so env can reference vars)
-	if pipeline.Vars != nil {
-		for k, v := range pipeline.Vars {
-			pipelineCtx.Variables[k] = v
-		}
-	}
-
-	// Merge workflow-level env with interpolation
-	if pipeline.Env != nil {
-		if err := MergeEnv(pipeline.Env, pipelineCtx); err != nil {
-			fmt.Printf("%s Failed to process workflow env: %v\n", colors.BrightRed("ERROR:"), err)
-			os.Exit(1)
-		}
+	if err := MergeVariables(pipeline.Decl, pipelineCtx); err != nil {
+		return err
 	}
 
 	// Resolve jobs to run

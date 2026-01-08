@@ -71,7 +71,7 @@ func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
 }
 
 // InterpolateMap recursively interpolates all string values in a map.
-func InterpolateMap(ctx *ExecutionContext, m map[string]interface{}) error {
+func InterpolateMap(ctx *ExecutionContext, m map[string]any) error {
 	for k, v := range m {
 		switch val := v.(type) {
 		case string:
@@ -80,11 +80,11 @@ func InterpolateMap(ctx *ExecutionContext, m map[string]interface{}) error {
 				return err
 			}
 			m[k] = interpolated
-		case map[string]interface{}:
+		case map[string]any:
 			if err := InterpolateMap(ctx, val); err != nil {
 				return err
 			}
-		case []interface{}:
+		case []any:
 			for i, item := range val {
 				if str, ok := item.(string); ok {
 					interpolated, err := InterpolateString(str, ctx)
@@ -115,9 +115,9 @@ func InterpolateCommand(cmd string, ctx *ExecutionContext) (string, error) {
 //
 // Note: The ?? (null coalescing) operator is the preferred pattern for defaults
 // since it explicitly handles nil/missing values without side effects on falsy values.
-func evaluateExpression(exprStr string, ctx *ExecutionContext) (interface{}, error) {
+func evaluateExpression(exprStr string, ctx *ExecutionContext) (any, error) {
 	// Merge variables and environment into a single map for expr evaluation
-	env := make(map[string]interface{})
+	env := make(map[string]any)
 	for k, v := range ctx.Variables {
 		env[k] = v
 	}

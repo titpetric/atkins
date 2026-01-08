@@ -10,7 +10,7 @@ import (
 
 // IterationContext holds the variables for a single iteration of a for loop.
 type IterationContext struct {
-	Variables map[string]interface{}
+	Variables map[string]any
 }
 
 // ExecutionContext holds runtime state during pipeline Exec.
@@ -18,10 +18,10 @@ type ExecutionContext struct {
 	Context context.Context
 
 	Env     map[string]string
-	Results map[string]interface{}
+	Results map[string]any
 	Verbose bool
 
-	Variables map[string]interface{}
+	Variables map[string]any
 
 	Pipeline *model.Pipeline
 	Job      *model.Job
@@ -46,17 +46,9 @@ type ExecutionContext struct {
 
 // Copy copies everything except Context. Variables are shallow-copied.
 func (e *ExecutionContext) Copy() *ExecutionContext {
-	// Create a copy of Variables map to avoid nil pointer issues
-	varsCopy := make(map[string]interface{})
-	if e.Variables != nil {
-		for k, v := range e.Variables {
-			varsCopy[k] = v
-		}
-	}
-
 	return &ExecutionContext{
-		Variables:    varsCopy,
-		Env:          e.Env,
+		Variables:    copyVariables(e.Variables),
+		Env:          copyEnv(e.Env),
 		Results:      e.Results,
 		Verbose:      e.Verbose,
 		Pipeline:     e.Pipeline,

@@ -10,57 +10,57 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-func TestProcessEnvDecl_VarsOnly(t *testing.T) {
+func TestProcessEnv_VarsOnly(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]interface{}),
+		Variables: make(map[string]any),
 	}
 
 	envDecl := &model.EnvDecl{
-		Vars: map[string]interface{}{
+		Vars: map[string]any{
 			"KEY1": "value1",
 			"KEY2": "value2",
 		},
 	}
 
-	result, err := ProcessEnvDecl(envDecl, ctx)
+	result, err := processEnv(envDecl, ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "value1", result["KEY1"])
 	assert.Equal(t, "value2", result["KEY2"])
 }
 
-func TestProcessEnvDecl_WithInterpolation(t *testing.T) {
+func TestProcessEnv_WithInterpolation(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env: make(map[string]string),
-		Variables: map[string]interface{}{
+		Variables: map[string]any{
 			"BASE_PATH": "/app",
 		},
 	}
 
 	envDecl := &model.EnvDecl{
-		Vars: map[string]interface{}{
+		Vars: map[string]any{
 			"FULL_PATH": "${{ BASE_PATH }}/config",
 		},
 	}
 
-	result, err := ProcessEnvDecl(envDecl, ctx)
+	result, err := processEnv(envDecl, ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "/app/config", result["FULL_PATH"])
 }
 
-func TestProcessEnvDecl_WithCommandExecution(t *testing.T) {
+func TestProcessEnv_WithCommandExecution(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]interface{}),
+		Variables: make(map[string]any),
 	}
 
 	envDecl := &model.EnvDecl{
-		Vars: map[string]interface{}{
+		Vars: map[string]any{
 			"HOSTNAME": "$(hostname)",
 		},
 	}
 
-	result, err := ProcessEnvDecl(envDecl, ctx)
+	result, err := processEnv(envDecl, ctx)
 	assert.NoError(t, err)
 
 	// Should have some hostname (not empty)
@@ -102,16 +102,16 @@ KEY4=final
 func TestMergeEnv(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       map[string]string{"EXISTING": "value"},
-		Variables: make(map[string]interface{}),
+		Variables: make(map[string]any),
 	}
 
 	envDecl := &model.EnvDecl{
-		Vars: map[string]interface{}{
+		Vars: map[string]any{
 			"NEW_KEY": "new_value",
 		},
 	}
 
-	assert.NoError(t, MergeEnv(envDecl, ctx))
+	assert.NoError(t, mergeEnv(envDecl, ctx))
 	assert.Equal(t, "value", ctx.Env["EXISTING"], "existing env var should be preserved")
 	assert.Equal(t, "new_value", ctx.Env["NEW_KEY"], "new env var should be merged")
 }
@@ -124,27 +124,27 @@ func TestEnvDeclPrecedence(t *testing.T) {
 
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]interface{}),
+		Variables: make(map[string]any),
 	}
 
 	envDecl := &model.EnvDecl{
-		Include: &model.EnvIncludeDecl{Files: []string{envFile}},
-		Vars: map[string]interface{}{
+		Include: &model.IncludeDecl{Files: []string{envFile}},
+		Vars: map[string]any{
 			"KEY":   "from_vars", // Should override file
 			"OTHER": "value",
 		},
 	}
 
-	result, err := ProcessEnvDecl(envDecl, ctx)
+	result, err := processEnv(envDecl, ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "from_vars", result["KEY"], "vars should override include files")
 	assert.Equal(t, "value", result["OTHER"])
 }
 
-func TestEnvIncludeDecl_UnmarshalString(t *testing.T) {
+func TestIncludeDecl_UnmarshalString(t *testing.T) {
 	// This would normally be tested via YAML unmarshalling,
 	// but we test the logic directly
-	includeDecl := &model.EnvIncludeDecl{}
+	includeDecl := &model.IncludeDecl{}
 
 	// Simulate setting a single file
 	includeDecl.Files = []string{".env"}
@@ -153,9 +153,9 @@ func TestEnvIncludeDecl_UnmarshalString(t *testing.T) {
 	assert.Equal(t, ".env", includeDecl.Files[0])
 }
 
-func TestEnvIncludeDecl_UnmarshalList(t *testing.T) {
+func TestIncludeDecl_UnmarshalList(t *testing.T) {
 	// Simulate setting multiple files
-	includeDecl := &model.EnvIncludeDecl{}
+	includeDecl := &model.IncludeDecl{}
 	includeDecl.Files = []string{".env", ".env.local", ".env.production"}
 
 	assert.Equal(t, 3, len(includeDecl.Files))
@@ -166,37 +166,37 @@ func TestEnvIncludeDecl_UnmarshalList(t *testing.T) {
 	}
 }
 
-func TestProcessEnvDecl_NoInterpolationWithoutContext(t *testing.T) {
+func TestProcessEnv_NoInterpolationWithoutContext(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]interface{}),
+		Variables: make(map[string]any),
 	}
 
 	envDecl := &model.EnvDecl{
-		Vars: map[string]interface{}{
+		Vars: map[string]any{
 			"PLAIN": "no_interpolation",
 		},
 	}
 
-	result, err := ProcessEnvDecl(envDecl, ctx)
+	result, err := processEnv(envDecl, ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "no_interpolation", result["PLAIN"])
 }
 
-func TestProcessEnvDecl_IntegerValue(t *testing.T) {
+func TestProcessEnv_IntegerValue(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]interface{}),
+		Variables: make(map[string]any),
 	}
 
 	envDecl := &model.EnvDecl{
-		Vars: map[string]interface{}{
+		Vars: map[string]any{
 			"PORT":  8080,
 			"DEBUG": true,
 		},
 	}
 
-	result, err := ProcessEnvDecl(envDecl, ctx)
+	result, err := processEnv(envDecl, ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, "8080", result["PORT"])
 	assert.Equal(t, "true", result["DEBUG"])
