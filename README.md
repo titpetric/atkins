@@ -6,6 +6,10 @@ see which jobs are running, and run jobs and steps in parallel.
 
 ![](./examples/nested.yml.gif)
 
+Flamegraphs can be generated out of Atkins execution:
+
+![](./atkins.svg)
+
 To install the tool, see the [installation guide](./docs/install.md).
 
 See pipeline examples in [./tests](./tests).
