@@ -55,7 +55,11 @@ type Node struct {
 	Name         string
 	ID           string // Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
 	Status       Status
+	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	StartOffset  float64 // Seconds offset from run start
+	Duration     float64 // Duration in seconds
+	If           string  // Condition that was evaluated (for conditional steps)
 	Children     []*Node
 	Dependencies []string
 	Deferred     bool
@@ -71,6 +75,28 @@ func (n *Node) SetStatus(status Status) {
 	n.Status = status
 	n.Deferred = false
 	n.UpdatedAt = time.Now()
+}
+
+// SetStartOffset sets the start offset from run start.
+func (n *Node) SetStartOffset(offset float64) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.StartOffset = offset
+}
+
+// SetDuration sets the duration in seconds.
+func (n *Node) SetDuration(duration float64) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.Duration = duration
+	n.UpdatedAt = time.Now()
+}
+
+// SetIf sets the condition string that was evaluated.
+func (n *Node) SetIf(condition string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.If = condition
 }
 
 // SetOutput sets the output lines for this node (from command execution).
@@ -113,10 +139,12 @@ func (n *Node) GetChildren() []*Node {
 
 // NewNode creates a new tree node.
 func NewNode(name string) *Node {
+	now := time.Now()
 	return &Node{
 		Name:         name,
 		Status:       StatusPending,
-		UpdatedAt:    time.Now(),
+		CreatedAt:    now,
+		UpdatedAt:    now,
 		Children:     make([]*Node, 0),
 		Dependencies: make([]string, 0),
 	}
@@ -137,4 +165,18 @@ func NewStepNode(name string, deferred bool) *Node {
 	node.Status = StatusRunning
 	node.Deferred = deferred
 	return node
+}
+
+// NewPendingStepNode creates a new step node with pending status.
+func NewPendingStepNode(name string, deferred, summarize bool) *Node {
+	node := NewNode(name)
+	node.Status = StatusPending
+	node.Deferred = deferred
+	node.Summarize = summarize
+	return node
+}
+
+// NewCmdNode creates a new command node as a child of a step.
+func NewCmdNode(name string) *Node {
+	return NewNode(name)
 }

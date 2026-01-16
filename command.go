@@ -147,7 +147,7 @@ func NewCommand() *cli.Command {
 			var failedPipeline string
 
 			for _, pipeline := range pipelines {
-				err := runner.RunPipelineWithLogAndFile(ctx, pipeline, job, logFile, pipelineFile)
+				err := runner.RunPipelineWithLogAndFile(ctx, pipeline, job, logFile, pipelineFile, debug)
 				if err != nil {
 					exitCode = 1
 					failedPipeline = pipeline.Name

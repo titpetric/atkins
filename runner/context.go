@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/titpetric/atkins/eventlog"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/treeview"
 )
@@ -34,10 +35,10 @@ type ExecutionContext struct {
 	CurrentJob  *treeview.TreeNode
 	CurrentStep *treeview.Node
 
-	Display  *treeview.Display
-	Builder  *treeview.Builder
-	JobNodes map[string]*treeview.TreeNode // Map of job names to their tree nodes
-	Logger   *StepLogger
+	Display     *treeview.Display
+	Builder     *treeview.Builder
+	JobNodes    map[string]*treeview.TreeNode // Map of job names to their tree nodes
+	EventLogger *eventlog.Logger
 
 	// Sequential step counter for this job (incremented for each step execution)
 	StepSequence int
@@ -62,7 +63,7 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 		Display:      e.Display,
 		Builder:      e.Builder,
 		JobNodes:     e.JobNodes,
-		Logger:       e.Logger,
+		EventLogger:  e.EventLogger,
 		StepSequence: e.StepSequence,
 	}
 }

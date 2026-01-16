@@ -11,26 +11,19 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/titpetric/atkins/colors"
+	"github.com/titpetric/atkins/eventlog"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/treeview"
 )
 
 // RunPipelineWithLog runs a pipeline with optional logging to a file.
 func RunPipelineWithLog(ctx context.Context, pipeline *model.Pipeline, job string, logFile string) error {
-	return RunPipelineWithLogAndFile(ctx, pipeline, job, logFile, "")
+	return RunPipelineWithLogAndFile(ctx, pipeline, job, logFile, "", false)
 }
 
 // RunPipelineWithLogAndFile runs a pipeline with optional logging to a file and pipeline filename.
-func RunPipelineWithLogAndFile(ctx context.Context, pipeline *model.Pipeline, job string, logFile string, pipelineFile string) error {
-	logger, err := NewStepLoggerWithPipeline(logFile, pipelineFile)
-	if err != nil {
-		return fmt.Errorf("failed to create logger: %w", err)
-	}
-	return RunPipelineWithLogger(ctx, pipeline, logger, job)
-}
-
-// RunPipelineWithLogger runs a pipeline with the given logger.
-func RunPipelineWithLogger(ctx context.Context, pipeline *model.Pipeline, logger *StepLogger, job string) error {
+func RunPipelineWithLogAndFile(ctx context.Context, pipeline *model.Pipeline, job string, logFile string, pipelineFile string, debug bool) error {
+	logger := eventlog.NewLogger(logFile, pipeline.Name, pipelineFile, debug)
 	return runPipeline(ctx, pipeline, job, logger)
 }
 
@@ -39,22 +32,22 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, job string) erro
 	return runPipeline(ctx, pipeline, job, nil)
 }
 
-func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logger *StepLogger) error {
+func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logger *eventlog.Logger) error {
 	tree := treeview.NewBuilder(pipeline.Name)
 	root := tree.Root()
 
 	display := treeview.NewDisplay()
 	pipelineCtx := &ExecutionContext{
-		Variables: make(map[string]any),
-		Env:       make(map[string]string),
-		Results:   make(map[string]any),
-		Pipeline:  pipeline,
-		Depth:     0,
-		Builder:   tree,
-		Display:   display,
-		Context:   ctx,
-		JobNodes:  make(map[string]*treeview.TreeNode),
-		Logger:    logger,
+		Variables:   make(map[string]any),
+		Env:         make(map[string]string),
+		Results:     make(map[string]any),
+		Pipeline:    pipeline,
+		Depth:       0,
+		Builder:     tree,
+		Display:     display,
+		Context:     ctx,
+		JobNodes:    make(map[string]*treeview.TreeNode),
+		EventLogger: logger,
 	}
 
 	// Copy environment variables from OS
@@ -140,25 +133,12 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 
 			// Populate children
 			for _, step := range job.Steps {
-				// Get the step command/name
-				stepName := step.String()
-				stepNode := &treeview.Node{
-					Name:      stepName,
-					Status:    treeview.StatusPending,
-					Children:  make([]*treeview.Node, 0),
-					Deferred:  step.IsDeferred(),
-					Summarize: step.Summarize,
-				}
+				stepNode := treeview.NewPendingStepNode(step.String(), step.IsDeferred(), step.Summarize)
 
 				// If step has multiple commands, create child nodes for each command
 				if len(step.Cmds) > 0 {
 					for _, cmd := range step.Cmds {
-						cmdNode := &treeview.Node{
-							Name:     cmd,
-							Status:   treeview.StatusPending,
-							Children: make([]*treeview.Node, 0),
-						}
-						stepNode.AddChild(cmdNode)
+						stepNode.AddChild(treeview.NewCmdNode(cmd))
 					}
 				}
 
@@ -168,33 +148,17 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 			jobNodes[jobName] = jobNode
 		} else {
 			// For non-root jobs (only invoked as tasks), create nodes but don't add to tree
-			jobNode := &treeview.Node{
-				Name:      jobLabel,
-				Status:    treeview.StatusPending,
-				Summarize: job.Summarize,
-			}
+			jobNode := treeview.NewNode(jobLabel)
+			jobNode.Summarize = job.Summarize
 
 			// Populate children
 			for _, step := range job.Steps {
-				// Get the step command/name
-				stepName := step.String()
-				stepNode := &treeview.Node{
-					Name:      stepName,
-					Status:    treeview.StatusPending,
-					Children:  make([]*treeview.Node, 0),
-					Deferred:  step.IsDeferred(),
-					Summarize: step.Summarize,
-				}
+				stepNode := treeview.NewPendingStepNode(step.String(), step.IsDeferred(), step.Summarize)
 
 				// If step has multiple commands, create child nodes for each command
 				if len(step.Cmds) > 0 {
 					for _, cmd := range step.Cmds {
-						cmdNode := &treeview.Node{
-							Name:     cmd,
-							Status:   treeview.StatusPending,
-							Children: make([]*treeview.Node, 0),
-						}
-						stepNode.AddChild(cmdNode)
+						stepNode.AddChild(treeview.NewCmdNode(cmd))
 					}
 				}
 
@@ -233,19 +197,44 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		jobCtx := pipelineCtx.Copy()
 		jobCtx.Job = job
 		jobCtx.Depth = 1
+		jobCtx.StepSequence = 0 // Reset step counter for each job
 
 		// Get pre-created job node and mark it as running
 		jobNode := jobNodes[jobName]
 		jobNode.SetStatus(treeview.StatusRunning)
 		jobCtx.CurrentJob = jobNode
 
+		// Capture job start time
+		var jobStartOffset float64
+		if logger != nil {
+			jobStartOffset = logger.GetElapsed()
+		}
+		jobNode.Node.SetStartOffset(jobStartOffset)
+		jobStartTime := time.Now()
+
 		display.Render(root)
 
-		if err := executor.ExecuteJob(ctx, jobCtx); err != nil {
+		execErr := executor.ExecuteJob(ctx, jobCtx)
+
+		// Calculate job duration
+		jobDuration := time.Since(jobStartTime)
+		jobNode.Node.SetDuration(jobDuration.Seconds())
+
+		// Log job event
+		jobID := "jobs." + jobName
+		if logger != nil {
+			result := eventlog.ResultPass
+			if execErr != nil {
+				result = eventlog.ResultFail
+			}
+			logger.LogExec(jobID, jobName, result, jobStartOffset, jobDuration.Milliseconds(), execErr)
+		}
+
+		if execErr != nil {
 			jobMutex.Lock()
 			jobCompleted[jobName] = true
 			jobMutex.Unlock()
-			return err
+			return execErr
 		}
 
 		// Mark job as passed
@@ -293,24 +282,29 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 				display.RenderStatic(root)
 			}
 
+			// Write event log on failure
+			writeEventLog(logger, root, err)
+
 			return err
 		}
 		count++
 	}
 
 	// Wait for all detached jobs
+	var runErr error
 	if detached > 0 {
 		if err := eg.Wait(); err != nil {
 			// Mark pipeline as failed
 			root.SetStatus(treeview.StatusFailed)
 			display.Render(root)
-
-			return err
+			runErr = err
 		}
 	}
 
-	// Mark pipeline as passed and render final tree
-	root.SetStatus(treeview.StatusPassed)
+	if runErr == nil {
+		// Mark pipeline as passed and render final tree
+		root.SetStatus(treeview.StatusPassed)
+	}
 	display.Render(root)
 
 	// If not a TTY, print final tree at the end
@@ -318,8 +312,42 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		display.RenderStatic(root)
 	}
 
-	//	fmt.Print(colors.BrightGreen(fmt.Sprintf("✓ PASS (%d jobs passing)\n", count)))
-	return nil
+	// Write event log
+	writeEventLog(logger, root, runErr)
+
+	return runErr
+}
+
+// writeEventLog writes the final event log to the file.
+func writeEventLog(logger *eventlog.Logger, root *treeview.Node, runErr error) {
+	if logger == nil {
+		return
+	}
+
+	// Set root duration
+	root.SetDuration(logger.GetElapsed())
+
+	// Convert tree to state
+	state := eventlog.NodeToStateNode(root)
+
+	// Count steps and build summary
+	total, passed, failed, skipped := eventlog.CountSteps(state)
+
+	result := eventlog.ResultPass
+	if runErr != nil || failed > 0 {
+		result = eventlog.ResultFail
+	}
+
+	summary := &eventlog.RunSummary{
+		Duration:     logger.GetElapsed(),
+		TotalSteps:   total,
+		PassedSteps:  passed,
+		FailedSteps:  failed,
+		SkippedSteps: skipped,
+		Result:       result,
+	}
+
+	logger.Write(state, summary)
 }
 
 func indent(depth int) string {

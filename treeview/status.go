@@ -15,7 +15,7 @@ const (
 	StatusConditional
 )
 
-// String returns a string representation of the Status.
+// String returns a colored string representation of the Status for display.
 func (s Status) String() string {
 	switch s {
 	case StatusRunning:
@@ -31,4 +31,24 @@ func (s Status) String() string {
 	default:
 	}
 	return ""
+}
+
+// Label returns a lowercase readable label for the Status (for logging/serialization).
+func (s Status) Label() string {
+	switch s {
+	case StatusPending:
+		return "pending"
+	case StatusRunning:
+		return "running"
+	case StatusPassed:
+		return "passed"
+	case StatusFailed:
+		return "failed"
+	case StatusSkipped:
+		return "skipped"
+	case StatusConditional:
+		return "conditional"
+	default:
+		return "unknown"
+	}
 }

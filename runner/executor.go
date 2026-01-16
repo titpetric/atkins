@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/titpetric/atkins/eventlog"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/treeview"
 )
@@ -279,6 +280,9 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 		// Mark step as skipped and log it
 		if stepNode != nil {
 			stepNode.SetStatus(treeview.StatusSkipped)
+			if step.If != "" {
+				stepNode.SetIf(step.If)
+			}
 		}
 		// Get step name for logging
 		stepName := step.Name
@@ -292,8 +296,10 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 		if execCtx.Job != nil {
 			jobName = execCtx.Job.Name
 		}
-		if execCtx.Logger != nil {
-			execCtx.Logger.LogSkip(jobName, seqIndex, stepName)
+		stepID := generateStepID(jobName, seqIndex)
+		if execCtx.EventLogger != nil {
+			startOffset := execCtx.EventLogger.GetElapsed()
+			execCtx.EventLogger.LogExec(stepID, stepName, eventlog.ResultSkipped, startOffset, 0, nil)
 		}
 		return nil
 	}
@@ -331,10 +337,15 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int) error {
 	defer execCtx.Render()
 
+	// Get the next sequential step index from the PARENT context before copying
+	// This ensures all steps in a job get unique sequential indices
+	seqIndex := execCtx.NextStepIndex()
+
 	// Handle step-level environment variables
 	stepCtx := execCtx.Copy()
 	stepCtx.Context = ctx
 	stepCtx.Step = step
+	stepCtx.StepSequence = seqIndex // Set the index for this step
 
 	env := make(map[string]string)
 	// Copy parent env
@@ -378,21 +389,24 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 		// Mark step as skipped and log it
 		if stepNode != nil {
 			stepNode.SetStatus(treeview.StatusSkipped)
+			if step.If != "" {
+				stepNode.SetIf(step.If)
+			}
 		}
 		// Get step name for logging
 		stepName := step.Name
 		if stepName == "" && stepNode != nil {
 			stepName = stepNode.Name
 		}
-		// Get sequential step index from the parent execution context
-		seqIndex := execCtx.NextStepIndex()
-		// Log SKIP event
+		// Log SKIP event using pre-assigned seqIndex
 		jobName := ""
 		if execCtx.Job != nil {
 			jobName = execCtx.Job.Name
 		}
-		if execCtx.Logger != nil {
-			execCtx.Logger.LogSkip(jobName, seqIndex, stepName)
+		stepID := generateStepID(jobName, seqIndex)
+		if execCtx.EventLogger != nil {
+			startOffset := execCtx.EventLogger.GetElapsed()
+			execCtx.EventLogger.LogExec(stepID, stepName, eventlog.ResultSkipped, startOffset, 0, nil)
 		}
 		return nil
 	}
@@ -606,18 +620,20 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 		stepName = stepNode.Name
 	}
 
-	// Get the next sequential step index for this job
-	// Note: We use the original stepCtx to increment the counter
-	// This ensures that all steps/iterations in a job get unique sequential indices
-	seqIndex := stepCtx.NextStepIndex()
+	// Use the pre-assigned step sequence from the context
+	seqIndex := stepCtx.StepSequence
 
-	// Log RUN event
+	// Build step ID for logging
 	jobName := ""
 	if stepCtx.Job != nil {
 		jobName = stepCtx.Job.Name
 	}
-	if stepCtx.Logger != nil {
-		stepCtx.Logger.LogRun(jobName, seqIndex, stepName)
+	stepID := generateStepID(jobName, seqIndex)
+
+	// Capture start offset for event log
+	var startOffset float64
+	if stepCtx.EventLogger != nil {
+		startOffset = stepCtx.EventLogger.GetElapsed()
 	}
 
 	// Track start time for duration
@@ -625,6 +641,8 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 
 	// Mark step as running and render immediately to show state transition
 	if stepNode != nil {
+		stepNode.ID = stepID
+		stepNode.SetStartOffset(startOffset)
 		stepNode.SetStatus(treeview.StatusRunning)
 		stepCtx.Render()
 	}
@@ -637,11 +655,13 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 		err = e.executeCommand(ctx, stepCtx, step, cmd)
 	}
 
-	// Calculate duration in milliseconds
-	duration := time.Since(startTime).Milliseconds()
+	// Calculate duration
+	duration := time.Since(startTime)
+	durationMs := duration.Milliseconds()
 
 	// Update tree node status and log result
 	if stepNode != nil {
+		stepNode.SetDuration(duration.Seconds())
 		if err != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
 		} else {
@@ -649,18 +669,17 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 		}
 	}
 
-	if err != nil {
-		if stepCtx.Logger != nil {
-			stepCtx.Logger.LogFail(jobName, seqIndex, stepName, err, duration)
+	// Log single execution event
+	if stepCtx.EventLogger != nil {
+		result := eventlog.ResultPass
+		if err != nil {
+			result = eventlog.ResultFail
 		}
-		return err
-	}
-	if stepCtx.Logger != nil {
-		stepCtx.Logger.LogPass(jobName, seqIndex, stepName, duration)
+		stepCtx.EventLogger.LogExec(stepID, stepName, result, startOffset, durationMs, err)
 	}
 
 	stepCtx.Render()
-	return nil
+	return err
 }
 
 // executeTaskStep executes a task/job from within a step
@@ -717,12 +736,21 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	taskJobNode.SetStatus(treeview.StatusRunning)
 	execCtx.Render()
 
+	// Capture task start time for logging
+	var taskStartOffset float64
+	if execCtx.EventLogger != nil {
+		taskStartOffset = execCtx.EventLogger.GetElapsed()
+	}
+	taskJobNode.Node.SetStartOffset(taskStartOffset)
+	taskStartTime := time.Now()
+
 	// Create a new execution context for the task using the task's existing tree node
 	taskCtx := execCtx.Copy()
 	taskCtx.Depth++
 	taskCtx.Job = taskJob
 	taskCtx.CurrentJob = taskJobNode
 	taskCtx.Context = ctx
+	taskCtx.StepSequence = 0 // Reset step counter for new job
 
 	err := func() error {
 		if err := MergeVariables(taskJob.Decl, taskCtx); err != nil {
@@ -736,6 +764,20 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		}
 		return nil
 	}()
+
+	// Calculate task duration and log
+	taskDuration := time.Since(taskStartTime)
+	taskJobNode.Node.SetDuration(taskDuration.Seconds())
+
+	taskID := "jobs." + taskName
+	if execCtx.EventLogger != nil {
+		result := eventlog.ResultPass
+		if err != nil {
+			result = eventlog.ResultFail
+		}
+		execCtx.EventLogger.LogExec(taskID, taskName, result, taskStartOffset, taskDuration.Milliseconds(), err)
+	}
+
 	if err != nil {
 		taskJobNode.SetStatus(treeview.StatusFailed)
 		if stepNode != nil {
