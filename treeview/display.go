@@ -42,9 +42,8 @@ func (d *Display) Render(root *Node) {
 	}
 
 	if d.lastLineCount > 0 {
-		fmt.Printf("\033[%dF", d.lastLineCount)
 		// Move cursor up, clear to end of display
-		// fmt.Printf("\033[%dA\033[J", d.lastLineCount)
+		fmt.Printf("\033[%dA\033[J", d.lastLineCount)
 	}
 
 	output := d.renderer.Render(root)
