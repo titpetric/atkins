@@ -5,9 +5,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/creack/pty"
+	"golang.org/x/term"
 )
 
 // ExecError represents an error from command execution.
@@ -100,6 +102,33 @@ func (e *Exec) ExecuteCommandWithQuietAndCapture(cmdStr string, verbose bool) (s
 	return stdout.String(), nil
 }
 
+// getTerminalSize returns the terminal size for PTY allocation.
+// Tries to get the size from stdout, falls back to environment variables, then defaults.
+func getTerminalSize() *pty.Winsize {
+	// Try to get size from stdout
+	if width, height, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
+		return &pty.Winsize{
+			Rows: uint16(height),
+			Cols: uint16(width),
+		}
+	}
+
+	// Try to get from environment variables (LINES and COLUMNS)
+	lines := 24
+	cols := 80
+	if l, err := strconv.Atoi(os.Getenv("LINES")); err == nil && l > 0 {
+		lines = l
+	}
+	if c, err := strconv.Atoi(os.Getenv("COLUMNS")); err == nil && c > 0 {
+		cols = c
+	}
+
+	return &pty.Winsize{
+		Rows: uint16(lines),
+		Cols: uint16(cols),
+	}
+}
+
 // ExecuteCommandWithWriter executes a command and writes output to the provided writer.
 // If usePTY is true, allocates a PTY for the command (enables colored output for tools like gotestsum).
 // Also returns the full stdout string for the caller.
@@ -131,6 +160,13 @@ func (e *Exec) ExecuteCommandWithWriter(cmdStr string, writer io.Writer, usePTY 
 			}
 		}
 		defer ptmx.Close()
+
+		// Set terminal size for the PTY
+		winsize := getTerminalSize()
+		if err := pty.Setsize(ptmx, winsize); err != nil {
+			// Log warning but continue execution - PTY will work even with size not set
+			_ = err
+		}
 
 		// Copy PTY output to both the buffer and provided writer
 		var stdout bytes.Buffer

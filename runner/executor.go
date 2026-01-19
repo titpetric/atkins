@@ -541,6 +541,21 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 				Summarize: step.Summarize,
 			}
 
+			// If step has multiple commands, create child nodes for each command
+			if len(step.Cmds) > 0 {
+				for _, cmd := range step.Cmds {
+					// Interpolate each command with iteration variables
+					interpolatedCmd, err := InterpolateCommand(cmd, iterCtx)
+					if err != nil {
+						if stepNode != nil {
+							stepNode.SetStatus(treeview.StatusFailed)
+						}
+						return fmt.Errorf("failed to interpolate command for iteration %d: %w", idx, err)
+					}
+					iterNode.AddChild(treeview.NewCmdNode(interpolatedCmd))
+				}
+			}
+
 			// Add as child of the step node
 			stepNode.AddChild(iterNode)
 			iterationNodes = append(iterationNodes, iterNode)
@@ -605,9 +620,16 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 					return nil // Skip if no command
 				}
 
-				// Execute this iteration with the iteration sub-node
-				if err := e.executeStepIteration(ctx, iterCtx, step, iterNode, cmd, stepIndex); err != nil {
-					return err
+				// If the iteration node has children (from cmds expansion), execute them separately
+				if len(step.Cmds) > 0 && iterNode != nil && iterNode.HasChildren() {
+					if err := e.executeCmdsStep(ctx, iterCtx, step, iterNode); err != nil {
+						return err
+					}
+				} else {
+					// Execute this iteration with the iteration sub-node
+					if err := e.executeStepIteration(ctx, iterCtx, step, iterNode, cmd, stepIndex); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
@@ -971,7 +993,12 @@ func (e *Executor) executeCmdsStep(ctx context.Context, execCtx *ExecutionContex
 			execCtx.Render()
 		}
 
-		// Execute the command
+		// Execute the command with the cmd node as the current step for output capture
+		originalStep := execCtx.CurrentStep
+		if cmdNode != nil {
+			execCtx.CurrentStep = cmdNode
+		}
+
 		if err := e.executeCommand(ctx, execCtx, step, cmd); err != nil {
 			if cmdNode != nil {
 				cmdNode.SetStatus(treeview.StatusFailed)
@@ -985,6 +1012,9 @@ func (e *Executor) executeCmdsStep(ctx context.Context, execCtx *ExecutionContex
 			}
 			execCtx.Render()
 		}
+
+		// Restore original step
+		execCtx.CurrentStep = originalStep
 	}
 
 	return lastErr
