@@ -40,6 +40,10 @@ func (s *Step) String() string {
 	case s.Task != "":
 		return "task: " + s.Task
 	case s.Run != "":
+		// If Run contains newlines, display as <script> instead of full command
+		if strings.Contains(s.Run, "\n") {
+			return "run: <script>"
+		}
 		return "run: " + s.Run
 	case s.Cmd != "":
 		return "cmd: " + s.Cmd
