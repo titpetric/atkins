@@ -326,24 +326,19 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 	}
 
 	// Determine which command to run
-	var cmd string
-	if step.Run != "" {
-		cmd = step.Run
-	} else if step.Cmd != "" {
-		cmd = step.Cmd
-	} else if len(step.Cmds) > 0 {
-		// For multiple commands, execute them individually via executeCmdsStep
-		if stepNode != nil && stepNode.HasChildren() {
-			return e.executeCmdsStep(ctx, stepCtx, step, stepNode)
-		}
-		// Fallback: if no child nodes, execute first command only (shouldn't happen normally)
-		cmd = step.Cmds[0]
-	} else {
+	commands := step.Commands()
+	if len(commands) == 0 {
 		return nil
 	}
 
-	// Execute single iteration of the step
-	return e.executeStepIteration(ctx, stepCtx, step, stepNode, cmd, 0)
+	// Execute all commands (whether single or multiple)
+	var lastErr error
+	for i, cmd := range commands {
+		if err := e.executeStepIteration(ctx, stepCtx, step, stepNode, cmd, i); err != nil {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 // executeStep runs a single step
@@ -446,24 +441,19 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	}
 
 	// Determine which command to run
-	var cmd string
-	if step.Run != "" {
-		cmd = step.Run
-	} else if step.Cmd != "" {
-		cmd = step.Cmd
-	} else if len(step.Cmds) > 0 {
-		// For multiple commands, execute them individually via executeCmdsStep
-		if stepNode != nil && stepNode.HasChildren() {
-			return e.executeCmdsStep(ctx, stepCtx, step, stepNode)
-		}
-		// Fallback: if no child nodes, execute first command only (shouldn't happen normally)
-		cmd = step.Cmds[0]
-	} else {
+	commands := step.Commands()
+	if len(commands) == 0 {
 		return nil
 	}
 
-	// Execute single iteration of the step
-	return e.executeStepIteration(ctx, stepCtx, step, stepNode, cmd, stepIndex)
+	// Execute all commands (whether single or multiple)
+	var lastErr error
+	for i, cmd := range commands {
+		if err := e.executeStepIteration(ctx, stepCtx, step, stepNode, cmd, stepIndex+i); err != nil {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 // executeStepWithForLoop handles for loop expansion and execution
@@ -618,29 +608,16 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 					return err
 				}
 			} else {
-				// If the iteration node has children (from cmds expansion), execute them separately
-				if len(step.Cmds) > 0 && iterNode != nil && iterNode.HasChildren() {
-					if err := e.executeCmdsStep(ctx, iterCtx, step, iterNode); err != nil {
-						return err
+				// Execute all commands for this iteration
+				commands := step.Commands()
+				var lastErr error
+				for i, cmd := range commands {
+					if err := e.executeStepIteration(ctx, iterCtx, step, iterNode, cmd, stepIndex+i); err != nil {
+						lastErr = err
 					}
-				} else {
-					// Determine which command to run
-					var cmd string
-					if step.Run != "" {
-						cmd = step.Run
-					} else if step.Cmd != "" {
-						cmd = step.Cmd
-					} else if len(step.Cmds) > 0 {
-						// Fallback: if no child nodes, execute first command only (shouldn't happen normally)
-						cmd = step.Cmds[0]
-					} else {
-						return nil // Skip if no command
-					}
-
-					// Execute this iteration with the iteration sub-node
-					if err := e.executeStepIteration(ctx, iterCtx, step, iterNode, cmd, stepIndex); err != nil {
-						return err
-					}
+				}
+				if lastErr != nil {
+					return lastErr
 				}
 			}
 			return nil

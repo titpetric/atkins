@@ -133,18 +133,22 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 			jobNode := tree.AddJobWithoutSteps(deps, jobLabel, job.Nested)
 			jobNode.Summarize = job.Summarize
 
-			// Populate children
-			for _, step := range job.Steps {
-				stepNode := treeview.NewPendingStepNode(step.String(), step.IsDeferred(), step.Summarize)
+			// Populate children (skip for simple single-step tasks where command is in job name)
+			// Simple tasks have a single step with HidePrefix=true
+			isSimpleTask := len(job.Steps) == 1 && len(job.Steps[0].Commands()) > 0 && job.Steps[0].HidePrefix
+			if !isSimpleTask {
+				for _, step := range job.Steps {
+					stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
 
-				// If step has multiple commands, create child nodes for each command
-				if len(step.Cmds) > 0 {
-					for _, cmd := range step.Cmds {
-						stepNode.AddChild(treeview.NewCmdNode(cmd))
+					// If step has multiple commands, create child nodes for each command
+					if len(step.Cmds) > 0 {
+						for _, cmd := range step.Cmds {
+							stepNode.AddChild(treeview.NewCmdNode(cmd))
+						}
 					}
-				}
 
-				jobNode.AddChild(stepNode)
+					jobNode.AddChild(stepNode)
+				}
 			}
 
 			jobNodes[jobName] = jobNode
@@ -153,18 +157,22 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 			jobNode := treeview.NewNode(jobLabel)
 			jobNode.Summarize = job.Summarize
 
-			// Populate children
-			for _, step := range job.Steps {
-				stepNode := treeview.NewPendingStepNode(step.String(), step.IsDeferred(), step.Summarize)
+			// Populate children (skip for simple single-step tasks where command is in job name)
+			// Simple tasks have a single step with HidePrefix=true
+			isSimpleTask := len(job.Steps) == 1 && len(job.Steps[0].Commands()) > 0 && job.Steps[0].HidePrefix
+			if !isSimpleTask {
+				for _, step := range job.Steps {
+					stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
 
-				// If step has multiple commands, create child nodes for each command
-				if len(step.Cmds) > 0 {
-					for _, cmd := range step.Cmds {
-						stepNode.AddChild(treeview.NewCmdNode(cmd))
+					// If step has multiple commands, create child nodes for each command
+					if len(step.Cmds) > 0 {
+						for _, cmd := range step.Cmds {
+							stepNode.AddChild(treeview.NewCmdNode(cmd))
+						}
 					}
-				}
 
-				jobNode.AddChild(stepNode)
+					jobNode.AddChild(stepNode)
+				}
 			}
 
 			jobNodes[jobName] = &treeview.TreeNode{Node: jobNode}
