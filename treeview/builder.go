@@ -84,9 +84,8 @@ func (b *Builder) AddJobWithSummary(job *model.Job, deps []string, jobName strin
 func (b *Builder) buildStepNode(step *model.Step) *Node {
 	// Build step command/label (prefix hidden only for simple shorthand tasks via HidePrefix flag)
 	label := step.Label(true).
-		WithStatus(colors.Gray("●")).
 		WithColor(colors.White)
-	cmd := label.ForDisplay()
+	cmd := label.String()
 
 	// Build the name with annotations
 	// Note: (deferred) is added by the renderer if node.Deferred is true

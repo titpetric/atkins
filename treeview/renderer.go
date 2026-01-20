@@ -18,9 +18,25 @@ func NewRenderer() *Renderer {
 	return &Renderer{}
 }
 
-// Render converts a node to a string representation.
+// Render converts a node to a string representation during execution (shows status for all nodes).
 func (r *Renderer) Render(root *Node) string {
-	return r.RenderStatic(root)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	output := colors.BrightWhite(root.Name) + "\n"
+
+	if root.Summarize {
+		output += r.renderNodeSummary(root, "", true)
+		return output
+	}
+
+	children := root.GetChildren()
+	for i, child := range children {
+		isLast := i == len(children)-1
+		output += r.renderNodeForExecution(child, "", isLast)
+	}
+
+	return output
 }
 
 // RenderStatic renders a static tree (for list views) without spinners.
@@ -86,6 +102,105 @@ func (r *Renderer) renderNodeSummary(node *Node, prefix string, isLast bool) str
 	return prefix + branch + node.Label() + " " + node.StatusColor() + " (" + colors.Gray(summary) + ")\n"
 }
 
+// renderNodeForExecution renders a node during execution, showing status for all nodes including steps.
+func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool) string {
+	output := ""
+
+	// Determine branch character
+	branch := "├─ "
+	if isLast {
+		branch = "└─ "
+	}
+
+	if node.Summarize {
+		return r.renderNodeSummary(node, prefix, isLast)
+	}
+
+	label := node.Label()
+	status := node.StatusColor()
+
+	// Build the node label with dependencies and deferred info
+	if len(node.Dependencies) > 0 {
+		depItems := make([]string, len(node.Dependencies))
+		for j, dep := range node.Dependencies {
+			depItems[j] = colors.BrightOrange(dep)
+		}
+		depsStr := strings.Join(depItems, ", ")
+		label = label + fmt.Sprintf(" (depends_on: %s)", depsStr)
+	}
+
+	// Add status indicator - show all status during execution
+	if status != "" && !strings.HasSuffix(strings.TrimSpace(label), "●") &&
+		!strings.HasSuffix(strings.TrimSpace(label), "✓") &&
+		!strings.HasSuffix(strings.TrimSpace(label), "✗") {
+		label = label + " " + status
+	}
+
+	// Render this node
+	output += prefix + branch + label
+	output += "\n"
+
+	// Render output lines from command execution (with proper indentation)
+	if len(node.Output) > 0 {
+		// Determine continuation character for output indentation
+		continuation := "│  "
+		if isLast {
+			continuation = "   "
+		}
+
+		// Calculate max width of output lines for border (visual width, excluding ANSI)
+		maxWidth := 0
+		for _, outputLine := range node.Output {
+			width := colors.VisualLength(outputLine)
+			if width > maxWidth {
+				maxWidth = width
+			}
+		}
+
+		// Add top border if 2+ elements (account for spaces around content)
+		if len(node.Output) >= 2 {
+			topBorder := prefix + continuation + colors.Gray("┌"+strings.Repeat("─", maxWidth+2)+"┐") + "\n"
+			output += topBorder
+		}
+
+		// Add each output line with left/right borders
+		for _, outputLine := range node.Output {
+			// Pad line to max width for consistent border (using visual width)
+			currentWidth := colors.VisualLength(outputLine)
+			padding := strings.Repeat(" ", maxWidth-currentWidth)
+			paddedLine := " " + outputLine + padding + " "
+			if len(node.Output) >= 2 {
+				output += prefix + continuation + colors.Gray("│") + colors.White(paddedLine) + colors.Gray("│") + "\n"
+			} else {
+				output += prefix + continuation + colors.White(outputLine) + "\n"
+			}
+		}
+
+		// Add bottom border if 2+ elements (account for spaces around content)
+		if len(node.Output) >= 2 {
+			bottomBorder := prefix + continuation + colors.Gray("└"+strings.Repeat("─", maxWidth+2)+"┘") + "\n"
+			output += bottomBorder
+		}
+	}
+
+	// Render children
+	children := node.GetChildren()
+	if len(children) > 0 {
+		// Determine continuation character
+		continuation := "│  "
+		if isLast {
+			continuation = "   "
+		}
+
+		for j, child := range children {
+			childIsLast := j == len(children)-1
+			output += r.renderNodeForExecution(child, prefix+continuation, childIsLast)
+		}
+	}
+
+	return output
+}
+
 // renderStaticNode renders a static node without execution state (for list views)
 func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) string {
 	output := ""
@@ -112,12 +227,11 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		depsStr := strings.Join(depItems, ", ")
 		label = label + fmt.Sprintf(" (depends_on: %s)", depsStr)
 	}
-	// Note: deferred label is already handled in statusBadge() function above
 
-	// Add status indicator to label if not already present
-	if status != "" && !strings.HasSuffix(strings.TrimSpace(label), "●") &&
-		!strings.HasSuffix(strings.TrimSpace(label), "✓") &&
-		!strings.HasSuffix(strings.TrimSpace(label), "✗") {
+	// Add status indicator only for jobs, not for steps (in list view)
+	isStep := strings.Contains(node.Name, "task:") || strings.Contains(node.Name, "run:") ||
+		strings.Contains(node.Name, "cmd:") || strings.Contains(node.Name, "cmds:")
+	if status != "" && !isStep {
 		label = label + " " + status
 	}
 

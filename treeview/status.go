@@ -18,6 +18,8 @@ const (
 // String returns a colored string representation of the Status for display.
 func (s Status) String() string {
 	switch s {
+	case StatusPending:
+		return colors.Gray("●")
 	case StatusRunning:
 		return colors.BrightOrange("●")
 	case StatusPassed:

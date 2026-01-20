@@ -1050,10 +1050,7 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	shouldPassthru := step.Passthru || (execCtx.Job != nil && execCtx.Job.Passthru)
 
 	// Determine TTY allocation: Job.TTY is authoritative, otherwise use Step.TTY
-	useTTY := step.TTY
-	if execCtx.Job != nil && execCtx.Job.TTY {
-		useTTY = true
-	}
+	useTTY := step.TTY || (execCtx.Job != nil && execCtx.Job.TTY)
 
 	// If passthru is enabled, capture output to the node for display with tree indentation
 	var writer *LineCapturingWriter

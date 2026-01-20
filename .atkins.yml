@@ -74,7 +74,7 @@ jobs:
     passthru: true
     steps:
       - tty: true
-        cmd: gotestsum ./... -- -count 1
+        cmd: gotestsum --hide-summary=skipped ./... -- -count 1
 
   test:build:
     desc: "Build tests"

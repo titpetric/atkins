@@ -432,7 +432,7 @@ func (*Node) StatusColor () string
 
 ### Render
 
-Render converts a node to a string representation.
+Render converts a node to a string representation during execution (shows status for all nodes).
 
 ```go
 func (*Renderer) Render (root *Node) string
