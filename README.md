@@ -6,11 +6,8 @@ see which jobs are running, and run jobs and steps in parallel.
 
 ![](./examples/nested.yml.gif)
 
-Flamegraphs can be generated out of Atkins execution:
-
-![](./docs/flamegraph.svg)
-
-Or UML flow charts:
+The log of Atkins executions can be used for further processing, like rendering UML flow charts.
+A few examples are given in the [./scripts folder](./scripts).
 
 ![](./docs/treeview.svg)
 
