@@ -81,29 +81,38 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 	jobsToCreate := make(map[string]bool)
 
 	// Recursively find all jobs that might be invoked
-	var findInvokedJobs func(jobName string)
-	findInvokedJobs = func(jobName string) {
+	var findInvokedJobs func(jobName string, parentJobName string) error
+	findInvokedJobs = func(jobName string, parentJobName string) error {
 		if jobsToCreate[jobName] {
-			return // Already processed
+			return nil // Already processed
 		}
 		jobsToCreate[jobName] = true
 
 		job, exists := allJobs[jobName]
 		if !exists {
-			return
+			if parentJobName != "" {
+				return fmt.Errorf("[jobs.%s.step]: can't find job by name %q", parentJobName, jobName)
+			}
+			return fmt.Errorf("can't find job by name %q", jobName)
 		}
 
 		// Recursively find all task references
 		for _, step := range job.Steps {
 			if step.Task != "" {
-				findInvokedJobs(step.Task)
+				if err := findInvokedJobs(step.Task, jobName); err != nil {
+					return err
+				}
 			}
 		}
+		return nil
 	}
 
 	// Start with jobs in order
 	for _, jobName := range jobOrder {
-		findInvokedJobs(jobName)
+		if err := findInvokedJobs(jobName, ""); err != nil {
+			fmt.Printf("%s %s\n", colors.BrightRed("ERROR:"), err)
+			os.Exit(1)
+		}
 	}
 
 	// Create job nodes for all jobs that might be invoked
