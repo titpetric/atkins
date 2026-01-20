@@ -114,11 +114,15 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 	}
 	// Note: deferred label is already handled in statusBadge() function above
 
+	// Add status indicator to label if not already present
+	if status != "" && !strings.HasSuffix(strings.TrimSpace(label), "●") &&
+		!strings.HasSuffix(strings.TrimSpace(label), "✓") &&
+		!strings.HasSuffix(strings.TrimSpace(label), "✗") {
+		label = label + " " + status
+	}
+
 	// Render this node
 	output += prefix + branch + label
-	if status != "" {
-		output += " " + status
-	}
 	output += "\n"
 
 	// Render output lines from command execution (with proper indentation)

@@ -3,6 +3,7 @@ package treeview
 import (
 	"fmt"
 
+	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
 )
 
@@ -30,10 +31,14 @@ func (b *Builder) AddJob(job *model.Job, deps []string, jobName string) *TreeNod
 	jobNode.Dependencies = deps
 	jobNode.Summarize = job.Summarize
 
-	// Add steps as children
-	for _, step := range job.Steps {
-		stepNode := b.buildStepNode(step)
-		jobNode.AddChild(stepNode)
+	// Add steps as children (skip for simple single-step tasks where command is in job name)
+	// Simple tasks have a single step with HidePrefix=true
+	isSimpleTask := len(job.Steps) == 1 && len(job.Steps[0].Commands()) > 0 && job.Steps[0].HidePrefix
+	if !isSimpleTask {
+		for _, step := range job.Steps {
+			stepNode := b.buildStepNode(step)
+			jobNode.AddChild(stepNode)
+		}
 	}
 
 	b.root.AddChild(jobNode)
@@ -77,8 +82,11 @@ func (b *Builder) AddJobWithSummary(job *model.Job, deps []string, jobName strin
 
 // buildStepNode constructs a step node from a step definition
 func (b *Builder) buildStepNode(step *model.Step) *Node {
-	// Build step command/label
-	cmd := step.String()
+	// Build step command/label (prefix hidden only for simple shorthand tasks via HidePrefix flag)
+	label := step.Label(true).
+		WithStatus(colors.Gray("●")).
+		WithColor(colors.White)
+	cmd := label.ForDisplay()
 
 	// Build the name with annotations
 	// Note: (deferred) is added by the renderer if node.Deferred is true
@@ -126,7 +134,13 @@ func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*mo
 
 	for _, jobName := range jobNames {
 		job := jobs[jobName]
-		jobNode := builder.AddJob(job, job.DependsOn, jobName)
+		// Build job label with optional description
+		jobLabel := jobName
+		if job.Desc != "" {
+			jobLabel = jobName + " - " + job.Desc
+		}
+
+		jobNode := builder.AddJob(job, job.DependsOn, jobLabel)
 
 		// Mark jobs that won't be executed
 		if !willRun[jobName] {

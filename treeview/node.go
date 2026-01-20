@@ -7,6 +7,70 @@ import (
 	"github.com/titpetric/atkins/colors"
 )
 
+// Node represents a node in the tree (job, step, or iteration).
+type Node struct {
+	Name         string
+	ID           string // Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
+	Status       Status
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	StartOffset  float64 // Seconds offset from run start
+	Duration     float64 // Duration in seconds
+	If           string  // Condition that was evaluated (for conditional steps)
+	Children     []*Node
+	Dependencies []string
+	Deferred     bool
+	Summarize    bool
+	Output       []string // Multi-line output from command execution
+	mu           sync.Mutex
+}
+
+// NewNode creates a new tree node.
+func NewNode(name string) *Node {
+	now := time.Now()
+	return &Node{
+		Name:         name,
+		Status:       StatusPending,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		Children:     make([]*Node, 0),
+		Dependencies: make([]string, 0),
+	}
+}
+
+// NewJobNode creates a new job node.
+func NewJobNode(name string, nested bool) *Node {
+	node := NewNode(name)
+	if nested {
+		node.Status = StatusConditional
+	}
+	return node
+}
+
+// NewStepNode creates a new step node.
+func NewStepNode(name string, deferred bool) *Node {
+	node := NewNode(name)
+	node.Status = StatusRunning
+	node.Deferred = deferred
+	return node
+}
+
+// NewPendingStepNode creates a new step node with pending status.
+func NewPendingStepNode(name string, deferred, summarize bool) *Node {
+	node := NewNode(name)
+	node.Status = StatusPending
+	node.Deferred = deferred
+	node.Summarize = summarize
+	return node
+}
+
+// NewCmdNode creates a new command node as a child of a step.
+func NewCmdNode(name string) *Node {
+	return NewNode(name)
+}
+
+// StatusColor will return the status indicator for the node.
+// The indicator contains ANSI color sequences.
 func (n *Node) StatusColor() string {
 	var (
 		haveChildren = n.HasChildren()
@@ -15,6 +79,10 @@ func (n *Node) StatusColor() string {
 
 	status := n.Status.String()
 	if status == "" && (haveChildren || haveDeps) {
+		return colors.Green("●")
+	}
+	// For leaf nodes (no children, no deps), show a status indicator if in pending state
+	if status == "" && !haveChildren && !haveDeps {
 		return colors.Green("●")
 	}
 	return status
@@ -48,24 +116,6 @@ func (n *Node) Label() string {
 		}
 	}
 	return colors.White(name)
-}
-
-// Node represents a node in the tree (job, step, or iteration).
-type Node struct {
-	Name         string
-	ID           string // Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
-	Status       Status
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	StartOffset  float64 // Seconds offset from run start
-	Duration     float64 // Duration in seconds
-	If           string  // Condition that was evaluated (for conditional steps)
-	Children     []*Node
-	Dependencies []string
-	Deferred     bool
-	Summarize    bool
-	Output       []string // Multi-line output from command execution
-	mu           sync.Mutex
 }
 
 // SetStatus updates a node's status thread-safely.
@@ -135,48 +185,4 @@ func (n *Node) GetChildren() []*Node {
 	children := make([]*Node, len(n.Children))
 	copy(children, n.Children)
 	return children
-}
-
-// NewNode creates a new tree node.
-func NewNode(name string) *Node {
-	now := time.Now()
-	return &Node{
-		Name:         name,
-		Status:       StatusPending,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-		Children:     make([]*Node, 0),
-		Dependencies: make([]string, 0),
-	}
-}
-
-// NewJobNode creates a new job node.
-func NewJobNode(name string, nested bool) *Node {
-	node := NewNode(name)
-	if nested {
-		node.Status = StatusConditional
-	}
-	return node
-}
-
-// NewStepNode creates a new step node.
-func NewStepNode(name string, deferred bool) *Node {
-	node := NewNode(name)
-	node.Status = StatusRunning
-	node.Deferred = deferred
-	return node
-}
-
-// NewPendingStepNode creates a new step node with pending status.
-func NewPendingStepNode(name string, deferred, summarize bool) *Node {
-	node := NewNode(name)
-	node.Status = StatusPending
-	node.Deferred = deferred
-	node.Summarize = summarize
-	return node
-}
-
-// NewCmdNode creates a new command node as a child of a step.
-func NewCmdNode(name string) *Node {
-	return NewNode(name)
 }

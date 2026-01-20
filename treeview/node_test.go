@@ -15,7 +15,7 @@ func TestNewNode(t *testing.T) {
 		assert.Equal(t, "test-job", node.Name)
 		assert.Equal(t, StatusPending, node.Status)
 		assert.Equal(t, "", node.ID)
-		assert.Equal(t, "", node.StatusColor())
+		assert.NotEmpty(t, node.StatusColor())
 		assert.False(t, node.Deferred)
 		assert.Equal(t, 0, len(node.Children))
 		assert.Equal(t, 0, len(node.Dependencies))

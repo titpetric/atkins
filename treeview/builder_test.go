@@ -31,7 +31,7 @@ func TestBuildFromPipeline_SingleJob(t *testing.T) {
 
 		children := node.GetChildren()
 		assert.Equal(t, 1, len(children))
-		assert.Equal(t, "test", children[0].Name)
+		assert.Equal(t, "test - Test job", children[0].Name)
 	})
 }
 
@@ -58,12 +58,12 @@ func TestBuildFromPipeline_DepthSorting(t *testing.T) {
 
 		// Expected order: depth 0 (build, test), depth 1 (build:run, docker:setup, test:run), depth 2 (test:run:subtask)
 		expectedOrder := []string{
-			"build",
-			"test",
-			"build:run",
-			"docker:setup",
-			"test:run",
-			"test:run:subtask",
+			"build - Build",
+			"test - Test",
+			"build:run - Build run",
+			"docker:setup - Docker setup",
+			"test:run - Test run",
+			"test:run:subtask - Test run subtask",
 		}
 
 		for i, expected := range expectedOrder {
@@ -91,11 +91,11 @@ func TestBuildFromPipeline_DepthSorting(t *testing.T) {
 
 		// Expected: apple (depth 0), zebra (depth 0), apple:b (depth 1), zebra:a (depth 1), apple:b:c (depth 2)
 		expectedOrder := []string{
-			"apple",
-			"zebra",
-			"apple:b",
-			"zebra:a",
-			"apple:b:c",
+			"apple - Apple",
+			"zebra - Zebra",
+			"apple:b - Apple B",
+			"zebra:a - Zebra A",
+			"apple:b:c - Apple B C",
 		}
 
 		for i, expected := range expectedOrder {
@@ -161,7 +161,7 @@ func TestBuildFromPipeline_WithDependencies(t *testing.T) {
 
 		// Check that test job has the dependency
 		testNode := children[1] // test should be at index 1 after sorting
-		assert.Equal(t, "test", testNode.Name)
+		assert.Equal(t, "test - Test", testNode.Name)
 		assert.Equal(t, []string{"build"}, testNode.Dependencies)
 	})
 }
@@ -187,9 +187,9 @@ func TestAddJob_WithSteps(t *testing.T) {
 		assert.Equal(t, 3, len(children))
 
 		// Verify step names
-		assert.Equal(t, "run: echo 1", children[0].Name)
-		assert.Equal(t, "run: echo 2", children[1].Name)
-		assert.Equal(t, "run: echo 3", children[2].Name)
+		assert.Contains(t, children[0].Name, "run: echo 1")
+		assert.Contains(t, children[1].Name, "run: echo 2")
+		assert.Contains(t, children[2].Name, "run: echo 3")
 	})
 
 	t.Run("job without steps", func(t *testing.T) {
@@ -221,9 +221,9 @@ func TestAddJob_WithSteps(t *testing.T) {
 		assert.Equal(t, 3, len(children))
 
 		// Verify that task steps are properly converted to node names
-		assert.Equal(t, "task: build", children[0].Name)
-		assert.Equal(t, "task: test", children[1].Name)
-		assert.Equal(t, "run: echo cleanup", children[2].Name)
+		assert.Contains(t, children[0].Name, "task: build")
+		assert.Contains(t, children[1].Name, "task: test")
+		assert.Contains(t, children[2].Name, "run: echo cleanup")
 	})
 
 	t.Run("job with summarized step", func(t *testing.T) {
@@ -404,7 +404,7 @@ func TestBuildFromPipeline_WithSummarize(t *testing.T) {
 
 		children := node.GetChildren()
 		assert.Equal(t, 1, len(children))
-		assert.Equal(t, "test", children[0].Name)
+		assert.Equal(t, "test - Test job", children[0].Name)
 		assert.True(t, children[0].Summarize)
 	})
 }
