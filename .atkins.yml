@@ -82,16 +82,12 @@ jobs:
     vars:
       testBinaries: $(ls ./bin/*.test | xargs -n1 basename)
     steps:
-      - task: docker:up
       - rm -rf coverage
       - for: item in testBinaries
         task: test:detail
         detach: true
       - for: item in testBinaries
         task: test:coverage
-      - name: cleanup
-        task: docker:down
-        deferred: true
 
   test:fixtures:
     desc: "Run test fixtures"
@@ -124,13 +120,3 @@ jobs:
         summarize: true
         detach: true
         run: covertrace --name ${{ funcName }} -i "./coverage/${{ item }}/${{ funcName }}.cov" > "./coverage/${{ item }}/${{ funcName }}.yml"
-
-  docker:up:
-    desc: "Bring up docker env"
-    steps:
-      - docker compose up -d --wait --remove-orphans
-
-  docker:down:
-    desc: "Bring down docker env"
-    steps:
-      - docker compose down

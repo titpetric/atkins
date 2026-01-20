@@ -23,13 +23,9 @@ jobs:
   test:run:
     desc: "Run built tests"
     steps:
-      - task: docker:up
       - for: item in $(ls ./bin/*.test)
         task: test:detail
         detach: true
-      - name: cleanup
-        task: docker:down
-        deferred: true
 
   test:detail:
     dest: "Collect per-function test runs"
@@ -38,13 +34,3 @@ jobs:
       - for: funcName in $(${{ item }} -test.list .)
         summarize: true
         run: ${{ item }} -test.run "^${{ funcName }}$"
-
-  docker:up:
-    desc: "Bring up docker env"
-    steps:
-      - docker compose up -d --wait --remove-orphans
-
-  docker:down:
-    desc: "Bring down docker env"
-    steps:
-      - docker compose down

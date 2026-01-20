@@ -25,7 +25,8 @@ $ atkins --help
 Usage: atkins [--flags]
 
       --debug         Print debug data
-  -f, --file string   Path to pipeline file (default "atkins.yml")
+  -f, --file string   Path to pipeline file (auto-discovers .atkins.yml)
+      --final         Only render final output without redrawing (no interactive tree)
       --job string    Specific job to run
       --lint          Lint pipeline for errors
   -l, --list          List pipeline jobs and dependencies
@@ -45,28 +46,40 @@ You can use `atkins -l` in a project to view the projects pipeline:
 
 ```bash
 $ atkins -l
-Vuego CI pipeline
-├─ fmt ●
-│  ├─ run: goimports -w .
-│  ├─ run: go fmt ./...
-│  └─ run: go mod tidy
-├─ test (depends_on: fmt) ●
+Atkins project tests, build
+├─ default (depends_on: fmt) ●
+│  ├─ task: test:simple
 │  ├─ task: test:build
 │  └─ task: test:run
-├─ docker:down ⊘
-│  └─ run: docker compose down
-├─ docker:up ⊘
-│  └─ run: docker compose up -d --wait --remove-orphans
+├─ fmt ●
+│  ├─ run: goimports -w .
+│  ├─ run: goimports-reviser -set-alias -format -imports-order "std,blanked,general,company,project" -excludes "scripts/" ./...
+│  ├─ run: gofumpt -w .
+│  └─ run: go mod tidy
+├─ install (depends_on: fmt) ⊘
+│  ├─ run: go build -ldflags="-X 'main.Version=${GIT_TAG}' -X 'main.Commit=${GIT_COMMIT}' -X 'main.CommitTime=${GIT_TIME}' -X 'main.Branch=${GIT_BRANCH}' -X 'main.Modified=${GIT_MODIFIED}'" -o bin/atkins-${GOOS}-${GOARCH} .
+│  └─ cmds: <3 commands>
+├─ publish (depends_on: release) ⊘
+│  └─ run: ./ci/release.yml publish
+├─ release ⊘
+│  ├─ task: install
+│  ├─ run: ./ci/release.yml build
+│  └─ run: ./ci/release.yml test
 ├─ test:build ⊘
-│  └─ run: go-fsck test -cover -coverpkg=./... -c -o bin/ ./...
+│  ├─ run: rm bin/*.test -f
+│  └─ run: go test -cover -coverpkg=./... -c -o bin/ ./...
+├─ test:coverage ⊘
+│  └─ run: covertrace --name ${{ funcName }} -i "./coverage/${{ item }}/${{ funcName }}.cov" > "./coverage/${{ item }}/${{ funcName }}.yml"  (0/0)
 ├─ test:detail ⊘
-│  ├─ run: mkdir -p coverage/${{item}}
-│  └─ run: ./bin/${{ item }} -test.coverprofile "./coverage/${{item}}/${{ funcName }}.cov" -test.run "^${{ funcName }}$"  (0/0)
-└─ test:run ⊘
-   ├─ task: docker:up
-   ├─ run: rm -rf coverage
-   ├─ task: test:detail
-   └─ task: docker:down
+│  ├─ run: mkdir -p coverage/${{ item }}
+│  └─ run: ./bin/${{ item }} -test.coverprofile "./coverage/${{ item }}/${{ funcName }}.cov" -test.run "^${{ funcName }}$"  (0/0)
+├─ test:fixtures (depends_on: install) ⊘
+├─ test:run (depends_on: install) ⊘
+│  ├─ run: rm -rf coverage
+│  ├─ task: test:detail
+│  └─ task: test:coverage
+└─ test:simple ⊘
+   └─ cmd: gotestsum ./... -- -count 1
 ```
 
 This example is from [titpetric/vuego/atkins.yml](https://github.com/titpetric/vuego/blob/main/atkins.yml).
