@@ -43,9 +43,14 @@ type ExecutionContext struct {
 	// Sequential step counter for this job (incremented for each step execution)
 	StepSequence int
 	stepSeqMu    sync.Mutex
+
+	// JobCompleted tracks which jobs have finished execution (for dependency resolution)
+	JobCompleted map[string]bool
+	jobCompMu    sync.Mutex
 }
 
 // Copy copies everything except Context. Variables are shallow-copied.
+// JobCompleted is shared (not copied) to maintain consistent dependency tracking.
 func (e *ExecutionContext) Copy() *ExecutionContext {
 	return &ExecutionContext{
 		Variables:    copyVariables(e.Variables),
@@ -65,7 +70,27 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 		JobNodes:     e.JobNodes,
 		EventLogger:  e.EventLogger,
 		StepSequence: e.StepSequence,
+		JobCompleted: e.JobCompleted,
 	}
+}
+
+// MarkJobCompleted marks a job as completed.
+func (e *ExecutionContext) MarkJobCompleted(jobName string) {
+	e.jobCompMu.Lock()
+	defer e.jobCompMu.Unlock()
+	if e.JobCompleted != nil {
+		e.JobCompleted[jobName] = true
+	}
+}
+
+// IsJobCompleted checks if a job has been completed.
+func (e *ExecutionContext) IsJobCompleted(jobName string) bool {
+	e.jobCompMu.Lock()
+	defer e.jobCompMu.Unlock()
+	if e.JobCompleted == nil {
+		return false
+	}
+	return e.JobCompleted[jobName]
 }
 
 // Render refreshes the treeview.

@@ -753,6 +753,27 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		return fmt.Errorf("task %q not found in pipeline", taskName)
 	}
 
+	// Execute dependencies first (if not already completed)
+	deps := GetDependencies(taskJob.DependsOn)
+	for _, depName := range deps {
+		if execCtx.IsJobCompleted(depName) {
+			continue
+		}
+
+		if _, depExists := allJobs[depName]; !depExists {
+			if stepNode != nil {
+				stepNode.SetStatus(treeview.StatusFailed)
+			}
+			return fmt.Errorf("dependency %q not found for task %q", depName, taskName)
+		}
+
+		// Create a synthetic step to execute the dependency as a task
+		depStep := &model.Step{Task: depName}
+		if err := e.executeTaskStep(ctx, execCtx, depStep, stepNode); err != nil {
+			return err
+		}
+	}
+
 	// Get the existing tree node for this task
 	taskJobNode := execCtx.JobNodes[taskName]
 	if taskJobNode == nil {
@@ -832,11 +853,13 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		if stepNode != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
 		}
+		execCtx.MarkJobCompleted(taskName)
 		return err
 	}
 
 	// Mark task and step as passed
 	taskJobNode.SetStatus(treeview.StatusPassed)
+	execCtx.MarkJobCompleted(taskName)
 	if stepNode != nil {
 		stepNode.SetStatus(treeview.StatusPassed)
 	}

@@ -40,16 +40,17 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 
 	display := treeview.NewDisplayWithFinal(finalOnly)
 	pipelineCtx := &ExecutionContext{
-		Variables:   make(map[string]any),
-		Env:         make(map[string]string),
-		Results:     make(map[string]any),
-		Pipeline:    pipeline,
-		Depth:       0,
-		Builder:     tree,
-		Display:     display,
-		Context:     ctx,
-		JobNodes:    make(map[string]*treeview.TreeNode),
-		EventLogger: logger,
+		Variables:    make(map[string]any),
+		Env:          make(map[string]string),
+		Results:      make(map[string]any),
+		Pipeline:     pipeline,
+		Depth:        0,
+		Builder:      tree,
+		Display:      display,
+		Context:      ctx,
+		JobNodes:     make(map[string]*treeview.TreeNode),
+		EventLogger:  logger,
+		JobCompleted: make(map[string]bool),
 	}
 
 	// Copy environment variables from OS
@@ -94,6 +95,14 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 				return fmt.Errorf("[jobs.%s.step]: can't find job by name %q", parentJobName, jobName)
 			}
 			return fmt.Errorf("can't find job by name %q", jobName)
+		}
+
+		// Recursively find all depends_on dependencies
+		deps := GetDependencies(job.DependsOn)
+		for _, dep := range deps {
+			if err := findInvokedJobs(dep, jobName); err != nil {
+				return err
+			}
 		}
 
 		// Recursively find all task references
@@ -192,8 +201,7 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 
 	executor := NewExecutor()
 
-	// Track job completion status
-	jobCompleted := make(map[string]bool)
+	// Track job results (completion is tracked via pipelineCtx.JobCompleted)
 	jobResults := make(map[string]*ExecutionContext)
 	var jobMutex sync.Mutex
 
@@ -203,12 +211,9 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		deps := GetDependencies(job.DependsOn)
 		for _, dep := range deps {
 			for {
-				jobMutex.Lock()
-				if jobCompleted[dep] {
-					jobMutex.Unlock()
+				if pipelineCtx.IsJobCompleted(dep) {
 					break
 				}
-				jobMutex.Unlock()
 				time.Sleep(50 * time.Millisecond)
 			}
 		}
@@ -250,9 +255,7 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		}
 
 		if execErr != nil {
-			jobMutex.Lock()
-			jobCompleted[jobName] = true
-			jobMutex.Unlock()
+			pipelineCtx.MarkJobCompleted(jobName)
 			return execErr
 		}
 
@@ -261,8 +264,8 @@ func runPipeline(ctx context.Context, pipeline *model.Pipeline, job string, logg
 		display.Render(root)
 
 		// Store results
+		pipelineCtx.MarkJobCompleted(jobName)
 		jobMutex.Lock()
-		jobCompleted[jobName] = true
 		jobResults[jobName] = jobCtx
 		jobMutex.Unlock()
 

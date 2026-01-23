@@ -55,6 +55,10 @@ type ExecutionContext struct {
 	// Sequential step counter for this job (incremented for each step execution)
 	StepSequence	int
 	stepSeqMu	sync.Mutex
+
+	// JobCompleted tracks which jobs have finished execution (for dependency resolution)
+	JobCompleted	map[string]bool
+	jobCompMu	sync.Mutex
 }
 ```
 
@@ -155,6 +159,8 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func (*Exec) ExecuteCommandWithQuietAndCapture (cmdStr string, verbose bool) (string, error)`
 - `func (*Exec) ExecuteCommandWithWriter (writer io.Writer, cmdStr string, usePTY bool) (string, error)`
 - `func (*ExecutionContext) Copy () *ExecutionContext`
+- `func (*ExecutionContext) IsJobCompleted (jobName string) bool`
+- `func (*ExecutionContext) MarkJobCompleted (jobName string)`
 - `func (*ExecutionContext) NextStepIndex () int`
 - `func (*ExecutionContext) Render ()`
 - `func (*Executor) ExecuteJob (parentCtx context.Context, execCtx *ExecutionContext) error`
@@ -433,9 +439,26 @@ func (*Exec) ExecuteCommandWithWriter (writer io.Writer, cmdStr string, usePTY b
 ### Copy
 
 Copy copies everything except Context. Variables are shallow-copied.
+JobCompleted is shared (not copied) to maintain consistent dependency tracking.
 
 ```go
 func (*ExecutionContext) Copy () *ExecutionContext
+```
+
+### IsJobCompleted
+
+IsJobCompleted checks if a job has been completed.
+
+```go
+func (*ExecutionContext) IsJobCompleted (jobName string) bool
+```
+
+### MarkJobCompleted
+
+MarkJobCompleted marks a job as completed.
+
+```go
+func (*ExecutionContext) MarkJobCompleted (jobName string)
 ```
 
 ### NextStepIndex
