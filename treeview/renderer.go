@@ -8,20 +8,41 @@ import (
 	"github.com/titpetric/atkins/colors"
 )
 
+// DefaultMaxArgLen is the default maximum length for argument values before compaction.
+const DefaultMaxArgLen = 25
+
 // Renderer handles rendering of tree nodes to strings with proper formatting.
 type Renderer struct {
-	mu sync.Mutex
+	mu        sync.Mutex
+	trimmer   *Trimmer
+	maxArgLen int
 }
 
 // NewRenderer creates a new tree renderer.
 func NewRenderer() *Renderer {
-	return &Renderer{}
+	return &Renderer{
+		trimmer:   NewTrimmer(),
+		maxArgLen: DefaultMaxArgLen,
+	}
+}
+
+// trimLabel applies argument compaction and viewport trimming to a label.
+func (r *Renderer) trimLabel(label string, prefixLen int) string {
+	if r.trimmer == nil {
+		return label
+	}
+	return r.trimmer.TrimLabel(label, r.maxArgLen, prefixLen)
 }
 
 // Render converts a node to a string representation during execution (shows status for all nodes).
 func (r *Renderer) Render(root *Node) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	// Refresh viewport width before each render
+	if r.trimmer != nil {
+		r.trimmer.RefreshViewport()
+	}
 
 	output := colors.BrightWhite(root.Name) + "\n"
 
@@ -88,18 +109,23 @@ func (r *Renderer) renderNodeSummary(node *Node, prefix string, isLast bool) str
 		summary = colors.Green(fmt.Sprintf("%d/%d", passing, total))
 	}
 
+	// Trim label to fit viewport (prefix + branch = indentation)
+	prefixLen := colors.VisualLength(prefix + branch)
+
 	// If no summary items, just show the node name
 	if len(summary) == 0 {
 		label := node.Label()
 		status := node.StatusColor()
-		output := prefix + branch + label
 		if status != "" {
-			output += " " + status
+			label = label + " " + status
 		}
-		return output + "\n"
+		label = r.trimLabel(label, prefixLen)
+		return prefix + branch + label + "\n"
 	}
 
-	return prefix + branch + node.Label() + " " + node.StatusColor() + " (" + colors.Gray(summary) + ")\n"
+	label := node.Label() + " " + node.StatusColor() + " (" + colors.Gray(summary) + ")"
+	label = r.trimLabel(label, prefixLen)
+	return prefix + branch + label + "\n"
 }
 
 // renderNodeForExecution renders a node during execution, showing status for all nodes including steps.
@@ -135,6 +161,10 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 		!strings.HasSuffix(strings.TrimSpace(label), "✗") {
 		label = label + " " + status
 	}
+
+	// Trim label to fit viewport (prefix + branch = indentation)
+	prefixLen := colors.VisualLength(prefix + branch)
+	label = r.trimLabel(label, prefixLen)
 
 	// Render this node
 	output += prefix + branch + label
@@ -234,6 +264,10 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 	if status != "" && !isStep {
 		label = label + " " + status
 	}
+
+	// Trim label to fit viewport (prefix + branch = indentation)
+	prefixLen := colors.VisualLength(prefix + branch)
+	label = r.trimLabel(label, prefixLen)
 
 	// Render this node
 	output += prefix + branch + label

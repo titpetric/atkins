@@ -57,7 +57,9 @@ type Node struct {
 ```go
 // Renderer handles rendering of tree nodes to strings with proper formatting.
 type Renderer struct {
-	mu sync.Mutex
+	mu		sync.Mutex
+	trimmer		*Trimmer
+	maxArgLen	int
 }
 ```
 
@@ -74,7 +76,20 @@ type TreeNode struct {
 }
 ```
 
+```go
+// Trimmer handles label and line trimming for viewport constraints.
+type Trimmer struct {
+	viewportWidth	int
+	mu		sync.RWMutex
+}
+```
+
 ## Consts
+
+```go
+// DefaultMaxArgLen is the default maximum length for argument values before compaction.
+const DefaultMaxArgLen = 25
+```
 
 ```go
 // Status constants.
@@ -91,6 +106,7 @@ const (
 ## Function symbols
 
 - `func BuildFromPipeline (pipeline *model.Pipeline, resolveDeps func(map[string]*model.Job, string) ([]string, error)) (*Node, error)`
+- `func CompactArgs (cmd string, maxArgLen int) string`
 - `func CountLines (root *Node) int`
 - `func NewBuilder (pipelineName string) *Builder`
 - `func NewCmdNode (name string) *Node`
@@ -103,6 +119,7 @@ const (
 - `func NewRenderer () *Renderer`
 - `func NewStepNode (name string, deferred bool) *Node`
 - `func NewTreeNode (name string) *TreeNode`
+- `func NewTrimmer () *Trimmer`
 - `func SortByOrder (jobSet map[string]bool, orderList []string) []string`
 - `func SortJobsByDepth (jobNames []string) []string`
 - `func (*Builder) AddJob (job *model.Job, deps []string, jobName string) *TreeNode`
@@ -135,6 +152,11 @@ const (
 - `func (*TreeNode) GetName () string`
 - `func (*TreeNode) GetStatus () Status`
 - `func (*TreeNode) SetStatus (status Status)`
+- `func (*Trimmer) GetViewportWidth () int`
+- `func (*Trimmer) RefreshViewport ()`
+- `func (*Trimmer) SetViewportWidth (width int)`
+- `func (*Trimmer) TrimLabel (label string, maxArgLen,prefixLen int) string`
+- `func (*Trimmer) TrimToViewport (line string, prefixLen int) string`
 - `func (Status) Label () string`
 - `func (Status) String () string`
 
@@ -145,6 +167,15 @@ Returns the root node ready to be rendered.
 
 ```go
 func BuildFromPipeline (pipeline *model.Pipeline, resolveDeps func(map[string]*model.Job, string) ([]string, error)) (*Node, error)
+```
+
+### CompactArgs
+
+CompactArgs trims long argument values in a command string.
+Arguments longer than maxArgLen are replaced with <...N chars>.
+
+```go
+func CompactArgs (cmd string, maxArgLen int) string
 ```
 
 ### CountLines
@@ -241,6 +272,14 @@ NewTreeNode creates a new tree node.
 
 ```go
 func NewTreeNode (name string) *TreeNode
+```
+
+### NewTrimmer
+
+NewTrimmer creates a new trimmer with detected viewport width.
+
+```go
+func NewTrimmer () *Trimmer
 ```
 
 ### SortByOrder
@@ -492,6 +531,51 @@ SetStatus updates a node's status.
 
 ```go
 func (*TreeNode) SetStatus (status Status)
+```
+
+### GetViewportWidth
+
+GetViewportWidth returns the current viewport width.
+
+```go
+func (*Trimmer) GetViewportWidth () int
+```
+
+### RefreshViewport
+
+RefreshViewport re-detects the terminal width (call before each render).
+
+```go
+func (*Trimmer) RefreshViewport ()
+```
+
+### SetViewportWidth
+
+SetViewportWidth sets a custom viewport width (useful for testing).
+
+```go
+func (*Trimmer) SetViewportWidth (width int)
+```
+
+### TrimLabel
+
+TrimLabel applies both compaction and viewport trimming to a label.
+- maxArgLen: maximum length for argument values before compaction
+- prefixLen: visual length of the prefix (indentation, branch chars).
+
+```go
+func (*Trimmer) TrimLabel (label string, maxArgLen,prefixLen int) string
+```
+
+### TrimToViewport
+
+TrimToViewport trims a line to fit within the viewport width.
+It accounts for ANSI escape codes and adds "..." suffix when trimmed.
+The prefixLen parameter indicates how many visual characters of prefix
+(indentation, branch characters) are already used.
+
+```go
+func (*Trimmer) TrimToViewport (line string, prefixLen int) string
 ```
 
 ### Label
