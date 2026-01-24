@@ -33,9 +33,10 @@ func (b *Builder) AddJob(job *model.Job, deps []string, jobName string) *TreeNod
 
 	// Add steps as children (skip for simple single-step tasks where command is in job name)
 	// Simple tasks have a single step with HidePrefix=true
-	isSimpleTask := len(job.Steps) == 1 && len(job.Steps[0].Commands()) > 0 && job.Steps[0].HidePrefix
+	steps := job.Children()
+	isSimpleTask := len(steps) == 1 && len(steps[0].Cmds) > 0 && steps[0].HidePrefix
 	if !isSimpleTask {
-		for _, step := range job.Steps {
+		for _, step := range steps {
 			stepNode := b.buildStepNode(step)
 			jobNode.AddChild(stepNode)
 		}
@@ -68,7 +69,8 @@ func (b *Builder) AddJobWithSummary(job *model.Job, deps []string, jobName strin
 	jobNode.Summarize = true
 
 	// Add steps as children
-	for _, step := range job.Steps {
+	steps := job.Children()
+	for _, step := range steps {
 		stepNode := b.buildStepNode(step)
 		jobNode.AddChild(stepNode)
 	}
