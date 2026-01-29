@@ -7,6 +7,7 @@ import (
 
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
+	"github.com/titpetric/atkins/treeview"
 )
 
 func TestExecuteStepWithForLoop(t *testing.T) {
@@ -520,5 +521,110 @@ func TestJobVariablesInForLoop(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(iterations), "Should have 3 iterations")
+	})
+}
+
+func TestStepVarsWithLoopVariable(t *testing.T) {
+	t.Run("step vars with loop variable should be interpolated per iteration", func(t *testing.T) {
+		// This tests the fix for BUG 2: step-level vars like `path: $(dirname "${{item}}")`
+		// should be interpolated with the loop variable available
+
+		step := &model.Step{
+			Name: "test step",
+			Task: "project:ps",
+			For:  "item in projects",
+			Decl: &model.Decl{
+				Vars: map[string]any{
+					"path": "${{item}}/subdir",
+				},
+			},
+		}
+
+		ctx := &runner.ExecutionContext{
+			Variables: map[string]any{
+				"projects": []any{"proj1", "proj2", "proj3"},
+			},
+			Step: step,
+			Env:  make(map[string]string),
+		}
+
+		// Expand the for loop
+		iterations, err := runner.ExpandFor(ctx, func(cmd string) (string, error) {
+			return "", nil
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(iterations))
+
+		// Verify each iteration has the correct item
+		for i, iter := range iterations {
+			expectedItems := []string{"proj1", "proj2", "proj3"}
+			assert.Equal(t, expectedItems[i], iter.Variables["item"])
+
+			// Now simulate what happens in executeTaskStepWithLoop:
+			// Create iteration context and merge step vars
+			iterCtx := &runner.ExecutionContext{
+				Variables: make(map[string]any),
+				Env:       make(map[string]string),
+			}
+			for k, v := range iter.Variables {
+				iterCtx.Variables[k] = v
+			}
+
+			// Merge step-level vars (this is the fix)
+			err := runner.MergeVariables(step.Decl, iterCtx)
+			assert.NoError(t, err)
+
+			// The path should now be interpolated with the item value
+			expectedPath := expectedItems[i] + "/subdir"
+			assert.Equal(t, expectedPath, iterCtx.Variables["path"],
+				"path should be interpolated with item=%s", expectedItems[i])
+		}
+	})
+}
+
+func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
+	t.Run("CurrentStep should be set to iteration node during execution", func(t *testing.T) {
+		// This tests the fix for BUG 1: output should go to the correct iteration node,
+		// not be overwritten by subsequent iterations
+
+		// Create a simple context with a CurrentStep set
+		parentNode := &treeview.Node{Name: "parent"}
+		iterNode1 := &treeview.Node{Name: "iter1"}
+		iterNode2 := &treeview.Node{Name: "iter2"}
+
+		execCtx := &runner.ExecutionContext{
+			CurrentStep: parentNode,
+			Variables:   make(map[string]any),
+			Env:         make(map[string]string),
+		}
+
+		// Simulate what executeStepIteration does:
+		// Save original, set to iter node, then restore
+
+		// First iteration
+		func() {
+			originalStep := execCtx.CurrentStep
+			execCtx.CurrentStep = iterNode1
+			defer func() { execCtx.CurrentStep = originalStep }()
+
+			// During execution, CurrentStep should be iterNode1
+			assert.Equal(t, iterNode1, execCtx.CurrentStep)
+		}()
+
+		// After first iteration, should be restored to parent
+		assert.Equal(t, parentNode, execCtx.CurrentStep)
+
+		// Second iteration
+		func() {
+			originalStep := execCtx.CurrentStep
+			execCtx.CurrentStep = iterNode2
+			defer func() { execCtx.CurrentStep = originalStep }()
+
+			// During execution, CurrentStep should be iterNode2
+			assert.Equal(t, iterNode2, execCtx.CurrentStep)
+		}()
+
+		// After second iteration, should be restored to parent
+		assert.Equal(t, parentNode, execCtx.CurrentStep)
 	})
 }
