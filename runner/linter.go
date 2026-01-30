@@ -74,8 +74,17 @@ func (l *Linter) validateTaskInvocations() {
 			continue
 		}
 
+		// Check if both steps and cmds are defined (warning)
+		if job.Steps != nil && len(job.Steps) > 0 && job.Cmds != nil && len(job.Cmds) > 0 {
+			l.errors = append(l.errors, LintError{
+				Job:    jobName,
+				Issue:  "ambiguous step definition",
+				Detail: fmt.Sprintf("job '%s' defines both 'steps' and 'cmds', only 'steps' will be used (cmds is ignored)", jobName),
+			})
+		}
+
 		// Check each step for task references
-		for _, step := range job.Steps {
+		for _, step := range job.Children() {
 			if step != nil && step.Task != "" {
 				if _, exists := jobs[step.Task]; !exists {
 					l.errors = append(l.errors, LintError{

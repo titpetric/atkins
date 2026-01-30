@@ -438,12 +438,14 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 
 	// Handle for loop expansion
 	if step.For != "" {
-		stepNode.Summarize = step.Summarize
 		if stepNode != nil {
+			stepNode.Summarize = step.Summarize
 			stepNode.SetStatus(treeview.StatusRunning)
 		}
 		if err := e.executeStepWithForLoop(ctx, stepCtx, step, stepIndex, stepNode); err != nil {
-			stepNode.SetStatus(treeview.StatusFailed)
+			if stepNode != nil {
+				stepNode.SetStatus(treeview.StatusFailed)
+			}
 			return err
 		}
 		return nil
@@ -476,7 +478,9 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 		return nil
 	}
 
-	stepNode.Summarize = step.Summarize
+	if stepNode != nil {
+		stepNode.Summarize = step.Summarize
+	}
 
 	// Build iteration nodes as children of the step node
 	iterationNodes := make([]*treeview.Node, 0, len(iterations))
@@ -823,7 +827,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		if err := ValidateJobRequirements(taskJob, taskCtx); err != nil {
 			return err
 		}
-		if err := e.executeSteps(ctx, taskCtx, taskJob.Steps); err != nil {
+		if err := e.executeSteps(ctx, taskCtx, taskJob.Children()); err != nil {
 			return err
 		}
 		return nil
@@ -974,7 +978,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 		}
 
 		// Execute the task job steps with iteration context
-		if err := e.executeSteps(ctx, iterCtx, taskJob.Steps); err != nil {
+		if err := e.executeSteps(ctx, iterCtx, taskJob.Children()); err != nil {
 			iterTreeNode.SetStatus(treeview.StatusFailed)
 			lastErr = err
 			// Continue to next iteration even on error (collect all failures)

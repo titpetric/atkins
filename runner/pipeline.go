@@ -170,7 +170,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		}
 
 		steps := job.Children()
-		isSimpleTask := len(steps) == 1 && len(steps[0].Cmds) > 0 && steps[0].HidePrefix
+		isSimpleTask := len(steps) == 1 && len(steps[0].Commands()) > 0 && steps[0].HidePrefix
 
 		// Only add to tree if it's in jobOrder (root-level execution)
 		if isRootJob {
@@ -182,7 +182,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 					stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
 
 					// If step has multiple commands, create child nodes for each command
-					stepchildren := step.Cmds
+					stepchildren := step.Commands()
 					if len(stepchildren) > 0 {
 						for _, cmd := range stepchildren {
 							stepNode.AddChild(treeview.NewCmdNode(cmd))
@@ -204,7 +204,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 					stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
 
 					// If step has multiple commands, create child nodes for each command
-					stepchildren := step.Cmds
+					stepchildren := step.Commands()
 					if len(stepchildren) > 0 {
 						for _, cmd := range stepchildren {
 							stepNode.AddChild(treeview.NewCmdNode(cmd))
