@@ -247,14 +247,12 @@ func (e *Executor) executeSteps(ctx context.Context, execCtx *ExecutionContext, 
 			}
 		}
 
-		if stepNode != nil {
-			// Update status to running and re-render to show the transition
-			stepNode.SetStatus(treeview.StatusRunning)
+		// Update status to running and re-render to show the transition
+		stepNode.SetStatus(treeview.StatusRunning)
 
-			// Execute step with the actual found node
-			if err := e.executeStepWithNode(ctx, execCtx, step, stepNode); err != nil {
-				return err
-			}
+		// Execute step with the actual found node
+		if err := e.executeStepWithNode(ctx, execCtx, step, stepNode); err != nil {
+			return err
 		} else {
 			// Fallback to executeStep if node not found
 			if err := e.executeStep(ctx, execCtx, step, stepIdx); err != nil {
@@ -268,26 +266,14 @@ func (e *Executor) executeSteps(ctx context.Context, execCtx *ExecutionContext, 
 
 // executeStepWithNode runs a single step with a provided node
 func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
-	// Handle step-level environment variables
-	stepCtx := execCtx.Copy()
-	stepCtx.Context = ctx
-	stepCtx.Step = step
-
-	env := make(map[string]string)
-	// Copy parent env
-	for k, v := range execCtx.Env {
-		env[k] = v
-	}
-	stepCtx.Env = env
+	stepCtx := e.prepareStepContext(execCtx, ctx, step)
 
 	// Merge step-level vars with interpolation - but skip if step has a for loop
 	// When step.For != "", vars may depend on loop variables (e.g., ${{item}})
 	// and should be merged inside the iteration context instead
 	if step.For == "" {
 		if err := MergeVariables(step.Decl, stepCtx); err != nil {
-			if stepNode != nil {
-				stepNode.SetStatus(treeview.StatusFailed)
-			}
+			stepNode.SetStatus(treeview.StatusFailed)
 			return fmt.Errorf("failed to process step env: %w", err)
 		}
 	}
@@ -298,37 +284,13 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 	shouldRun, err := EvaluateIf(stepCtx)
 	if err != nil {
 		// If condition evaluation fails, skip the step
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusSkipped)
-		}
+		stepNode.SetStatus(treeview.StatusSkipped)
 		return fmt.Errorf("failed to evaluate if condition for step %q: %w", step.Name, err)
 	}
 
 	if !shouldRun {
-		// Mark step as skipped and log it
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusSkipped)
-			if step.If != "" {
-				stepNode.SetIf(step.If)
-			}
-		}
-		// Get step name for logging
-		stepName := step.Name
-		if stepName == "" && stepNode != nil {
-			stepName = stepNode.Name
-		}
-		// Get sequential step index from the parent execution context
 		seqIndex := execCtx.NextStepIndex()
-		// Log SKIP event
-		jobName := ""
-		if execCtx.Job != nil {
-			jobName = execCtx.Job.Name
-		}
-		stepID := generateStepID(jobName, seqIndex)
-		if execCtx.EventLogger != nil {
-			startOffset := execCtx.EventLogger.GetElapsed()
-			execCtx.EventLogger.LogExec(eventlog.ResultSkipped, stepID, stepName, startOffset, 0, nil)
-		}
+		e.logStepSkipped(execCtx, step, stepNode, seqIndex)
 		return nil
 	}
 
@@ -338,9 +300,7 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 	} else {
 		// Handle task invocation
 		if step.Task != "" {
-			if stepNode != nil {
-				stepNode.SetStatus(treeview.StatusRunning)
-			}
+			stepNode.SetStatus(treeview.StatusRunning)
 			return e.executeTaskStep(ctx, stepCtx, step, stepNode)
 		}
 	}
@@ -357,18 +317,8 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	// This ensures all steps in a job get unique sequential indices
 	seqIndex := execCtx.NextStepIndex()
 
-	// Handle step-level environment variables
-	stepCtx := execCtx.Copy()
-	stepCtx.Context = ctx
-	stepCtx.Step = step
+	stepCtx := e.prepareStepContext(execCtx, ctx, step)
 	stepCtx.StepSequence = seqIndex // Set the index for this step
-
-	env := make(map[string]string)
-	// Copy parent env
-	for k, v := range execCtx.Env {
-		env[k] = v
-	}
-	stepCtx.Env = env
 
 	// Get step node from tree
 	var stepNode *treeview.Node
@@ -385,9 +335,7 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	// and should be merged inside the iteration context instead
 	if step.For == "" {
 		if err := MergeVariables(step.Decl, stepCtx); err != nil {
-			if stepNode != nil {
-				stepNode.SetStatus(treeview.StatusFailed)
-			}
+			stepNode.SetStatus(treeview.StatusFailed)
 			return fmt.Errorf("failed to process step env: %w", err)
 		}
 	}
@@ -396,56 +344,27 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	shouldRun, err := EvaluateIf(stepCtx)
 	if err != nil {
 		// If condition evaluation fails, skip the step
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusSkipped)
-		}
+		stepNode.SetStatus(treeview.StatusSkipped)
 		return fmt.Errorf("failed to evaluate if condition for step %q: %w", step.Name, err)
 	}
 
 	if !shouldRun {
-		// Mark step as skipped and log it
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusSkipped)
-			if step.If != "" {
-				stepNode.SetIf(step.If)
-			}
-		}
-		// Get step name for logging
-		stepName := step.Name
-		if stepName == "" && stepNode != nil {
-			stepName = stepNode.Name
-		}
-		// Log SKIP event using pre-assigned seqIndex
-		jobName := ""
-		if execCtx.Job != nil {
-			jobName = execCtx.Job.Name
-		}
-		stepID := generateStepID(jobName, seqIndex)
-		if execCtx.EventLogger != nil {
-			startOffset := execCtx.EventLogger.GetElapsed()
-			execCtx.EventLogger.LogExec(eventlog.ResultSkipped, stepID, stepName, startOffset, 0, nil)
-		}
+		e.logStepSkipped(execCtx, step, stepNode, seqIndex)
 		return nil
 	}
 
 	// Handle task invocation
 	if step.Task != "" {
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusRunning)
-		}
+		stepNode.SetStatus(treeview.StatusRunning)
 		return e.executeTaskStep(ctx, stepCtx, step, stepNode)
 	}
 
 	// Handle for loop expansion
 	if step.For != "" {
-		if stepNode != nil {
-			stepNode.Summarize = step.Summarize
-			stepNode.SetStatus(treeview.StatusRunning)
-		}
+		stepNode.SetSummarize(step.Summarize)
+		stepNode.SetStatus(treeview.StatusRunning)
 		if err := e.executeStepWithForLoop(ctx, stepCtx, step, stepIndex, stepNode); err != nil {
-			if stepNode != nil {
-				stepNode.SetStatus(treeview.StatusFailed)
-			}
+			stepNode.SetStatus(treeview.StatusFailed)
 			return err
 		}
 		return nil
@@ -463,6 +382,78 @@ func (e *Executor) recordStepCompletion(execCtx *ExecutionContext, passed bool) 
 	}
 }
 
+// prepareStepContext creates a new execution context for a step, copying parent env and context
+func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.Context, step *model.Step) *ExecutionContext {
+	stepCtx := parentCtx.Copy()
+	stepCtx.Context = ctx
+	stepCtx.Step = step
+
+	env := make(map[string]string)
+	for k, v := range parentCtx.Env {
+		env[k] = v
+	}
+	stepCtx.Env = env
+
+	return stepCtx
+}
+
+// prepareIterationContext creates a new execution context for a loop iteration, overlaying iteration variables
+func (e *Executor) prepareIterationContext(parentCtx *ExecutionContext, iteration map[string]any) *ExecutionContext {
+	iterCtx := parentCtx.Copy()
+	for k, v := range iteration {
+		iterCtx.Variables[k] = v
+	}
+	return iterCtx
+}
+
+// prepareIterationContextWithContext creates a new execution context for a loop iteration with context replacement
+func (e *Executor) prepareIterationContextWithContext(parentCtx *ExecutionContext, ctx context.Context, iteration map[string]any) *ExecutionContext {
+	iterCtx := parentCtx.Copy()
+	iterCtx.Context = ctx
+	for k, v := range iteration {
+		iterCtx.Variables[k] = v
+	}
+	return iterCtx
+}
+
+// createIterationNode creates a new tree node for an iteration
+func createIterationNode(id, name string, summarize bool) *treeview.Node {
+	return &treeview.Node{
+		Name:      name,
+		ID:        id,
+		Status:    treeview.StatusPending,
+		Summarize: summarize,
+	}
+}
+
+// logStepSkipped marks a step as skipped and logs the skip event
+func (e *Executor) logStepSkipped(execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, seqIndex int) {
+	// Mark step as skipped in the tree
+	stepNode.SetStatus(treeview.StatusSkipped)
+	if step.If != "" {
+		stepNode.SetIf(step.If)
+	}
+
+	// Get step name for logging
+	stepName := step.Name
+	if stepName == "" && stepNode != nil {
+		stepName = stepNode.Name
+	}
+
+	// Get job name for ID
+	jobName := ""
+	if execCtx.Job != nil {
+		jobName = execCtx.Job.Name
+	}
+
+	// Log SKIP event
+	stepID := generateStepID(jobName, seqIndex)
+	if execCtx.EventLogger != nil {
+		startOffset := execCtx.EventLogger.GetElapsed()
+		execCtx.EventLogger.LogExec(eventlog.ResultSkipped, stepID, stepName, startOffset, 0, nil)
+	}
+}
+
 // executeStepWithForLoop handles for loop expansion and execution
 // Each iteration becomes a separate execution with iteration variables overlaid on context
 func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int, stepNode *treeview.Node) error {
@@ -470,24 +461,18 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 	exec := NewExecWithEnv(execCtx.Env)
 	iterations, err := ExpandFor(execCtx, exec.ExecuteCommand)
 	if err != nil {
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusFailed)
-		}
+		stepNode.SetStatus(treeview.StatusFailed)
 		return fmt.Errorf("failed to expand for loop for step %q: %w", step.Name, err)
 	}
 
 	if len(iterations) == 0 {
 		// Empty for loop - mark as passed
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusPassed)
-		}
+		stepNode.SetStatus(treeview.StatusPassed)
 		e.recordStepCompletion(execCtx, true)
 		return nil
 	}
 
-	if stepNode != nil {
-		stepNode.Summarize = step.Summarize
-	}
+	stepNode.SetSummarize(step.Summarize)
 
 	// Build iteration nodes as children of the step node
 	iterationNodes := make([]*treeview.Node, 0, len(iterations))
@@ -501,10 +486,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 		// Create node for each iteration with interpolated command
 		for idx, iteration := range iterations {
 			// Interpolate command with iteration variables
-			iterCtx := execCtx.Copy()
-			for k, v := range iteration.Variables {
-				iterCtx.Variables[k] = v
-			}
+			iterCtx := e.prepareIterationContext(execCtx, iteration.Variables)
 
 			var interpolated string
 			var nodeName string
@@ -516,9 +498,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 				var err error
 				interpolated, err = InterpolateCommand(cmdTemplate, iterCtx)
 				if err != nil {
-					if stepNode != nil {
-						stepNode.SetStatus(treeview.StatusFailed)
-					}
+					stepNode.SetStatus(treeview.StatusFailed)
 					return fmt.Errorf("failed to interpolate command for iteration %d: %w", idx, err)
 				}
 
@@ -536,12 +516,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 			iterSeqIndex := execCtx.StepSequence + idx
 			iterID := fmt.Sprintf("jobs.%s.steps.%d", jobName, iterSeqIndex)
 
-			iterNode := &treeview.Node{
-				Name:      nodeName,
-				ID:        iterID,
-				Status:    treeview.StatusPending,
-				Summarize: step.Summarize,
-			}
+			iterNode := createIterationNode(iterID, nodeName, step.Summarize)
 
 			// If step has multiple commands, create child nodes for each command
 			if len(step.Cmds) > 0 {
@@ -549,9 +524,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 					// Interpolate each command with iteration variables
 					interpolatedCmd, err := InterpolateCommand(cmd, iterCtx)
 					if err != nil {
-						if stepNode != nil {
-							stepNode.SetStatus(treeview.StatusFailed)
-						}
+						stepNode.SetStatus(treeview.StatusFailed)
 						return fmt.Errorf("failed to interpolate command for iteration %d: %w", idx, err)
 					}
 					iterNode.AddChild(treeview.NewCmdNode(interpolatedCmd))
@@ -583,13 +556,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 
 		executeIteration := func() error {
 			// Create iteration context by overlaying iteration variables on parent context
-			iterCtx := execCtx.Copy()
-			iterCtx.Context = ctx
-
-			// Overlay iteration variables (they override parent variables)
-			for k, v := range iteration.Variables {
-				iterCtx.Variables[k] = v
-			}
+			iterCtx := e.prepareIterationContextWithContext(execCtx, ctx, iteration.Variables)
 
 			// Merge step-level env with interpolation
 			// This needs to happen before building the command so env vars can be interpolated
@@ -643,13 +610,11 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 		_ = eg.Wait()
 	}
 
-	if stepNode != nil {
-		if lastErr != nil {
-			stepNode.SetStatus(treeview.StatusFailed)
-			return lastErr
-		}
-		stepNode.SetStatus(treeview.StatusPassed)
+	if lastErr != nil {
+		stepNode.SetStatus(treeview.StatusFailed)
+		return lastErr
 	}
+	stepNode.SetStatus(treeview.StatusPassed)
 
 	e.recordStepCompletion(execCtx, true)
 	return nil
@@ -683,10 +648,10 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 	startTime := time.Now()
 
 	// Mark step as running and render immediately to show state transition
+	stepNode.SetID(stepID)
+	stepNode.SetStartOffset(startOffset)
+	stepNode.SetStatus(treeview.StatusRunning)
 	if stepNode != nil {
-		stepNode.ID = stepID
-		stepNode.SetStartOffset(startOffset)
-		stepNode.SetStatus(treeview.StatusRunning)
 		stepCtx.Render()
 	}
 
@@ -705,13 +670,11 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 	durationMs := duration.Milliseconds()
 
 	// Update tree node status and log result
-	if stepNode != nil {
-		stepNode.SetDuration(duration.Seconds())
-		if err != nil {
-			stepNode.SetStatus(treeview.StatusFailed)
-		} else {
-			stepNode.SetStatus(treeview.StatusPassed)
-		}
+	stepNode.SetDuration(duration.Seconds())
+	if err != nil {
+		stepNode.SetStatus(treeview.StatusFailed)
+	} else {
+		stepNode.SetStatus(treeview.StatusPassed)
 	}
 
 	// Log single execution event
@@ -743,9 +706,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 
 	taskJob, exists := allJobs[taskName]
 	if !exists {
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusFailed)
-		}
+		stepNode.SetStatus(treeview.StatusFailed)
 		return fmt.Errorf("task %q not found in pipeline", taskName)
 	}
 
@@ -757,9 +718,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		}
 
 		if _, depExists := allJobs[depName]; !depExists {
-			if stepNode != nil {
-				stepNode.SetStatus(treeview.StatusFailed)
-			}
+			stepNode.SetStatus(treeview.StatusFailed)
 			return fmt.Errorf("dependency %q not found for task %q", depName, taskName)
 		}
 
@@ -773,14 +732,12 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	// Get the existing tree node for this task
 	taskJobNode := execCtx.JobNodes[taskName]
 	if taskJobNode == nil {
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusFailed)
-		}
+		stepNode.SetStatus(treeview.StatusFailed)
 		return fmt.Errorf("task %q node not found in tree", taskName)
 	}
 
-	taskJobNode.Summarize = taskJob.Summarize
-	stepNode.Summarize = step.Summarize
+	taskJobNode.Node.SetSummarize(taskJob.Summarize)
+	stepNode.SetSummarize(step.Summarize)
 
 	// Check if this step has a for loop
 	if step.For != "" {
@@ -796,9 +753,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	}
 
 	// Mark the task as running
-	if stepNode != nil {
-		stepNode.SetStatus(treeview.StatusRunning)
-	}
+	stepNode.SetStatus(treeview.StatusRunning)
 
 	// Mark the task node itself as running
 	taskJobNode.SetStatus(treeview.StatusRunning)
@@ -854,20 +809,14 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 
 	if err != nil {
 		taskJobNode.SetStatus(treeview.StatusFailed)
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusFailed)
-		}
-		execCtx.MarkJobCompleted(taskName)
-		return err
-	}
-
-	// Mark task and step as passed
-	taskJobNode.SetStatus(treeview.StatusPassed)
-	execCtx.MarkJobCompleted(taskName)
-	if stepNode != nil {
+		stepNode.SetStatus(treeview.StatusFailed)
+	} else {
+		taskJobNode.SetStatus(treeview.StatusPassed)
 		stepNode.SetStatus(treeview.StatusPassed)
 	}
-	return nil
+
+	execCtx.MarkJobCompleted(taskName)
+	return err
 }
 
 // executeTaskStepWithLoop executes a task multiple times via a for loop with loop variables
@@ -878,17 +827,12 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 	exec := NewExecWithEnv(execCtx.Env)
 	iterations, err := ExpandFor(execCtx, exec.ExecuteCommand)
 	if err != nil {
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusFailed)
-		}
+		stepNode.SetStatus(treeview.StatusFailed)
 		return fmt.Errorf("failed to expand for loop: %w", err)
 	}
 
 	if len(iterations) == 0 {
-		// No iterations, mark as passed
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusPassed)
-		}
+		stepNode.SetStatus(treeview.StatusPassed)
 		return nil
 	}
 
@@ -896,10 +840,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 	iterationNodes := make([]*treeview.TreeNode, 0, len(iterations))
 	for idx, iteration := range iterations {
 		// Create iteration context for node name interpolation
-		iterCtx := execCtx.Copy()
-		for k, v := range iteration.Variables {
-			iterCtx.Variables[k] = v
-		}
+		iterCtx := e.prepareIterationContext(execCtx, iteration.Variables)
 
 		// Merge step vars to get interpolated values for display
 		if step.Decl != nil {
@@ -924,12 +865,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 			iterName = fmt.Sprintf("%s (path: %v)", step.Task, path)
 		}
 
-		iterNode := &treeview.Node{
-			Name:      iterName,
-			ID:        iterID,
-			Status:    treeview.StatusPending,
-			Summarize: step.Summarize,
-		}
+		iterNode := createIterationNode(iterID, iterName, step.Summarize)
 
 		// Add as child of the step node
 		stepNode.AddChild(iterNode)
@@ -998,17 +934,13 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 	// Update parent node statuses based on results
 	if lastErr != nil {
 		taskJobNode.SetStatus(treeview.StatusFailed)
-		if stepNode != nil {
-			stepNode.SetStatus(treeview.StatusFailed)
-		}
+		stepNode.SetStatus(treeview.StatusFailed)
 		return lastErr
 	}
 
 	// Mark task and step as passed
 	taskJobNode.SetStatus(treeview.StatusPassed)
-	if stepNode != nil {
-		stepNode.SetStatus(treeview.StatusPassed)
-	}
+	stepNode.SetStatus(treeview.StatusPassed)
 
 	return nil
 }

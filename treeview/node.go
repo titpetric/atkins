@@ -161,6 +161,26 @@ func (n *Node) SetIf(condition string) {
 	n.If = condition
 }
 
+// SetSummarize sets the summarize flag. Nil-safe: no-op on nil receiver.
+func (n *Node) SetSummarize(summarize bool) {
+	if n == nil {
+		return
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.Summarize = summarize
+}
+
+// SetID sets the node ID. Nil-safe: no-op on nil receiver.
+func (n *Node) SetID(id string) {
+	if n == nil {
+		return
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.ID = id
+}
+
 // SetOutput sets the output lines for this node (from command execution).
 func (n *Node) SetOutput(lines []string) {
 	n.mu.Lock()

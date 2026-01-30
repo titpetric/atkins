@@ -139,10 +139,12 @@ const (
 - `func (*Node) HasChildren () bool`
 - `func (*Node) Label () string`
 - `func (*Node) SetDuration (duration float64)`
+- `func (*Node) SetID (id string)`
 - `func (*Node) SetIf (condition string)`
 - `func (*Node) SetOutput (lines []string)`
 - `func (*Node) SetStartOffset (offset float64)`
 - `func (*Node) SetStatus (status Status)`
+- `func (*Node) SetSummarize (summarize bool)`
 - `func (*Node) StatusColor () string`
 - `func (*Renderer) Render (root *Node) string`
 - `func (*Renderer) RenderStatic (root *Node) string`
@@ -422,15 +424,23 @@ func (*Node) HasChildren () bool
 
 ### SetDuration
 
-SetDuration sets the duration in seconds.
+SetDuration sets the duration in seconds. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetDuration (duration float64)
 ```
 
+### SetID
+
+SetID sets the node ID. Nil-safe: no-op on nil receiver.
+
+```go
+func (*Node) SetID (id string)
+```
+
 ### SetIf
 
-SetIf sets the condition string that was evaluated.
+SetIf sets the condition string that was evaluated. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetIf (condition string)
@@ -446,7 +456,7 @@ func (*Node) SetOutput (lines []string)
 
 ### SetStartOffset
 
-SetStartOffset sets the start offset from run start.
+SetStartOffset sets the start offset from run start. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetStartOffset (offset float64)
@@ -454,10 +464,18 @@ func (*Node) SetStartOffset (offset float64)
 
 ### SetStatus
 
-SetStatus updates a node's status thread-safely.
+SetStatus updates a node's status thread-safely. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetStatus (status Status)
+```
+
+### SetSummarize
+
+SetSummarize sets the summarize flag. Nil-safe: no-op on nil receiver.
+
+```go
+func (*Node) SetSummarize (summarize bool)
 ```
 
 ### StatusColor
