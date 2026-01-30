@@ -118,8 +118,11 @@ func (n *Node) Label() string {
 	return colors.White(name)
 }
 
-// SetStatus updates a node's status thread-safely.
+// SetStatus updates a node's status thread-safely. Nil-safe: no-op on nil receiver.
 func (n *Node) SetStatus(status Status) {
+	if n == nil {
+		return
+	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.Status = status
@@ -127,23 +130,32 @@ func (n *Node) SetStatus(status Status) {
 	n.UpdatedAt = time.Now()
 }
 
-// SetStartOffset sets the start offset from run start.
+// SetStartOffset sets the start offset from run start. Nil-safe: no-op on nil receiver.
 func (n *Node) SetStartOffset(offset float64) {
+	if n == nil {
+		return
+	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.StartOffset = offset
 }
 
-// SetDuration sets the duration in seconds.
+// SetDuration sets the duration in seconds. Nil-safe: no-op on nil receiver.
 func (n *Node) SetDuration(duration float64) {
+	if n == nil {
+		return
+	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.Duration = duration
 	n.UpdatedAt = time.Now()
 }
 
-// SetIf sets the condition string that was evaluated.
+// SetIf sets the condition string that was evaluated. Nil-safe: no-op on nil receiver.
 func (n *Node) SetIf(condition string) {
+	if n == nil {
+		return
+	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.If = condition
