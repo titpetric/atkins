@@ -39,6 +39,21 @@ func NewPipeline(data *model.Pipeline, opts PipelineOptions) *Pipeline {
 	}
 }
 
+// buildAndAddStepsToJob adds step nodes to a job node with command children for multi-command steps
+func buildAndAddStepsToJob(jobNode *treeview.TreeNode, steps []*model.Step) {
+	for _, step := range steps {
+		stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
+		// Only add command child nodes if step has multiple commands (single command already shown in label)
+		commands := step.Commands()
+		if len(commands) > 1 {
+			for _, cmd := range commands {
+				stepNode.AddChild(treeview.NewCmdNode(cmd))
+			}
+		}
+		jobNode.AddChild(stepNode)
+	}
+}
+
 // RunPipeline runs a pipeline with the given options.
 func RunPipeline(ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error {
 	var logger *eventlog.Logger
@@ -178,19 +193,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			jobNode.Summarize = job.Summarize
 
 			if !isSimpleTask {
-				for _, step := range steps {
-					stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
-
-					// If step has multiple commands, create child nodes for each command
-					stepchildren := step.Commands()
-					if len(stepchildren) > 0 {
-						for _, cmd := range stepchildren {
-							stepNode.AddChild(treeview.NewCmdNode(cmd))
-						}
-					}
-
-					jobNode.AddChild(stepNode)
-				}
+				buildAndAddStepsToJob(jobNode, steps)
 			}
 
 			jobNodes[jobName] = jobNode
@@ -200,19 +203,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			jobNode.Summarize = job.Summarize
 
 			if !isSimpleTask {
-				for _, step := range steps {
-					stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
-
-					// If step has multiple commands, create child nodes for each command
-					stepchildren := step.Commands()
-					if len(stepchildren) > 0 {
-						for _, cmd := range stepchildren {
-							stepNode.AddChild(treeview.NewCmdNode(cmd))
-						}
-					}
-
-					jobNode.AddChild(stepNode)
-				}
+				buildAndAddStepsToJob(&treeview.TreeNode{Node: jobNode}, steps)
 			}
 
 			jobNodes[jobName] = &treeview.TreeNode{Node: jobNode}

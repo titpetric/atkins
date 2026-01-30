@@ -455,6 +455,14 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	return e.executeCommands(ctx, stepCtx, step, stepNode, step.Commands(), stepIndex)
 }
 
+// recordStepCompletion updates execution counters and status for a completed step
+func (e *Executor) recordStepCompletion(execCtx *ExecutionContext, passed bool) {
+	execCtx.StepsCount++
+	if passed {
+		execCtx.StepsPassed++
+	}
+}
+
 // executeStepWithForLoop handles for loop expansion and execution
 // Each iteration becomes a separate execution with iteration variables overlaid on context
 func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int, stepNode *treeview.Node) error {
@@ -473,8 +481,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 		if stepNode != nil {
 			stepNode.SetStatus(treeview.StatusPassed)
 		}
-		execCtx.StepsCount++
-		execCtx.StepsPassed++
+		e.recordStepCompletion(execCtx, true)
 		return nil
 	}
 
@@ -644,8 +651,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 		stepNode.SetStatus(treeview.StatusPassed)
 	}
 
-	execCtx.StepsCount++
-	execCtx.StepsPassed++
+	e.recordStepCompletion(execCtx, true)
 	return nil
 }
 
