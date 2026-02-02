@@ -178,36 +178,40 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 			continuation = "   "
 		}
 
-		// Calculate max width of output lines for border (visual width, excluding ANSI)
+		// Trim output lines and calculate max width for border (visual width, excluding ANSI)
+		outputPrefixLen := colors.VisualLength(prefix + continuation)
+		trimmedLines := make([]string, len(node.Output))
 		maxWidth := 0
-		for _, outputLine := range node.Output {
-			width := colors.VisualLength(outputLine)
+		for i, outputLine := range node.Output {
+			trimmedLine := r.trimLabel(outputLine, outputPrefixLen)
+			trimmedLines[i] = trimmedLine
+			width := colors.VisualLength(trimmedLine)
 			if width > maxWidth {
 				maxWidth = width
 			}
 		}
 
 		// Add top border if 2+ elements (account for spaces around content)
-		if len(node.Output) >= 2 {
+		if len(trimmedLines) >= 2 {
 			topBorder := prefix + continuation + colors.Gray("┌"+strings.Repeat("─", maxWidth+2)+"┐") + "\n"
 			output += topBorder
 		}
 
 		// Add each output line with left/right borders
-		for _, outputLine := range node.Output {
+		for _, trimmedLine := range trimmedLines {
 			// Pad line to max width for consistent border (using visual width)
-			currentWidth := colors.VisualLength(outputLine)
+			currentWidth := colors.VisualLength(trimmedLine)
 			padding := strings.Repeat(" ", maxWidth-currentWidth)
-			paddedLine := " " + outputLine + padding + " "
-			if len(node.Output) >= 2 {
+			paddedLine := " " + trimmedLine + padding + " "
+			if len(trimmedLines) >= 2 {
 				output += prefix + continuation + colors.Gray("│") + colors.White(paddedLine) + colors.Gray("│") + "\n"
 			} else {
-				output += prefix + continuation + colors.White(outputLine) + "\n"
+				output += prefix + continuation + colors.White(trimmedLine) + "\n"
 			}
 		}
 
 		// Add bottom border if 2+ elements (account for spaces around content)
-		if len(node.Output) >= 2 {
+		if len(trimmedLines) >= 2 {
 			bottomBorder := prefix + continuation + colors.Gray("└"+strings.Repeat("─", maxWidth+2)+"┘") + "\n"
 			output += bottomBorder
 		}
@@ -281,36 +285,40 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 			continuation = "   "
 		}
 
-		// Calculate max width of output lines for border (visual width, excluding ANSI)
+		// Trim output lines and calculate max width for border (visual width, excluding ANSI)
+		outputPrefixLen := colors.VisualLength(prefix + continuation)
+		trimmedLines := make([]string, len(node.Output))
 		maxWidth := 0
-		for _, outputLine := range node.Output {
-			width := colors.VisualLength(outputLine)
+		for i, outputLine := range node.Output {
+			trimmedLine := r.trimLabel(outputLine, outputPrefixLen)
+			trimmedLines[i] = trimmedLine
+			width := colors.VisualLength(trimmedLine)
 			if width > maxWidth {
 				maxWidth = width
 			}
 		}
 
 		// Add top border if 2+ elements (account for spaces around content)
-		if len(node.Output) >= 2 {
+		if len(trimmedLines) >= 2 {
 			topBorder := prefix + continuation + colors.Gray("┌"+strings.Repeat("─", maxWidth+2)+"┐") + "\n"
 			output += topBorder
 		}
 
 		// Add each output line with left/right borders
-		for _, outputLine := range node.Output {
+		for _, trimmedLine := range trimmedLines {
 			// Pad line to max width for consistent border (using visual width)
-			currentWidth := colors.VisualLength(outputLine)
+			currentWidth := colors.VisualLength(trimmedLine)
 			padding := strings.Repeat(" ", maxWidth-currentWidth)
-			paddedLine := " " + outputLine + padding + " "
-			if len(node.Output) >= 2 {
+			paddedLine := " " + trimmedLine + padding + " "
+			if len(trimmedLines) >= 2 {
 				output += prefix + continuation + colors.Gray("│") + colors.White(paddedLine) + colors.Gray("│") + "\n"
 			} else {
-				output += prefix + continuation + colors.White(outputLine) + "\n"
+				output += prefix + continuation + colors.White(trimmedLine) + "\n"
 			}
 		}
 
 		// Add bottom border if 2+ elements (account for spaces around content)
-		if len(node.Output) >= 2 {
+		if len(trimmedLines) >= 2 {
 			bottomBorder := prefix + continuation + colors.Gray("└"+strings.Repeat("─", maxWidth+2)+"┘") + "\n"
 			output += bottomBorder
 		}

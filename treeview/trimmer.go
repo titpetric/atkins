@@ -57,9 +57,9 @@ func (t *Trimmer) SetViewportWidth(width int) {
 	t.viewportWidth = width
 }
 
-// argPattern matches command-line arguments with long values.
-// Matches: --flag=value, -flag=value, --flag "value", etc.
-var argPattern = regexp.MustCompile(`(--?[\w-]+=)([^\s]+)`)
+// argPattern matches flag=value, handling both quoted and unquoted values.
+// Matches: -flag=value, --flag="value", -flag=123, etc.
+var argPattern = regexp.MustCompile(`(-+[\w-]+=)("[^"]*"|[^\s]+)`)
 
 // CompactArgs trims long argument values in a command string.
 // Arguments longer than maxArgLen are replaced with <...N chars>.
@@ -74,7 +74,14 @@ func CompactArgs(cmd string, maxArgLen int) string {
 			return match
 		}
 
-		flag, value := parts[1], parts[2]
+		flag, valueWithQuotes := parts[1], parts[2]
+
+		// Strip quotes for length calculation
+		value := valueWithQuotes
+		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
+			value = value[1 : len(value)-1]
+		}
+
 		if len(value) <= maxArgLen {
 			return match
 		}
