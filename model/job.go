@@ -10,22 +10,23 @@ import (
 type Job struct {
 	*Decl
 
-	Desc      string       `yaml:"desc,omitempty"`
-	RunsOn    string       `yaml:"runs_on,omitempty"`
-	Container string       `yaml:"container,omitempty"`
-	If        string       `yaml:"if,omitempty"`
-	Cmd       string       `yaml:"cmd,omitempty"`
-	Cmds      []*Step      `yaml:"cmds,omitempty"`
-	Run       string       `yaml:"run,omitempty"`
-	Steps     []*Step      `yaml:"steps,omitempty"`
-	Detach    bool         `yaml:"detach,omitempty"`
-	Show      *bool        `yaml:"show,omitempty"` // Show in display (true=show, false=hide, nil=show if root level/ invoked)
-	DependsOn Dependencies `yaml:"depends_on,omitempty"`
-	Requires  []string     `yaml:"requires,omitempty"` // Variables required when invoked in a loop
-	Timeout   string       `yaml:"timeout,omitempty"`  // e.g., "10m", "300s"
-	Summarize bool         `yaml:"summarize,omitempty"`
-	Passthru  bool         `yaml:"passthru,omitempty"` // If true, output is printed with tree indentation
-	TTY       bool         `yaml:"tty,omitempty"`      // If true, allocate a PTY for all steps (enables color output)
+	Desc        string       `yaml:"desc,omitempty"`
+	RunsOn      string       `yaml:"runs_on,omitempty"`
+	Container   string       `yaml:"container,omitempty"`
+	If          string       `yaml:"if,omitempty"`
+	Cmd         string       `yaml:"cmd,omitempty"`
+	Cmds        []*Step      `yaml:"cmds,omitempty"`
+	Run         string       `yaml:"run,omitempty"`
+	Steps       []*Step      `yaml:"steps,omitempty"`
+	Detach      bool         `yaml:"detach,omitempty"`
+	Show        *bool        `yaml:"show,omitempty"` // Show in display (true=show, false=hide, nil=show if root level/ invoked)
+	DependsOn   Dependencies `yaml:"depends_on,omitempty"`
+	Requires    []string     `yaml:"requires,omitempty"` // Variables required when invoked in a loop
+	Timeout     string       `yaml:"timeout,omitempty"`  // e.g., "10m", "300s"
+	Summarize   bool         `yaml:"summarize,omitempty"`
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, output is printed with tree indentation
+	TTY         bool         `yaml:"tty,omitempty"`         // If true, allocate a PTY for all steps (enables color output)
+	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 
 	Name   string `yaml:"-"`
 	Nested bool   `yaml:"-"`

@@ -164,6 +164,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func ValidateJobRequirements (job *model.Job, ctx *ExecutionContext) error`
 - `func VisualLength (s string) int`
 - `func (*Exec) ExecuteCommand (cmdStr string) (string, error)`
+- `func (*Exec) ExecuteCommandInteractive (cmdStr string) error`
 - `func (*Exec) ExecuteCommandWithQuiet (cmdStr string, verbose bool) (string, error)`
 - `func (*Exec) ExecuteCommandWithQuietAndCapture (cmdStr string, verbose bool) (string, error)`
 - `func (*Exec) ExecuteCommandWithWriter (writer io.Writer, cmdStr string, usePTY bool) (string, error)`
@@ -424,6 +425,16 @@ ExecuteCommand will run the command quietly.
 
 ```go
 func (*Exec) ExecuteCommand (cmdStr string) (string, error)
+```
+
+### ExecuteCommandInteractive
+
+ExecuteCommandInteractive executes a command with live streaming output and stdin connected.
+This allows for real-time output inspection and keyboard input during execution.
+It allocates a PTY and connects it directly to the terminal.
+
+```go
+func (*Exec) ExecuteCommandInteractive (cmdStr string) error
 ```
 
 ### ExecuteCommandWithQuiet

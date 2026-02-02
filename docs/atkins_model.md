@@ -65,6 +65,7 @@ type Job struct {
 	Summarize	bool		`yaml:"summarize,omitempty"`
 	Passthru	bool		`yaml:"passthru,omitempty"`	// If true, output is printed with tree indentation
 	TTY		bool		`yaml:"tty,omitempty"`		// If true, allocate a PTY for all steps (enables color output)
+	Interactive	bool		`yaml:"interactive,omitempty"`	// If true, stream output live and connect stdin for keyboard input
 
 	Name	string	`yaml:"-"`
 	Nested	bool	`yaml:"-"`
@@ -114,6 +115,7 @@ type Step struct {
 	Summarize	bool			`yaml:"summarize,omitempty"`
 	Passthru	bool			`yaml:"passthru,omitempty"`	// If true, output is printed with tree indentation
 	TTY		bool			`yaml:"tty,omitempty"`		// If true, allocate a PTY for the command (enables color output)
+	Interactive	bool			`yaml:"interactive,omitempty"`	// If true, stream output live and connect stdin for keyboard input
 	HidePrefix	bool			`yaml:"-"`			// If true, don't show "run:" prefix in display
 }
 ```

@@ -218,6 +218,78 @@ func (e *Exec) ExecuteCommandWithWriter(writer io.Writer, cmdStr string, usePTY 
 	return stdout.String(), nil
 }
 
+// ExecuteCommandInteractive executes a command with live streaming output and stdin connected.
+// This allows for real-time output inspection and keyboard input during execution.
+// It allocates a PTY and connects it directly to the terminal.
+func (e *Exec) ExecuteCommandInteractive(cmdStr string) error {
+	if cmdStr == "" {
+		return nil
+	}
+
+	cmd := exec.Command("bash", "-c", cmdStr)
+
+	// Build environment: start with OS environment, then overlay custom env
+	cmdEnv := os.Environ()
+	for k, v := range e.Env {
+		// Remove existing key if present and add new one
+		cmdEnv = removeEnvKey(cmdEnv, k)
+		cmdEnv = append(cmdEnv, k+"="+v)
+	}
+	cmd.Env = cmdEnv
+
+	// Allocate a PTY for the command
+	ptmx, err := pty.Start(cmd)
+	if err != nil {
+		return ExecError{
+			Message:      "failed to start interactive command: " + err.Error(),
+			LastExitCode: 1,
+			Output:       "",
+			Trace:        "",
+		}
+	}
+	defer ptmx.Close()
+
+	// Set terminal size for the PTY
+	winsize := getTerminalSize()
+	if err := pty.Setsize(ptmx, winsize); err != nil {
+		// Log warning but continue execution
+		_ = err
+	}
+
+	// Put stdin in raw mode to pass through all keystrokes
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err == nil {
+		defer term.Restore(int(os.Stdin.Fd()), oldState)
+	}
+
+	// Copy stdin to PTY in a goroutine
+	go func() {
+		_, _ = io.Copy(ptmx, os.Stdin)
+	}()
+
+	// Copy PTY output to stdout (live streaming)
+	_, _ = io.Copy(os.Stdout, ptmx)
+
+	// Wait for command to complete
+	err = cmd.Wait()
+	if err != nil {
+		// Extract exit code
+		exitCode := 1
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		}
+
+		return ExecError{
+			Message:      "interactive command failed: " + err.Error(),
+			LastExitCode: exitCode,
+			Output:       "",
+			Trace:        "",
+		}
+	}
+
+	return nil
+}
+
 // removeEnvKey removes a key from environment variable list
 func removeEnvKey(env []string, key string) []string {
 	prefix := key + "="

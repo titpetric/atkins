@@ -1094,6 +1094,10 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	// Execute the command via bash with quiet mode, passing execution context env
 	exec := NewExecWithEnv(execCtx.Env)
 
+	// Determine if interactive mode should be used (live streaming with stdin)
+	// Check step interactive flag first, then job interactive flag
+	isInteractive := step.Interactive || (execCtx.Job != nil && execCtx.Job.Interactive)
+
 	// Determine if output should be captured for display with tree indentation
 	// Check step passthru flag first, then job passthru flag
 	shouldPassthru := step.Passthru || (execCtx.Job != nil && execCtx.Job.Passthru)
@@ -1101,9 +1105,12 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	// Determine TTY allocation: Job.TTY is authoritative, otherwise use Step.TTY
 	useTTY := step.TTY || (execCtx.Job != nil && execCtx.Job.TTY)
 
-	// If passthru is enabled, capture output to the node for display with tree indentation
+	// If interactive mode is enabled, run with live streaming and stdin connected
 	var writer *LineCapturingWriter
-	if shouldPassthru && execCtx.CurrentStep != nil {
+	if isInteractive {
+		err = exec.ExecuteCommandInteractive(interpolated)
+	} else if shouldPassthru && execCtx.CurrentStep != nil {
+		// If passthru is enabled, capture output to the node for display with tree indentation
 		writer = NewLineCapturingWriter()
 		_, err = exec.ExecuteCommandWithWriter(writer, interpolated, useTTY)
 	} else {
