@@ -7,4 +7,5 @@
 - [github.com/titpetric/atkins/eventlog](./atkins_eventlog.md)
 - [github.com/titpetric/atkins/model](./atkins_model.md)
 - [github.com/titpetric/atkins/runner](./atkins_runner.md)
+- [github.com/titpetric/atkins/scripts](./atkins_scripts.md)
 - [github.com/titpetric/atkins/treeview](./atkins_treeview.md)

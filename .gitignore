@@ -3,7 +3,7 @@
 atkins.log
 atkins
 /*.test
-/*.cov
+*.cov
 *.rec
 *.cast
 *.log

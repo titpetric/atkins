@@ -59,7 +59,7 @@ jobs:
   test:docs:
     desc: "Generate docs"
     steps:
-      - go-fsck docs --split --out=docs --strip=github.com/titpetric ./...
+      - go-fsck docs --split --out=docs/api --strip=github.com/titpetric ./...
 
   fmt:
     desc: "Format the code"
@@ -95,6 +95,7 @@ jobs:
         detach: true
       - for: item in testBinaries
         task: test:coverage
+      - task: test:mergecov
 
   test:fixtures:
     desc: "Run test fixtures"
@@ -127,3 +128,13 @@ jobs:
         summarize: true
         detach: true
         run: covertrace --name ${{ funcName }} -i "./coverage/${{ item }}/${{ funcName }}.cov" > "./coverage/${{ item }}/${{ funcName }}.yml"
+
+  test:mergecov:
+    desc: "Merge coverage files and generate reports"
+    passthru: true
+    steps:
+      - go run ./scripts/mergecov.go ./coverage/merged.cov ./coverage
+      - go tool cover -func=./coverage/merged.cov | summary coverfunc --json > ./coverage/merged.cov.json
+      - go tool cover -func=./coverage/merged.cov | summary coverfunc --packages
+      - go tool cover -func=./coverage/merged.cov | summary coverfunc --files
+      - go tool cover -html=./coverage/merged.cov -o ./coverage/coverage.html
