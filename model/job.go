@@ -83,7 +83,7 @@ func (j *Job) UnmarshalYAML(node *yaml.Node) error {
 	}
 
 	// Ensure Decl is initialized and vars/include are properly decoded
-	if err := ensureDeclInitialized(&j.Decl, node); err != nil {
+	if err := ensureDeclInitialized(node, &j.Decl); err != nil {
 		return err
 	}
 

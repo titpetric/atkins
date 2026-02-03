@@ -11,7 +11,7 @@ import (
 // pointers might not be properly unmarshalled.
 //
 // This helper should be called in UnmarshalYAML for any type that embeds *Decl.
-func ensureDeclInitialized(decl **Decl, node *yaml.Node) error {
+func ensureDeclInitialized(node *yaml.Node, decl **Decl) error {
 	if *decl == nil {
 		*decl = &Decl{}
 	}

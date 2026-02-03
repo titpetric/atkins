@@ -21,7 +21,7 @@ func (p *Pipeline) UnmarshalYAML(node *yaml.Node) error {
 	}
 
 	// Ensure Decl is initialized and vars/include are properly decoded
-	if err := ensureDeclInitialized(&p.Decl, node); err != nil {
+	if err := ensureDeclInitialized(node, &p.Decl); err != nil {
 		return err
 	}
 

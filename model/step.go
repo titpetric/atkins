@@ -170,7 +170,7 @@ func (s *Step) UnmarshalYAML(node *yaml.Node) error {
 		}
 
 		// Ensure Decl is initialized and vars/include are properly decoded
-		if err := ensureDeclInitialized(&s.Decl, node); err != nil {
+		if err := ensureDeclInitialized(node, &s.Decl); err != nil {
 			return err
 		}
 
