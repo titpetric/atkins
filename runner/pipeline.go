@@ -99,7 +99,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		}
 	}
 
-	if err := MergeVariables(pipeline.Decl, pipelineCtx); err != nil {
+	if err := MergeVariables(pipelineCtx, pipeline.Decl); err != nil {
 		return err
 	}
 

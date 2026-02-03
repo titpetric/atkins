@@ -261,7 +261,7 @@ func TestValidateJobRequirements(t *testing.T) {
 			}
 			// Ensure job name is set (already set by test case)
 
-			err := runner.ValidateJobRequirements(tt.job, ctx)
+			err := runner.ValidateJobRequirements(ctx, tt.job)
 
 			if tt.expectErr {
 				assert.Error(t, err)
@@ -389,7 +389,7 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 		}
 
 		// Should pass validation
-		err := runner.ValidateJobRequirements(task, ctx)
+		err := runner.ValidateJobRequirements(ctx, task)
 		assert.NoError(t, err)
 	})
 
@@ -406,7 +406,7 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 		}
 
 		// Should fail validation
-		err := runner.ValidateJobRequirements(task, ctx)
+		err := runner.ValidateJobRequirements(ctx, task)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "component")
 	})
@@ -463,7 +463,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 		}
 
 		// Merge job variables
-		err := runner.MergeVariables(job.Decl, ctx)
+		err := runner.MergeVariables(ctx, job.Decl)
 		assert.NoError(t, err)
 
 		// Check that testBinaries is in Variables
@@ -503,7 +503,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 		}
 
 		// Step 1: Merge job variables (from ExecuteJob line 119)
-		err := runner.MergeVariables(job.Decl, ctx)
+		err := runner.MergeVariables(ctx, job.Decl)
 		assert.NoError(t, err)
 		assert.Equal(t, testBinariesValue, ctx.Variables["testBinaries"], "testBinaries should be merged")
 
@@ -571,7 +571,7 @@ func TestStepVarsWithLoopVariable(t *testing.T) {
 			}
 
 			// Merge step-level vars (this is the fix)
-			err := runner.MergeVariables(step.Decl, iterCtx)
+			err := runner.MergeVariables(iterCtx, step.Decl)
 			assert.NoError(t, err)
 
 			// The path should now be interpolated with the item value

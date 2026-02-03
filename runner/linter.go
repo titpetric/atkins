@@ -204,7 +204,7 @@ func resolveDependencyChain(jobs map[string]*model.Job, jobName string) ([]strin
 
 // ValidateJobRequirements checks that all required variables are present in the context.
 // Returns an error with a clear message listing missing variables.
-func ValidateJobRequirements(job *model.Job, ctx *ExecutionContext) error {
+func ValidateJobRequirements(ctx *ExecutionContext, job *model.Job) error {
 	if len(job.Requires) == 0 {
 		return nil // No requirements to validate
 	}

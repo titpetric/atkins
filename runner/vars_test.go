@@ -58,7 +58,7 @@ func TestVariableEvaluation_DependencyOrdering(t *testing.T) {
 		},
 	}
 
-	err := runner.MergeVariables(decl, ctx)
+	err := runner.MergeVariables(ctx, decl)
 	require.NoError(t, err)
 
 	expected := map[string]any{
@@ -100,7 +100,7 @@ func TestVariableEvaluation_CyclicDependency(t *testing.T) {
 		},
 	}
 
-	err := runner.MergeVariables(decl, ctx)
+	err := runner.MergeVariables(ctx, decl)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cycle")
 }

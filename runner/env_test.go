@@ -23,7 +23,7 @@ func TestProcessEnv_VarsOnly(t *testing.T) {
 		},
 	}
 
-	result, err := processEnv(envDecl, ctx)
+	result, err := processEnv(ctx, envDecl)
 	assert.NoError(t, err)
 	assert.Equal(t, "value1", result["KEY1"])
 	assert.Equal(t, "value2", result["KEY2"])
@@ -43,7 +43,7 @@ func TestProcessEnv_WithInterpolation(t *testing.T) {
 		},
 	}
 
-	result, err := processEnv(envDecl, ctx)
+	result, err := processEnv(ctx, envDecl)
 	assert.NoError(t, err)
 	assert.Equal(t, "/app/config", result["FULL_PATH"])
 }
@@ -60,7 +60,7 @@ func TestProcessEnv_WithCommandExecution(t *testing.T) {
 		},
 	}
 
-	result, err := processEnv(envDecl, ctx)
+	result, err := processEnv(ctx, envDecl)
 	assert.NoError(t, err)
 
 	// Should have some hostname (not empty)
@@ -111,7 +111,7 @@ func TestMergeEnv(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, mergeEnv(envDecl, ctx))
+	assert.NoError(t, mergeEnv(ctx, envDecl))
 	assert.Equal(t, "value", ctx.Env["EXISTING"], "existing env var should be preserved")
 	assert.Equal(t, "new_value", ctx.Env["NEW_KEY"], "new env var should be merged")
 }
@@ -135,7 +135,7 @@ func TestEnvDeclPrecedence(t *testing.T) {
 		},
 	}
 
-	result, err := processEnv(envDecl, ctx)
+	result, err := processEnv(ctx, envDecl)
 	assert.NoError(t, err)
 	assert.Equal(t, "from_vars", result["KEY"], "vars should override include files")
 	assert.Equal(t, "value", result["OTHER"])
@@ -178,7 +178,7 @@ func TestProcessEnv_NoInterpolationWithoutContext(t *testing.T) {
 		},
 	}
 
-	result, err := processEnv(envDecl, ctx)
+	result, err := processEnv(ctx, envDecl)
 	assert.NoError(t, err)
 	assert.Equal(t, "no_interpolation", result["PLAIN"])
 }
@@ -196,7 +196,7 @@ func TestProcessEnv_IntegerValue(t *testing.T) {
 		},
 	}
 
-	result, err := processEnv(envDecl, ctx)
+	result, err := processEnv(ctx, envDecl)
 	assert.NoError(t, err)
 	assert.Equal(t, "8080", result["PORT"])
 	assert.Equal(t, "true", result["DEBUG"])

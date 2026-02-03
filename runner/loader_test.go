@@ -338,7 +338,7 @@ jobs:
 		Job:       testJob,
 	}
 
-	err = runner.MergeVariables(testJob.Decl, ctx)
+	err = runner.MergeVariables(ctx, testJob.Decl)
 	assert.NoError(t, err)
 	assert.NotNil(t, ctx.Variables["testBinaries"], "testBinaries should be in context after MergeVariables")
 	assert.Equal(t, "file1.test\nfile2.test", ctx.Variables["testBinaries"])

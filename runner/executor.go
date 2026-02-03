@@ -167,7 +167,7 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 	execCtx.Context = ctx
 
 	// Merge job variables into context with interpolation
-	if err := MergeVariables(job.Decl, execCtx); err != nil {
+	if err := MergeVariables(execCtx, job.Decl); err != nil {
 		return err
 	}
 
@@ -272,7 +272,7 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 	// When step.For != "", vars may depend on loop variables (e.g., ${{item}})
 	// and should be merged inside the iteration context instead
 	if step.For == "" {
-		if err := MergeVariables(step.Decl, stepCtx); err != nil {
+		if err := MergeVariables(stepCtx, step.Decl); err != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
 			return fmt.Errorf("failed to process step env: %w", err)
 		}
@@ -296,7 +296,7 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 
 	// Handle for loop expansion
 	if step.For != "" {
-		return e.executeStepWithForLoop(ctx, stepCtx, step, 0, stepNode)
+		return e.executeStepWithForLoop(ctx, stepCtx, step, stepNode, 0)
 	} else {
 		// Handle task invocation
 		if step.Task != "" {
@@ -334,7 +334,7 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	// When step.For != "", vars may depend on loop variables (e.g., ${{item}})
 	// and should be merged inside the iteration context instead
 	if step.For == "" {
-		if err := MergeVariables(step.Decl, stepCtx); err != nil {
+		if err := MergeVariables(stepCtx, step.Decl); err != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
 			return fmt.Errorf("failed to process step env: %w", err)
 		}
@@ -363,7 +363,7 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	if step.For != "" {
 		stepNode.SetSummarize(step.Summarize)
 		stepNode.SetStatus(treeview.StatusRunning)
-		if err := e.executeStepWithForLoop(ctx, stepCtx, step, stepIndex, stepNode); err != nil {
+		if err := e.executeStepWithForLoop(ctx, stepCtx, step, stepNode, stepIndex); err != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
 			return err
 		}
@@ -456,7 +456,7 @@ func (e *Executor) logStepSkipped(execCtx *ExecutionContext, step *model.Step, s
 
 // executeStepWithForLoop handles for loop expansion and execution
 // Each iteration becomes a separate execution with iteration variables overlaid on context
-func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepIndex int, stepNode *treeview.Node) error {
+func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, stepIndex int) error {
 	// Expand the for loop to get all iterations
 	exec := NewExecWithEnv(execCtx.Env)
 	iterations, err := ExpandFor(execCtx, exec.ExecuteCommand)
@@ -560,7 +560,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 
 			// Merge step-level env with interpolation
 			// This needs to happen before building the command so env vars can be interpolated
-			if err := MergeVariables(step.Decl, iterCtx); err != nil {
+			if err := MergeVariables(iterCtx, step.Decl); err != nil {
 				return fmt.Errorf("failed to process step env for iteration %d: %w", idx, err)
 			}
 
@@ -777,15 +777,15 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 
 	err := func() error {
 		// Merge task defaults first
-		if err := MergeVariables(taskJob.Decl, taskCtx); err != nil {
+		if err := MergeVariables(taskCtx, taskJob.Decl); err != nil {
 			return err
 		}
 		// Merge step-level vars (call-site overrides)
 		// This allows step vars to be interpolated and override task defaults
-		if err := MergeVariables(step.Decl, taskCtx); err != nil {
+		if err := MergeVariables(taskCtx, step.Decl); err != nil {
 			return err
 		}
-		if err := ValidateJobRequirements(taskJob, taskCtx); err != nil {
+		if err := ValidateJobRequirements(taskCtx, taskJob); err != nil {
 			return err
 		}
 		if err := e.executeSteps(ctx, taskCtx, taskJob.Children()); err != nil {
@@ -844,7 +844,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 
 		// Merge step vars to get interpolated values for display
 		if step.Decl != nil {
-			_ = MergeVariables(step.Decl, iterCtx)
+			_ = MergeVariables(iterCtx, step.Decl)
 		}
 
 		// Get job name for ID generation
@@ -898,7 +898,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 		execCtx.Render()
 
 		// Merge task defaults first
-		if err := MergeVariables(taskJob.Decl, iterCtx); err != nil {
+		if err := MergeVariables(iterCtx, taskJob.Decl); err != nil {
 			iterTreeNode.SetStatus(treeview.StatusFailed)
 			lastErr = err
 			continue
@@ -906,14 +906,14 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 
 		// Merge step-level vars (call-site overrides) with iteration context
 		// This allows step vars like `path: $(dirname "${{item}}")` to be interpolated
-		if err := MergeVariables(step.Decl, iterCtx); err != nil {
+		if err := MergeVariables(iterCtx, step.Decl); err != nil {
 			iterTreeNode.SetStatus(treeview.StatusFailed)
 			lastErr = err
 			continue
 		}
 
 		// Validate job requirements (loop variables should satisfy requires)
-		if err := ValidateJobRequirements(taskJob, iterCtx); err != nil {
+		if err := ValidateJobRequirements(iterCtx, taskJob); err != nil {
 			iterTreeNode.SetStatus(treeview.StatusFailed)
 			lastErr = err
 			continue
@@ -1064,7 +1064,7 @@ func IsEchoCommand(cmd string) bool {
 }
 
 // evaluateEchoCommand executes an echo command and returns its output for use as a label
-func evaluateEchoCommand(ctx context.Context, cmd string, env map[string]string) (string, error) {
+func evaluateEchoCommand(ctx context.Context, env map[string]string, cmd string) (string, error) {
 	exec := NewExecWithEnv(env)
 	output, err := exec.ExecuteCommandWithQuiet(cmd, false)
 	if err != nil {
@@ -1127,7 +1127,7 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 
 	// For echo commands, update the step node label with the output
 	if IsEchoCommand(interpolated) && execCtx.CurrentStep != nil {
-		output, err := evaluateEchoCommand(ctx, interpolated, execCtx.Env)
+		output, err := evaluateEchoCommand(ctx, execCtx.Env, interpolated)
 		if err == nil && output != "" {
 			execCtx.CurrentStep.Name = output
 		}

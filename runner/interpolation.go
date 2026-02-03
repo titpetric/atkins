@@ -19,7 +19,7 @@ func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
 	// Handle command execution: $(command)
 	// Use manual parsing to handle nested parentheses correctly
 	var cmdErr error
-	result = extractAndProcessCommandSubstitutions(result, ctx, &cmdErr)
+	result = extractAndProcessCommandSubstitutions(ctx, result, &cmdErr)
 
 	if cmdErr != nil {
 		return "", cmdErr
@@ -50,7 +50,7 @@ func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
 }
 
 // extractAndProcessCommandSubstitutions handles $(...) by properly matching nested parentheses
-func extractAndProcessCommandSubstitutions(s string, ctx *ExecutionContext, cmdErr *error) string {
+func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdErr *error) string {
 	if *cmdErr != nil {
 		return s
 	}

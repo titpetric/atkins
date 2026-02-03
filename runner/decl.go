@@ -14,7 +14,7 @@ import (
 // - Manual vars with interpolation ($(...), ${{ ... }})
 // - Include files (.yml format)
 // Vars take precedence over included files.
-func ProcessDecl(decl *model.Decl, ctx *ExecutionContext) (map[string]any, error) {
+func ProcessDecl(ctx *ExecutionContext, decl *model.Decl) (map[string]any, error) {
 	result := make(map[string]any)
 
 	// First, load included files
@@ -50,18 +50,18 @@ func loadYaml(filename string, dest any) error {
 }
 
 // MergeVariables merges variables from Decl into the execution context.
-func MergeVariables(decl *model.Decl, ctx *ExecutionContext) error {
+func MergeVariables(ctx *ExecutionContext, decl *model.Decl) error {
 	if decl == nil {
 		return nil
 	}
 
-	processed, err := ProcessDecl(decl, ctx)
+	processed, err := ProcessDecl(ctx, decl)
 	if err != nil {
 		return fmt.Errorf("error processing variables: %w", err)
 	}
 
 	if decl.Env != nil {
-		if err := mergeEnv(decl.Env, ctx); err != nil {
+		if err := mergeEnv(ctx, decl.Env); err != nil {
 			return fmt.Errorf("error processing environment: %w", err)
 		}
 	}

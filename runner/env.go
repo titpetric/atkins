@@ -11,12 +11,12 @@ import (
 
 // mergeEnv merges environment variables from EnvDecl into the execution context.
 // Handles both workflow-level, job-level, and step-level env declarations.
-func mergeEnv(decl *model.EnvDecl, ctx *ExecutionContext) error {
+func mergeEnv(ctx *ExecutionContext, decl *model.EnvDecl) error {
 	if decl == nil {
 		return nil
 	}
 
-	processed, err := processEnv(decl, ctx)
+	processed, err := processEnv(ctx, decl)
 	if err != nil {
 		return err
 	}
@@ -34,7 +34,7 @@ func mergeEnv(decl *model.EnvDecl, ctx *ExecutionContext) error {
 // - Manual vars with interpolation ($(...), ${{ ... }})
 // - Include files (.env format)
 // Vars take precedence over included files.
-func processEnv(decl *model.EnvDecl, ctx *ExecutionContext) (map[string]string, error) {
+func processEnv(ctx *ExecutionContext, decl *model.EnvDecl) (map[string]string, error) {
 	result := make(map[string]string)
 
 	// First, load included files
@@ -75,6 +75,7 @@ func loadEnvFile(filePath string, env map[string]string) error {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
+	scanned := 0
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++
@@ -101,6 +102,11 @@ func loadEnvFile(filePath string, env map[string]string) error {
 		}
 
 		env[key] = value
+		scanned++
+	}
+
+	if scanned == 0 {
+		return fmt.Errorf("no envs found in %s", filePath)
 	}
 
 	if err := scanner.Err(); err != nil {
