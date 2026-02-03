@@ -22,7 +22,7 @@ func TestWorkingDirectory_ChangesDirectory(t *testing.T) {
 	err = os.WriteFile(configPath, []byte("name: test\njobs:\n  default:\n    script:\n      - echo hello\n"), 0o644)
 	require.NoError(t, err)
 
-	cmd := NewCommand()
+	cmd := Pipeline()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	cmd.Bind(fs)
 
@@ -44,7 +44,7 @@ func TestWorkingDirectory_InvalidDirectory(t *testing.T) {
 		os.Chdir(originalDir)
 	})
 
-	cmd := NewCommand()
+	cmd := Pipeline()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	cmd.Bind(fs)
 
@@ -71,7 +71,7 @@ func TestWorkingDirectory_EmptyIsNoOp(t *testing.T) {
 	err = os.Chdir(tmpDir)
 	require.NoError(t, err)
 
-	cmd := NewCommand()
+	cmd := Pipeline()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	cmd.Bind(fs)
 

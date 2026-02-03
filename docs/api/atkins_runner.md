@@ -148,7 +148,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func IsEchoCommand (cmd string) bool`
 - `func ListPipeline (pipeline *model.Pipeline) error`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
-- `func MergeVariables (decl *model.Decl, ctx *ExecutionContext) error`
+- `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func NewExec () *Exec`
 - `func NewExecWithEnv (env map[string]string) *Exec`
 - `func NewExecutor () *Executor`
@@ -156,12 +156,12 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func NewLineCapturingWriter () *LineCapturingWriter`
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
-- `func ProcessDecl (decl *model.Decl, ctx *ExecutionContext) (map[string]any, error)`
+- `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
 - `func Sanitize (in string) ([]string, error)`
 - `func StripANSI (in string) string`
-- `func ValidateJobRequirements (job *model.Job, ctx *ExecutionContext) error`
+- `func ValidateJobRequirements (ctx *ExecutionContext, job *model.Job) error`
 - `func VisualLength (s string) int`
 - `func (*Exec) ExecuteCommand (cmdStr string) (string, error)`
 - `func (*Exec) ExecuteCommandInteractive (cmdStr string) error`
@@ -291,7 +291,7 @@ func LoadPipeline (filePath string) ([]*model.Pipeline, error)
 MergeVariables merges variables from Decl into the execution context.
 
 ```go
-func MergeVariables (decl *model.Decl, ctx *ExecutionContext) error
+func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error
 ```
 
 ### NewExec
@@ -359,7 +359,7 @@ It handles:
 Vars take precedence over included files.
 
 ```go
-func ProcessDecl (decl *model.Decl, ctx *ExecutionContext) (map[string]any, error)
+func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)
 ```
 
 ### ResolveJobDependencies
@@ -408,7 +408,7 @@ ValidateJobRequirements checks that all required variables are present in the co
 Returns an error with a clear message listing missing variables.
 
 ```go
-func ValidateJobRequirements (job *model.Job, ctx *ExecutionContext) error
+func ValidateJobRequirements (ctx *ExecutionContext, job *model.Job) error
 ```
 
 ### VisualLength

@@ -15,18 +15,19 @@ var (
 	Commit		= "unknown"
 	CommitTime	= "unknown"
 	Branch		= "unknown"
-	Modified	= "false"
 )
 ```
 
 ## Function symbols
 
-- `func NewCommand () *cli.Command`
+- `func Pipeline () *cli.Command`
 
-### NewCommand
+### Pipeline
+
+Pipeline provides a cli.Command that runs the atkins command pipeline.
 
 ```go
-func NewCommand () *cli.Command
+func Pipeline () *cli.Command
 ```
 
 

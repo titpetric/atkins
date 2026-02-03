@@ -5,27 +5,30 @@ import (
 	"os"
 
 	"github.com/titpetric/cli"
-)
 
-// Version information injected at build time via ldflags
-var (
-	Version    = "dev"
-	Commit     = "unknown"
-	CommitTime = "unknown"
-	Branch     = "unknown"
-	Modified   = "false"
+	"github.com/titpetric/atkins/version"
 )
 
 func main() {
-	if err := run(); err != nil {
+	if err := start(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func start() error {
 	app := cli.NewApp("atkins")
-	app.AddCommand("run", "Run pipeline", NewCommand)
+	app.AddCommand("run", "Run pipeline", Pipeline)
+	app.AddCommand("version", version.Name, func() *cli.Command {
+		return version.NewCommand(version.Info{
+			Version:    Version,
+			Commit:     Commit,
+			CommitTime: CommitTime,
+			Branch:     Branch,
+		})
+	})
+
 	app.DefaultCommand = "run"
+
 	return app.Run()
 }
