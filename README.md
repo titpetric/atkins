@@ -1,4 +1,4 @@
-# Atkins
+# Atkins - portable command runner / CI tooling
 
 Atkins is a minimal runner focused on usage in local testing and
 CI/CD environments. It features a nice CLI status tree, where you can

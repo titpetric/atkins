@@ -2,8 +2,9 @@
 name: Release Atkins binaries
 
 vars:
+  name: $(basename $(realpath -s .))
   semver: $(git tag | tail -n 1)
-  image: titpetric/atkins
+  image: titpetric/${{name}}
   build:
     goarch: [arm64, amd64]
 
@@ -44,7 +45,7 @@ jobs:
       - run: echo "Last release [${{semver}}]"
       - gh release create ${{ semver }} --title ${{semver}} --notes "Release ${{semver}}"
       - for: goarch in ${{build.goarch}}
-        run: gh release upload ${{ semver }} ./bin/atkins-linux-${{goarch}}
+        run: gh release upload ${{ semver }} ./bin/${{name}}-linux-${{goarch}}
 
   publish:docker:
     desc: "Push the Docker images"
