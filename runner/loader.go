@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,19 +21,30 @@ func LoadPipeline(filePath string) ([]*model.Pipeline, error) {
 		return nil, fmt.Errorf("failed to read pipeline file: %w", err)
 	}
 
+	pipelines, err := LoadPipelineFromReader(strings.NewReader(string(data)))
+	if err != nil {
+		return nil, err
+	}
+
+	// Set default name from filename if not specified
+	if pipelines[0].Name == "" {
+		pipelines[0].Name = filepath.Base(filePath)
+	}
+
+	return pipelines, nil
+}
+
+// LoadPipelineFromReader loads and parses a pipeline from an io.Reader.
+// Returns the parsed pipeline(s) and any error.
+func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error) {
 	// Parse with plain YAML first (no expression evaluation)
-	decoder := yaml.NewDecoder(strings.NewReader(string(data)))
+	decoder := yaml.NewDecoder(r)
 
 	result := []*model.Pipeline{
 		{},
 	}
 	if err := decoder.Decode(result[0]); err != nil {
 		return nil, fmt.Errorf("error decoding pipeline: %w", err)
-	}
-
-	// Set default name from filename if not specified
-	if result[0].Name == "" {
-		result[0].Name = filepath.Base(filePath)
 	}
 
 	for jobName, job := range result[0].Jobs {

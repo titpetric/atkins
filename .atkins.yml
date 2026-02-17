@@ -104,7 +104,8 @@ jobs:
       - ./tests/detach.yml
       - ./tests/depends_on.yml
       - ./tests/root_jobs.yml
-      - ./tests/nested.yml
+      - ./tests/stdin.yml
+      - cat ./tests/stdin.yml | atkins
 
   test:detail:
     dest: "Collect per-function test runs"

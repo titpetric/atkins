@@ -148,6 +148,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func IsEchoCommand (cmd string) bool`
 - `func ListPipeline (pipeline *model.Pipeline) error`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
+- `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func NewExec () *Exec`
 - `func NewExecWithEnv (env map[string]string) *Exec`
@@ -284,6 +285,15 @@ Returns the number of documents loaded, the parsed pipeline, and any error.
 
 ```go
 func LoadPipeline (filePath string) ([]*model.Pipeline, error)
+```
+
+### LoadPipelineFromReader
+
+LoadPipelineFromReader loads and parses a pipeline from an io.Reader.
+Returns the parsed pipeline(s) and any error.
+
+```go
+func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)
 ```
 
 ### MergeVariables

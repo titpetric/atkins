@@ -89,10 +89,16 @@ func (e *Exec) ExecuteCommandWithQuietAndCapture(cmdStr string, verbose bool) (s
 			exitCode = exitErr.ExitCode()
 		}
 
+		// Use stderr as error output, fallback to stdout if stderr is empty
+		errOutput := stderr.String()
+		if errOutput == "" {
+			errOutput = stdout.String()
+		}
+
 		resErr := ExecError{
 			Message:      "failed to run command: " + err.Error(),
 			LastExitCode: exitCode,
-			Output:       stderr.String(),
+			Output:       errOutput,
 			Trace:        "", // Stack traces disabled by default
 		}
 

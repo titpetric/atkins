@@ -1,0 +1,9 @@
+#!/usr/bin/env atkins
+name: Stdin Input Test
+
+jobs:
+  default:
+    desc: "Test that stdin input works correctly"
+    steps:
+      - run: echo "Pipeline loaded from stdin successfully"
+      - run: echo "Working directory is $(pwd)"

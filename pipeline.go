@@ -14,8 +14,20 @@ import (
 	yaml "gopkg.in/yaml.v3"
 
 	"github.com/titpetric/atkins/colors"
+	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
+
+// stdinHasData checks if stdin has data available without blocking.
+// Returns true if stdin is piped/redirected with data available.
+func stdinHasData() bool {
+	stat, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	// Check if stdin is not a terminal (i.e., is piped or redirected)
+	return (stat.Mode() & os.ModeCharDevice) == 0
+}
 
 // Pipeline provides a cli.Command that runs the atkins command pipeline.
 func Pipeline() *cli.Command {
@@ -53,42 +65,58 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 		}
 	}
 
-	// Discover or resolve pipeline file before changing directory
-	var absPath string
+	// Check stdin first (before file discovery)
+	var pipelines []*model.Pipeline
 	var err error
 
-	if fileExplicitlySet {
-		// If -f/--file was explicitly provided, use it directly
-		absPath, err = filepath.Abs(opts.File)
+	if stdinHasData() {
+		// Read pipeline from stdin
+		pipelines, err = runner.LoadPipelineFromReader(os.Stdin)
 		if err != nil {
-			return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
+			return fmt.Errorf("%s %s", colors.BrightRed("ERROR:"), err)
 		}
+		// Set default name if not specified
+		if pipelines[0].Name == "" {
+			pipelines[0].Name = "stdin"
+		}
+		opts.File = "stdin"
 	} else {
-		// Discover config file by traversing parent directories
-		configPath, configDir, err := runner.DiscoverConfigFromCwd()
-		if err != nil {
-			return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
-		}
-		absPath = configPath
-		opts.File = configPath
+		// Discover or resolve pipeline file before changing directory
+		var absPath string
 
-		// Change to the directory containing the config file
-		if err := os.Chdir(configDir); err != nil {
-			return fmt.Errorf("%s failed to change directory to %s: %v", colors.BrightRed("ERROR:"), configDir, err)
+		if fileExplicitlySet {
+			// If -f/--file was explicitly provided, use it directly
+			absPath, err = filepath.Abs(opts.File)
+			if err != nil {
+				return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
+			}
+		} else {
+			// Discover config file by traversing parent directories
+			configPath, configDir, err := runner.DiscoverConfigFromCwd()
+			if err != nil {
+				return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
+			}
+			absPath = configPath
+			opts.File = configPath
+
+			// Change to the directory containing the config file
+			if err := os.Chdir(configDir); err != nil {
+				return fmt.Errorf("%s failed to change directory to %s: %v", colors.BrightRed("ERROR:"), configDir, err)
+			}
+		}
+
+		// Load and parse pipeline
+		pipelines, err = runner.LoadPipeline(absPath)
+		if err != nil {
+			return fmt.Errorf("%s %s", colors.BrightRed("ERROR:"), err)
 		}
 	}
 
-	// Handle working directory override after discovering pipeline
+	// Handle working directory override (applies to both stdin and file modes)
 	if opts.WorkingDirectory != "" {
 		if err := os.Chdir(opts.WorkingDirectory); err != nil {
 			return fmt.Errorf("%s failed to change directory to %s: %v", colors.BrightRed("ERROR:"), opts.WorkingDirectory, err)
 		}
-	}
-
-	// Load and parse pipeline
-	pipelines, err := runner.LoadPipeline(absPath)
-	if err != nil {
-		return fmt.Errorf("%s %s", colors.BrightRed("ERROR:"), err)
 	}
 
 	if len(pipelines) == 0 {
