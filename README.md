@@ -9,9 +9,7 @@ see which jobs are running, and run jobs and steps in parallel.
 The log of Atkins executions can be used for further processing, like rendering UML flow charts.
 A few examples are given in the [./scripts folder](./scripts).
 
-![](./docs/treeview.svg)
-
-To install the tool, see the [installation guide](./docs/install.md).
+To install Atkins, see the [installation guide](./docs/install.md).
 
 See pipeline examples in [./tests](./tests).
 
