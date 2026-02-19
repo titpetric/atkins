@@ -29,14 +29,15 @@ type Display struct {
 ```go
 // ExecutionTree holds the entire execution tree.
 type ExecutionTree struct {
-	Root	*TreeNode
-	mu	sync.Mutex
+	*TreeNode
 }
 ```
 
 ```go
 // Node represents a node in the tree (job, step, or iteration).
 type Node struct {
+	sync.Mutex
+
 	Name		string
 	ID		string	// Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
 	Status		Status
@@ -50,7 +51,6 @@ type Node struct {
 	Deferred	bool
 	Summarize	bool
 	Output		[]string	// Multi-line output from command execution
-	mu		sync.Mutex
 }
 ```
 
@@ -72,7 +72,6 @@ type Status int
 // TreeNode represents a node in the execution tree (backward compatibility).
 type TreeNode struct {
 	*Node
-	mu	sync.Mutex
 }
 ```
 
