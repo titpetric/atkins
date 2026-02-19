@@ -2,7 +2,6 @@ package runner
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,23 +10,26 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// SkillDefinition maps a skill name to its trigger conditions.
-type SkillDefinition struct {
-	Name    string   // Skill name (e.g., "go", "docker", "compose")
-	File    string   // YAML filename (e.g., "go.yml")
-	Markers []string // Files that trigger this skill (e.g., ["go.mod"])
+// Skills handles loading skill pipelines from disk directories.
+type Skills struct {
+	Dirs []string // Directories to search (in priority order)
 }
 
-// SkillsDirs returns the directories to scan for skill files, in priority order.
-// Project-local (.atkins/skills/) takes precedence over user-level ($HOME/.atkins/skills/).
-func SkillsDirs(projectRoot string) []string {
+// NewSkills creates a Skills loader for the given project root.
+// Searches .atkins/skills/ in project root and $HOME/.atkins/skills/.
+func NewSkills(projectRoot string) *Skills {
 	dirs := []string{
 		filepath.Join(projectRoot, ".atkins", "skills"),
 	}
 	if home, err := os.UserHomeDir(); err == nil {
 		dirs = append(dirs, filepath.Join(home, ".atkins", "skills"))
 	}
-	return dirs
+	return &Skills{Dirs: dirs}
+}
+
+// Load discovers and returns all skill pipelines that match their When conditions.
+func (s *Skills) Load() ([]*model.Pipeline, error) {
+	return discoverSkillsFromDirs(s.Dirs)
 }
 
 // interpolateString expands shell commands in $(command) syntax.
@@ -87,9 +89,9 @@ func findFileInAncestors(path string) bool {
 	return false
 }
 
-// DiscoverSkillsFromDirs loads all skill YAML files from the given directories
+// discoverSkillsFromDirs loads all skill YAML files from the given directories
 // and returns pipelines that match their When conditions.
-func DiscoverSkillsFromDirs(dirs []string) ([]*model.Pipeline, error) {
+func discoverSkillsFromDirs(dirs []string) ([]*model.Pipeline, error) {
 	var skillPipelines []*model.Pipeline
 
 	// Track seen files to avoid duplicates (project-local takes precedence)
@@ -115,7 +117,7 @@ func DiscoverSkillsFromDirs(dirs []string) ([]*model.Pipeline, error) {
 			seen[entry.Name()] = true
 
 			path := filepath.Join(dir, entry.Name())
-			pipeline, err := LoadSkillFromFile(path)
+			pipeline, err := loadSkillFromFile(path)
 			if err != nil {
 				return nil, fmt.Errorf("failed to load skill from %s: %w", path, err)
 			}
@@ -149,19 +151,9 @@ func DiscoverSkillsFromDirs(dirs []string) ([]*model.Pipeline, error) {
 	return skillPipelines, nil
 }
 
-// FindSkillFile searches disk directories for a skill file, returning the path if found.
-func FindSkillFile(dirs []string, filename string) string {
-	for _, dir := range dirs {
-		path := filepath.Join(dir, filename)
-		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return path
-		}
-	}
-	return ""
-}
-
-// LoadSkillFromFile loads a skill pipeline from a file on disk.
-func LoadSkillFromFile(path string) (*model.Pipeline, error) {
+// loadSkillFromFile loads a skill pipeline from a file on disk.
+// Sets Pipeline.ID from the filename (e.g., "go.yml" -> "go").
+func loadSkillFromFile(path string) (*model.Pipeline, error) {
 	pipelines, err := LoadPipeline(path)
 	if err != nil {
 		return nil, err
@@ -169,24 +161,11 @@ func LoadSkillFromFile(path string) (*model.Pipeline, error) {
 	if len(pipelines) == 0 {
 		return nil, fmt.Errorf("no pipeline found in skill file %s", path)
 	}
-	return pipelines[0], nil
-}
 
-// LoadSkillFromFS loads a skill pipeline from an embedded filesystem.
-func LoadSkillFromFS(skillsFS fs.FS, filename string) (*model.Pipeline, error) {
-	data, err := fs.ReadFile(skillsFS, "skills/"+filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read embedded skill %s: %w", filename, err)
-	}
+	// Set ID from filename without extension
+	pipeline := pipelines[0]
+	filename := filepath.Base(path)
+	pipeline.ID = strings.TrimSuffix(filename, filepath.Ext(filename))
 
-	pipelines, err := LoadPipelineFromReader(strings.NewReader(string(data)))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse embedded skill %s: %w", filename, err)
-	}
-
-	if len(pipelines) == 0 {
-		return nil, fmt.Errorf("no pipeline found in embedded skill %s", filename)
-	}
-
-	return pipelines[0], nil
+	return pipeline, nil
 }

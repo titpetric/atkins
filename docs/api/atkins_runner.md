@@ -11,8 +11,7 @@ import (
 ```go
 // Environment represents the discovered project environment.
 type Environment struct {
-	Root	string		// Project root directory
-	Skills	[]string	// List of activated skill names
+	Root string	// Project root directory
 }
 ```
 
@@ -136,11 +135,9 @@ type PipelineOptions struct {
 ```
 
 ```go
-// SkillDefinition maps a skill name to its trigger conditions.
-type SkillDefinition struct {
-	Name	string		// Skill name (e.g., "go", "docker", "compose")
-	File	string		// YAML filename (e.g., "go.yml")
-	Markers	[]string	// Files that trigger this skill (e.g., ["go.mod"])
+// Skills handles loading skill pipelines from disk directories.
+type Skills struct {
+	Dirs []string	// Directories to search (in priority order)
 }
 ```
 
@@ -158,10 +155,8 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func DiscoverConfigFromCwd () (string, error)`
 - `func DiscoverEnvironment (startDir string) (*Environment, error)`
 - `func DiscoverEnvironmentFromCwd () (*Environment, error)`
-- `func DiscoverSkillsFromDirs (dirs []string) ([]*model.Pipeline, error)`
 - `func EvaluateIf (ctx *ExecutionContext) (bool, error)`
 - `func ExpandFor (ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)`
-- `func FindSkillFile (dirs []string, filename string) string`
 - `func GetDependencies (dependsOn any) []string`
 - `func InterpolateCommand (cmd string, ctx *ExecutionContext) (string, error)`
 - `func InterpolateMap (ctx *ExecutionContext, m map[string]any) error`
@@ -170,8 +165,6 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func ListPipelines (pipelines []*model.Pipeline)`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
 - `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
-- `func LoadSkillFromFS (skillsFS fs.FS, filename string) (*model.Pipeline, error)`
-- `func LoadSkillFromFile (path string) (*model.Pipeline, error)`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func NewExec () *Exec`
 - `func NewExecWithEnv (env map[string]string) *Exec`
@@ -180,11 +173,11 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func NewLineCapturingWriter () *LineCapturingWriter`
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
+- `func NewSkills (projectRoot string) *Skills`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
 - `func Sanitize (in string) ([]string, error)`
-- `func SkillsDirs (projectRoot string) []string`
 - `func StripANSI (in string) string`
 - `func ValidateJobRequirements (ctx *ExecutionContext, job *model.Job) error`
 - `func VisualLength (s string) int`
@@ -203,6 +196,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func (*LineCapturingWriter) String () string`
 - `func (*LineCapturingWriter) Write (p []byte) (int, error)`
 - `func (*Linter) Lint () []LintError`
+- `func (*Skills) Load () ([]*model.Pipeline, error)`
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
 
@@ -236,8 +230,7 @@ func DiscoverConfigFromCwd () (string, error)
 
 DiscoverEnvironment scans for marker files starting from startDir,
 traversing parent directories until the filesystem root is reached.
-Skills are accumulated from all levels; Root is set to the highest
-directory that contributed any markers (e.g. the go.mod location).
+Root is set to the highest directory that contains any markers.
 
 ```go
 func DiscoverEnvironment (startDir string) (*Environment, error)
@@ -249,15 +242,6 @@ DiscoverEnvironmentFromCwd is a convenience wrapper that starts from the current
 
 ```go
 func DiscoverEnvironmentFromCwd () (*Environment, error)
-```
-
-### DiscoverSkillsFromDirs
-
-DiscoverSkillsFromDirs loads all skill YAML files from the given directories
-and returns pipelines that match their When conditions.
-
-```go
-func DiscoverSkillsFromDirs (dirs []string) ([]*model.Pipeline, error)
 ```
 
 ### EvaluateIf
@@ -279,14 +263,6 @@ or any of the above with bash expansion: "item in $(ls ./bin/*.test)".
 
 ```go
 func ExpandFor (ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)
-```
-
-### FindSkillFile
-
-FindSkillFile searches disk directories for a skill file, returning the path if found.
-
-```go
-func FindSkillFile (dirs []string, filename string) string
 ```
 
 ### GetDependencies
@@ -334,7 +310,6 @@ func IsEchoCommand (cmd string) bool
 
 ListPipelines displays pipelines grouped by section in a flat list format.
 The first pipeline is the default; subsequent ones are skill pipelines.
-Skill pipeline jobs that already exist in the default pipeline are excluded.
 
 ```go
 func ListPipelines (pipelines []*model.Pipeline)
@@ -356,22 +331,6 @@ Returns the parsed pipeline(s) and any error.
 
 ```go
 func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)
-```
-
-### LoadSkillFromFS
-
-LoadSkillFromFS loads a skill pipeline from an embedded filesystem.
-
-```go
-func LoadSkillFromFS (skillsFS fs.FS, filename string) (*model.Pipeline, error)
-```
-
-### LoadSkillFromFile
-
-LoadSkillFromFile loads a skill pipeline from a file on disk.
-
-```go
-func LoadSkillFromFile (path string) (*model.Pipeline, error)
 ```
 
 ### MergeVariables
@@ -438,6 +397,15 @@ NewPipeline allocates a new *Pipeline with dependencies.
 func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline
 ```
 
+### NewSkills
+
+NewSkills creates a Skills loader for the given project root.
+Searches .atkins/skills/ in project root and $HOME/.atkins/skills/.
+
+```go
+func NewSkills (projectRoot string) *Skills
+```
+
 ### ProcessDecl
 
 ProcessDecl processes an Decl and returns a map of variables.
@@ -480,15 +448,6 @@ Returns sanitized lines with colors preserved.
 
 ```go
 func Sanitize (in string) ([]string, error)
-```
-
-### SkillsDirs
-
-SkillsDirs returns the directories to scan for skill files, in priority order.
-Project-local (.atkins/skills/) takes precedence over user-level ($HOME/.atkins/skills/).
-
-```go
-func SkillsDirs (projectRoot string) []string
 ```
 
 ### StripANSI
@@ -641,6 +600,14 @@ Lint validates the pipeline and returns any errors.
 
 ```go
 func (*Linter) Lint () []LintError
+```
+
+### Load
+
+Load discovers and returns all skill pipelines that match their When conditions.
+
+```go
+func (*Skills) Load () ([]*model.Pipeline, error)
 ```
 
 ### Error

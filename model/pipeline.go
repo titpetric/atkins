@@ -14,7 +14,7 @@ type Pipeline struct {
 	Jobs  map[string]*Job `yaml:"jobs,omitempty"`
 	Tasks map[string]*Job `yaml:"tasks,omitempty"`
 
-	When *PipelineWhen
+	When *PipelineWhen `yaml:"when,omitempty"`
 }
 
 // UnmarshalYAML implements custom unmarshalling for Pipeline to handle Decl.

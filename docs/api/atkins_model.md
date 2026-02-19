@@ -60,6 +60,7 @@ type Job struct {
 	Detach		bool		`yaml:"detach,omitempty"`
 	Show		*bool		`yaml:"show,omitempty"`	// Show in display (true=show, false=hide, nil=show if root level/ invoked)
 	DependsOn	Dependencies	`yaml:"depends_on,omitempty"`
+	Aliases		[]string	`yaml:"aliases,omitempty"`	// Alternative names for invoking this job
 	Requires	[]string	`yaml:"requires,omitempty"`	// Variables required when invoked in a loop
 	Timeout		string		`yaml:"timeout,omitempty"`	// e.g., "10m", "300s"
 	Summarize	bool		`yaml:"summarize,omitempty"`
@@ -94,7 +95,7 @@ type Pipeline struct {
 	Jobs	map[string]*Job	`yaml:"jobs,omitempty"`
 	Tasks	map[string]*Job	`yaml:"tasks,omitempty"`
 
-	When	*PipelineWhen
+	When	*PipelineWhen	`yaml:"when,omitempty"`
 }
 ```
 

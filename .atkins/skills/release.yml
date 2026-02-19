@@ -1,5 +1,5 @@
 #!/usr/bin/env atkins
-name: Release Atkins binaries
+name: GitHub release - Atkins
 
 vars:
   name: $(basename $(realpath -s .))
@@ -9,18 +9,7 @@ vars:
     goarch: [arm64, amd64]
 
 jobs:
-  default:
-    steps:
-      - passthru: true
-        run: echo "Latest tag ${{semver}}"
-
   build:
-    desc: "Build assets required for release"
-    passthru: true
-    steps:
-      - task: build:docker
-
-  build:docker:
     desc: "Build docker image"
     passthru: true
     steps:

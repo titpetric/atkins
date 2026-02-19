@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
@@ -11,22 +12,12 @@ import (
 
 // ListPipelines displays pipelines grouped by section in a flat list format.
 // The first pipeline is the default; subsequent ones are skill pipelines.
-// Skill pipeline jobs that already exist in the default pipeline are excluded.
 func ListPipelines(pipelines []*model.Pipeline) {
 	if len(pipelines) == 0 {
 		return
 	}
 
-	// Collect job names from the default pipeline to filter skill duplicates.
-	defaultJobs := make(map[string]bool)
 	main := pipelines[0]
-	for name := range main.Jobs {
-		defaultJobs[name] = true
-	}
-	for name := range main.Tasks {
-		defaultJobs[name] = true
-	}
-
 	printPipelineSection(main)
 
 	// Skill pipelines sorted by name for consistent output.
@@ -36,8 +27,75 @@ func ListPipelines(pipelines []*model.Pipeline) {
 		return skills[i].Name < skills[j].Name
 	})
 
+	// Collect and print aliases from all skills
+	printAliasesSection(skills)
+
 	for _, p := range skills {
-		printSkillSection(p, defaultJobs)
+		printSkillSection(p)
+	}
+}
+
+// aliasEntry represents a single alias mapping.
+type aliasEntry struct {
+	alias  string
+	target string
+}
+
+// printAliasesSection prints all aliases from skill pipelines.
+func printAliasesSection(skills []*model.Pipeline) {
+	var aliases []aliasEntry
+
+	for _, p := range skills {
+		jobs := p.Jobs
+		if len(jobs) == 0 {
+			jobs = p.Tasks
+		}
+
+		// Add computed alias for skills with a "default" job
+		if _, hasDefault := jobs["default"]; hasDefault {
+			aliases = append(aliases, aliasEntry{alias: p.ID, target: p.ID + ":default"})
+		}
+
+		for name, job := range jobs {
+			for _, alias := range job.Aliases {
+				// Build full target name (e.g., "release:build")
+				var target string
+				if name == "default" {
+					target = p.ID
+				} else {
+					target = p.ID + ":" + name
+				}
+				aliases = append(aliases, aliasEntry{alias: alias, target: target})
+			}
+		}
+	}
+
+	if len(aliases) == 0 {
+		return
+	}
+
+	// Sort aliases alphabetically
+	sort.Slice(aliases, func(i, j int) bool {
+		return aliases[i].alias < aliases[j].alias
+	})
+
+	// Find max alias length for alignment
+	maxLen := 0
+	for _, a := range aliases {
+		if len(a.alias) > maxLen {
+			maxLen = len(a.alias)
+		}
+	}
+
+	fmt.Println()
+	fmt.Printf("%s\n\n", colors.BrightWhite("Aliases"))
+
+	for _, a := range aliases {
+		padding := maxLen - len(a.alias) + 2
+		fmt.Printf("* %s:%*s(invokes: %s)\n",
+			colors.BrightGreen(a.alias),
+			padding, "",
+			colors.BrightOrange(a.target))
 	}
 }
 
@@ -48,18 +106,19 @@ func printPipelineSection(p *model.Pipeline) {
 		jobs = p.Tasks
 	}
 
-	fmt.Printf("%s\n\n", colors.BrightCyan(p.Name))
-	printJobList(jobs)
+	// Main pipeline has no ID, skills have IDs
+	isMain := p.ID == ""
+
+	fmt.Printf("%s\n\n", colors.BrightWhite(p.Name))
+	printJobList(jobs, p.ID, isMain)
 }
 
-// printSkillSection prints a skill pipeline, excluding jobs already in the default pipeline.
-func printSkillSection(p *model.Pipeline, exclude map[string]bool) {
-	jobs := filterJobs(p.Jobs, exclude)
-	tasks := filterJobs(p.Tasks, exclude)
-
-	// Merge tasks into jobs for display
-	for k, v := range tasks {
-		jobs[k] = v
+// printSkillSection prints a skill pipeline.
+// Job names are prefixed with the pipeline ID (e.g., "go:test" for skill "go").
+func printSkillSection(p *model.Pipeline) {
+	jobs := p.Jobs
+	if len(jobs) == 0 {
+		jobs = p.Tasks
 	}
 
 	if len(jobs) == 0 {
@@ -67,44 +126,84 @@ func printSkillSection(p *model.Pipeline, exclude map[string]bool) {
 	}
 
 	fmt.Println()
-	fmt.Printf("%s\n\n", colors.BrightCyan(p.Name))
-	printJobList(jobs)
+	fmt.Printf("%s\n\n", colors.BrightWhite(p.Name))
+	printJobList(jobs, p.ID, false) // Skills are never main
 }
 
 // printJobList prints a flat list of jobs with aligned descriptions.
-func printJobList(jobs map[string]*model.Job) {
+// If prefix is non-empty, job names are displayed as "prefix:name" (or just "prefix" for default).
+// isMain indicates if this is the main pipeline (green targets) or a skill (orange targets).
+func printJobList(jobs map[string]*model.Job, prefix string, isMain bool) {
 	names := treeview.SortJobsByDepth(jobNames(jobs))
+
+	// Move "default" to the front if present
+	for i, name := range names {
+		if name == "default" {
+			names = append([]string{name}, append(names[:i], names[i+1:]...)...)
+			break
+		}
+	}
+
+	// Build display names with optional prefix
+	displayNames := make([]string, len(names))
+	for i, name := range names {
+		if prefix != "" {
+			displayNames[i] = prefix + ":" + name
+		} else {
+			displayNames[i] = name
+		}
+	}
 
 	// Find max name length for alignment.
 	maxLen := 0
-	for _, name := range names {
+	for _, name := range displayNames {
 		if len(name) > maxLen {
 			maxLen = len(name)
 		}
 	}
 
-	for _, name := range names {
+	for i, name := range names {
 		job := jobs[name]
 		desc := job.Desc
-		padding := maxLen - len(name) + 2
+		displayName := displayNames[i]
+		padding := maxLen - len(displayName) + 2
+
+		// Color: main pipeline targets are green, skill targets are orange
+		var coloredName string
+		if isMain {
+			coloredName = colors.BrightGreen(displayName)
+		} else {
+			coloredName = colors.BrightOrange(displayName)
+		}
+
+		// Build depends_on suffix if present
+		var depsStr string
+		if deps := GetDependencies(job.DependsOn); len(deps) > 0 {
+			depItems := make([]string, len(deps))
+			for j, dep := range deps {
+				depItems[j] = colors.BrightOrange(dep)
+			}
+			depsStr = fmt.Sprintf(" (depends_on: %s)", strings.Join(depItems, ", "))
+		}
+
+		// Build aliases suffix if present (only for main pipeline)
+		var aliasStr string
+		if isMain && len(job.Aliases) > 0 {
+			aliasItems := make([]string, len(job.Aliases))
+			for j, alias := range job.Aliases {
+				aliasItems[j] = colors.BrightGreen(alias)
+			}
+			aliasStr = fmt.Sprintf(" (aliases: %s)", strings.Join(aliasItems, ", "))
+		}
 
 		if desc != "" {
-			fmt.Printf("* %s:%*s%s\n", colors.BrightYellow(name), padding, "", desc)
+			fmt.Printf("* %s:%*s%s%s%s\n", coloredName, padding, "", desc, depsStr, aliasStr)
+		} else if depsStr != "" || aliasStr != "" {
+			fmt.Printf("* %s:%*s%s%s\n", coloredName, padding, "", depsStr, aliasStr)
 		} else {
-			fmt.Printf("* %s:\n", colors.BrightYellow(name))
+			fmt.Printf("* %s:\n", coloredName)
 		}
 	}
-}
-
-// filterJobs returns a copy of jobs excluding any names present in the exclude set.
-func filterJobs(jobs map[string]*model.Job, exclude map[string]bool) map[string]*model.Job {
-	result := make(map[string]*model.Job)
-	for name, job := range jobs {
-		if !exclude[name] {
-			result[name] = job
-		}
-	}
-	return result
 }
 
 // jobNames returns the keys of a job map.
