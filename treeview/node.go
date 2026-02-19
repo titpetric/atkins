@@ -9,6 +9,8 @@ import (
 
 // Node represents a node in the tree (job, step, or iteration).
 type Node struct {
+	sync.Mutex
+
 	Name         string
 	ID           string // Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
 	Status       Status
@@ -22,7 +24,6 @@ type Node struct {
 	Deferred     bool
 	Summarize    bool
 	Output       []string // Multi-line output from command execution
-	mu           sync.Mutex
 }
 
 // NewNode creates a new tree node.
@@ -123,8 +124,8 @@ func (n *Node) SetStatus(status Status) {
 	if n == nil {
 		return
 	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	n.Status = status
 	n.Deferred = false
 	n.UpdatedAt = time.Now()
@@ -135,8 +136,8 @@ func (n *Node) SetStartOffset(offset float64) {
 	if n == nil {
 		return
 	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	n.StartOffset = offset
 }
 
@@ -145,8 +146,8 @@ func (n *Node) SetDuration(duration float64) {
 	if n == nil {
 		return
 	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	n.Duration = duration
 	n.UpdatedAt = time.Now()
 }
@@ -156,8 +157,8 @@ func (n *Node) SetIf(condition string) {
 	if n == nil {
 		return
 	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	n.If = condition
 }
 
@@ -166,8 +167,8 @@ func (n *Node) SetSummarize(summarize bool) {
 	if n == nil {
 		return
 	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	n.Summarize = summarize
 }
 
@@ -176,44 +177,44 @@ func (n *Node) SetID(id string) {
 	if n == nil {
 		return
 	}
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	n.ID = id
 }
 
 // SetOutput sets the output lines for this node (from command execution).
 func (n *Node) SetOutput(lines []string) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	n.Output = lines
 }
 
 // AddChild adds a child node.
 func (n *Node) AddChild(child *Node) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	n.Children = append(n.Children, child)
 }
 
 // AddChildren adds multiple child nodes.
 func (n *Node) AddChildren(children ...*Node) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	n.Children = append(n.Children, children...)
 }
 
 // HasChildren returns true or false if the node has children.
 func (n *Node) HasChildren() bool {
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 
 	return len(n.Children) > 0
 }
 
 // GetChildren returns a copy of the children slice (thread-safe).
 func (n *Node) GetChildren() []*Node {
-	n.mu.Lock()
-	defer n.mu.Unlock()
+	n.Lock()
+	defer n.Unlock()
 	children := make([]*Node, len(n.Children))
 	copy(children, n.Children)
 	return children
