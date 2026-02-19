@@ -8,9 +8,13 @@ import (
 type Pipeline struct {
 	*Decl
 
-	Name  string          `yaml:"name,omitempty"`
+	ID   string `yaml:"-"`
+	Name string `yaml:"name,omitempty"`
+
 	Jobs  map[string]*Job `yaml:"jobs,omitempty"`
 	Tasks map[string]*Job `yaml:"tasks,omitempty"`
+
+	When *PipelineWhen
 }
 
 // UnmarshalYAML implements custom unmarshalling for Pipeline to handle Decl.

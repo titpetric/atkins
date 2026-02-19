@@ -88,9 +88,21 @@ type Label struct {
 type Pipeline struct {
 	*Decl
 
-	Name	string		`yaml:"name,omitempty"`
+	ID	string	`yaml:"-"`
+	Name	string	`yaml:"name,omitempty"`
+
 	Jobs	map[string]*Job	`yaml:"jobs,omitempty"`
 	Tasks	map[string]*Job	`yaml:"tasks,omitempty"`
+
+	When	*PipelineWhen
+}
+```
+
+```go
+// PipelineWhen is a list of files that need to exist somewhere to
+// enable the pipeline, e.g. compose.yml for compose pipeline.
+type PipelineWhen struct {
+	Files []string `yaml:"files"`
 }
 ```
 

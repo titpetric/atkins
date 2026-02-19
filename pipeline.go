@@ -18,6 +18,23 @@ import (
 	"github.com/titpetric/atkins/runner"
 )
 
+// loadSkillPipelines loads and merges skill pipelines from disk.
+// Unconditionally loads all YAML files from .atkins/skills/ and $HOME/.atkins/skills/,
+// then filters by Pipeline.When conditions.
+func loadSkillPipelines(env *runner.Environment) ([]*model.Pipeline, error) {
+	dirs := runner.SkillsDirs(env.Root)
+	skillPipelines, err := runner.DiscoverSkillsFromDirs(dirs)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(skillPipelines) == 0 {
+		return nil, fmt.Errorf("no skill pipelines loaded")
+	}
+
+	return skillPipelines, nil
+}
+
 // stdinHasData checks if stdin has data available without blocking.
 // Returns true if stdin is piped/redirected with data available.
 func stdinHasData() bool {
@@ -92,9 +109,27 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			}
 		} else {
 			// Discover config file by traversing parent directories
-			configPath, configDir, err := runner.DiscoverConfigFromCwd()
-			if err != nil {
-				return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
+			configPath, configDir, discoverErr := runner.DiscoverConfigFromCwd()
+			if discoverErr != nil {
+				// No config file found — try environment autodiscovery
+				env, envErr := runner.DiscoverEnvironmentFromCwd()
+				if envErr != nil {
+					// Neither config nor environment found
+					return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), discoverErr)
+				}
+
+				// Change to the discovered project root
+				if err := os.Chdir(env.Root); err != nil {
+					return fmt.Errorf("%s failed to change directory to %s: %v", colors.BrightRed("ERROR:"), env.Root, err)
+				}
+
+				// Load and merge skill pipelines
+				pipelines, err = loadSkillPipelines(env)
+				if err != nil {
+					return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
+				}
+				opts.File = "<autodiscovered>"
+				goto pipelineReady
 			}
 			absPath = configPath
 			opts.File = configPath
@@ -110,7 +145,16 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 		if err != nil {
 			return fmt.Errorf("%s %s", colors.BrightRed("ERROR:"), err)
 		}
+
+		// Merge autodiscovered skills into the loaded pipeline
+		if env, envErr := runner.DiscoverEnvironmentFromCwd(); envErr == nil {
+			if skillPipelines, skillErr := loadSkillPipelines(env); skillErr == nil {
+				pipelines = append(pipelines, skillPipelines...)
+			}
+		}
 	}
+
+pipelineReady:
 
 	// Handle working directory override (applies to both stdin and file modes)
 	if opts.WorkingDirectory != "" {
@@ -136,24 +180,23 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 				return io.EOF
 			}
 		}
-		fmt.Printf("%s Pipeline '%s' is valid\n", colors.BrightGreen("✓"), pipelines[0].Name)
 		if opts.Lint {
+			fmt.Printf("%s Pipeline '%s' is valid\n", colors.BrightGreen("✓"), pipelines[0].Name)
 			return nil
 		}
 	}
 
 	// Handle list mode
 	if opts.List {
-		for _, pipeline := range pipelines {
-			if opts.Debug {
+		runner.ListPipelines(pipelines)
+
+		if opts.Debug {
+			for _, pipeline := range pipelines {
 				b, _ := yaml.Marshal(pipeline)
 				fmt.Printf("%s\n", string(b))
 			}
-
-			if err := runner.ListPipeline(pipeline); err != nil {
-				return err
-			}
 		}
+
 		return nil
 	}
 
