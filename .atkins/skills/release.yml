@@ -1,5 +1,5 @@
 #!/usr/bin/env atkins
-name: GitHub release - Atkins
+name: Create a GitHub release
 
 vars:
   name: $(basename $(realpath -s .))
@@ -11,6 +11,7 @@ vars:
 jobs:
   build:
     desc: "Build docker image"
+    aliases: [release]
     passthru: true
     steps:
       - docker buildx build --platform linux/amd64 -t ${{image}}:${{semver}} -t ${{image}}:latest -f docker/Dockerfile .
@@ -24,6 +25,7 @@ jobs:
 
   publish:
     desc: "Publish release assets"
+    aliases: [publish]
     steps:
       - task: publish:github
       - task: publish:docker
@@ -42,4 +44,3 @@ jobs:
     steps:
       - docker push ${{image}}:latest
       - docker push ${{image}}:${{semver}}
-

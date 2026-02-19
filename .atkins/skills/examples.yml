@@ -1,5 +1,4 @@
-#!/usr/bin/env atkins
-name: Generate atkins example screenshots
+name: Generate Example Screenshots
 
 when:
   files:
