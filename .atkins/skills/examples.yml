@@ -1,5 +1,8 @@
-#!/usr/bin/env atkins
-name: Release Atkins binaries
+name: Generate Example Screenshots
+
+when:
+  files:
+    - $(which termos)
 
 vars:
   semver: $(git tag | tail -n 1)
@@ -25,19 +28,19 @@ jobs:
     tty: true
     detach: true
     steps:
-      - termos shot --filename examples/atkins.run -- atkins --final
-      - termos shot --filename examples/atkins.list -- atkins -l
+      - termos shot -c 120 --filename examples/atkins.run -- atkins --final
+      - termos shot -c 120 --filename examples/atkins.list -- atkins -l
 
   run:
     tty: true
     detach: true
     steps:
       - for: test in tests
-        cmd: termos shot --filename examples/${{test}}.run -- atkins --file tests/${{test}}.yml --final
+        cmd: termos shot -c 120 --filename examples/${{test}}.run -- atkins --file tests/${{test}}.yml --final
 
   list:
     tty: true
     detach: true
     steps:
       - for: test in tests
-        cmd: termos shot --filename examples/${{test}}.list -- atkins -l --file tests/${{test}}.yml
+        cmd: termos shot -c 120 --filename examples/${{test}}.list -- atkins -l --file tests/${{test}}.yml

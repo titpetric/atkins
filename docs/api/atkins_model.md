@@ -60,6 +60,7 @@ type Job struct {
 	Detach		bool		`yaml:"detach,omitempty"`
 	Show		*bool		`yaml:"show,omitempty"`	// Show in display (true=show, false=hide, nil=show if root level/ invoked)
 	DependsOn	Dependencies	`yaml:"depends_on,omitempty"`
+	Aliases		[]string	`yaml:"aliases,omitempty"`	// Alternative names for invoking this job
 	Requires	[]string	`yaml:"requires,omitempty"`	// Variables required when invoked in a loop
 	Timeout		string		`yaml:"timeout,omitempty"`	// e.g., "10m", "300s"
 	Summarize	bool		`yaml:"summarize,omitempty"`
@@ -88,9 +89,21 @@ type Label struct {
 type Pipeline struct {
 	*Decl
 
-	Name	string		`yaml:"name,omitempty"`
+	ID	string	`yaml:"-"`
+	Name	string	`yaml:"name,omitempty"`
+
 	Jobs	map[string]*Job	`yaml:"jobs,omitempty"`
 	Tasks	map[string]*Job	`yaml:"tasks,omitempty"`
+
+	When	*PipelineWhen	`yaml:"when,omitempty"`
+}
+```
+
+```go
+// PipelineWhen is a list of files that need to exist somewhere to
+// enable the pipeline, e.g. compose.yml for compose pipeline.
+type PipelineWhen struct {
+	Files []string `yaml:"files"`
 }
 ```
 

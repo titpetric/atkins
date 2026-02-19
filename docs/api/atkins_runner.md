@@ -9,6 +9,13 @@ import (
 ## Types
 
 ```go
+// Environment represents the discovered project environment.
+type Environment struct {
+	Root string	// Project root directory
+}
+```
+
+```go
 // Exec runs shell commands.
 type Exec struct {
 	Env map[string]string	// Optional environment variables to pass to commands
@@ -127,6 +134,13 @@ type PipelineOptions struct {
 }
 ```
 
+```go
+// Skills handles loading skill pipelines from disk directories.
+type Skills struct {
+	Dirs []string	// Directories to search (in priority order)
+}
+```
+
 ## Vars
 
 ```go
@@ -139,6 +153,8 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func DefaultOptions () *Options`
 - `func DiscoverConfig (startDir string) (string, error)`
 - `func DiscoverConfigFromCwd () (string, error)`
+- `func DiscoverEnvironment (startDir string) (*Environment, error)`
+- `func DiscoverEnvironmentFromCwd () (*Environment, error)`
 - `func EvaluateIf (ctx *ExecutionContext) (bool, error)`
 - `func ExpandFor (ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)`
 - `func GetDependencies (dependsOn any) []string`
@@ -146,7 +162,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func InterpolateMap (ctx *ExecutionContext, m map[string]any) error`
 - `func InterpolateString (s string, ctx *ExecutionContext) (string, error)`
 - `func IsEchoCommand (cmd string) bool`
-- `func ListPipeline (pipeline *model.Pipeline) error`
+- `func ListPipelines (pipelines []*model.Pipeline)`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
 - `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
@@ -157,6 +173,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func NewLineCapturingWriter () *LineCapturingWriter`
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
+- `func NewSkills (projectRoot string) *Skills`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
@@ -179,6 +196,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func (*LineCapturingWriter) String () string`
 - `func (*LineCapturingWriter) Write (p []byte) (int, error)`
 - `func (*Linter) Lint () []LintError`
+- `func (*Skills) Load () ([]*model.Pipeline, error)`
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
 
@@ -206,6 +224,24 @@ DiscoverConfigFromCwd is a convenience wrapper that starts from the current work
 
 ```go
 func DiscoverConfigFromCwd () (string, error)
+```
+
+### DiscoverEnvironment
+
+DiscoverEnvironment scans for marker files starting from startDir,
+traversing parent directories until the filesystem root is reached.
+Root is set to the highest directory that contains any markers.
+
+```go
+func DiscoverEnvironment (startDir string) (*Environment, error)
+```
+
+### DiscoverEnvironmentFromCwd
+
+DiscoverEnvironmentFromCwd is a convenience wrapper that starts from the current working directory.
+
+```go
+func DiscoverEnvironmentFromCwd () (*Environment, error)
 ```
 
 ### EvaluateIf
@@ -270,12 +306,13 @@ IsEchoCommand checks if a command is a bare echo command.
 func IsEchoCommand (cmd string) bool
 ```
 
-### ListPipeline
+### ListPipelines
 
-ListPipeline displays a pipeline's job tree with dependencies.
+ListPipelines displays pipelines grouped by section in a flat list format.
+The first pipeline is the default; subsequent ones are skill pipelines.
 
 ```go
-func ListPipeline (pipeline *model.Pipeline) error
+func ListPipelines (pipelines []*model.Pipeline)
 ```
 
 ### LoadPipeline
@@ -358,6 +395,15 @@ NewPipeline allocates a new *Pipeline with dependencies.
 
 ```go
 func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline
+```
+
+### NewSkills
+
+NewSkills creates a Skills loader for the given project root.
+Searches .atkins/skills/ in project root and $HOME/.atkins/skills/.
+
+```go
+func NewSkills (projectRoot string) *Skills
 ```
 
 ### ProcessDecl
@@ -554,6 +600,14 @@ Lint validates the pipeline and returns any errors.
 
 ```go
 func (*Linter) Lint () []LintError
+```
+
+### Load
+
+Load discovers and returns all skill pipelines that match their When conditions.
+
+```go
+func (*Skills) Load () ([]*model.Pipeline, error)
 ```
 
 ### Error

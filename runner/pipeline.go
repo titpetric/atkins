@@ -167,9 +167,16 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	jobsToCreateSorted := treeview.SortByOrder(jobsToCreate, jobOrder)
 	for _, jobName := range jobsToCreateSorted {
 		job := allJobs[jobName]
-		jobLabel := jobName
+
+		// Prefix job name with pipeline ID for skill pipelines (e.g., "go:test")
+		displayName := jobName
+		if pipeline.ID != "" {
+			displayName = pipeline.ID + ":" + jobName
+		}
+
+		jobLabel := displayName
 		if job.Desc != "" {
-			jobLabel = jobName + " - " + job.Desc
+			jobLabel = displayName + " - " + job.Desc
 		}
 
 		// Get job dependencies
