@@ -19,6 +19,7 @@ type Options struct {
 	LogFile			string
 	FinalOnly		bool
 	WorkingDirectory	string
+	Jail			bool
 
 	FlagSet	*cli.FlagSet
 }

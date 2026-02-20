@@ -15,14 +15,17 @@ type Skills struct {
 	Dirs []string // Directories to search (in priority order)
 }
 
-// NewSkills creates a Skills loader for the given project root.
-// Searches .atkins/skills/ in project root and $HOME/.atkins/skills/.
-func NewSkills(projectRoot string) *Skills {
+// NewSkills will create a new skills loader.
+// If jailed it only searches `.atkins/skills/` in project root.
+// If not jailed, it also loads `$HOME/.atkins/skills/`.
+func NewSkills(projectRoot string, jail bool) *Skills {
 	dirs := []string{
 		filepath.Join(projectRoot, ".atkins", "skills"),
 	}
-	if home, err := os.UserHomeDir(); err == nil {
-		dirs = append(dirs, filepath.Join(home, ".atkins", "skills"))
+	if !jail {
+		if home, err := os.UserHomeDir(); err == nil {
+			dirs = append(dirs, filepath.Join(home, ".atkins", "skills"))
+		}
 	}
 	return &Skills{Dirs: dirs}
 }

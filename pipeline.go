@@ -19,10 +19,9 @@ import (
 )
 
 // loadSkillPipelines loads and merges skill pipelines from disk.
-// Unconditionally loads all YAML files from .atkins/skills/ and $HOME/.atkins/skills/,
-// then filters by Pipeline.When conditions.
-func loadSkillPipelines(projectRoot string) ([]*model.Pipeline, error) {
-	skills := runner.NewSkills(projectRoot)
+// Searches .atkins/skills/ in project root, and $HOME/.atkins/skills/ unless jailed.
+func loadSkillPipelines(projectRoot string, opts *Options) ([]*model.Pipeline, error) {
+	skills := runner.NewSkills(projectRoot, opts.Jail)
 	pipelines, err := skills.Load()
 	if err != nil {
 		return nil, err
@@ -202,7 +201,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 				}
 
 				// Load and merge skill pipelines
-				pipelines, err = loadSkillPipelines(env.Root)
+				pipelines, err = loadSkillPipelines(env.Root, opts)
 				if err != nil {
 					return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 				}
@@ -226,7 +225,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 
 		// Merge autodiscovered skills into the loaded pipeline
 		if env, envErr := runner.DiscoverEnvironmentFromCwd(); envErr == nil {
-			if skillPipelines, skillErr := loadSkillPipelines(env.Root); skillErr == nil {
+			if skillPipelines, skillErr := loadSkillPipelines(env.Root, opts); skillErr == nil {
 				pipelines = append(pipelines, skillPipelines...)
 			}
 		}

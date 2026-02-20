@@ -12,6 +12,7 @@ type Options struct {
 	LogFile          string
 	FinalOnly        bool
 	WorkingDirectory string
+	Jail             bool
 
 	FlagSet *cli.FlagSet
 }
@@ -29,6 +30,7 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.StringVar(&o.LogFile, "log", "", "Log file path for command execution")
 	fs.BoolVar(&o.FinalOnly, "final", false, "Only render final output without redrawing (no interactive tree)")
 	fs.StringVarP(&o.WorkingDirectory, "working-directory", "w", "", "Change to this directory before running")
+	fs.BoolVar(&o.Jail, "jail", false, "Restrict to project scope, skip global resources from $HOME")
 
 	o.FlagSet = fs
 }

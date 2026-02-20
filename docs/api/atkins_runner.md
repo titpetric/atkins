@@ -173,7 +173,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func NewLineCapturingWriter () *LineCapturingWriter`
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
-- `func NewSkills (projectRoot string) *Skills`
+- `func NewSkills (projectRoot string, jail bool) *Skills`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
@@ -399,11 +399,12 @@ func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline
 
 ### NewSkills
 
-NewSkills creates a Skills loader for the given project root.
-Searches .atkins/skills/ in project root and $HOME/.atkins/skills/.
+NewSkills will create a new skills loader.
+If jailed it only searches `.atkins/skills/` in project root.
+If not jailed, it also loads `$HOME/.atkins/skills/`.
 
 ```go
-func NewSkills (projectRoot string) *Skills
+func NewSkills (projectRoot string, jail bool) *Skills
 ```
 
 ### ProcessDecl
