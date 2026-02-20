@@ -308,8 +308,8 @@ func IsEchoCommand (cmd string) bool
 
 ### ListPipelines
 
-ListPipelines displays pipelines grouped by section in a flat list format.
-The first pipeline is the default; subsequent ones are skill pipelines.
+ListPipelines displays pipelines grouped by section in a flat list format:
+Main Pipeline, then Aliases, then Skills.
 
 ```go
 func ListPipelines (pipelines []*model.Pipeline)
