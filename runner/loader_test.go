@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
@@ -25,7 +26,9 @@ jobs:
 `
 
 	tmpFile := createTempYaml(t, yamlContent)
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		assert.NoError(t, os.Remove(tmpFile))
+	})
 
 	pipelines, err := runner.LoadPipeline(tmpFile)
 	assert.NoError(t, err)
@@ -58,7 +61,9 @@ jobs:
 `
 
 	tmpFile := createTempYaml(t, yamlContent)
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		assert.NoError(t, os.Remove(tmpFile))
+	})
 
 	pipelines, err := runner.LoadPipeline(tmpFile)
 	assert.NoError(t, err)
@@ -90,7 +95,9 @@ jobs:
 `
 
 	tmpFile := createTempYaml(t, yamlContent)
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		assert.NoError(t, os.Remove(tmpFile))
+	})
 
 	pipelines, err := runner.LoadPipeline(tmpFile)
 	assert.NoError(t, err)
@@ -255,14 +262,13 @@ func TestExpandForWithVariables(t *testing.T) {
 // createTempYaml creates a temporary YAML file for testing
 func createTempYaml(t *testing.T, content string) string {
 	tmpFile, err := os.CreateTemp("", "test-*.yml")
-	if err != nil {
-		t.Fatalf("failed to create temp file: %v", err)
-	}
-	defer tmpFile.Close()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, tmpFile.Close())
+	})
 
-	if _, err := tmpFile.WriteString(content); err != nil {
-		t.Fatalf("failed to write temp file: %v", err)
-	}
+	_, err = tmpFile.WriteString(content)
+	require.NoError(t, err)
 
 	return tmpFile.Name()
 }
@@ -278,7 +284,10 @@ func BenchmarkEvaluateIfExpression(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		runner.EvaluateIf(ctx)
+		_, err := runner.EvaluateIf(ctx)
+		if err != nil {
+			b.Fatalf("EvaluateIf failed: %v", err)
+		}
 	}
 }
 
@@ -295,7 +304,10 @@ func BenchmarkExpandForLoop(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		runner.ExpandFor(ctx, nil)
+		_, err := runner.ExpandFor(ctx, nil)
+		if err != nil {
+			b.Fatalf("ExpandFor failed: %v", err)
+		}
 	}
 }
 
@@ -313,7 +325,9 @@ jobs:
 `
 
 	tmpFile := createTempYaml(t, yamlContent)
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		assert.NoError(t, os.Remove(tmpFile))
+	})
 
 	pipelines, err := runner.LoadPipeline(tmpFile)
 	assert.NoError(t, err)
@@ -327,9 +341,9 @@ jobs:
 	assert.NotNil(t, testJob.Decl, "Job.Decl should not be nil")
 
 	// Check that Vars are loaded
-	assert.NotNil(t, testJob.Decl.Vars, "Job.Decl.Vars should not be nil")
-	assert.NotNil(t, testJob.Decl.Vars["testBinaries"], "testBinaries should be in Decl.Vars")
-	assert.Equal(t, "file1.test\nfile2.test", testJob.Decl.Vars["testBinaries"])
+	assert.NotNil(t, testJob.Vars, "Job.Vars should not be nil")
+	assert.NotNil(t, testJob.Vars["testBinaries"], "testBinaries should be in Vars")
+	assert.Equal(t, "file1.test\nfile2.test", testJob.Vars["testBinaries"])
 
 	// Now test that MergeVariables properly merges these into the ExecutionContext
 	ctx := &runner.ExecutionContext{

@@ -15,7 +15,7 @@ func TestWorkingDirectory_ChangesDirectory(t *testing.T) {
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		os.Chdir(originalDir)
+		assert.NoError(t, os.Chdir(originalDir))
 	})
 
 	configPath := filepath.Join(tmpDir, ".atkins.yml")
@@ -41,7 +41,7 @@ func TestWorkingDirectory_InvalidDirectory(t *testing.T) {
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		os.Chdir(originalDir)
+		assert.NoError(t, os.Chdir(originalDir))
 	})
 
 	cmd := Pipeline()
@@ -60,7 +60,7 @@ func TestWorkingDirectory_EmptyIsNoOp(t *testing.T) {
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		os.Chdir(originalDir)
+		assert.NoError(t, os.Chdir(originalDir))
 	})
 
 	tmpDir := t.TempDir()

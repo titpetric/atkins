@@ -75,7 +75,7 @@ func (l *Linter) validateTaskInvocations() {
 		}
 
 		// Check if both steps and cmds are defined (warning)
-		if job.Steps != nil && len(job.Steps) > 0 && job.Cmds != nil && len(job.Cmds) > 0 {
+		if len(job.Steps) > 0 && len(job.Cmds) > 0 {
 			l.errors = append(l.errors, LintError{
 				Job:    jobName,
 				Issue:  "ambiguous step definition",

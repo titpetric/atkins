@@ -145,7 +145,7 @@ func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*mo
 
 		// Mark jobs that won't be executed
 		if !willRun[jobName] {
-			jobNode.Node.Status = StatusSkipped
+			jobNode.Status = StatusSkipped
 		}
 	}
 

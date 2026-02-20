@@ -83,10 +83,11 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 				assert.NotNil(t, iter.Variables, "Iteration %d has nil variables", i)
 
 				// For simple pattern, check if the loop variable is set
-				if tt.step.For == "item in fruits" {
+				switch tt.step.For {
+				case "item in fruits":
 					_, ok := iter.Variables["item"]
 					assert.True(t, ok, "Iteration %d missing 'item' variable", i)
-				} else if tt.step.For == "pkg in packages" {
+				case "pkg in packages":
 					_, ok := iter.Variables["pkg"]
 					assert.True(t, ok, "Iteration %d missing 'pkg' variable", i)
 				}

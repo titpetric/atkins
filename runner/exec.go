@@ -165,14 +165,11 @@ func (e *Exec) ExecuteCommandWithWriter(writer io.Writer, cmdStr string, usePTY 
 				Trace:        "",
 			}
 		}
-		defer ptmx.Close()
+		defer func() { _ = ptmx.Close() }()
 
 		// Set terminal size for the PTY
 		winsize := getTerminalSize()
-		if err := pty.Setsize(ptmx, winsize); err != nil {
-			// Log warning but continue execution - PTY will work even with size not set
-			_ = err
-		}
+		_ = pty.Setsize(ptmx, winsize) // ignore error, PTY works without size
 
 		// Copy PTY output to both the buffer and provided writer
 		var stdout bytes.Buffer
@@ -253,19 +250,16 @@ func (e *Exec) ExecuteCommandInteractive(cmdStr string) error {
 			Trace:        "",
 		}
 	}
-	defer ptmx.Close()
+	defer func() { _ = ptmx.Close() }()
 
 	// Set terminal size for the PTY
 	winsize := getTerminalSize()
-	if err := pty.Setsize(ptmx, winsize); err != nil {
-		// Log warning but continue execution
-		_ = err
-	}
+	_ = pty.Setsize(ptmx, winsize) // ignore error, PTY works without size
 
 	// Put stdin in raw mode to pass through all keystrokes
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err == nil {
-		defer term.Restore(int(os.Stdin.Fd()), oldState)
+		defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 	}
 
 	// Copy stdin to PTY in a goroutine

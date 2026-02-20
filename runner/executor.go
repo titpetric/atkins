@@ -237,7 +237,7 @@ func (e *Executor) executeSteps(ctx context.Context, execCtx *ExecutionContext, 
 			deferredCount := 0
 			// Count deferred nodes to find the i-th deferred node
 			for _, child := range children {
-				if child.Node.Deferred {
+				if child.Deferred {
 					if deferredCount == i {
 						stepNode = child.Node
 						break
@@ -736,7 +736,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		return fmt.Errorf("task %q node not found in tree", taskName)
 	}
 
-	taskJobNode.Node.SetSummarize(taskJob.Summarize)
+	taskJobNode.SetSummarize(taskJob.Summarize)
 	stepNode.SetSummarize(step.Summarize)
 
 	// Check if this step has a for loop
@@ -764,7 +764,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	if execCtx.EventLogger != nil {
 		taskStartOffset = execCtx.EventLogger.GetElapsed()
 	}
-	taskJobNode.Node.SetStartOffset(taskStartOffset)
+	taskJobNode.SetStartOffset(taskStartOffset)
 	taskStartTime := time.Now()
 
 	// Create a new execution context for the task using the task's existing tree node
@@ -796,7 +796,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 
 	// Calculate task duration and log
 	taskDuration := time.Since(taskStartTime)
-	taskJobNode.Node.SetDuration(taskDuration.Seconds())
+	taskJobNode.SetDuration(taskDuration.Seconds())
 
 	taskID := "jobs." + taskName
 	if execCtx.EventLogger != nil {
@@ -999,62 +999,6 @@ func interpolateVariables(ctx *ExecutionContext, vars map[string]any) (map[strin
 		}
 	}
 	return result, nil
-}
-
-// countOutputLines counts the number of newlines in output
-func countOutputLines(output string) int {
-	count := 0
-	for _, ch := range output {
-		if ch == '\n' {
-			count++
-		}
-	}
-	return count
-}
-
-// executeCmdsStep executes multiple commands as children of a step node
-func (e *Executor) executeCmdsStep(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
-	children := stepNode.GetChildren()
-	var lastErr error
-
-	// Execute each command using its corresponding child node
-	for i, cmd := range step.Cmds {
-		var cmdNode *treeview.Node
-		if i < len(children) {
-			cmdNode = children[i]
-		}
-
-		// Mark command as running
-		if cmdNode != nil {
-			cmdNode.SetStatus(treeview.StatusRunning)
-			execCtx.Render()
-		}
-
-		// Execute the command with the cmd node as the current step for output capture
-		originalStep := execCtx.CurrentStep
-		if cmdNode != nil {
-			execCtx.CurrentStep = cmdNode
-		}
-
-		if err := e.executeCommand(ctx, execCtx, step, cmd); err != nil {
-			if cmdNode != nil {
-				cmdNode.SetStatus(treeview.StatusFailed)
-			}
-			execCtx.Render()
-			lastErr = err
-			// Continue to next command even on error to update all nodes
-		} else {
-			if cmdNode != nil {
-				cmdNode.SetStatus(treeview.StatusPassed)
-			}
-			execCtx.Render()
-		}
-
-		// Restore original step
-		execCtx.CurrentStep = originalStep
-	}
-
-	return lastErr
 }
 
 // IsEchoCommand checks if a command is a bare echo command.

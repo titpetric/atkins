@@ -52,7 +52,7 @@ func (et *ExecutionTree) AddJob(job *model.Job) *TreeNode {
 			Dependencies: make([]string, 0),
 		},
 	}
-	et.TreeNode.Node.Children = append(et.TreeNode.Node.Children, node.Node)
+	et.Children = append(et.Children, node.Node)
 	return node
 }
 
@@ -69,7 +69,7 @@ func (et *ExecutionTree) AddJobWithDeps(jobName string, deps []string) *TreeNode
 			Dependencies: deps,
 		},
 	}
-	et.TreeNode.Node.Children = append(et.TreeNode.Node.Children, node.Node)
+	et.Children = append(et.Children, node.Node)
 	return node
 }
 
@@ -84,7 +84,7 @@ func (job *TreeNode) AddStep(stepName string) *TreeNode {
 			Status: StatusRunning,
 		},
 	}
-	job.Node.Children = append(job.Node.Children, node.Node)
+	job.Children = append(job.Children, node.Node)
 	return node
 }
 
@@ -100,7 +100,7 @@ func (job *TreeNode) AddStepDeferred(stepName string) *TreeNode {
 			Deferred: true,
 		},
 	}
-	job.Node.Children = append(job.Node.Children, node.Node)
+	job.Children = append(job.Children, node.Node)
 	return node
 }
 
@@ -115,7 +115,7 @@ func (et *ExecutionTree) RenderTree() string {
 	defer et.Unlock()
 
 	renderer := NewRenderer()
-	return renderer.Render(et.TreeNode.Node)
+	return renderer.Render(et.Node)
 }
 
 // CountLines returns the number of lines the tree will render.
@@ -123,7 +123,7 @@ func (et *ExecutionTree) CountLines() int {
 	et.Lock()
 	defer et.Unlock()
 
-	return CountLines(et.TreeNode.Node)
+	return CountLines(et.Node)
 }
 
 // GetChildren returns the children of a node.
@@ -138,10 +138,10 @@ func (node *TreeNode) GetChildren() []*TreeNode {
 
 // GetName returns the name of the node.
 func (node *TreeNode) GetName() string {
-	return node.Node.Name
+	return node.Name
 }
 
 // GetStatus returns the status of the node.
 func (node *TreeNode) GetStatus() Status {
-	return node.Node.Status
+	return node.Status
 }

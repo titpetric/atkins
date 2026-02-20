@@ -17,7 +17,9 @@ func TestNewLogger_NilWhenEmpty(t *testing.T) {
 
 func TestNewLogger_CreatesLogger(t *testing.T) {
 	tmpFile := "test_eventlog.yml"
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile) // ignore error, file may not exist
+	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
 	require.NotNil(t, logger)
@@ -28,7 +30,9 @@ func TestNewLogger_CreatesLogger(t *testing.T) {
 
 func TestLogger_LogExec_Pass(t *testing.T) {
 	tmpFile := "test_pass.yml"
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile) // ignore error, file may not exist
+	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
 	require.NotNil(t, logger)
@@ -47,7 +51,9 @@ func TestLogger_LogExec_Pass(t *testing.T) {
 
 func TestLogger_LogExec_Fail(t *testing.T) {
 	tmpFile := "test_fail.yml"
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile) // ignore error, file may not exist
+	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
 	require.NotNil(t, logger)
@@ -67,7 +73,9 @@ func TestLogger_LogExec_Fail(t *testing.T) {
 
 func TestLogger_LogExec_Skip(t *testing.T) {
 	tmpFile := "test_skip.yml"
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile) // ignore error, file may not exist
+	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
 	require.NotNil(t, logger)
@@ -96,7 +104,9 @@ func TestLogger_NilSafe(t *testing.T) {
 
 func TestLogger_Write(t *testing.T) {
 	tmpFile := "test_write.yml"
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile) // ignore error, file may not exist
+	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
 	require.NotNil(t, logger)
@@ -140,7 +150,9 @@ func TestLogger_Write(t *testing.T) {
 
 func TestLogger_GetElapsed(t *testing.T) {
 	tmpFile := "test_elapsed.yml"
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile) // ignore error, file may not exist
+	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
 	require.NotNil(t, logger)
@@ -153,7 +165,9 @@ func TestLogger_GetElapsed(t *testing.T) {
 
 func TestLogger_DebugGoroutineID(t *testing.T) {
 	tmpFile := "test_debug.yml"
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile) // ignore error, file may not exist
+	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", true)
 	require.NotNil(t, logger)
@@ -169,7 +183,9 @@ func TestLogger_DebugGoroutineID(t *testing.T) {
 
 func TestLogger_NoGoroutineIDWithoutDebug(t *testing.T) {
 	tmpFile := "test_nodebug.yml"
-	defer os.Remove(tmpFile)
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile) // ignore error, file may not exist
+	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
 	require.NotNil(t, logger)

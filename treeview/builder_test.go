@@ -181,9 +181,9 @@ func TestAddJob_WithSteps(t *testing.T) {
 
 		treeNode := builder.AddJob(job, []string{}, "test")
 		assert.NotNil(t, treeNode)
-		assert.Equal(t, "test", treeNode.Node.Name)
+		assert.Equal(t, "test", treeNode.Name)
 
-		children := treeNode.Node.GetChildren()
+		children := treeNode.GetChildren()
 		assert.Equal(t, 3, len(children))
 
 		// Verify step names
@@ -200,7 +200,7 @@ func TestAddJob_WithSteps(t *testing.T) {
 
 		treeNode := builder.AddJob(job, []string{}, "test")
 		assert.NotNil(t, treeNode)
-		assert.False(t, treeNode.Node.HasChildren())
+		assert.False(t, treeNode.HasChildren())
 	})
 
 	t.Run("job with task invocation steps", func(t *testing.T) {
@@ -217,7 +217,7 @@ func TestAddJob_WithSteps(t *testing.T) {
 		treeNode := builder.AddJob(job, []string{}, "test")
 		assert.NotNil(t, treeNode)
 
-		children := treeNode.Node.GetChildren()
+		children := treeNode.GetChildren()
 		assert.Equal(t, 3, len(children))
 
 		// Verify that task steps are properly converted to node names
@@ -240,7 +240,7 @@ func TestAddJob_WithSteps(t *testing.T) {
 		treeNode := builder.AddJob(job, []string{}, "test")
 		assert.NotNil(t, treeNode)
 
-		children := treeNode.Node.GetChildren()
+		children := treeNode.GetChildren()
 		assert.Equal(t, 3, len(children))
 
 		// Verify that Summarize flag is copied to the step node
@@ -260,7 +260,7 @@ func TestAddJob_WithSteps(t *testing.T) {
 		}
 
 		treeNode := builder.AddJob(job, []string{}, "test")
-		children := treeNode.Node.GetChildren()
+		children := treeNode.GetChildren()
 		assert.Equal(t, 2, len(children))
 
 		// Verify both flags are copied
@@ -277,9 +277,9 @@ func TestAddJobWithoutSteps(t *testing.T) {
 
 		treeNode := builder.AddJobWithoutSteps([]string{"dep1", "dep2"}, "test", false)
 		assert.NotNil(t, treeNode)
-		assert.Equal(t, "test", treeNode.Node.Name)
-		assert.Equal(t, []string{"dep1", "dep2"}, treeNode.Node.Dependencies)
-		assert.False(t, treeNode.Node.HasChildren())
+		assert.Equal(t, "test", treeNode.Name)
+		assert.Equal(t, []string{"dep1", "dep2"}, treeNode.Dependencies)
+		assert.False(t, treeNode.HasChildren())
 	})
 
 	t.Run("nested job flag", func(t *testing.T) {
@@ -287,7 +287,7 @@ func TestAddJobWithoutSteps(t *testing.T) {
 
 		treeNode := builder.AddJobWithoutSteps([]string{}, "test:nested", true)
 		assert.NotNil(t, treeNode)
-		assert.Equal(t, StatusConditional, treeNode.Node.Status)
+		assert.Equal(t, StatusConditional, treeNode.Status)
 	})
 }
 
@@ -337,10 +337,10 @@ func TestAddJob_WithSummaryFlag(t *testing.T) {
 
 		treeNode := builder.AddJob(job, []string{}, "test-summary")
 		assert.NotNil(t, treeNode)
-		assert.Equal(t, "test-summary", treeNode.Node.Name)
-		assert.True(t, treeNode.Node.Summarize)
+		assert.Equal(t, "test-summary", treeNode.Name)
+		assert.True(t, treeNode.Summarize)
 
-		children := treeNode.Node.GetChildren()
+		children := treeNode.GetChildren()
 		assert.Equal(t, 2, len(children))
 	})
 
@@ -356,7 +356,7 @@ func TestAddJob_WithSummaryFlag(t *testing.T) {
 
 		treeNode := builder.AddJob(job, []string{}, "test-no-summary")
 		assert.NotNil(t, treeNode)
-		assert.False(t, treeNode.Node.Summarize)
+		assert.False(t, treeNode.Summarize)
 	})
 }
 
@@ -373,10 +373,10 @@ func TestAddJobWithSummary(t *testing.T) {
 
 		treeNode := builder.AddJobWithSummary(job, []string{}, "summary-job")
 		assert.NotNil(t, treeNode)
-		assert.Equal(t, "summary-job", treeNode.Node.Name)
-		assert.True(t, treeNode.Node.Summarize)
+		assert.Equal(t, "summary-job", treeNode.Name)
+		assert.True(t, treeNode.Summarize)
 
-		children := treeNode.Node.GetChildren()
+		children := treeNode.GetChildren()
 		assert.Equal(t, 1, len(children))
 	})
 }

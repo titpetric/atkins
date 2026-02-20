@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -230,10 +229,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		// Wait for dependencies if any
 		deps := GetDependencies(job.DependsOn)
 		for _, dep := range deps {
-			for {
-				if pipelineCtx.IsJobCompleted(dep) {
-					break
-				}
+			for !pipelineCtx.IsJobCompleted(dep) {
 				time.Sleep(50 * time.Millisecond)
 			}
 		}
@@ -253,7 +249,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		if logger != nil {
 			jobStartOffset = logger.GetElapsed()
 		}
-		jobNode.Node.SetStartOffset(jobStartOffset)
+		jobNode.SetStartOffset(jobStartOffset)
 		jobStartTime := time.Now()
 
 		display.Render(root)
@@ -262,7 +258,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 
 		// Calculate job duration
 		jobDuration := time.Since(jobStartTime)
-		jobNode.Node.SetDuration(jobDuration.Seconds())
+		jobNode.SetDuration(jobDuration.Seconds())
 
 		// Log job event
 		jobID := "jobs." + jobName
@@ -392,11 +388,7 @@ func writeEventLog(logger *eventlog.Logger, root *treeview.Node, runErr error) {
 		Goroutines:   stats.Goroutines,
 	}
 
-	logger.Write(state, summary)
-}
-
-func indent(depth int) string {
-	return strings.Repeat("  ", depth)
+	_ = logger.Write(state, summary)
 }
 
 func parseEnv(env string) (string, string) {

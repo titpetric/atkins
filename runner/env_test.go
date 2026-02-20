@@ -120,7 +120,7 @@ func TestEnvDeclPrecedence(t *testing.T) {
 	// Create temp env file with a value
 	tmpDir := t.TempDir()
 	envFile := filepath.Join(tmpDir, "test.env")
-	os.WriteFile(envFile, []byte("KEY=from_file\n"), 0o644)
+	assert.NoError(t, os.WriteFile(envFile, []byte("KEY=from_file\n"), 0o644))
 
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
@@ -205,7 +205,7 @@ func TestProcessEnv_IntegerValue(t *testing.T) {
 func TestLoadEnvFile_SingleQuote(t *testing.T) {
 	tmpDir := t.TempDir()
 	envFile := filepath.Join(tmpDir, "test.env")
-	os.WriteFile(envFile, []byte("KEY='single quoted value'\n"), 0o644)
+	assert.NoError(t, os.WriteFile(envFile, []byte("KEY='single quoted value'\n"), 0o644))
 
 	env := make(map[string]string)
 	assert.NoError(t, loadEnvFile(envFile, env))

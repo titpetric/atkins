@@ -71,7 +71,7 @@ func TestExecuteCommand_WithCustomEnv(t *testing.T) {
 func TestExecuteCommand_EnvOverride(t *testing.T) {
 	originalPath := os.Getenv("PATH")
 	t.Cleanup(func() {
-		os.Setenv("PATH", originalPath)
+		assert.NoError(t, os.Setenv("PATH", originalPath))
 	})
 
 	exec := runner.NewExecWithEnv(map[string]string{

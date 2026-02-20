@@ -174,6 +174,7 @@ func TestGetChildren(t *testing.T) {
 
 		// Modify the returned slice
 		children = append(children, NewNode("fake"))
+		assert.Equal(t, 2, len(children))
 
 		// Original should be unchanged
 		originalChildren := parent.GetChildren()

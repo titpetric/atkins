@@ -72,7 +72,7 @@ func loadEnvFile(filePath string, env map[string]string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	scanned := 0

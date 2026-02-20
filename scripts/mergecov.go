@@ -100,7 +100,7 @@ func parseCoverageFile(filename string, profile *CoverageProfile) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 
@@ -178,19 +178,23 @@ func parseCoverageFile(filename string, profile *CoverageProfile) error {
 }
 
 func writeProfile(filename string, profile *CoverageProfile) error {
-	os.MkdirAll(filepath.Dir(filename), 0o755)
+	if err := os.MkdirAll(filepath.Dir(filename), 0o755); err != nil {
+		return err
+	}
 
 	file, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	writer := bufio.NewWriter(file)
-	defer writer.Flush()
+	defer func() { _ = writer.Flush() }()
 
 	// Write mode line
-	fmt.Fprintf(writer, "mode: %s\n", profile.Mode)
+	if _, err := fmt.Fprintf(writer, "mode: %s\n", profile.Mode); err != nil {
+		return err
+	}
 
 	// Collect and sort all filenames
 	var filenames []string
@@ -222,8 +226,10 @@ func writeProfile(filename string, profile *CoverageProfile) error {
 			if block.Covered {
 				count = 1
 			}
-			fmt.Fprintf(writer, "%s:%d.%d,%d.%d %d %d\n",
-				fn, block.StartLine, block.StartCol, block.EndLine, block.EndCol, block.Stmts, count)
+			if _, err := fmt.Fprintf(writer, "%s:%d.%d,%d.%d %d %d\n",
+				fn, block.StartLine, block.StartCol, block.EndLine, block.EndCol, block.Stmts, count); err != nil {
+				return err
+			}
 		}
 	}
 

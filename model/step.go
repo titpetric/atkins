@@ -160,7 +160,7 @@ func (s *Step) UnmarshalYAML(node *yaml.Node) error {
 
 		if ds.Defer != nil {
 			if s.Run != "" {
-				return fmt.Errorf("Error processing step: step has run %s, and defer %s. Should use {defer} or {run, deferred=true}.", s.Run, ds.Defer.Run)
+				return fmt.Errorf("step has run %s and defer %s: use {defer} or {run, deferred=true}", s.Run, ds.Defer.Run)
 			}
 
 			*s = *ds.Defer
