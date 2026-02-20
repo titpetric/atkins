@@ -34,9 +34,9 @@ jobs:
     desc: "Create a GitHub release"
     steps:
       - run: echo "Last release [${{semver}}]"
-      - gh release create ${{ semver }} --title ${{semver}} --notes "Release ${{semver}}"
+      - gh release create ${{ semver }} --title ${{semver}} --notes "Release ${{semver}}" || true
       - for: goarch in ${{build.goarch}}
-        run: gh release upload ${{ semver }} ./bin/${{name}}-linux-${{goarch}}
+        run: gh release upload ${{ semver }} ./bin/${{name}}-linux-${{goarch}} || true
 
   publish:docker:
     desc: "Push the Docker images"
