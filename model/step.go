@@ -31,11 +31,6 @@ type Step struct {
 	HidePrefix  bool                   `yaml:"-"`                     // If true, don't show "run:" prefix in display
 }
 
-// DeferredStep represents a deferred step wrapper.
-type DeferredStep struct {
-	Defer *Step `yaml:"defer,omitempty"`
-}
-
 // String returns a string representation of the step.
 func (s *Step) String() string {
 	switch {
