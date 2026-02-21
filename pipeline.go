@@ -88,7 +88,8 @@ func Pipeline() *cli.Command {
 // 2. Alias match - job with matching alias in any skill pipeline
 // 3. Skill ID with default - skill name that has a "default" job
 // 4. Skill ID (for listing) - skill name without requiring default job
-// 5. Main pipeline - fallback to first pipeline (no skill ID)
+// 5. Fuzzy match - suffix/substring match in job names (if exactly one match)
+// 6. Main pipeline - fallback to first pipeline (no skill ID)
 func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pipeline, string, error) {
 	// 1. Check if job has a skill prefix (e.g., "go:test")
 	if parts := strings.SplitN(jobName, ":", 2); len(parts) == 2 {
@@ -136,7 +137,18 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		}
 	}
 
-	// 5. Fallback to main pipeline (first one, no skill ID)
+	// 5. Fuzzy match - check for suffix/substring matches in job names
+	matches := findFuzzyMatches(pipelines, jobName)
+	if len(matches) == 1 {
+		// Exactly one match found, use it
+		match := matches[0]
+		return []*model.Pipeline{match.Pipeline}, match.JobName, nil
+	} else if len(matches) > 1 {
+		// Multiple matches found, list them and exit
+		return []*model.Pipeline{matches[0].Pipeline}, "", &FuzzyMatchError{Matches: matches}
+	}
+
+	// 6. Fallback to main pipeline (first one, no skill ID)
 	return []*model.Pipeline{pipelines[0]}, jobName, nil
 }
 
@@ -269,6 +281,15 @@ pipelineReady:
 		var err error
 		pipelines, jobName, err = resolveJobTarget(pipelines, jobName)
 		if err != nil {
+			// Check if it's a fuzzy match error with multiple matches
+			var fuzzyErr *FuzzyMatchError
+			if errors.As(err, &fuzzyErr) {
+				fmt.Fprintf(os.Stderr, "%s found %d matching jobs:\n\n", colors.BrightYellow("INFO:"), len(fuzzyErr.Matches))
+				for _, match := range fuzzyErr.Matches {
+					fmt.Fprintf(os.Stderr, "  - %s\n", colors.BrightOrange(match.FullName))
+				}
+				os.Exit(1)
+			}
 			return err
 		}
 	}

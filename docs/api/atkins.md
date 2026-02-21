@@ -9,6 +9,22 @@ import (
 ## Types
 
 ```go
+// FuzzyMatch represents a fuzzy match result
+type FuzzyMatch struct {
+	Pipeline	*model.Pipeline
+	JobName		string
+	FullName	string	// e.g., "skill:job" or just "job"
+}
+```
+
+```go
+// FuzzyMatchError is returned when multiple fuzzy matches are found
+type FuzzyMatchError struct {
+	Matches []FuzzyMatch
+}
+```
+
+```go
 // Options holds pipeline command-line arguments
 type Options struct {
 	File			string
@@ -41,6 +57,7 @@ var (
 
 - `func NewOptions () *Options`
 - `func Pipeline () *cli.Command`
+- `func (*FuzzyMatchError) Error () string`
 - `func (*Options) Bind (fs *cli.FlagSet)`
 
 ### Pipeline
@@ -55,6 +72,12 @@ func Pipeline () *cli.Command
 
 ```go
 func NewOptions () *Options
+```
+
+### Error
+
+```go
+func (*FuzzyMatchError) Error () string
 ```
 
 ### Bind
