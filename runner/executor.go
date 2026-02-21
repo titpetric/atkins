@@ -114,6 +114,15 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 		return err
 	}
 
+	// Evaluate job-level working directory
+	if job.Dir != "" {
+		dir, err := InterpolateString(job.Dir, execCtx)
+		if err != nil {
+			return fmt.Errorf("failed to interpolate job dir %q: %w", job.Dir, err)
+		}
+		execCtx.Dir = dir
+	}
+
 	// Execute steps
 	steps := job.Children()
 	return e.executeSteps(ctx, execCtx, steps)
@@ -336,6 +345,14 @@ func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.C
 		env[k] = v
 	}
 	stepCtx.Env = env
+
+	// Evaluate step-level working directory (overrides job dir)
+	if step.Dir != "" {
+		dir, err := InterpolateString(step.Dir, stepCtx)
+		if err == nil {
+			stepCtx.Dir = dir
+		}
+	}
 
 	return stepCtx
 }
@@ -723,6 +740,14 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		if err := MergeVariables(taskCtx, taskJob.Decl); err != nil {
 			return err
 		}
+		// Evaluate task job-level working directory
+		if taskJob.Dir != "" {
+			dir, err := InterpolateString(taskJob.Dir, taskCtx)
+			if err != nil {
+				return fmt.Errorf("failed to interpolate task dir %q: %w", taskJob.Dir, err)
+			}
+			taskCtx.Dir = dir
+		}
 		// Merge step-level vars (call-site overrides)
 		// This allows step vars to be interpolated and override task defaults
 		if err := MergeVariables(taskCtx, step.Decl); err != nil {
@@ -847,6 +872,17 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 			continue
 		}
 
+		// Evaluate task job-level working directory
+		if taskJob.Dir != "" {
+			dir, err := InterpolateString(taskJob.Dir, iterCtx)
+			if err != nil {
+				iterTreeNode.SetStatus(treeview.StatusFailed)
+				lastErr = err
+				continue
+			}
+			iterCtx.Dir = dir
+		}
+
 		// Merge step-level vars (call-site overrides) with iteration context
 		// This allows step vars like `path: $(dirname "${{item}}")` to be interpolated
 		if err := MergeVariables(iterCtx, step.Decl); err != nil {
@@ -951,8 +987,9 @@ func IsEchoCommand(cmd string) bool {
 }
 
 // evaluateEchoCommand executes an echo command and returns its output for use as a label
-func evaluateEchoCommand(ctx context.Context, env map[string]string, cmd string) (string, error) {
+func evaluateEchoCommand(ctx context.Context, env map[string]string, dir string, cmd string) (string, error) {
 	exec := NewExecWithEnv(env)
+	exec.Dir = dir
 	output, err := exec.ExecuteCommandWithQuiet(cmd, false)
 	if err != nil {
 		return "", err
@@ -980,6 +1017,7 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 
 	// Execute the command via bash with quiet mode, passing execution context env
 	exec := NewExecWithEnv(execCtx.Env)
+	exec.Dir = execCtx.Dir
 
 	// Determine if interactive mode should be used (live streaming with stdin)
 	// Check step interactive flag first, then job interactive flag
@@ -1014,7 +1052,7 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 
 	// For echo commands, update the step node label with the output
 	if IsEchoCommand(interpolated) && execCtx.CurrentStep != nil {
-		output, err := evaluateEchoCommand(ctx, execCtx.Env, interpolated)
+		output, err := evaluateEchoCommand(ctx, execCtx.Env, execCtx.Dir, interpolated)
 		if err == nil && output != "" {
 			execCtx.CurrentStep.Name = output
 		}

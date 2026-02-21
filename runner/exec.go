@@ -33,6 +33,7 @@ func (r ExecError) Len() int {
 // Exec runs shell commands.
 type Exec struct {
 	Env map[string]string // Optional environment variables to pass to commands
+	Dir string            // Optional working directory for commands
 }
 
 // NewExec creates a new Exec instance.
@@ -67,6 +68,9 @@ func (e *Exec) ExecuteCommandWithQuietAndCapture(cmdStr string, verbose bool) (s
 	}
 
 	cmd := exec.Command("bash", "-c", cmdStr)
+	if e.Dir != "" {
+		cmd.Dir = e.Dir
+	}
 
 	// Build environment: start with OS environment, then overlay custom env
 	cmdEnv := os.Environ()
@@ -144,6 +148,9 @@ func (e *Exec) ExecuteCommandWithWriter(writer io.Writer, cmdStr string, usePTY 
 	}
 
 	cmd := exec.Command("bash", "-c", cmdStr)
+	if e.Dir != "" {
+		cmd.Dir = e.Dir
+	}
 
 	// Build environment: start with OS environment, then overlay custom env
 	cmdEnv := os.Environ()
@@ -230,6 +237,9 @@ func (e *Exec) ExecuteCommandInteractive(cmdStr string) error {
 	}
 
 	cmd := exec.Command("bash", "-c", cmdStr)
+	if e.Dir != "" {
+		cmd.Dir = e.Dir
+	}
 
 	// Build environment: start with OS environment, then overlay custom env
 	cmdEnv := os.Environ()

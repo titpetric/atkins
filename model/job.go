@@ -13,6 +13,7 @@ type Job struct {
 	Desc        string       `yaml:"desc,omitempty"`
 	RunsOn      string       `yaml:"runs_on,omitempty"`
 	Container   string       `yaml:"container,omitempty"`
+	Dir         string       `yaml:"dir,omitempty"`
 	If          string       `yaml:"if,omitempty"`
 	Cmd         string       `yaml:"cmd,omitempty"`
 	Cmds        []*Step      `yaml:"cmds,omitempty"`

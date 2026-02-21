@@ -16,6 +16,7 @@ type ExecutionContext struct {
 	Env     map[string]string
 	Results map[string]any
 	Verbose bool
+	Dir     string
 
 	Variables map[string]any
 
@@ -52,6 +53,7 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 		Env:          copyEnv(e.Env),
 		Results:      e.Results,
 		Verbose:      e.Verbose,
+		Dir:          e.Dir,
 		Pipeline:     e.Pipeline,
 		Job:          e.Job,
 		Step:         e.Step,

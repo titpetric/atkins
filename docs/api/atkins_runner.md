@@ -18,7 +18,8 @@ type Environment struct {
 ```go
 // Exec runs shell commands.
 type Exec struct {
-	Env map[string]string	// Optional environment variables to pass to commands
+	Env	map[string]string	// Optional environment variables to pass to commands
+	Dir	string			// Optional working directory for commands
 }
 ```
 
@@ -40,6 +41,7 @@ type ExecutionContext struct {
 	Env	map[string]string
 	Results	map[string]any
 	Verbose	bool
+	Dir	string
 
 	Variables	map[string]any
 
