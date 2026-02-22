@@ -3,6 +3,7 @@ package psexec_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -107,5 +108,22 @@ func TestResult_Success(t *testing.T) {
 	t.Run("false when exit non-zero", func(t *testing.T) {
 		result := exec.Run(ctx, psexec.NewShellCommand("exit 1"))
 		assert.False(t, result.Success())
+	})
+}
+
+func TestResult_Duration(t *testing.T) {
+	exec := psexec.New()
+	ctx := context.Background()
+
+	t.Run("tracks execution time", func(t *testing.T) {
+		// Use a command that takes at least 50ms
+		result := exec.Run(ctx, psexec.NewShellCommand("sleep 0.05"))
+		assert.GreaterOrEqual(t, result.Duration(), 50*time.Millisecond)
+	})
+
+	t.Run("fast command has small duration", func(t *testing.T) {
+		result := exec.Run(ctx, psexec.NewShellCommand("exit 0"))
+		assert.Less(t, result.Duration(), 1*time.Second)
+		assert.Greater(t, result.Duration(), time.Duration(0))
 	})
 }

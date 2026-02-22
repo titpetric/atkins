@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/creack/pty"
 	"golang.org/x/term"
@@ -41,6 +42,8 @@ func (e *Executor) Run(ctx context.Context, cmd *Command) Result {
 // runStandard executes a command without PTY allocation.
 func (e *Executor) runStandard(ctx context.Context, cmd *Command) Result {
 	result := newResult()
+	startTime := time.Now()
+	defer func() { result.duration = time.Since(startTime) }()
 
 	// Apply timeout if specified
 	if cmd.Timeout > 0 {
@@ -94,6 +97,8 @@ func (e *Executor) runStandard(ctx context.Context, cmd *Command) Result {
 // runWithPTY executes a command with PTY allocation.
 func (e *Executor) runWithPTY(ctx context.Context, cmd *Command) Result {
 	result := newResult()
+	startTime := time.Now()
+	defer func() { result.duration = time.Since(startTime) }()
 
 	// Apply timeout if specified
 	if cmd.Timeout > 0 {
@@ -170,6 +175,8 @@ func (e *Executor) runWithPTY(ctx context.Context, cmd *Command) Result {
 // runInteractive executes a command in full interactive mode.
 func (e *Executor) runInteractive(ctx context.Context, cmd *Command) Result {
 	result := newResult()
+	startTime := time.Now()
+	defer func() { result.duration = time.Since(startTime) }()
 
 	// Build the exec.Cmd
 	execCmd := exec.CommandContext(ctx, cmd.Name, cmd.Args...)
@@ -237,6 +244,8 @@ func (e *Executor) runInteractive(ctx context.Context, cmd *Command) Result {
 // RunWithIO executes a command with custom I/O streams, suitable for websocket transport.
 func (e *Executor) RunWithIO(ctx context.Context, stdout io.Writer, stdin io.Reader, cmd *Command) Result {
 	result := newResult()
+	startTime := time.Now()
+	defer func() { result.duration = time.Since(startTime) }()
 
 	// Build the exec.Cmd
 	execCmd := exec.CommandContext(ctx, cmd.Name, cmd.Args...)
@@ -288,11 +297,11 @@ func (e *Executor) RunWithIO(ctx context.Context, stdout io.Writer, stdin io.Rea
 	// Wait for command to complete
 	err = execCmd.Wait()
 
-	// Close PTY to signal EOF to readers
-	ptmx.Close()
-
 	// Wait for I/O goroutines to finish
 	wg.Wait()
+
+	// Close PTY to signal EOF to readers
+	ptmx.Close()
 
 	if err != nil {
 		result.err = err

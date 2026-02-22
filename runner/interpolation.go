@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/expr-lang/expr"
+
+	"github.com/titpetric/atkins/eventlog"
 )
 
 // Matches ${{ variable_name }}
@@ -81,13 +84,50 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 				interpolatedCmd = cmd
 			}
 
-			// Debug: log the interpolated command for troubleshooting
-			// Uncomment to debug interpolation issues
-			// fmt.Fprintf(os.Stderr, "DEBUG: Executing command: %q\n", interpolatedCmd)
-
 			// Execute with context env variables
-			exec := NewExecWithEnv(ctx.Env)
-			output, err := exec.ExecuteCommand(interpolatedCmd)
+			cmdExec := NewExecWithEnv(ctx.Env)
+			startTime := time.Now()
+			var startOffset float64
+			if ctx.EventLogger != nil {
+				startOffset = ctx.EventLogger.GetElapsed()
+			}
+
+			output, err := cmdExec.ExecuteCommand(interpolatedCmd)
+			durationMs := time.Since(startTime).Milliseconds()
+
+			// Log the command execution
+			if ctx.EventLogger != nil {
+				var parentID string
+				if ctx.CurrentStep != nil {
+					parentID = ctx.CurrentStep.ID
+				} else if ctx.Job != nil {
+					parentID = ctx.Job.Name
+				}
+				exitCode := 0
+				errMsg := ""
+				if err != nil {
+					exitCode = 1
+					if execErr, ok := err.(ExecError); ok {
+						exitCode = execErr.LastExitCode
+						errMsg = execErr.Output
+					} else {
+						errMsg = err.Error()
+					}
+				}
+				ctx.EventLogger.LogCommand(eventlog.LogEntry{
+					Type:       eventlog.EventTypeSubstitution,
+					ID:         fmt.Sprintf("subst-%d", startTime.UnixNano()),
+					ParentID:   parentID,
+					Command:    interpolatedCmd,
+					Dir:        ctx.Dir,
+					Output:     strings.TrimSpace(output),
+					Error:      errMsg,
+					ExitCode:   exitCode,
+					Start:      startOffset,
+					DurationMs: durationMs,
+				})
+			}
+
 			if err != nil {
 				// Capture error with better context showing what command was executed
 				if execErr, ok := err.(ExecError); ok {

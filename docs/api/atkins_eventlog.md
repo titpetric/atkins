@@ -9,16 +9,33 @@ import (
 ## Types
 
 ```go
-// Event represents a single execution event in the log (one per exec).
+// Event represents a single execution event in the log.
 type Event struct {
-	ID		string	`yaml:"id"`
-	Run		string	`yaml:"run"`
-	Result		Result	`yaml:"result"`
-	Start		float64	`yaml:"start"`			// Seconds since run started
-	Duration	float64	`yaml:"duration"`		// Seconds
-	Error		string	`yaml:"error,omitempty"`	// Only for fail events
+	// Common fields
+	ID		string		`yaml:"id"`
+	Type		EventType	`yaml:"type,omitempty"`
+	Start		float64		`yaml:"start"`			// Seconds since run started
+	Duration	float64		`yaml:"duration"`		// Seconds
+	Error		string		`yaml:"error,omitempty"`	// Error message if failed
+
+	// Step event fields
+	Run		string	`yaml:"run,omitempty"`
+	Result		Result	`yaml:"result,omitempty"`
 	GoroutineID	uint64	`yaml:"goroutine_id,omitempty"`	// Only when debug is enabled
+
+	// Command event fields
+	Command		string		`yaml:"command,omitempty"`	// The actual command executed
+	Dir		string		`yaml:"dir,omitempty"`		// Working directory
+	Output		string		`yaml:"output,omitempty"`	// stdout output
+	ExitCode	int		`yaml:"exit_code,omitempty"`	// Process exit code
+	ParentID	string		`yaml:"parent_id,omitempty"`	// Parent step/job ID for $() commands
+	Env		[]string	`yaml:"env,omitempty"`		// Environment variables (when debug enabled)
 }
+```
+
+```go
+// EventType indicates the source of an event.
+type EventType string
 ```
 
 ```go
@@ -38,6 +55,23 @@ type Log struct {
 	State		*StateNode	`yaml:"state"`
 	Events		[]*Event	`yaml:"events"`
 	Summary		*RunSummary	`yaml:"summary,omitempty"`
+}
+```
+
+```go
+// LogEntry is the input for LogCommand with named fields.
+type LogEntry struct {
+	Type		EventType
+	ID		string
+	ParentID	string
+	Command		string
+	Dir		string
+	Output		string
+	Error		string
+	ExitCode	int
+	Start		float64
+	DurationMs	int64
+	Env		[]string
 }
 ```
 
@@ -120,6 +154,15 @@ const (
 )
 ```
 
+```go
+// EventType constants for different event sources.
+const (
+	EventTypeStep		EventType	= "step"		// Step execution event
+	EventTypeSubstitution	EventType	= "substitution"	// $() command substitution
+	EventTypeInterpolation	EventType	= "interpolation"	// Variable interpolation
+)
+```
+
 ## Function symbols
 
 - `func CalculateDuration (node *StateNode) float64`
@@ -133,6 +176,7 @@ const (
 - `func (*Logger) GetElapsed () float64`
 - `func (*Logger) GetEvents () []*Event`
 - `func (*Logger) GetStartTime () time.Time`
+- `func (*Logger) LogCommand (entry LogEntry)`
 - `func (*Logger) LogExec (result Result, id,run string, start float64, durationMs int64, err error)`
 - `func (*Logger) Write (state *StateNode, summary *RunSummary) error`
 
@@ -223,6 +267,14 @@ GetStartTime returns the start time of the run.
 
 ```go
 func (*Logger) GetStartTime () time.Time
+```
+
+### LogCommand
+
+LogCommand logs a command execution with full details.
+
+```go
+func (*Logger) LogCommand (entry LogEntry)
 ```
 
 ### LogExec

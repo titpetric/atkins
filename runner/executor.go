@@ -1016,8 +1016,8 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	}
 
 	// Execute the command via bash with quiet mode, passing execution context env
-	exec := NewExecWithEnv(execCtx.Env)
-	exec.Dir = execCtx.Dir
+	cmdExec := NewExecWithEnv(execCtx.Env)
+	cmdExec.Dir = execCtx.Dir
 
 	// Determine if interactive mode should be used (live streaming with stdin)
 	// Check step interactive flag first, then job interactive flag
@@ -1030,16 +1030,58 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	// Determine TTY allocation: Job.TTY is authoritative, otherwise use Step.TTY
 	useTTY := step.TTY || (execCtx.Job != nil && execCtx.Job.TTY)
 
+	// Track execution for logging
+	startTime := time.Now()
+	var startOffset float64
+	if execCtx.EventLogger != nil {
+		startOffset = execCtx.EventLogger.GetElapsed()
+	}
+
 	// If interactive mode is enabled, run with live streaming and stdin connected
 	var writer *LineCapturingWriter
+	var output string
 	if isInteractive {
-		err = exec.ExecuteCommandInteractive(interpolated)
+		err = cmdExec.ExecuteCommandInteractive(interpolated)
 	} else if shouldPassthru && execCtx.CurrentStep != nil {
 		// If passthru is enabled, capture output to the node for display with tree indentation
 		writer = NewLineCapturingWriter()
-		_, err = exec.ExecuteCommandWithWriter(writer, interpolated, useTTY)
+		output, err = cmdExec.ExecuteCommandWithWriter(writer, interpolated, useTTY)
 	} else {
-		_, err = exec.ExecuteCommandWithQuiet(interpolated, execCtx.Verbose)
+		output, err = cmdExec.ExecuteCommandWithQuiet(interpolated, execCtx.Verbose)
+	}
+
+	// Log command execution
+	durationMs := time.Since(startTime).Milliseconds()
+	if execCtx.EventLogger != nil {
+		exitCode := 0
+		errMsg := ""
+		if err != nil {
+			exitCode = 1
+			if execErr, ok := err.(ExecError); ok {
+				exitCode = execErr.LastExitCode
+				errMsg = execErr.Output
+			} else {
+				errMsg = err.Error()
+			}
+		}
+		stepID := ""
+		if execCtx.CurrentStep != nil {
+			stepID = execCtx.CurrentStep.ID
+		}
+		if writer != nil {
+			output = writer.String()
+		}
+		execCtx.EventLogger.LogCommand(eventlog.LogEntry{
+			Type:       eventlog.EventTypeStep,
+			ID:         stepID,
+			Command:    interpolated,
+			Dir:        execCtx.Dir,
+			Output:     output,
+			Error:      errMsg,
+			ExitCode:   exitCode,
+			Start:      startOffset,
+			DurationMs: durationMs,
+		})
 	}
 
 	if err != nil {
@@ -1052,9 +1094,9 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 
 	// For echo commands, update the step node label with the output
 	if IsEchoCommand(interpolated) && execCtx.CurrentStep != nil {
-		output, err := evaluateEchoCommand(ctx, execCtx.Env, execCtx.Dir, interpolated)
-		if err == nil && output != "" {
-			execCtx.CurrentStep.Name = output
+		echoOutput, echoErr := evaluateEchoCommand(ctx, execCtx.Env, execCtx.Dir, interpolated)
+		if echoErr == nil && echoOutput != "" {
+			execCtx.CurrentStep.Name = echoOutput
 		}
 	}
 

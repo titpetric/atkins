@@ -12,15 +12,52 @@ const (
 	ResultSkipped Result = "skipped"
 )
 
-// Event represents a single execution event in the log (one per exec).
+// EventType indicates the source of an event.
+type EventType string
+
+// EventType constants for different event sources.
+const (
+	EventTypeStep          EventType = "step"          // Step execution event
+	EventTypeSubstitution  EventType = "substitution"  // $() command substitution
+	EventTypeInterpolation EventType = "interpolation" // Variable interpolation
+)
+
+// Event represents a single execution event in the log.
 type Event struct {
-	ID          string  `yaml:"id"`
-	Run         string  `yaml:"run"`
-	Result      Result  `yaml:"result"`
-	Start       float64 `yaml:"start"`                  // Seconds since run started
-	Duration    float64 `yaml:"duration"`               // Seconds
-	Error       string  `yaml:"error,omitempty"`        // Only for fail events
-	GoroutineID uint64  `yaml:"goroutine_id,omitempty"` // Only when debug is enabled
+	// Common fields
+	ID       string    `yaml:"id"`
+	Type     EventType `yaml:"type,omitempty"`
+	Start    float64   `yaml:"start"`           // Seconds since run started
+	Duration float64   `yaml:"duration"`        // Seconds
+	Error    string    `yaml:"error,omitempty"` // Error message if failed
+
+	// Step event fields
+	Run         string `yaml:"run,omitempty"`
+	Result      Result `yaml:"result,omitempty"`
+	GoroutineID uint64 `yaml:"goroutine_id,omitempty"` // Only when debug is enabled
+
+	// Command event fields
+	Command  string   `yaml:"command,omitempty"`   // The actual command executed
+	Dir      string   `yaml:"dir,omitempty"`       // Working directory
+	Output   string   `yaml:"output,omitempty"`    // stdout output
+	ExitCode int      `yaml:"exit_code,omitempty"` // Process exit code
+	ParentID string   `yaml:"parent_id,omitempty"` // Parent step/job ID for $() commands
+	Env      []string `yaml:"env,omitempty"`       // Environment variables (when debug enabled)
+}
+
+// LogEntry is the input for LogCommand with named fields.
+type LogEntry struct {
+	Type       EventType
+	ID         string
+	ParentID   string
+	Command    string
+	Dir        string
+	Output     string
+	Error      string
+	ExitCode   int
+	Start      float64
+	DurationMs int64
+	Env        []string
 }
 
 // StateNode represents a node in the execution state tree for YAML output.

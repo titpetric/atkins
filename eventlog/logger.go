@@ -69,14 +69,41 @@ func (l *Logger) LogExec(result Result, id, run string, start float64, durationM
 
 	event := &Event{
 		ID:       id,
-		Run:      run,
-		Result:   result,
+		Type:     EventTypeStep,
 		Start:    start,
 		Duration: float64(durationMs) / 1000.0,
 		Error:    errMsg,
+		Run:      run,
+		Result:   result,
 	}
 	if l.debug {
 		event.GoroutineID = getGoroutineID()
+	}
+	l.events = append(l.events, event)
+}
+
+// LogCommand logs a command execution with full details.
+func (l *Logger) LogCommand(entry LogEntry) {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	event := &Event{
+		ID:       entry.ID,
+		Type:     entry.Type,
+		Start:    entry.Start,
+		Duration: float64(entry.DurationMs) / 1000.0,
+		Error:    entry.Error,
+		Command:  entry.Command,
+		Dir:      entry.Dir,
+		Output:   entry.Output,
+		ExitCode: entry.ExitCode,
+		ParentID: entry.ParentID,
+	}
+	if l.debug && len(entry.Env) > 0 {
+		event.Env = entry.Env
 	}
 	l.events = append(l.events, event)
 }

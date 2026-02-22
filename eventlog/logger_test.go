@@ -203,3 +203,205 @@ func TestGetGoroutineID(t *testing.T) {
 	id := getGoroutineID()
 	assert.Greater(t, id, uint64(0))
 }
+
+func TestLogger_LogCommand_Step(t *testing.T) {
+	tmpFile := "test_command_step.yml"
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile)
+	})
+
+	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
+	require.NotNil(t, logger)
+
+	logger.LogCommand(LogEntry{
+		Type:       EventTypeStep,
+		ID:         "jobs.test.steps.0",
+		Command:    "echo hello",
+		Dir:        "/tmp",
+		Output:     "hello\n",
+		Start:      0.5,
+		DurationMs: 100,
+	})
+
+	require.Len(t, logger.events, 1)
+	cmd := logger.events[0]
+	assert.Equal(t, "jobs.test.steps.0", cmd.ID)
+	assert.Equal(t, EventTypeStep, cmd.Type)
+	assert.Equal(t, "echo hello", cmd.Command)
+	assert.Equal(t, "/tmp", cmd.Dir)
+	assert.Equal(t, "hello\n", cmd.Output)
+	assert.Empty(t, cmd.Error)
+	assert.Equal(t, 0, cmd.ExitCode)
+	assert.Equal(t, 0.5, cmd.Start)
+	assert.Equal(t, 0.1, cmd.Duration)
+}
+
+func TestLogger_LogCommand_Substitution(t *testing.T) {
+	tmpFile := "test_command_subst.yml"
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile)
+	})
+
+	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
+	require.NotNil(t, logger)
+
+	logger.LogCommand(LogEntry{
+		Type:       EventTypeSubstitution,
+		ID:         "subst-12345",
+		ParentID:   "jobs.test.steps.0",
+		Command:    "date +%Y",
+		Dir:        "/home/user",
+		Output:     "2024",
+		Start:      1.0,
+		DurationMs: 50,
+	})
+
+	require.Len(t, logger.events, 1)
+	cmd := logger.events[0]
+	assert.Equal(t, "subst-12345", cmd.ID)
+	assert.Equal(t, EventTypeSubstitution, cmd.Type)
+	assert.Equal(t, "date +%Y", cmd.Command)
+	assert.Equal(t, "jobs.test.steps.0", cmd.ParentID)
+	assert.Equal(t, "2024", cmd.Output)
+}
+
+func TestLogger_LogCommand_WithError(t *testing.T) {
+	tmpFile := "test_command_error.yml"
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile)
+	})
+
+	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
+	require.NotNil(t, logger)
+
+	logger.LogCommand(LogEntry{
+		Type:       EventTypeStep,
+		ID:         "jobs.test.steps.0",
+		Command:    "exit 1",
+		Dir:        "/tmp",
+		Error:      "command failed",
+		ExitCode:   1,
+		Start:      0.5,
+		DurationMs: 100,
+	})
+
+	require.Len(t, logger.events, 1)
+	cmd := logger.events[0]
+	assert.Equal(t, 1, cmd.ExitCode)
+	assert.Equal(t, "command failed", cmd.Error)
+}
+
+func TestLogger_LogCommand_WithEnvDebug(t *testing.T) {
+	tmpFile := "test_command_env.yml"
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile)
+	})
+
+	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", true)
+	require.NotNil(t, logger)
+
+	env := []string{"FOO=bar", "BAZ=qux"}
+	logger.LogCommand(LogEntry{
+		Type:       EventTypeStep,
+		ID:         "jobs.test.steps.0",
+		Command:    "env",
+		Dir:        "/tmp",
+		Output:     "FOO=bar\nBAZ=qux\n",
+		Start:      0.5,
+		DurationMs: 100,
+		Env:        env,
+	})
+
+	require.Len(t, logger.events, 1)
+	cmd := logger.events[0]
+	assert.Equal(t, env, cmd.Env)
+}
+
+func TestLogger_LogCommand_NoEnvWithoutDebug(t *testing.T) {
+	tmpFile := "test_command_noenv.yml"
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile)
+	})
+
+	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
+	require.NotNil(t, logger)
+
+	env := []string{"FOO=bar"}
+	logger.LogCommand(LogEntry{
+		Type:       EventTypeStep,
+		ID:         "jobs.test.steps.0",
+		Command:    "env",
+		Dir:        "/tmp",
+		Start:      0.5,
+		DurationMs: 100,
+		Env:        env,
+	})
+
+	require.Len(t, logger.events, 1)
+	cmd := logger.events[0]
+	assert.Nil(t, cmd.Env)
+}
+
+func TestLogger_LogCommand_NilSafe(t *testing.T) {
+	var logger *Logger
+	// Should not panic
+	logger.LogCommand(LogEntry{
+		Type:    EventTypeStep,
+		ID:      "id",
+		Command: "cmd",
+		Dir:     "/tmp",
+	})
+}
+
+func TestLogger_Write_WithCommands(t *testing.T) {
+	tmpFile := "test_write_commands.yml"
+	t.Cleanup(func() {
+		_ = os.Remove(tmpFile)
+	})
+
+	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
+	require.NotNil(t, logger)
+
+	logger.LogExec(ResultPass, "jobs.test.steps.0", "step name", 0.1, 100, nil)
+	logger.LogCommand(LogEntry{
+		Type:       EventTypeStep,
+		ID:         "jobs.test.steps.0",
+		Command:    "echo test",
+		Dir:        "/tmp",
+		Output:     "test\n",
+		Start:      0.1,
+		DurationMs: 100,
+	})
+	logger.LogCommand(LogEntry{
+		Type:       EventTypeSubstitution,
+		ID:         "subst-1",
+		ParentID:   "jobs.test.steps.0",
+		Command:    "date",
+		Dir:        "/tmp",
+		Output:     "2024",
+		Start:      0.05,
+		DurationMs: 10,
+	})
+
+	state := &StateNode{
+		Name:      "test-pipeline",
+		Status:    "passed",
+		Result:    ResultPass,
+		CreatedAt: time.Now(),
+	}
+
+	err := logger.Write(state, nil)
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(tmpFile)
+	require.NoError(t, err)
+
+	var log Log
+	err = yaml.Unmarshal(data, &log)
+	require.NoError(t, err)
+
+	assert.Len(t, log.Events, 3)
+	assert.Equal(t, EventTypeStep, log.Events[0].Type)
+	assert.Equal(t, EventTypeStep, log.Events[1].Type)
+	assert.Equal(t, EventTypeSubstitution, log.Events[2].Type)
+}

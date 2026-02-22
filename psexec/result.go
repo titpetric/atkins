@@ -3,7 +3,10 @@
 // transports including websockets.
 package psexec
 
-import "bytes"
+import (
+	"bytes"
+	"time"
+)
 
 // Result provides access to the outcome of a process execution.
 type Result interface {
@@ -17,6 +20,8 @@ type Result interface {
 	Err() error
 	// Success returns true if the process completed with exit code 0.
 	Success() bool
+	// Duration returns the execution duration.
+	Duration() time.Duration
 }
 
 // processResult implements the Result interface.
@@ -25,6 +30,7 @@ type processResult struct {
 	stderr   *bytes.Buffer
 	exitCode int
 	err      error
+	duration time.Duration
 }
 
 // Output returns the captured stdout.
@@ -56,6 +62,11 @@ func (r *processResult) Err() error {
 // Success returns true if exit code is 0 and no error occurred.
 func (r *processResult) Success() bool {
 	return r.exitCode == 0 && r.err == nil
+}
+
+// Duration returns the execution duration.
+func (r *processResult) Duration() time.Duration {
+	return r.duration
 }
 
 // newResult creates a new processResult.

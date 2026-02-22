@@ -8,15 +8,17 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/creack/pty"
 )
 
 // Process represents a running process with PTY support.
 type Process struct {
-	cmd    *exec.Cmd
-	ptmx   *os.File
-	result *processResult
+	cmd       *exec.Cmd
+	ptmx      *os.File
+	result    *processResult
+	startTime time.Time
 
 	mu     sync.Mutex
 	done   chan struct{}
@@ -52,10 +54,11 @@ func (e *Executor) Start(ctx context.Context, cmd *Command) (*Process, error) {
 	}
 
 	proc := &Process{
-		cmd:    execCmd,
-		ptmx:   ptmx,
-		result: newResult(),
-		done:   make(chan struct{}),
+		cmd:       execCmd,
+		ptmx:      ptmx,
+		result:    newResult(),
+		startTime: time.Now(),
+		done:      make(chan struct{}),
 	}
 
 	// Start a goroutine to wait for completion
@@ -70,6 +73,8 @@ func (p *Process) wait() {
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	p.result.duration = time.Since(p.startTime)
 
 	if err != nil {
 		p.result.err = err
