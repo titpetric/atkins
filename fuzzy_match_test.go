@@ -175,6 +175,89 @@ func TestFindFuzzyMatches(t *testing.T) {
 			},
 			want: []string{"skill:task1"},
 		},
+		{
+			name:    "main_pipeline_exact_over_namespaced_exact",
+			pattern: "test",
+			pipelines: []*model.Pipeline{
+				{
+					ID: "",
+					Jobs: map[string]*model.Job{
+						"test": {Name: "User test"},
+					},
+				},
+				{
+					ID: "go",
+					Jobs: map[string]*model.Job{
+						"test": {Name: "Go test"},
+					},
+				},
+			},
+			want: []string{"test"}, // Main pipeline exact match wins
+		},
+		{
+			name:    "main_pipeline_exact_over_suffix_match",
+			pattern: "test",
+			pipelines: []*model.Pipeline{
+				{
+					ID: "",
+					Jobs: map[string]*model.Job{
+						"test":     {Name: "User test"},
+						"pre-test": {Name: "Pre test"},
+					},
+				},
+				{
+					ID: "go",
+					Jobs: map[string]*model.Job{
+						"test": {Name: "Go test"},
+					},
+				},
+			},
+			want: []string{"test"}, // Main pipeline exact match wins
+		},
+		{
+			name:    "user_task_exact_over_builtin",
+			pattern: "test",
+			pipelines: []*model.Pipeline{
+				{
+					ID: "",
+					Tasks: map[string]*model.Job{
+						"test": {Name: "User test task"},
+					},
+				},
+				{
+					ID: "go",
+					Jobs: map[string]*model.Job{
+						"test": {Name: "Go test"},
+					},
+				},
+			},
+			want: []string{"test"}, // Main pipeline exact match wins
+		},
+		{
+			name:    "namespaced_exact_when_no_main_match",
+			pattern: "test",
+			pipelines: []*model.Pipeline{
+				{
+					ID: "",
+					Jobs: map[string]*model.Job{
+						"build": {Name: "Build"},
+					},
+				},
+				{
+					ID: "go",
+					Jobs: map[string]*model.Job{
+						"test": {Name: "Go test"},
+					},
+				},
+				{
+					ID: "python",
+					Jobs: map[string]*model.Job{
+						"test": {Name: "Python test"},
+					},
+				},
+			},
+			want: []string{"go:test", "python:test"}, // Namespaced exact matches
+		},
 	}
 
 	for _, tt := range tests {

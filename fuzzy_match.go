@@ -23,9 +23,15 @@ func (e *FuzzyMatchError) Error() string {
 	return fmt.Sprintf("multiple jobs match the pattern; use -l to see all jobs")
 }
 
-// findFuzzyMatches finds all jobs matching the fuzzy pattern (suffix/substring match)
+// findFuzzyMatches finds all jobs matching the fuzzy pattern (suffix/substring match).
+// Priority order:
+// 1. Exact match in main pipeline (no namespace) - highest priority
+// 2. Exact matches in namespaced pipelines
+// 3. Fuzzy/substring matches
 func findFuzzyMatches(pipelines []*model.Pipeline, pattern string) []FuzzyMatch {
-	var matches []FuzzyMatch
+	var mainExactMatches []FuzzyMatch       // Exact match in main pipeline (no ID)
+	var namespacedExactMatches []FuzzyMatch // Exact match in namespaced pipelines
+	var fuzzyMatches []FuzzyMatch
 	lowerPattern := strings.ToLower(pattern)
 
 	for _, p := range pipelines {
@@ -35,19 +41,39 @@ func findFuzzyMatches(pipelines []*model.Pipeline, pattern string) []FuzzyMatch 
 		}
 
 		for jobName := range jobs {
-			if strings.Contains(strings.ToLower(jobName), lowerPattern) {
-				fullName := jobName
-				if p.ID != "" {
-					fullName = p.ID + ":" + jobName
+			lowerJobName := strings.ToLower(jobName)
+			fullName := jobName
+			if p.ID != "" {
+				fullName = p.ID + ":" + jobName
+			}
+
+			match := FuzzyMatch{
+				Pipeline: p,
+				JobName:  jobName,
+				FullName: fullName,
+			}
+
+			// Check for exact match (case-insensitive)
+			if lowerJobName == lowerPattern {
+				if p.ID == "" {
+					// Main pipeline exact match - highest priority
+					mainExactMatches = append(mainExactMatches, match)
+				} else {
+					// Namespaced pipeline exact match
+					namespacedExactMatches = append(namespacedExactMatches, match)
 				}
-				matches = append(matches, FuzzyMatch{
-					Pipeline: p,
-					JobName:  jobName,
-					FullName: fullName,
-				})
+			} else if strings.Contains(lowerJobName, lowerPattern) {
+				fuzzyMatches = append(fuzzyMatches, match)
 			}
 		}
 	}
 
-	return matches
+	// Priority: main pipeline exact > namespaced exact > fuzzy
+	if len(mainExactMatches) > 0 {
+		return mainExactMatches
+	}
+	if len(namespacedExactMatches) > 0 {
+		return namespacedExactMatches
+	}
+	return fuzzyMatches
 }
