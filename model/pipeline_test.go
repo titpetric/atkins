@@ -355,3 +355,112 @@ cmds:
 	// Check String() representation
 	assert.Equal(t, "cmds: <3 commands>", step.String())
 }
+
+// TestJobUnmarshalYAML_CmdToSyntheticStep tests that job-level cmd creates a synthetic step
+func TestJobUnmarshalYAML_CmdToSyntheticStep(t *testing.T) {
+	yamlContent := `
+desc: Down all containers
+cmd: docker compose down
+`
+
+	var job model.Job
+	err := yaml.Unmarshal([]byte(yamlContent), &job)
+	assert.NoError(t, err)
+
+	// Check that a synthetic step was created
+	assert.NotNil(t, job.Steps)
+	assert.Len(t, job.Steps, 1)
+	assert.Equal(t, "docker compose down", job.Steps[0].Run)
+	assert.Equal(t, "docker compose down", job.Steps[0].Name)
+	assert.True(t, job.Steps[0].HidePrefix)
+	assert.True(t, job.Passthru)
+}
+
+// TestJobUnmarshalYAML_RunToSyntheticStep tests that job-level run creates a synthetic step
+func TestJobUnmarshalYAML_RunToSyntheticStep(t *testing.T) {
+	yamlContent := `
+desc: Run tests
+run: go test ./...
+`
+
+	var job model.Job
+	err := yaml.Unmarshal([]byte(yamlContent), &job)
+	assert.NoError(t, err)
+
+	// Check that a synthetic step was created
+	assert.NotNil(t, job.Steps)
+	assert.Len(t, job.Steps, 1)
+	assert.Equal(t, "go test ./...", job.Steps[0].Run)
+	assert.True(t, job.Passthru)
+}
+
+// TestJobUnmarshalYAML_CmdTakesPrecedenceOverRun tests that cmd takes precedence over run
+func TestJobUnmarshalYAML_CmdTakesPrecedenceOverRun(t *testing.T) {
+	yamlContent := `
+desc: Test precedence
+cmd: docker compose up
+run: should be ignored
+`
+
+	var job model.Job
+	err := yaml.Unmarshal([]byte(yamlContent), &job)
+	assert.NoError(t, err)
+
+	// Check that cmd was used for the synthetic step
+	assert.NotNil(t, job.Steps)
+	assert.Len(t, job.Steps, 1)
+	assert.Equal(t, "docker compose up", job.Steps[0].Run)
+}
+
+// TestJobUnmarshalYAML_NoSyntheticStepWithExistingSteps tests no synthetic step when steps exist
+func TestJobUnmarshalYAML_NoSyntheticStepWithExistingSteps(t *testing.T) {
+	yamlContent := `
+desc: Job with steps
+cmd: should be ignored
+steps:
+  - run: echo "explicit step"
+`
+
+	var job model.Job
+	err := yaml.Unmarshal([]byte(yamlContent), &job)
+	assert.NoError(t, err)
+
+	// Check that the explicit steps are used, not synthetic
+	assert.Len(t, job.Steps, 1)
+	assert.Equal(t, "echo \"explicit step\"", job.Steps[0].Run)
+	assert.False(t, job.Passthru) // Should not be set when using explicit steps
+}
+
+// TestJobUnmarshalYAML_NoSyntheticStepWithExistingCmds tests no synthetic step when cmds exist
+func TestJobUnmarshalYAML_NoSyntheticStepWithExistingCmds(t *testing.T) {
+	yamlContent := `
+desc: Job with cmds
+cmd: should be ignored
+cmds:
+  - run: echo "explicit cmd"
+`
+
+	var job model.Job
+	err := yaml.Unmarshal([]byte(yamlContent), &job)
+	assert.NoError(t, err)
+
+	// Check that the explicit cmds are used, not synthetic
+	assert.Len(t, job.Cmds, 1)
+	assert.Nil(t, job.Steps) // Steps should not be created
+}
+
+// TestJobUnmarshalYAML_StringShorthand tests string shorthand creates synthetic step
+func TestJobUnmarshalYAML_StringShorthand(t *testing.T) {
+	yamlContent := `docker compose up -d`
+
+	var job model.Job
+	err := yaml.Unmarshal([]byte(yamlContent), &job)
+	assert.NoError(t, err)
+
+	// Check that a synthetic step was created
+	assert.NotNil(t, job.Steps)
+	assert.Len(t, job.Steps, 1)
+	assert.Equal(t, "docker compose up -d", job.Steps[0].Run)
+	assert.Equal(t, "docker compose up -d", job.Desc)
+	assert.True(t, job.Passthru)
+}

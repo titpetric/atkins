@@ -93,5 +93,18 @@ func (j *Job) UnmarshalYAML(node *yaml.Node) error {
 	j.Run = strings.TrimSpace(j.Run)
 	j.Cmd = strings.TrimSpace(j.Cmd)
 
+	// Convert job-level Cmd or Run into a synthetic step if no steps/cmds are defined
+	// This ensures `cmd: task down` works the same as `steps: [task down]`
+	if j.Steps == nil && j.Cmds == nil {
+		cmd := j.Cmd
+		if cmd == "" {
+			cmd = j.Run
+		}
+		if cmd != "" {
+			j.Steps = []*Step{{Run: cmd, Name: cmd, HidePrefix: true}}
+			j.Passthru = true
+		}
+	}
+
 	return nil
 }
