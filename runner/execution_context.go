@@ -20,9 +20,10 @@ type ExecutionContext struct {
 
 	Variables map[string]any
 
-	Pipeline *model.Pipeline
-	Job      *model.Job
-	Step     *model.Step
+	Pipeline     *model.Pipeline
+	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
+	Job          *model.Job
+	Step         *model.Step
 
 	Depth       int // Nesting depth for indentation
 	StepsCount  int // Total number of steps executed
@@ -55,6 +56,7 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 		Verbose:      e.Verbose,
 		Dir:          e.Dir,
 		Pipeline:     e.Pipeline,
+		AllPipelines: e.AllPipelines,
 		Job:          e.Job,
 		Step:         e.Step,
 		Depth:        e.Depth + 1,

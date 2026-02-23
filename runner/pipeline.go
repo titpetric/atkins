@@ -2,12 +2,16 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	yaml "gopkg.in/yaml.v3"
 
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/eventlog"
@@ -22,6 +26,9 @@ type PipelineOptions struct {
 	PipelineFile string
 	Debug        bool
 	FinalOnly    bool
+	JSON         bool
+	YAML         bool
+	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
 }
 
 // Pipeline holds pipeline execution logic.
@@ -67,20 +74,29 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, opts PipelineOpt
 
 func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) error {
 	var (
-		pipeline  = p.data
-		job       = p.opts.Job
-		finalOnly = p.opts.FinalOnly
+		pipeline     = p.data
+		job          = p.opts.Job
+		finalOnly    = p.opts.FinalOnly
+		outputJSON   = p.opts.JSON
+		outputYAML   = p.opts.YAML
+		silentOutput = outputJSON || outputYAML
 	)
 
 	tree := treeview.NewBuilder(pipeline.Name)
 	root := tree.Root()
 
-	display := treeview.NewDisplayWithFinal(finalOnly)
+	var display *treeview.Display
+	if silentOutput {
+		display = treeview.NewSilentDisplay()
+	} else {
+		display = treeview.NewDisplayWithFinal(finalOnly)
+	}
 	pipelineCtx := &ExecutionContext{
 		Variables:    make(map[string]any),
 		Env:          make(map[string]string),
 		Results:      make(map[string]any),
 		Pipeline:     pipeline,
+		AllPipelines: p.opts.AllPipelines,
 		Depth:        0,
 		Builder:      tree,
 		Display:      display,
@@ -110,6 +126,14 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 
 	jobOrder, err := ResolveJobDependencies(allJobs, job)
 	if err != nil {
+		var noDefaultErr *NoDefaultJobError
+		if errors.As(err, &noDefaultErr) {
+			// Print available jobs and error message similar to task
+			fmt.Fprintf(os.Stderr, "%s Available jobs for this project:\n", colors.BrightYellow("atkins:"))
+			printAvailableJobs(noDefaultErr.Jobs, pipeline.ID)
+			fmt.Fprintf(os.Stderr, "%s Job %q does not exist\n", colors.BrightRed("atkins:"), "default")
+			os.Exit(1)
+		}
 		fmt.Printf("%s %s\n", colors.BrightRed("ERROR:"), err)
 		os.Exit(1)
 	}
@@ -118,26 +142,49 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	jobNodes := make(map[string]*treeview.TreeNode)
 	jobsToCreate := make(map[string]bool)
 
+	// Track cross-pipeline jobs separately (key is "skillID:jobName")
+	crossPipelineJobs := make(map[string]*model.Job)
+
+	// Task resolver for looking up task references
+	taskResolver := &TaskResolver{
+		CurrentPipeline: pipeline,
+		AllPipelines:    p.opts.AllPipelines,
+	}
+
+	// Helper to resolve a task name to its job and canonical name
+	resolveTaskName := func(taskName string) (string, *model.Job, error) {
+		resolved, err := taskResolver.Resolve(taskName)
+		if err != nil {
+			return "", nil, err
+		}
+		// Track cross-pipeline jobs for later lookup
+		if resolved.Pipeline != pipeline {
+			crossPipelineJobs[resolved.Name] = resolved.Job
+		}
+		return resolved.Name, resolved.Job, nil
+	}
+
 	// Recursively find all jobs that might be invoked
-	var findInvokedJobs func(jobName string, parentJobName string) error
-	findInvokedJobs = func(jobName string, parentJobName string) error {
-		if jobsToCreate[jobName] {
+	var findInvokedJobs func(taskRef string, parentJobName string) error
+	findInvokedJobs = func(taskRef string, parentJobName string) error {
+		// Resolve the task reference
+		canonicalName, job, err := resolveTaskName(taskRef)
+		if err != nil {
+			if parentJobName != "" {
+				return fmt.Errorf("[jobs.%s.step]: %s", parentJobName, err)
+			}
+			return err
+		}
+
+		if jobsToCreate[canonicalName] {
 			return nil // Already processed
 		}
-		jobsToCreate[jobName] = true
-
-		job, exists := allJobs[jobName]
-		if !exists {
-			if parentJobName != "" {
-				return fmt.Errorf("[jobs.%s.step]: can't find job by name %q", parentJobName, jobName)
-			}
-			return fmt.Errorf("can't find job by name %q", jobName)
-		}
+		jobsToCreate[canonicalName] = true
 
 		// Recursively find all depends_on dependencies
 		deps := GetDependencies(job.DependsOn)
 		for _, dep := range deps {
-			if err := findInvokedJobs(dep, jobName); err != nil {
+			if err := findInvokedJobs(dep, canonicalName); err != nil {
 				return err
 			}
 		}
@@ -145,7 +192,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		// Recursively find all task references
 		for _, step := range job.Children() {
 			if step.Task != "" {
-				if err := findInvokedJobs(step.Task, jobName); err != nil {
+				if err := findInvokedJobs(step.Task, canonicalName); err != nil {
 					return err
 				}
 			}
@@ -165,11 +212,19 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	// Only add root-level jobs to the tree display; nested jobs are added when invoked as tasks
 	jobsToCreateSorted := treeview.SortByOrder(jobsToCreate, jobOrder)
 	for _, jobName := range jobsToCreateSorted {
+		// Look up job from current pipeline or cross-pipeline jobs
 		job := allJobs[jobName]
+		if job == nil {
+			job = crossPipelineJobs[jobName]
+		}
+		if job == nil {
+			continue // Should not happen if findInvokedJobs worked correctly
+		}
 
-		// Prefix job name with pipeline ID for skill pipelines (e.g., "go:test")
+		// Display name is the canonical name (already includes skill prefix for cross-pipeline)
 		displayName := jobName
-		if pipeline.ID != "" {
+		if pipeline.ID != "" && !strings.Contains(jobName, ":") {
+			// Only prefix if it's a local job (not already prefixed)
 			displayName = pipeline.ID + ":" + jobName
 		}
 
@@ -345,13 +400,25 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	}
 	display.Render(root)
 
-	// If not a TTY, print final tree at the end
-	if !display.IsTerminal() {
+	// If not a TTY, print final tree at the end (unless using JSON/YAML output)
+	if !display.IsTerminal() && !silentOutput {
 		display.RenderStatic(root)
 	}
 
 	// Write event log
 	writeEventLog(logger, root, runErr)
+
+	// Output JSON/YAML if requested
+	if silentOutput {
+		state := eventlog.NodeToStateNode(root)
+		if outputJSON {
+			data, _ := json.MarshalIndent(state, "", "  ")
+			fmt.Println(string(data))
+		} else if outputYAML {
+			data, _ := yaml.Marshal(state)
+			fmt.Print(string(data))
+		}
+	}
 
 	return runErr
 }
@@ -398,4 +465,38 @@ func parseEnv(env string) (string, string) {
 		}
 	}
 	return "", ""
+}
+
+// printAvailableJobs prints available jobs in a format similar to task.
+func printAvailableJobs(jobs map[string]*model.Job, pipelineID string) {
+	names := treeview.SortJobsByDepth(jobNames(jobs))
+	maxLen := 0
+	for _, name := range names {
+		displayName := name
+		if pipelineID != "" {
+			displayName = pipelineID + ":" + name
+		}
+		if len(displayName) > maxLen {
+			maxLen = len(displayName)
+		}
+	}
+
+	for _, name := range names {
+		job := jobs[name]
+		if !job.IsRootLevel() {
+			continue // Skip nested jobs
+		}
+
+		displayName := name
+		if pipelineID != "" {
+			displayName = pipelineID + ":" + name
+		}
+
+		padding := maxLen - len(displayName) + 2
+		if job.Desc != "" {
+			fmt.Fprintf(os.Stderr, "* %s:%*s%s\n", colors.BrightGreen(displayName), padding, "", job.Desc)
+		} else {
+			fmt.Fprintf(os.Stderr, "* %s:\n", colors.BrightGreen(displayName))
+		}
+	}
 }

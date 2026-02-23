@@ -650,24 +650,36 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 	return err
 }
 
+// resolveTaskReference resolves a task name using the shared TaskResolver.
+// Returns the resolved task name, the target pipeline, and the job.
+func resolveTaskReference(taskName string, execCtx *ExecutionContext) (string, *model.Pipeline, *model.Job, error) {
+	resolver := &TaskResolver{
+		CurrentPipeline: execCtx.Pipeline,
+		AllPipelines:    execCtx.AllPipelines,
+	}
+	resolved, err := resolver.Resolve(taskName)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	return resolved.Name, resolved.Pipeline, resolved.Job, nil
+}
+
 // executeTaskStep executes a task/job from within a step
 // Supports both simple task invocation and for loop task invocation with loop variables
 func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
 	defer execCtx.Render()
 
-	// Get the task name from the step
-	taskName := step.Task
-
-	// Find the task in the pipeline
-	allJobs := execCtx.Pipeline.Jobs
-	if len(allJobs) == 0 {
-		allJobs = execCtx.Pipeline.Tasks
+	// Resolve task reference (handles cross-pipeline : prefix)
+	taskName, targetPipeline, taskJob, err := resolveTaskReference(step.Task, execCtx)
+	if err != nil {
+		stepNode.SetStatus(treeview.StatusFailed)
+		return err
 	}
 
-	taskJob, exists := allJobs[taskName]
-	if !exists {
-		stepNode.SetStatus(treeview.StatusFailed)
-		return fmt.Errorf("task %q not found in pipeline", taskName)
+	// Get jobs from the target pipeline for dependency resolution
+	allJobs := targetPipeline.Jobs
+	if len(allJobs) == 0 {
+		allJobs = targetPipeline.Tasks
 	}
 
 	// Execute dependencies first (if not already completed)
@@ -735,7 +747,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	taskCtx.Context = ctx
 	taskCtx.StepSequence = 0 // Reset step counter for new job
 
-	err := func() error {
+	err = func() error {
 		// Merge task defaults first
 		if err := MergeVariables(taskCtx, taskJob.Decl); err != nil {
 			return err

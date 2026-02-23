@@ -46,6 +46,7 @@ type ExecutionContext struct {
 	Variables	map[string]any
 
 	Pipeline	*model.Pipeline
+	AllPipelines	[]*model.Pipeline	// All loaded pipelines for cross-pipeline task references
 	Job		*model.Job
 	Step		*model.Step
 
@@ -106,7 +107,32 @@ type LintError struct {
 // Linter validates a pipeline for correctness.
 type Linter struct {
 	pipeline	*model.Pipeline
+	allPipelines	[]*model.Pipeline	// All pipelines for cross-pipeline validation
 	errors		[]LintError
+}
+```
+
+```go
+// ListOutputItem represents a single command in the list output.
+type ListOutputItem struct {
+	ID	string	`json:"id" yaml:"id"`
+	Desc	string	`json:"desc,omitempty" yaml:"desc,omitempty"`
+	Cmd	string	`json:"cmd" yaml:"cmd"`
+}
+```
+
+```go
+// ListOutputSection represents a pipeline section in the list output.
+type ListOutputSection struct {
+	Desc	string			`json:"desc" yaml:"desc"`
+	Cmds	[]ListOutputItem	`json:"cmds" yaml:"cmds"`
+}
+```
+
+```go
+// NoDefaultJobError is returned when no default job is found.
+type NoDefaultJobError struct {
+	Jobs map[string]*model.Job
 }
 ```
 
@@ -133,6 +159,18 @@ type PipelineOptions struct {
 	PipelineFile	string
 	Debug		bool
 	FinalOnly	bool
+	JSON		bool
+	YAML		bool
+	AllPipelines	[]*model.Pipeline	// All loaded pipelines for cross-pipeline task references
+}
+```
+
+```go
+// ResolvedTask contains the result of resolving a task reference.
+type ResolvedTask struct {
+	Name		string		// Canonical name (e.g., "go:build" or "build")
+	Pipeline	*model.Pipeline	// The pipeline containing the task
+	Job		*model.Job	// The resolved job
 }
 ```
 
@@ -140,6 +178,18 @@ type PipelineOptions struct {
 // Skills handles loading skill pipelines from disk directories.
 type Skills struct {
 	Dirs []string	// Directories to search (in priority order)
+}
+```
+
+```go
+// TaskResolver resolves task references, handling cross-pipeline : prefix syntax.
+// Supports:
+//   - ":build" → main pipeline (ID="") job "build".
+//   - ":go:build" → skill "go" job "build".
+//   - "build" → current pipeline job "build".
+type TaskResolver struct {
+	CurrentPipeline	*model.Pipeline
+	AllPipelines	[]*model.Pipeline
 }
 ```
 
@@ -165,6 +215,8 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func InterpolateString (s string, ctx *ExecutionContext) (string, error)`
 - `func IsEchoCommand (cmd string) bool`
 - `func ListPipelines (pipelines []*model.Pipeline)`
+- `func ListPipelinesJSON (pipelines []*model.Pipeline) error`
+- `func ListPipelinesYAML (pipelines []*model.Pipeline) error`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
 - `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
@@ -174,6 +226,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func NewExecutorWithOptions (opts *Options) *Executor`
 - `func NewLineCapturingWriter () *LineCapturingWriter`
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
+- `func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
 - `func NewSkills (projectRoot string, jail bool) *Skills`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
@@ -198,7 +251,10 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func (*LineCapturingWriter) String () string`
 - `func (*LineCapturingWriter) Write (p []byte) (int, error)`
 - `func (*Linter) Lint () []LintError`
+- `func (*NoDefaultJobError) Error () string`
 - `func (*Skills) Load () ([]*model.Pipeline, error)`
+- `func (*TaskResolver) Resolve (taskName string) (*ResolvedTask, error)`
+- `func (*TaskResolver) Validate (taskName string) error`
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
 
@@ -317,6 +373,22 @@ Main Pipeline, then Aliases, then Skills.
 func ListPipelines (pipelines []*model.Pipeline)
 ```
 
+### ListPipelinesJSON
+
+ListPipelinesJSON outputs pipelines in JSON format.
+
+```go
+func ListPipelinesJSON (pipelines []*model.Pipeline) error
+```
+
+### ListPipelinesYAML
+
+ListPipelinesYAML outputs pipelines in YAML format.
+
+```go
+func ListPipelinesYAML (pipelines []*model.Pipeline) error
+```
+
 ### LoadPipeline
 
 LoadPipeline loads and parses a pipeline from a yaml file.
@@ -389,6 +461,14 @@ NewLinter creates a new linter.
 
 ```go
 func NewLinter (pipeline *model.Pipeline) *Linter
+```
+
+### NewLinterWithPipelines
+
+NewLinterWithPipelines creates a linter with access to all pipelines for cross-pipeline validation.
+
+```go
+func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter
 ```
 
 ### NewPipeline
@@ -605,12 +685,38 @@ Lint validates the pipeline and returns any errors.
 func (*Linter) Lint () []LintError
 ```
 
+### Error
+
+Error returns the error hinting a default job should be defined.
+
+```go
+func (*NoDefaultJobError) Error () string
+```
+
 ### Load
 
 Load discovers and returns all skill pipelines that match their When conditions.
 
 ```go
 func (*Skills) Load () ([]*model.Pipeline, error)
+```
+
+### Resolve
+
+Resolve resolves a task name to its pipeline and job.
+Returns an error if the task cannot be found.
+
+```go
+func (*TaskResolver) Resolve (taskName string) (*ResolvedTask, error)
+```
+
+### Validate
+
+Validate checks if a task reference is valid without returning the full result.
+This is useful for linting where you only need to know if the reference is valid.
+
+```go
+func (*TaskResolver) Validate (taskName string) error
 ```
 
 ### Error

@@ -39,6 +39,17 @@ func NewDisplayWithFinal(finalOnly bool) *Display {
 	}
 }
 
+// NewSilentDisplay creates a display that produces no output.
+// Used when JSON/YAML output mode is enabled.
+func NewSilentDisplay() *Display {
+	return &Display{
+		lastLineCount: 0,
+		isTerminal:    false,
+		renderer:      NewRenderer(),
+		finalOnly:     true,
+	}
+}
+
 // IsTerminal returns whether stdout is a TTY.
 func (d *Display) IsTerminal() bool {
 	return d.isTerminal

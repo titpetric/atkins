@@ -84,6 +84,7 @@ func Pipeline() *cli.Command {
 
 // resolveJobTarget determines which pipeline and job to run based on the job name.
 // Resolution order:
+// 0. Explicit root reference (e.g., ":build" or ":go:build") - bypass alias resolution
 // 1. Prefixed job (e.g., "go:test") - explicit skill:job reference
 // 2. Alias match - job with matching alias in any skill pipeline
 // 3. Skill ID with default - skill name that has a "default" job
@@ -91,6 +92,33 @@ func Pipeline() *cli.Command {
 // 5. Fuzzy match - suffix/substring match in job names (if exactly one match)
 // 6. Main pipeline - fallback to first pipeline (no skill ID)
 func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pipeline, string, error) {
+	// 0. Check for explicit root reference (leading colon)
+	// :build → main pipeline job "build"
+	// :go:build → skill "go" job "build" (explicit, bypasses aliases)
+	if strings.HasPrefix(jobName, ":") {
+		explicitName := jobName[1:] // Remove leading colon
+
+		// Check if it's :skillID:jobName or just :jobName
+		if parts := strings.SplitN(explicitName, ":", 2); len(parts) == 2 {
+			// :go:build → skill "go", job "build"
+			skillID, skillJob := parts[0], parts[1]
+			for _, p := range pipelines {
+				if p.ID == skillID {
+					return []*model.Pipeline{p}, skillJob, nil
+				}
+			}
+			return nil, "", fmt.Errorf("%s skill %q not found", colors.BrightRed("ERROR:"), skillID)
+		}
+
+		// :build → main pipeline (ID="") job "build"
+		for _, p := range pipelines {
+			if p.ID == "" {
+				return []*model.Pipeline{p}, explicitName, nil
+			}
+		}
+		return nil, "", fmt.Errorf("%s main pipeline not found", colors.BrightRed("ERROR:"))
+	}
+
 	// 1. Check if job has a skill prefix (e.g., "go:test")
 	if parts := strings.SplitN(jobName, ":", 2); len(parts) == 2 {
 		skillID, skillJob := parts[0], parts[1]
@@ -153,6 +181,11 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 }
 
 func runPipeline(ctx context.Context, opts *Options, args []string) error {
+	// Validate mutually exclusive flags
+	if opts.JSON && opts.YAML {
+		return fmt.Errorf("%s --json and --yaml flags cannot be combined", colors.BrightRed("ERROR:"))
+	}
+
 	fileFlag := opts.FlagSet.Lookup("file")
 
 	// Handle positional arguments before changing directory
@@ -259,7 +292,7 @@ pipelineReady:
 	// Handle lint mode
 	if opts.Lint || opts.List {
 		for _, pipeline := range pipelines {
-			linter := runner.NewLinter(pipeline)
+			linter := runner.NewLinterWithPipelines(pipeline, pipelines)
 			lintErrors := linter.Lint()
 			if len(lintErrors) > 0 {
 				fmt.Printf("%s Pipeline '%s' has errors:\n", colors.BrightRed("✗"), pipeline.Name)
@@ -274,6 +307,9 @@ pipelineReady:
 			return nil
 		}
 	}
+
+	// Save all pipelines for cross-pipeline task references
+	allPipelines := pipelines
 
 	// Determine which pipeline(s) to target based on job specification
 	jobName := opts.Job
@@ -296,6 +332,13 @@ pipelineReady:
 
 	// Handle list mode
 	if opts.List {
+		if opts.JSON {
+			return runner.ListPipelinesJSON(pipelines)
+		}
+		if opts.YAML {
+			return runner.ListPipelinesYAML(pipelines)
+		}
+
 		runner.ListPipelines(pipelines)
 
 		if opts.Debug {
@@ -335,6 +378,9 @@ pipelineReady:
 			PipelineFile: opts.File,
 			Debug:        opts.Debug,
 			FinalOnly:    opts.FinalOnly,
+			JSON:         opts.JSON,
+			YAML:         opts.YAML,
+			AllPipelines: allPipelines,
 		})
 		if err != nil {
 			exitCode = 1

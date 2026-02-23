@@ -36,6 +36,8 @@ type Options struct {
 	FinalOnly		bool
 	WorkingDirectory	string
 	Jail			bool
+	JSON			bool
+	YAML			bool
 
 	FlagSet	*cli.FlagSet
 }

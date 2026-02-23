@@ -13,6 +13,8 @@ type Options struct {
 	FinalOnly        bool
 	WorkingDirectory string
 	Jail             bool
+	JSON             bool
+	YAML             bool
 
 	FlagSet *cli.FlagSet
 }
@@ -31,6 +33,8 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.BoolVar(&o.FinalOnly, "final", false, "Only render final output without redrawing (no interactive tree)")
 	fs.StringVarP(&o.WorkingDirectory, "working-directory", "w", "", "Change to this directory before running")
 	fs.BoolVar(&o.Jail, "jail", false, "Restrict to project scope, skip global resources from $HOME")
+	fs.BoolVarP(&o.JSON, "json", "j", false, "Output in JSON format")
+	fs.BoolVarP(&o.YAML, "yaml", "y", false, "Output in YAML format")
 
 	o.FlagSet = fs
 }

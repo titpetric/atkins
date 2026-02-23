@@ -2,11 +2,8 @@ package runner
 
 import (
 	"fmt"
-	"maps"
-	"slices"
 
 	"github.com/titpetric/atkins/model"
-	"github.com/titpetric/atkins/treeview"
 )
 
 // LintError represents a linting error.
@@ -18,8 +15,9 @@ type LintError struct {
 
 // Linter validates a pipeline for correctness.
 type Linter struct {
-	pipeline *model.Pipeline
-	errors   []LintError
+	pipeline     *model.Pipeline
+	allPipelines []*model.Pipeline // All pipelines for cross-pipeline validation
+	errors       []LintError
 }
 
 // NewLinter creates a new linter.
@@ -27,6 +25,15 @@ func NewLinter(pipeline *model.Pipeline) *Linter {
 	return &Linter{
 		pipeline: pipeline,
 		errors:   make([]LintError, 0),
+	}
+}
+
+// NewLinterWithPipelines creates a linter with access to all pipelines for cross-pipeline validation.
+func NewLinterWithPipelines(pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter {
+	return &Linter{
+		pipeline:     pipeline,
+		allPipelines: allPipelines,
+		errors:       make([]LintError, 0),
 	}
 }
 
@@ -86,16 +93,28 @@ func (l *Linter) validateTaskInvocations() {
 		// Check each step for task references
 		for _, step := range job.Children() {
 			if step != nil && step.Task != "" {
-				if _, exists := jobs[step.Task]; !exists {
+				if err := l.validateTaskReference(step.Task); err != nil {
 					l.errors = append(l.errors, LintError{
 						Job:    jobName,
 						Issue:  "missing task reference",
-						Detail: fmt.Sprintf("step references task '%s', but task not found", step.Task),
+						Detail: err.Error(),
 					})
 				}
 			}
 		}
 	}
+}
+
+// validateTaskReference validates a task reference using the shared TaskResolver.
+func (l *Linter) validateTaskReference(taskName string) error {
+	resolver := &TaskResolver{
+		CurrentPipeline: l.pipeline,
+		AllPipelines:    l.allPipelines,
+	}
+	if err := resolver.Validate(taskName); err != nil {
+		return fmt.Errorf("step references task '%s', but %s", taskName, err)
+	}
+	return nil
 }
 
 // GetDependencies converts depends_on field (string or []string) to a slice of job names.
@@ -124,6 +143,36 @@ func GetDependencies(dependsOn any) []string {
 	}
 }
 
+// NoDefaultJobError is returned when no default job is found.
+type NoDefaultJobError struct {
+	Jobs map[string]*model.Job
+}
+
+// Error returns the error hinting a default job should be defined.
+func (e *NoDefaultJobError) Error() string {
+	return "task \"default\" does not exist"
+}
+
+// findDefaultJob finds the "default" job, either directly or via alias.
+// Returns the job name to use (which may differ from "default" if found via alias).
+func findDefaultJob(jobs map[string]*model.Job) (string, bool) {
+	// First check for direct "default" job
+	if _, exists := jobs["default"]; exists {
+		return "default", true
+	}
+
+	// Check for a job with "default" as an alias
+	for jobName, job := range jobs {
+		for _, alias := range job.Aliases {
+			if alias == "default" {
+				return jobName, true
+			}
+		}
+	}
+
+	return "", false
+}
+
 // ResolveJobDependencies returns jobs in dependency order.
 // Returns the jobs to run and any resolution errors.
 func ResolveJobDependencies(jobs map[string]*model.Job, startingJob string) ([]string, error) {
@@ -150,12 +199,13 @@ func ResolveJobDependencies(jobs map[string]*model.Job, startingJob string) ([]s
 		}
 	}
 
-	// If 'default' job exists, start with that
-	if _, hasDefault := jobs["default"]; hasDefault && len(jobs) > 0 {
-		return resolveDependencyChain(jobs, "default")
+	// If 'default' job exists (directly or via alias), start with that
+	if defaultJob, found := findDefaultJob(jobs); found {
+		return resolveDependencyChain(jobs, defaultJob)
 	}
 
-	return resolveJobs(jobs)
+	// No default job found - return error with available jobs
+	return nil, &NoDefaultJobError{Jobs: jobs}
 }
 
 // resolveDependencyChain returns a job and all its dependencies in execution order
@@ -221,56 +271,4 @@ func ValidateJobRequirements(ctx *ExecutionContext, job *model.Job) error {
 	}
 
 	return nil
-}
-
-// resolveJobs returns all jobs in dependency order (topological sort)
-// When called without a specific job, only root jobs are traversed as starting points,
-// but their nested dependencies are included in the result.
-func resolveJobs(jobs map[string]*model.Job) ([]string, error) {
-	resolved := make([]string, 0)
-	visited := make(map[string]bool)
-	var visit func(string) error
-
-	visit = func(name string) error {
-		if visited[name] {
-			return nil
-		}
-
-		job, exists := jobs[name]
-		if !exists {
-			return fmt.Errorf("job '%s' not found", name)
-		}
-
-		visited[name] = true
-
-		// Visit dependencies first
-		deps := GetDependencies(job.DependsOn)
-		for _, dep := range deps {
-			if err := visit(dep); err != nil {
-				return err
-			}
-		}
-
-		resolved = append(resolved, name)
-		return nil
-	}
-
-	// Only start traversal from root jobs
-	// This ensures nested jobs are only included if they're dependencies of root jobs
-	// Sort by depth for consistent ordering with static display
-	names := treeview.SortJobsByDepth(slices.Sorted(maps.Keys(jobs)))
-	for _, jobName := range names {
-		job := jobs[jobName]
-		if job.Name == "" {
-			job.Name = jobName
-		}
-		if !job.IsRootLevel() {
-			continue // Skip nested jobs as starting points
-		}
-		if err := visit(jobName); err != nil {
-			return nil, err
-		}
-	}
-
-	return resolved, nil
 }

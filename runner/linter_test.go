@@ -164,3 +164,129 @@ func TestJobChildrenConsistency(t *testing.T) {
 	assert.Equal(t, job4.Children(), job4.Steps)
 	assert.NotEqual(t, job4.Children(), job4.Cmds)
 }
+
+// TestFindDefaultJob verifies default job lookup including alias support
+func TestFindDefaultJob(t *testing.T) {
+	t.Run("direct default job", func(t *testing.T) {
+		jobs := map[string]*model.Job{
+			"default": {Name: "default"},
+			"build":   {Name: "build"},
+		}
+		name, found := findDefaultJob(jobs)
+		assert.True(t, found)
+		assert.Equal(t, "default", name)
+	})
+
+	t.Run("default via alias", func(t *testing.T) {
+		jobs := map[string]*model.Job{
+			"build": {Name: "build", Aliases: []string{"default"}},
+			"test":  {Name: "test"},
+		}
+		name, found := findDefaultJob(jobs)
+		assert.True(t, found)
+		assert.Equal(t, "build", name)
+	})
+
+	t.Run("no default", func(t *testing.T) {
+		jobs := map[string]*model.Job{
+			"build": {Name: "build"},
+			"test":  {Name: "test"},
+		}
+		_, found := findDefaultJob(jobs)
+		assert.False(t, found)
+	})
+
+	t.Run("direct default takes precedence over alias", func(t *testing.T) {
+		jobs := map[string]*model.Job{
+			"default": {Name: "default"},
+			"build":   {Name: "build", Aliases: []string{"default"}},
+		}
+		name, found := findDefaultJob(jobs)
+		assert.True(t, found)
+		assert.Equal(t, "default", name)
+	})
+}
+
+// TestNoDefaultJobError verifies error message
+func TestNoDefaultJobError(t *testing.T) {
+	err := &NoDefaultJobError{
+		Jobs: map[string]*model.Job{
+			"build": {},
+			"test":  {},
+		},
+	}
+	assert.Equal(t, `task "default" does not exist`, err.Error())
+}
+
+// TestResolveJobDependencies_NoDefault verifies NoDefaultJobError is returned
+func TestResolveJobDependencies_NoDefault(t *testing.T) {
+	jobs := map[string]*model.Job{
+		"build": {Name: "build"},
+		"test":  {Name: "test"},
+	}
+	_, err := ResolveJobDependencies(jobs, "")
+	assert.Error(t, err)
+	var noDefaultErr *NoDefaultJobError
+	assert.ErrorAs(t, err, &noDefaultErr)
+}
+
+// TestLinterWithPipelines_CrossPipelineValidation tests cross-pipeline task validation
+func TestLinterWithPipelines_CrossPipelineValidation(t *testing.T) {
+	mainPipeline := &model.Pipeline{
+		ID:   "",
+		Name: "main",
+		Jobs: map[string]*model.Job{
+			"build": {Name: "build", Steps: []*model.Step{{Run: "echo build"}}},
+		},
+	}
+
+	goSkill := &model.Pipeline{
+		ID:   "go",
+		Name: "Go Skill",
+		Jobs: map[string]*model.Job{
+			"test": {
+				Name: "test",
+				Steps: []*model.Step{
+					{Task: ":build"}, // Reference main pipeline
+				},
+			},
+		},
+	}
+
+	allPipelines := []*model.Pipeline{mainPipeline, goSkill}
+
+	// Validate goSkill with access to all pipelines
+	linter := NewLinterWithPipelines(goSkill, allPipelines)
+	errors := linter.Lint()
+	assert.Len(t, errors, 0, "valid cross-pipeline reference should not produce errors")
+}
+
+// TestLinterWithPipelines_InvalidCrossPipelineRef tests invalid cross-pipeline references
+func TestLinterWithPipelines_InvalidCrossPipelineRef(t *testing.T) {
+	mainPipeline := &model.Pipeline{
+		ID:   "",
+		Name: "main",
+		Jobs: map[string]*model.Job{},
+	}
+
+	goSkill := &model.Pipeline{
+		ID:   "go",
+		Name: "Go Skill",
+		Jobs: map[string]*model.Job{
+			"test": {
+				Name: "test",
+				Steps: []*model.Step{
+					{Task: ":nonexistent"}, // Reference that doesn't exist
+				},
+			},
+		},
+	}
+
+	allPipelines := []*model.Pipeline{mainPipeline, goSkill}
+
+	linter := NewLinterWithPipelines(goSkill, allPipelines)
+	errors := linter.Lint()
+	assert.Len(t, errors, 1)
+	assert.Equal(t, "missing task reference", errors[0].Issue)
+	assert.Contains(t, errors[0].Detail, ":nonexistent")
+}

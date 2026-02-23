@@ -116,6 +116,7 @@ const (
 - `func NewNode (name string) *Node`
 - `func NewPendingStepNode (name string, deferred,summarize bool) *Node`
 - `func NewRenderer () *Renderer`
+- `func NewSilentDisplay () *Display`
 - `func NewStepNode (name string, deferred bool) *Node`
 - `func NewTreeNode (name string) *TreeNode`
 - `func NewTrimmer () *Trimmer`
@@ -257,6 +258,15 @@ NewRenderer creates a new tree renderer.
 
 ```go
 func NewRenderer () *Renderer
+```
+
+### NewSilentDisplay
+
+NewSilentDisplay creates a display that produces no output.
+Used when JSON/YAML output mode is enabled.
+
+```go
+func NewSilentDisplay () *Display
 ```
 
 ### NewStepNode
