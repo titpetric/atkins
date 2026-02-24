@@ -86,11 +86,12 @@ func Pipeline() *cli.Command {
 // Resolution order:
 // 0. Explicit root reference (e.g., ":build" or ":go:build") - bypass alias resolution
 // 1. Prefixed job (e.g., "go:test") - explicit skill:job reference
-// 2. Alias match - job with matching alias in any skill pipeline
-// 3. Skill ID with default - skill name that has a "default" job
-// 4. Skill ID (for listing) - skill name without requiring default job
-// 5. Fuzzy match - suffix/substring match in job names (if exactly one match)
-// 6. Main pipeline - fallback to first pipeline (no skill ID)
+// 2. Exact main pipeline match - job name exactly matches a job in main pipeline
+// 3. Alias match - job with matching alias in any skill pipeline
+// 4. Skill ID with default - skill name that has a "default" job
+// 5. Skill ID (for listing) - skill name without requiring default job
+// 6. Fuzzy match - suffix/substring match in job names (if exactly one match)
+// 7. Main pipeline - fallback to first pipeline (no skill ID)
 func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pipeline, string, error) {
 	// 0. Check for explicit root reference (leading colon)
 	// :build → main pipeline job "build"
@@ -130,7 +131,22 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		return nil, "", fmt.Errorf("%s skill %q not found", colors.BrightRed("ERROR:"), skillID)
 	}
 
-	// 2. Check if jobName matches an alias in any pipeline
+	// 2. Check if jobName exactly matches a job in the main pipeline
+	// Main pipeline jobs take precedence over aliases
+	for _, p := range pipelines {
+		if p.ID == "" {
+			jobs := p.Jobs
+			if len(jobs) == 0 {
+				jobs = p.Tasks
+			}
+			if _, exists := jobs[jobName]; exists {
+				return []*model.Pipeline{p}, jobName, nil
+			}
+			break // Only check the main pipeline (ID="")
+		}
+	}
+
+	// 3. Check if jobName matches an alias in any pipeline
 	for _, p := range pipelines {
 		jobs := p.Jobs
 		if len(jobs) == 0 {
@@ -145,7 +161,7 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		}
 	}
 
-	// 3. Check if jobName matches a skill ID with a "default" job
+	// 4. Check if jobName matches a skill ID with a "default" job
 	for _, p := range pipelines {
 		if p.ID == jobName {
 			jobs := p.Jobs
@@ -158,14 +174,14 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		}
 	}
 
-	// 4. Check if jobName matches a skill ID (for listing without default)
+	// 5. Check if jobName matches a skill ID (for listing without default)
 	for _, p := range pipelines {
 		if p.ID == jobName {
 			return []*model.Pipeline{p}, "", nil
 		}
 	}
 
-	// 5. Fuzzy match - check for suffix/substring matches in job names
+	// 6. Fuzzy match - check for suffix/substring matches in job names
 	matches := findFuzzyMatches(pipelines, jobName)
 	if len(matches) == 1 {
 		// Exactly one match found, use it
@@ -176,7 +192,7 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		return []*model.Pipeline{matches[0].Pipeline}, "", &FuzzyMatchError{Matches: matches}
 	}
 
-	// 6. Fallback to main pipeline (first one, no skill ID)
+	// 7. Fallback to main pipeline (first one, no skill ID)
 	return []*model.Pipeline{pipelines[0]}, jobName, nil
 }
 

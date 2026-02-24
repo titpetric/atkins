@@ -68,7 +68,7 @@ jobs:
     desc: "Build tests"
     steps:
       - rm bin/*.test -f
-      - go test -cover -coverpkg=./... -c -o bin/ ./...
+      - go test -cover -coverpkg=github.com/titpetric/atkins/... -c -o bin/ ./...
 
   test:run:
     desc: "Run built tests"
