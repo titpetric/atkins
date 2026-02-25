@@ -1,0 +1,6 @@
+name: interpolation step dir
+jobs:
+  default:
+    steps:
+      - dir: $(echo "/nonexistent" >&2; exit 1)
+        run: echo should not reach this

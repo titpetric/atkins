@@ -1,0 +1,8 @@
+name: interpolation pipeline env
+env:
+  vars:
+    BROKEN_ENV: $(echo "pipeline env error" >&2; exit 1)
+jobs:
+  default:
+    steps:
+      - run: echo $BROKEN_ENV

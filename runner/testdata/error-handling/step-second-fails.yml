@@ -1,0 +1,7 @@
+name: step second fails
+jobs:
+  default:
+    steps:
+      - run: echo "step one passes"
+      - run: echo "step two fails" >&2 && exit 1
+      - run: echo "step three should not run"

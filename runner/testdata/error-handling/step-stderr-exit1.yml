@@ -1,0 +1,5 @@
+name: step stderr exit1
+jobs:
+  default:
+    steps:
+      - run: echo "stderr error output" >&2 && exit 1

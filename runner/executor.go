@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -121,6 +122,11 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 		if err != nil {
 			return fmt.Errorf("failed to interpolate job dir %q: %w", job.Dir, err)
 		}
+		if info, statErr := os.Stat(dir); statErr != nil {
+			return fmt.Errorf("job dir %q: %w", dir, statErr)
+		} else if !info.IsDir() {
+			return fmt.Errorf("job dir %q is not a directory", dir)
+		}
 		execCtx.Dir = dir
 	}
 
@@ -219,7 +225,11 @@ func (e *Executor) executeSteps(ctx context.Context, execCtx *ExecutionContext, 
 
 // executeStepWithNode runs a single step with a provided node
 func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
-	stepCtx := e.prepareStepContext(execCtx, ctx, step)
+	stepCtx, err := e.prepareStepContext(execCtx, ctx, step)
+	if err != nil {
+		stepNode.SetStatus(treeview.StatusFailed)
+		return err
+	}
 
 	// Merge step-level vars with interpolation - but skip if step has a for loop
 	// When step.For != "", vars may depend on loop variables (e.g., ${{item}})
@@ -270,7 +280,10 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	// This ensures all steps in a job get unique sequential indices
 	seqIndex := execCtx.NextStepIndex()
 
-	stepCtx := e.prepareStepContext(execCtx, ctx, step)
+	stepCtx, err := e.prepareStepContext(execCtx, ctx, step)
+	if err != nil {
+		return err
+	}
 	stepCtx.StepSequence = seqIndex // Set the index for this step
 
 	// Get step node from tree
@@ -336,7 +349,7 @@ func (e *Executor) recordStepCompletion(execCtx *ExecutionContext, passed bool) 
 }
 
 // prepareStepContext creates a new execution context for a step, copying parent env and context
-func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.Context, step *model.Step) *ExecutionContext {
+func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.Context, step *model.Step) (*ExecutionContext, error) {
 	stepCtx := parentCtx.Copy()
 	stepCtx.Context = ctx
 	stepCtx.Step = step
@@ -350,12 +363,18 @@ func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.C
 	// Evaluate step-level working directory (overrides job dir)
 	if step.Dir != "" {
 		dir, err := InterpolateString(step.Dir, stepCtx)
-		if err == nil {
-			stepCtx.Dir = dir
+		if err != nil {
+			return nil, fmt.Errorf("failed to interpolate step dir %q: %w", step.Dir, err)
 		}
+		if info, statErr := os.Stat(dir); statErr != nil {
+			return nil, fmt.Errorf("step dir %q: %w", dir, statErr)
+		} else if !info.IsDir() {
+			return nil, fmt.Errorf("step dir %q is not a directory", dir)
+		}
+		stepCtx.Dir = dir
 	}
 
-	return stepCtx
+	return stepCtx, nil
 }
 
 // prepareIterationContext creates a new execution context for a loop iteration, overlaying iteration variables

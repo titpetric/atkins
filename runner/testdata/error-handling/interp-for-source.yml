@@ -1,0 +1,6 @@
+name: interpolation for loop source
+jobs:
+  default:
+    steps:
+      - for: item in $(echo "items"; exit 1)
+        run: echo ${{ item }}

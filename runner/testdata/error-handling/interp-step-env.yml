@@ -1,0 +1,8 @@
+name: interpolation step env
+jobs:
+  default:
+    steps:
+      - env:
+          vars:
+            BROKEN_ENV: $(echo "step env error" >&2; exit 1)
+        run: echo $BROKEN_ENV

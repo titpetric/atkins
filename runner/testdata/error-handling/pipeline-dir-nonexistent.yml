@@ -1,0 +1,6 @@
+name: pipeline dir nonexistent
+dir: /nonexistent/path/that/does/not/exist
+jobs:
+  default:
+    steps:
+      - run: echo should not reach this

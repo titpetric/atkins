@@ -1,0 +1,5 @@
+name: step cmd exit1
+jobs:
+  default:
+    steps:
+      - cmd: echo "cmd error output" >&2 && exit 1

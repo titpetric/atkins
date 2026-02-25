@@ -118,6 +118,20 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		return err
 	}
 
+	// Evaluate pipeline-level working directory
+	if pipeline.Dir != "" {
+		dir, err := InterpolateString(pipeline.Dir, pipelineCtx)
+		if err != nil {
+			return fmt.Errorf("failed to interpolate pipeline dir %q: %w", pipeline.Dir, err)
+		}
+		if info, statErr := os.Stat(dir); statErr != nil {
+			return fmt.Errorf("pipeline dir %q: %w", dir, statErr)
+		} else if !info.IsDir() {
+			return fmt.Errorf("pipeline dir %q is not a directory", dir)
+		}
+		pipelineCtx.Dir = dir
+	}
+
 	// Resolve jobs to run
 	allJobs := pipeline.Jobs
 	if len(allJobs) == 0 {

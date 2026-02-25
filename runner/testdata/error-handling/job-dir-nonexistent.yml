@@ -1,0 +1,6 @@
+name: job dir nonexistent
+jobs:
+  default:
+    dir: /nonexistent/path/that/does/not/exist
+    steps:
+      - run: echo should not reach this

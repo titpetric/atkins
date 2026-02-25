@@ -1,0 +1,5 @@
+name: step stdout exit1
+jobs:
+  default:
+    steps:
+      - run: echo "stdout error output" && exit 1

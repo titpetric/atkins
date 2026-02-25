@@ -1,0 +1,7 @@
+name: interpolation job var
+jobs:
+  default:
+    vars:
+      broken: $(echo "job var error" >&2; exit 1)
+    steps:
+      - run: echo ${{ broken }}

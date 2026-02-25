@@ -1,0 +1,5 @@
+theme:
+  header:
+    title: Atkins
+    subtitle: Documentation
+    icon: "bug-play"

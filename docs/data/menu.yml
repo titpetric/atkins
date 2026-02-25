@@ -1,0 +1,34 @@
+menu:
+  - type: group
+    label: Getting Started
+    items:
+      - label: Introduction
+        url: /getting-started/introduction
+      - label: Installation
+        url: /getting-started/installation
+      - label: Migration from Task
+        url: /getting-started/migration-from-task
+      - label: Migration from GitHub Actions
+        url: /getting-started/migration-from-github-actions
+  - type: group
+    label: Usage
+    items:
+      - label: CLI Flags
+        url: /usage/cli-flags
+      - label: Job Targeting
+        url: /usage/job-targeting
+      - label: Skills
+        url: /usage/skills
+      - label: Automation (JSON/YAML)
+        url: /usage/automation
+  - type: group
+    label: Schema Reference
+    items:
+      - label: Pipeline
+        url: /schema/pipeline
+      - label: Jobs & Tasks
+        url: /schema/jobs
+      - label: Steps
+        url: /schema/steps
+      - label: Variables & Interpolation
+        url: /schema/variables

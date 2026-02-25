@@ -92,6 +92,7 @@ type Pipeline struct {
 
 	ID	string	`yaml:"-"`
 	Name	string	`yaml:"name,omitempty"`
+	Dir	string	`yaml:"dir,omitempty"`
 
 	Jobs	map[string]*Job	`yaml:"jobs,omitempty"`
 	Tasks	map[string]*Job	`yaml:"tasks,omitempty"`

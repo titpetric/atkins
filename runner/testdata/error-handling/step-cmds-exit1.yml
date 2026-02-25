@@ -1,0 +1,8 @@
+name: step cmds exit1
+jobs:
+  default:
+    steps:
+      - cmds:
+          - echo "first command ok"
+          - echo "second fails" >&2 && exit 1
+          - echo "third should still run"

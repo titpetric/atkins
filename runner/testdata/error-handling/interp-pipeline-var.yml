@@ -1,0 +1,7 @@
+name: interpolation pipeline var
+vars:
+  broken: $(echo "pipeline var error" >&2; exit 1)
+jobs:
+  default:
+    steps:
+      - run: echo ${{ broken }}

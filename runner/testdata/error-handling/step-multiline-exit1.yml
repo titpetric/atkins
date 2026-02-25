@@ -1,0 +1,8 @@
+name: step multiline exit1
+jobs:
+  default:
+    steps:
+      - run: |
+          echo "first line stdout"
+          echo "second line stderr" >&2
+          exit 1
