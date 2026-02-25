@@ -25,71 +25,83 @@ func TestNewShellCommand(t *testing.T) {
 	assert.Equal(t, []string{"-c", "echo $HOME && ls"}, cmd.Args)
 }
 
-func TestCommand_WithDir(t *testing.T) {
-	cmd := psexec.NewCommand("pwd").WithDir("/tmp")
+func TestCommand_Dir(t *testing.T) {
+	cmd := psexec.NewCommand("pwd")
+	cmd.Dir = "/tmp"
 
 	assert.Equal(t, "/tmp", cmd.Dir)
 }
 
-func TestCommand_WithEnv(t *testing.T) {
+func TestCommand_Env(t *testing.T) {
 	env := []string{"FOO=bar", "BAZ=qux"}
-	cmd := psexec.NewCommand("env").WithEnv(env)
+	cmd := psexec.NewCommand("env")
+	cmd.Env = env
 
 	assert.Equal(t, env, cmd.Env)
 }
 
-func TestCommand_WithStdin(t *testing.T) {
+func TestCommand_Stdin(t *testing.T) {
 	reader := strings.NewReader("input")
-	cmd := psexec.NewCommand("cat").WithStdin(reader)
+	cmd := psexec.NewCommand("cat")
+	cmd.Stdin = reader
 
 	assert.Equal(t, reader, cmd.Stdin)
 }
 
-func TestCommand_WithStdout(t *testing.T) {
+func TestCommand_Stdout(t *testing.T) {
 	var buf bytes.Buffer
-	cmd := psexec.NewCommand("echo").WithStdout(&buf)
+	cmd := psexec.NewCommand("echo")
+	cmd.Stdout = &buf
 
 	assert.Equal(t, &buf, cmd.Stdout)
 }
 
-func TestCommand_WithStderr(t *testing.T) {
+func TestCommand_Stderr(t *testing.T) {
 	var buf bytes.Buffer
-	cmd := psexec.NewCommand("test").WithStderr(&buf)
+	cmd := psexec.NewCommand("test")
+	cmd.Stderr = &buf
 
 	assert.Equal(t, &buf, cmd.Stderr)
 }
 
-func TestCommand_WithTimeout(t *testing.T) {
-	cmd := psexec.NewCommand("sleep").WithTimeout(5 * time.Second)
+func TestCommand_Timeout(t *testing.T) {
+	cmd := psexec.NewCommand("sleep")
+	cmd.Timeout = 5 * time.Second
 
 	assert.Equal(t, 5*time.Second, cmd.Timeout)
 }
 
-func TestCommand_WithPTY(t *testing.T) {
-	cmd := psexec.NewCommand("vim").WithPTY()
+func TestCommand_UsePTY(t *testing.T) {
+	cmd := psexec.NewCommand("vim")
+	cmd.UsePTY = true
 
 	assert.True(t, cmd.UsePTY)
 	assert.False(t, cmd.Interactive)
 }
 
-func TestCommand_AsInteractive(t *testing.T) {
-	cmd := psexec.NewCommand("bash").AsInteractive()
+func TestCommand_Interactive(t *testing.T) {
+	cmd := psexec.NewCommand("bash")
+	cmd.Interactive = true
+	cmd.UsePTY = true
 
 	assert.True(t, cmd.UsePTY)
 	assert.True(t, cmd.Interactive)
 }
 
-func TestCommand_Chaining(t *testing.T) {
+func TestCommand_StructLiteral(t *testing.T) {
 	var buf bytes.Buffer
 	input := strings.NewReader("data")
 
-	cmd := psexec.NewCommand("test", "arg").
-		WithDir("/tmp").
-		WithEnv([]string{"KEY=value"}).
-		WithStdin(input).
-		WithStdout(&buf).
-		WithTimeout(10 * time.Second).
-		WithPTY()
+	cmd := &psexec.Command{
+		Name:    "test",
+		Args:    []string{"arg"},
+		Dir:     "/tmp",
+		Env:     []string{"KEY=value"},
+		Stdin:   input,
+		Stdout:  &buf,
+		Timeout: 10 * time.Second,
+		UsePTY:  true,
+	}
 
 	assert.Equal(t, "test", cmd.Name)
 	assert.Equal(t, []string{"arg"}, cmd.Args)

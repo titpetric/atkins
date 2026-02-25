@@ -1,9 +1,12 @@
 package psexec
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"sync"
@@ -29,39 +32,21 @@ type Process struct {
 // The process can be used for bidirectional I/O, particularly useful
 // for websocket transport.
 func (e *Executor) Start(ctx context.Context, cmd *Command) (*Process, error) {
-	// Build the exec.Cmd
-	execCmd := exec.CommandContext(ctx, cmd.Name, cmd.Args...)
+	execCmd := e.prepareCmd(ctx, cmd)
 
-	// Set working directory
-	if cmd.Dir != "" {
-		execCmd.Dir = cmd.Dir
-	} else if e.DefaultDir != "" {
-		execCmd.Dir = e.DefaultDir
-	}
-
-	// Set environment
-	execCmd.Env = e.buildEnv(cmd.Env)
-
-	// Start with PTY
-	ptmx, err := pty.Start(execCmd)
+	ptmx, err := e.startPTY(execCmd)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start PTY: %w", err)
-	}
-
-	// Set terminal size
-	if size := getTerminalSize(); size != nil {
-		pty.Setsize(ptmx, size)
+		return nil, err
 	}
 
 	proc := &Process{
 		cmd:       execCmd,
 		ptmx:      ptmx,
-		result:    newResult(),
+		result:    &processResult{stdout: new(bytes.Buffer), stderr: new(bytes.Buffer)},
 		startTime: time.Now(),
 		done:      make(chan struct{}),
 	}
 
-	// Start a goroutine to wait for completion
 	go proc.wait()
 
 	return proc, nil
@@ -93,8 +78,6 @@ func (p *Process) wait() {
 }
 
 // PTY returns the PTY file handle for direct I/O.
-// This is useful for websocket transport where you want to
-// directly copy between the websocket and the PTY.
 func (p *Process) PTY() *os.File {
 	return p.ptmx
 }
@@ -119,14 +102,12 @@ func (p *Process) Close() error {
 	p.closed = true
 	p.mu.Unlock()
 
-	// Close the PTY
 	if p.ptmx != nil {
-		p.ptmx.Close()
+		_ = p.ptmx.Close()
 	}
 
-	// Kill the process if still running
 	if p.cmd.Process != nil {
-		p.cmd.Process.Kill()
+		_ = p.cmd.Process.Kill()
 	}
 
 	return nil
@@ -145,10 +126,7 @@ func (p *Process) Done() <-chan struct{} {
 
 // Resize resizes the PTY window.
 func (p *Process) Resize(rows, cols uint16) error {
-	return pty.Setsize(p.ptmx, &pty.Winsize{
-		Rows: rows,
-		Cols: cols,
-	})
+	return pty.Setsize(p.ptmx, &pty.Winsize{Rows: rows, Cols: cols})
 }
 
 // Signal sends a signal to the process.
@@ -172,28 +150,27 @@ func (p *Process) PID() int {
 func (p *Process) Pipe(stdout io.Writer, stdin io.Reader) error {
 	var wg sync.WaitGroup
 
-	// stdin -> PTY
 	if stdin != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			io.Copy(p.ptmx, stdin)
+			if _, err := io.Copy(p.ptmx, stdin); err != nil && !errors.Is(err, io.EOF) {
+				log.Printf("psexec: stdin copy error: %v", err)
+			}
 		}()
 	}
 
-	// PTY -> stdout
 	if stdout != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			io.Copy(stdout, p.ptmx)
+			if _, err := io.Copy(stdout, p.ptmx); err != nil && !errors.Is(err, io.EOF) {
+				log.Printf("psexec: stdout copy error: %v", err)
+			}
 		}()
 	}
 
-	// Wait for process to complete
 	<-p.done
-
-	// Wait for I/O to complete
 	wg.Wait()
 
 	return p.result.Err()

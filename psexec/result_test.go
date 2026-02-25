@@ -45,7 +45,8 @@ func TestResult_ErrorOutput_EmptyWithPTY(t *testing.T) {
 	ctx := context.Background()
 
 	// PTY combines stdout/stderr, so ErrorOutput is always empty
-	cmd := psexec.NewShellCommand("echo 'stderr' >&2").WithPTY()
+	cmd := psexec.NewShellCommand("echo 'stderr' >&2")
+	cmd.UsePTY = true
 	result := exec.Run(ctx, cmd)
 
 	// Stderr goes to Output when using PTY

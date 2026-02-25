@@ -3,10 +3,13 @@ package psexec
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -21,11 +24,31 @@ type Executor struct {
 	DefaultEnv []string
 	// DefaultDir is the default working directory for all commands.
 	DefaultDir string
+	// DefaultTimeout is the default timeout for commands when not specified.
+	// Zero means no timeout.
+	DefaultTimeout time.Duration
+	// DefaultShell is the shell used for shell commands.
+	// Defaults to "bash" if empty.
+	DefaultShell string
 }
 
 // New creates a new Executor with default settings.
 func New() *Executor {
-	return &Executor{}
+	return &Executor{
+		DefaultShell: "bash",
+	}
+}
+
+// ShellCommand creates a new Command that runs via the executor's configured shell.
+func (e *Executor) ShellCommand(script string) *Command {
+	shell := e.DefaultShell
+	if shell == "" {
+		shell = "bash"
+	}
+	return &Command{
+		Name: shell,
+		Args: []string{"-c", script},
+	}
 }
 
 // Run executes a command and returns the result.
@@ -39,56 +62,72 @@ func (e *Executor) Run(ctx context.Context, cmd *Command) Result {
 	return e.runStandard(ctx, cmd)
 }
 
-// runStandard executes a command without PTY allocation.
-func (e *Executor) runStandard(ctx context.Context, cmd *Command) Result {
-	result := newResult()
-	startTime := time.Now()
-	defer func() { result.duration = time.Since(startTime) }()
-
-	// Apply timeout if specified
-	if cmd.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, cmd.Timeout)
-		defer cancel()
-	}
-
-	// Build the exec.Cmd
+// prepareCmd creates and configures an exec.Cmd from a Command.
+func (e *Executor) prepareCmd(ctx context.Context, cmd *Command) *exec.Cmd {
 	execCmd := exec.CommandContext(ctx, cmd.Name, cmd.Args...)
 
-	// Set working directory
 	if cmd.Dir != "" {
 		execCmd.Dir = cmd.Dir
 	} else if e.DefaultDir != "" {
 		execCmd.Dir = e.DefaultDir
 	}
 
-	// Set environment
 	execCmd.Env = e.buildEnv(cmd.Env)
+	return execCmd
+}
 
-	// Set stdin if provided
+// applyTimeout applies timeout to context if configured.
+func (e *Executor) applyTimeout(ctx context.Context, cmd *Command) (context.Context, context.CancelFunc) {
+	timeout := cmd.Timeout
+	if timeout == 0 {
+		timeout = e.DefaultTimeout
+	}
+	if timeout > 0 {
+		return context.WithTimeout(ctx, timeout)
+	}
+	return ctx, func() {}
+}
+
+// startPTY starts a command with PTY and sets terminal size.
+func (e *Executor) startPTY(execCmd *exec.Cmd) (*os.File, error) {
+	ptmx, err := pty.Start(execCmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start PTY: %w", err)
+	}
+	if size := e.terminalSize(); size != nil {
+		_ = pty.Setsize(ptmx, size)
+	}
+	return ptmx, nil
+}
+
+// runStandard executes a command without PTY allocation.
+func (e *Executor) runStandard(ctx context.Context, cmd *Command) Result {
+	result := &processResult{stdout: new(bytes.Buffer), stderr: new(bytes.Buffer)}
+	startTime := time.Now()
+	defer func() { result.duration = time.Since(startTime) }()
+
+	ctx, cancel := e.applyTimeout(ctx, cmd)
+	defer cancel()
+
+	execCmd := e.prepareCmd(ctx, cmd)
+
 	if cmd.Stdin != nil {
 		execCmd.Stdin = cmd.Stdin
 	}
-
-	// Set stdout - use provided writer or capture
 	if cmd.Stdout != nil {
 		execCmd.Stdout = io.MultiWriter(cmd.Stdout, result.stdout)
 	} else {
 		execCmd.Stdout = result.stdout
 	}
-
-	// Set stderr - use provided writer or capture
 	if cmd.Stderr != nil {
 		execCmd.Stderr = io.MultiWriter(cmd.Stderr, result.stderr)
 	} else {
 		execCmd.Stderr = result.stderr
 	}
 
-	// Run the command
-	err := execCmd.Run()
-	if err != nil {
+	if err := execCmd.Run(); err != nil {
 		result.err = err
-		result.exitCode = e.getExitCode(execCmd, err)
+		result.exitCode = e.extractExitCode(execCmd, err)
 	}
 
 	return result
@@ -96,146 +135,100 @@ func (e *Executor) runStandard(ctx context.Context, cmd *Command) Result {
 
 // runWithPTY executes a command with PTY allocation.
 func (e *Executor) runWithPTY(ctx context.Context, cmd *Command) Result {
-	result := newResult()
+	result := &processResult{stdout: new(bytes.Buffer), stderr: new(bytes.Buffer)}
 	startTime := time.Now()
 	defer func() { result.duration = time.Since(startTime) }()
 
-	// Apply timeout if specified
-	if cmd.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, cmd.Timeout)
-		defer cancel()
-	}
+	ctx, cancel := e.applyTimeout(ctx, cmd)
+	defer cancel()
 
-	// Build the exec.Cmd
-	execCmd := exec.CommandContext(ctx, cmd.Name, cmd.Args...)
+	execCmd := e.prepareCmd(ctx, cmd)
 
-	// Set working directory
-	if cmd.Dir != "" {
-		execCmd.Dir = cmd.Dir
-	} else if e.DefaultDir != "" {
-		execCmd.Dir = e.DefaultDir
-	}
-
-	// Set environment
-	execCmd.Env = e.buildEnv(cmd.Env)
-
-	// Start with PTY
-	ptmx, err := pty.Start(execCmd)
+	ptmx, err := e.startPTY(execCmd)
 	if err != nil {
-		result.err = fmt.Errorf("failed to start PTY: %w", err)
+		result.err = err
 		result.exitCode = 1
 		return result
 	}
-	defer ptmx.Close()
+	defer func() { _ = ptmx.Close() }()
 
-	// Set terminal size
-	if size := getTerminalSize(); size != nil {
-		pty.Setsize(ptmx, size)
-	}
-
-	// Handle stdin if provided
 	var wg sync.WaitGroup
 	if cmd.Stdin != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			io.Copy(ptmx, cmd.Stdin)
+			if _, err := io.Copy(ptmx, cmd.Stdin); err != nil && !errors.Is(err, io.EOF) {
+				log.Printf("psexec: stdin copy error: %v", err)
+			}
 		}()
 	}
 
-	// Read output
 	var outputBuf bytes.Buffer
-	var writers []io.Writer
-	writers = append(writers, &outputBuf)
+	writers := []io.Writer{&outputBuf}
 	if cmd.Stdout != nil {
 		writers = append(writers, cmd.Stdout)
 	}
-	multiWriter := io.MultiWriter(writers...)
 
-	// Copy PTY output
-	io.Copy(multiWriter, ptmx)
-
-	// Wait for stdin copy if running
-	wg.Wait()
-
-	// Wait for command to complete
-	err = execCmd.Wait()
-	if err != nil {
-		result.err = err
-		result.exitCode = e.getExitCode(execCmd, err)
+	if _, err := io.Copy(io.MultiWriter(writers...), ptmx); err != nil && !errors.Is(err, io.EOF) {
+		log.Printf("psexec: stdout copy error: %v", err)
 	}
 
-	// Store output (PTY combines stdout/stderr)
-	result.stdout = &outputBuf
+	wg.Wait()
 
+	if err := execCmd.Wait(); err != nil {
+		result.err = err
+		result.exitCode = e.extractExitCode(execCmd, err)
+	}
+
+	result.stdout = &outputBuf
 	return result
 }
 
 // runInteractive executes a command in full interactive mode.
 func (e *Executor) runInteractive(ctx context.Context, cmd *Command) Result {
-	result := newResult()
+	result := &processResult{stdout: new(bytes.Buffer), stderr: new(bytes.Buffer)}
 	startTime := time.Now()
 	defer func() { result.duration = time.Since(startTime) }()
 
-	// Build the exec.Cmd
-	execCmd := exec.CommandContext(ctx, cmd.Name, cmd.Args...)
+	execCmd := e.prepareCmd(ctx, cmd)
 
-	// Set working directory
-	if cmd.Dir != "" {
-		execCmd.Dir = cmd.Dir
-	} else if e.DefaultDir != "" {
-		execCmd.Dir = e.DefaultDir
-	}
-
-	// Set environment
-	execCmd.Env = e.buildEnv(cmd.Env)
-
-	// Start with PTY
-	ptmx, err := pty.Start(execCmd)
+	ptmx, err := e.startPTY(execCmd)
 	if err != nil {
-		result.err = fmt.Errorf("failed to start PTY: %w", err)
+		result.err = err
 		result.exitCode = 1
 		return result
 	}
-	defer ptmx.Close()
+	defer func() { _ = ptmx.Close() }()
 
-	// Set terminal size
-	if size := getTerminalSize(); size != nil {
-		pty.Setsize(ptmx, size)
-	}
-
-	// Put terminal in raw mode
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
 		result.err = fmt.Errorf("failed to set raw mode: %w", err)
 		result.exitCode = 1
 		return result
 	}
-	defer term.Restore(int(os.Stdin.Fd()), oldState)
+	defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 
-	// Bidirectional copy
 	var wg sync.WaitGroup
 
-	// stdin -> PTY
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		io.Copy(ptmx, os.Stdin)
+		if _, err := io.Copy(ptmx, os.Stdin); err != nil && !errors.Is(err, io.EOF) {
+			log.Printf("psexec: stdin copy error: %v", err)
+		}
 	}()
 
-	// PTY -> stdout
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		io.Copy(os.Stdout, ptmx)
+		if _, err := io.Copy(os.Stdout, ptmx); err != nil && !errors.Is(err, io.EOF) {
+			log.Printf("psexec: stdout copy error: %v", err)
+		}
 	}()
 
-	// Wait for command to complete
-	err = execCmd.Wait()
-	if err != nil {
+	if err := execCmd.Wait(); err != nil {
 		result.err = err
-		result.exitCode = e.getExitCode(execCmd, err)
+		result.exitCode = e.extractExitCode(execCmd, err)
 	}
 
 	return result
@@ -243,69 +236,48 @@ func (e *Executor) runInteractive(ctx context.Context, cmd *Command) Result {
 
 // RunWithIO executes a command with custom I/O streams, suitable for websocket transport.
 func (e *Executor) RunWithIO(ctx context.Context, stdout io.Writer, stdin io.Reader, cmd *Command) Result {
-	result := newResult()
+	result := &processResult{stdout: new(bytes.Buffer), stderr: new(bytes.Buffer)}
 	startTime := time.Now()
 	defer func() { result.duration = time.Since(startTime) }()
 
-	// Build the exec.Cmd
-	execCmd := exec.CommandContext(ctx, cmd.Name, cmd.Args...)
+	execCmd := e.prepareCmd(ctx, cmd)
 
-	// Set working directory
-	if cmd.Dir != "" {
-		execCmd.Dir = cmd.Dir
-	} else if e.DefaultDir != "" {
-		execCmd.Dir = e.DefaultDir
-	}
-
-	// Set environment
-	execCmd.Env = e.buildEnv(cmd.Env)
-
-	// Start with PTY for interactive-like behavior
-	ptmx, err := pty.Start(execCmd)
+	ptmx, err := e.startPTY(execCmd)
 	if err != nil {
-		result.err = fmt.Errorf("failed to start PTY: %w", err)
+		result.err = err
 		result.exitCode = 1
 		return result
 	}
 
-	// Set terminal size
-	if size := getTerminalSize(); size != nil {
-		pty.Setsize(ptmx, size)
-	}
-
-	// Bidirectional copy
 	var wg sync.WaitGroup
 
-	// stdin -> PTY
 	if stdin != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			io.Copy(ptmx, stdin)
+			if _, err := io.Copy(ptmx, stdin); err != nil && !errors.Is(err, io.EOF) {
+				log.Printf("psexec: stdin copy error: %v", err)
+			}
 		}()
 	}
 
-	// PTY -> stdout
 	if stdout != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			io.Copy(stdout, ptmx)
+			if _, err := io.Copy(stdout, ptmx); err != nil && !errors.Is(err, io.EOF) {
+				log.Printf("psexec: stdout copy error: %v", err)
+			}
 		}()
 	}
 
-	// Wait for command to complete
 	err = execCmd.Wait()
-
-	// Wait for I/O goroutines to finish
 	wg.Wait()
-
-	// Close PTY to signal EOF to readers
-	ptmx.Close()
+	_ = ptmx.Close()
 
 	if err != nil {
 		result.err = err
-		result.exitCode = e.getExitCode(execCmd, err)
+		result.exitCode = e.extractExitCode(execCmd, err)
 	}
 
 	return result
@@ -313,48 +285,39 @@ func (e *Executor) RunWithIO(ctx context.Context, stdout io.Writer, stdin io.Rea
 
 // buildEnv constructs the environment for a command.
 func (e *Executor) buildEnv(cmdEnv []string) []string {
-	// Start with current process environment
 	env := os.Environ()
 
-	// Add default environment
-	for _, kv := range e.DefaultEnv {
-		env = setEnv(env, kv)
+	// Helper to set/replace env var
+	set := func(kv string) {
+		idx := strings.Index(kv, "=")
+		if idx == -1 {
+			return
+		}
+		key := kv[:idx]
+		prefix := key + "="
+
+		// Remove existing
+		for i := 0; i < len(env); i++ {
+			if strings.HasPrefix(env[i], prefix) {
+				env = append(env[:i], env[i+1:]...)
+				i--
+			}
+		}
+		env = append(env, kv)
 	}
 
-	// Add command-specific environment
+	for _, kv := range e.DefaultEnv {
+		set(kv)
+	}
 	for _, kv := range cmdEnv {
-		env = setEnv(env, kv)
+		set(kv)
 	}
 
 	return env
 }
 
-// setEnv sets an environment variable, replacing any existing value.
-func setEnv(env []string, kv string) []string {
-	key := ""
-	for i, c := range kv {
-		if c == '=' {
-			key = kv[:i]
-			break
-		}
-	}
-	if key == "" {
-		return env
-	}
-
-	// Remove existing key
-	for i := 0; i < len(env); i++ {
-		if len(env[i]) > len(key) && env[i][:len(key)+1] == key+"=" {
-			env = append(env[:i], env[i+1:]...)
-			i--
-		}
-	}
-
-	return append(env, kv)
-}
-
-// getExitCode extracts the exit code from a completed command.
-func (e *Executor) getExitCode(cmd *exec.Cmd, err error) int {
+// extractExitCode extracts the exit code from a completed command.
+func (e *Executor) extractExitCode(cmd *exec.Cmd, err error) int {
 	if cmd.ProcessState != nil {
 		if status, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok {
 			return status.ExitStatus()
@@ -366,9 +329,8 @@ func (e *Executor) getExitCode(cmd *exec.Cmd, err error) int {
 	return 0
 }
 
-// getTerminalSize returns the current terminal size.
-func getTerminalSize() *pty.Winsize {
-	// Try to get actual terminal size
+// terminalSize returns the current terminal size.
+func (e *Executor) terminalSize() *pty.Winsize {
 	if width, height, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
 		return &pty.Winsize{
 			Rows: uint16(height),
@@ -376,7 +338,6 @@ func getTerminalSize() *pty.Winsize {
 		}
 	}
 
-	// Fall back to environment variables
 	cols := os.Getenv("COLUMNS")
 	lines := os.Getenv("LINES")
 
@@ -384,10 +345,10 @@ func getTerminalSize() *pty.Winsize {
 	height := 24
 
 	if cols != "" {
-		fmt.Sscanf(cols, "%d", &width)
+		_, _ = fmt.Sscanf(cols, "%d", &width)
 	}
 	if lines != "" {
-		fmt.Sscanf(lines, "%d", &height)
+		_, _ = fmt.Sscanf(lines, "%d", &height)
 	}
 
 	return &pty.Winsize{

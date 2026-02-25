@@ -1,15 +1,7 @@
 package runner
 
 import (
-	"bytes"
-	"io"
-	"os"
-	"os/exec"
-	"strconv"
-	"strings"
-
-	"github.com/creack/pty"
-	"golang.org/x/term"
+	"github.com/titpetric/atkins/psexec"
 )
 
 // ExecError represents an error from command execution.
@@ -17,297 +9,31 @@ type ExecError struct {
 	Message      string
 	Output       string
 	LastExitCode int
-	Trace        string
 }
 
-// Error returns the error message.
-func (r ExecError) Error() string {
-	return r.Message
-}
-
-// Len returns the length of the error message.
-func (r ExecError) Len() int {
-	return len(r.Message)
-}
-
-// Exec runs shell commands.
-type Exec struct {
-	Env map[string]string // Optional environment variables to pass to commands
-	Dir string            // Optional working directory for commands
-}
-
-// NewExec creates a new Exec instance.
-func NewExec() *Exec {
-	return &Exec{
-		Env: make(map[string]string),
+// NewExecError creates an ExecError from a psexec.Result.
+func NewExecError(result psexec.Result) ExecError {
+	msg := "command failed"
+	if result.Err() != nil {
+		msg = result.Err().Error()
+	}
+	out := result.ErrorOutput()
+	if out == "" {
+		out = result.Output()
+	}
+	return ExecError{
+		Message:      msg,
+		Output:       out,
+		LastExitCode: result.ExitCode(),
 	}
 }
 
-// NewExecWithEnv creates a new Exec instance with environment variables.
-func NewExecWithEnv(env map[string]string) *Exec {
-	return &Exec{
-		Env: env,
-	}
+// Error implements the error interface.
+func (e ExecError) Error() string {
+	return e.Message
 }
 
-// ExecuteCommand will run the command quietly.
-func (e *Exec) ExecuteCommand(cmdStr string) (string, error) {
-	return e.ExecuteCommandWithQuiet(cmdStr, false)
-}
-
-// ExecuteCommandWithQuiet executes a shell command with quiet mode.
-func (e *Exec) ExecuteCommandWithQuiet(cmdStr string, verbose bool) (string, error) {
-	return e.ExecuteCommandWithQuietAndCapture(cmdStr, verbose)
-}
-
-// ExecuteCommandWithQuietAndCapture executes a shell command with quiet mode and captures stderr.
-// Returns (stdout, error). If error occurs, stderr is logged to the global buffer.
-func (e *Exec) ExecuteCommandWithQuietAndCapture(cmdStr string, verbose bool) (string, error) {
-	if cmdStr == "" {
-		return "", nil
-	}
-
-	cmd := exec.Command("bash", "-c", cmdStr)
-	if e.Dir != "" {
-		cmd.Dir = e.Dir
-	}
-
-	// Build environment: start with OS environment, then overlay custom env
-	cmdEnv := os.Environ()
-	for k, v := range e.Env {
-		// Remove existing key if present and add new one
-		cmdEnv = removeEnvKey(cmdEnv, k)
-		cmdEnv = append(cmdEnv, k+"="+v)
-	}
-	cmd.Env = cmdEnv
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	if err != nil {
-		// Extract exit code
-		exitCode := 1
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		}
-
-		// Use stderr as error output, fallback to stdout if stderr is empty
-		errOutput := stderr.String()
-		if errOutput == "" {
-			errOutput = stdout.String()
-		}
-
-		resErr := ExecError{
-			Message:      "failed to run command: " + err.Error(),
-			LastExitCode: exitCode,
-			Output:       errOutput,
-			Trace:        "", // Stack traces disabled by default
-		}
-
-		return "", resErr
-	}
-
-	return stdout.String(), nil
-}
-
-// getTerminalSize returns the terminal size for PTY allocation.
-// Tries to get the size from stdout, falls back to environment variables, then defaults to 80x120.
-func getTerminalSize() *pty.Winsize {
-	// Try to get size from stdout
-	if width, height, err := term.GetSize(int(os.Stdout.Fd())); err == nil {
-		return &pty.Winsize{
-			Rows: uint16(height),
-			Cols: uint16(width),
-		}
-	}
-
-	// Try to get from environment variables (LINES and COLUMNS)
-	lines := 80
-	cols := 120
-	if l, err := strconv.Atoi(os.Getenv("LINES")); err == nil && l > 0 {
-		lines = l
-	}
-	if c, err := strconv.Atoi(os.Getenv("COLUMNS")); err == nil && c > 0 {
-		cols = c
-	}
-
-	return &pty.Winsize{
-		Rows: uint16(lines),
-		Cols: uint16(cols),
-	}
-}
-
-// ExecuteCommandWithWriter executes a command and writes output to the provided writer.
-// If usePTY is true, allocates a PTY for the command (enables colored output for tools like gotestsum).
-// Also returns the full stdout string for the caller.
-func (e *Exec) ExecuteCommandWithWriter(writer io.Writer, cmdStr string, usePTY bool) (string, error) {
-	if cmdStr == "" {
-		return "", nil
-	}
-
-	cmd := exec.Command("bash", "-c", cmdStr)
-	if e.Dir != "" {
-		cmd.Dir = e.Dir
-	}
-
-	// Build environment: start with OS environment, then overlay custom env
-	cmdEnv := os.Environ()
-	for k, v := range e.Env {
-		// Remove existing key if present and add new one
-		cmdEnv = removeEnvKey(cmdEnv, k)
-		cmdEnv = append(cmdEnv, k+"="+v)
-	}
-	cmd.Env = cmdEnv
-
-	if usePTY {
-		// Allocate a PTY for the command to enable color output
-		ptmx, err := pty.Start(cmd)
-		if err != nil {
-			return "", ExecError{
-				Message:      "failed to start command with pty: " + err.Error(),
-				LastExitCode: 1,
-				Output:       "",
-				Trace:        "",
-			}
-		}
-		defer func() { _ = ptmx.Close() }()
-
-		// Set terminal size for the PTY
-		winsize := getTerminalSize()
-		_ = pty.Setsize(ptmx, winsize) // ignore error, PTY works without size
-
-		// Copy PTY output to both the buffer and provided writer
-		var stdout bytes.Buffer
-		multiWriter := io.MultiWriter(&stdout, writer)
-		_, _ = io.Copy(multiWriter, ptmx)
-
-		// Wait for command to complete
-		err = cmd.Wait()
-		if err != nil {
-			// Extract exit code
-			exitCode := 1
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				exitCode = exitErr.ExitCode()
-			}
-
-			return "", ExecError{
-				Message:      "failed to run command: " + err.Error(),
-				LastExitCode: exitCode,
-				Output:       stdout.String(),
-				Trace:        "",
-			}
-		}
-
-		return stdout.String(), nil
-	}
-
-	// Non-PTY execution: use pipes for stdout/stderr
-	var stdout bytes.Buffer
-	multiWriter := io.MultiWriter(&stdout, writer)
-	cmd.Stdout = multiWriter
-	cmd.Stderr = multiWriter
-
-	err := cmd.Run()
-	if err != nil {
-		// Extract exit code
-		exitCode := 1
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		}
-
-		return "", ExecError{
-			Message:      "failed to run command: " + err.Error(),
-			LastExitCode: exitCode,
-			Output:       stdout.String(),
-			Trace:        "",
-		}
-	}
-
-	return stdout.String(), nil
-}
-
-// ExecuteCommandInteractive executes a command with live streaming output and stdin connected.
-// This allows for real-time output inspection and keyboard input during execution.
-// It allocates a PTY and connects it directly to the terminal.
-func (e *Exec) ExecuteCommandInteractive(cmdStr string) error {
-	if cmdStr == "" {
-		return nil
-	}
-
-	cmd := exec.Command("bash", "-c", cmdStr)
-	if e.Dir != "" {
-		cmd.Dir = e.Dir
-	}
-
-	// Build environment: start with OS environment, then overlay custom env
-	cmdEnv := os.Environ()
-	for k, v := range e.Env {
-		// Remove existing key if present and add new one
-		cmdEnv = removeEnvKey(cmdEnv, k)
-		cmdEnv = append(cmdEnv, k+"="+v)
-	}
-	cmd.Env = cmdEnv
-
-	// Allocate a PTY for the command
-	ptmx, err := pty.Start(cmd)
-	if err != nil {
-		return ExecError{
-			Message:      "failed to start interactive command: " + err.Error(),
-			LastExitCode: 1,
-			Output:       "",
-			Trace:        "",
-		}
-	}
-	defer func() { _ = ptmx.Close() }()
-
-	// Set terminal size for the PTY
-	winsize := getTerminalSize()
-	_ = pty.Setsize(ptmx, winsize) // ignore error, PTY works without size
-
-	// Put stdin in raw mode to pass through all keystrokes
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-	if err == nil {
-		defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
-	}
-
-	// Copy stdin to PTY in a goroutine
-	go func() {
-		_, _ = io.Copy(ptmx, os.Stdin)
-	}()
-
-	// Copy PTY output to stdout (live streaming)
-	_, _ = io.Copy(os.Stdout, ptmx)
-
-	// Wait for command to complete
-	err = cmd.Wait()
-	if err != nil {
-		// Extract exit code
-		exitCode := 1
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		}
-
-		return ExecError{
-			Message:      "interactive command failed: " + err.Error(),
-			LastExitCode: exitCode,
-			Output:       "",
-			Trace:        "",
-		}
-	}
-
-	return nil
-}
-
-// removeEnvKey removes a key from environment variable list
-func removeEnvKey(env []string, key string) []string {
-	prefix := key + "="
-	result := make([]string, 0, len(env))
-	for _, e := range env {
-		if !strings.HasPrefix(e, prefix) {
-			result = append(result, e)
-		}
-	}
-	return result
+// Len returns the length of the error output.
+func (e ExecError) Len() int {
+	return len(e.Output)
 }

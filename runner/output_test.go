@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v3"
 
 	"github.com/titpetric/atkins/model"
@@ -164,34 +166,28 @@ func TestListPipelinesJSON(t *testing.T) {
 
 	// Capture stdout
 	old := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
 	os.Stdout = w
 
-	err := ListPipelinesJSON([]*model.Pipeline{mainPipeline})
+	err = ListPipelinesJSON([]*model.Pipeline{mainPipeline})
 
-	w.Close()
+	assert.NoError(t, w.Close())
 	os.Stdout = old
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, copyErr := io.Copy(&buf, r)
+	assert.NoError(t, copyErr)
 	output := buf.String()
 
 	// Verify it's valid JSON
 	var parsed []ListOutputSection
-	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
-		t.Fatalf("output is not valid JSON: %v\nOutput: %s", err, output)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &parsed), "output: %s", output)
 
-	if len(parsed) != 1 {
-		t.Fatalf("expected 1 section, got %d", len(parsed))
-	}
-	if parsed[0].Desc != "Main" {
-		t.Errorf("expected section desc 'Main', got %s", parsed[0].Desc)
-	}
+	require.Len(t, parsed, 1)
+	assert.Equal(t, "Main", parsed[0].Desc)
 }
 
 func TestListPipelinesYAML(t *testing.T) {
@@ -205,32 +201,26 @@ func TestListPipelinesYAML(t *testing.T) {
 
 	// Capture stdout
 	old := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
 	os.Stdout = w
 
-	err := ListPipelinesYAML([]*model.Pipeline{mainPipeline})
+	err = ListPipelinesYAML([]*model.Pipeline{mainPipeline})
 
-	w.Close()
+	assert.NoError(t, w.Close())
 	os.Stdout = old
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, copyErr := io.Copy(&buf, r)
+	assert.NoError(t, copyErr)
 	output := buf.String()
 
 	// Verify it's valid YAML
 	var parsed []ListOutputSection
-	if err := yaml.Unmarshal([]byte(output), &parsed); err != nil {
-		t.Fatalf("output is not valid YAML: %v\nOutput: %s", err, output)
-	}
+	require.NoError(t, yaml.Unmarshal([]byte(output), &parsed), "output: %s", output)
 
-	if len(parsed) != 1 {
-		t.Fatalf("expected 1 section, got %d", len(parsed))
-	}
-	if parsed[0].Desc != "Main" {
-		t.Errorf("expected section desc 'Main', got %s", parsed[0].Desc)
-	}
+	require.Len(t, parsed, 1)
+	assert.Equal(t, "Main", parsed[0].Desc)
 }

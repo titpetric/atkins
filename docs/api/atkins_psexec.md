@@ -43,12 +43,23 @@ type Command struct {
 ```
 
 ```go
+// EmptyResult is a Result for empty/no-op commands.
+type EmptyResult struct{}
+```
+
+```go
 // Executor manages process execution.
 type Executor struct {
 	// DefaultEnv is the default environment for all commands.
 	DefaultEnv	[]string
 	// DefaultDir is the default working directory for all commands.
 	DefaultDir	string
+	// DefaultTimeout is the default timeout for commands when not specified.
+	// Zero means no timeout.
+	DefaultTimeout	time.Duration
+	// DefaultShell is the shell used for shell commands.
+	// Defaults to "bash" if empty.
+	DefaultShell	string
 }
 ```
 
@@ -105,16 +116,9 @@ type Result interface {
 - `func NewCommand (name string, args ...string) *Command`
 - `func NewShellCommand (script string) *Command`
 - `func NewWithOptions (opts *Options) *Executor`
-- `func (*Command) AsInteractive () *Command`
-- `func (*Command) WithDir (dir string) *Command`
-- `func (*Command) WithEnv (env []string) *Command`
-- `func (*Command) WithPTY () *Command`
-- `func (*Command) WithStderr (w io.Writer) *Command`
-- `func (*Command) WithStdin (r io.Reader) *Command`
-- `func (*Command) WithStdout (w io.Writer) *Command`
-- `func (*Command) WithTimeout (d time.Duration) *Command`
 - `func (*Executor) Run (ctx context.Context, cmd *Command) Result`
 - `func (*Executor) RunWithIO (ctx context.Context, stdout io.Writer, stdin io.Reader, cmd *Command) Result`
+- `func (*Executor) ShellCommand (script string) *Command`
 - `func (*Executor) Start (ctx context.Context, cmd *Command) (*Process, error)`
 - `func (*Process) Close () error`
 - `func (*Process) Done () <-chan struct{}`
@@ -126,6 +130,12 @@ type Result interface {
 - `func (*Process) Signal (sig os.Signal) error`
 - `func (*Process) Wait () Result`
 - `func (*Process) Write (b []byte) (int, error)`
+- `func (EmptyResult) Duration () time.Duration`
+- `func (EmptyResult) Err () error`
+- `func (EmptyResult) ErrorOutput () string`
+- `func (EmptyResult) ExitCode () int`
+- `func (EmptyResult) Output () string`
+- `func (EmptyResult) Success () bool`
 
 ### DefaultOptions
 
@@ -153,7 +163,7 @@ func NewCommand (name string, args ...string) *Command
 
 ### NewShellCommand
 
-NewShellCommand creates a new Command that runs via the shell.
+NewShellCommand creates a new Command that runs via bash.
 
 ```go
 func NewShellCommand (script string) *Command
@@ -165,70 +175,6 @@ NewWithOptions creates a new Executor with the given options.
 
 ```go
 func NewWithOptions (opts *Options) *Executor
-```
-
-### AsInteractive
-
-AsInteractive enables full interactive mode.
-
-```go
-func (*Command) AsInteractive () *Command
-```
-
-### WithDir
-
-WithDir sets the working directory for the command.
-
-```go
-func (*Command) WithDir (dir string) *Command
-```
-
-### WithEnv
-
-WithEnv sets the environment variables for the command.
-
-```go
-func (*Command) WithEnv (env []string) *Command
-```
-
-### WithPTY
-
-WithPTY enables PTY allocation for the command.
-
-```go
-func (*Command) WithPTY () *Command
-```
-
-### WithStderr
-
-WithStderr sets the stderr writer for the command.
-
-```go
-func (*Command) WithStderr (w io.Writer) *Command
-```
-
-### WithStdin
-
-WithStdin sets the stdin reader for the command.
-
-```go
-func (*Command) WithStdin (r io.Reader) *Command
-```
-
-### WithStdout
-
-WithStdout sets the stdout writer for the command.
-
-```go
-func (*Command) WithStdout (w io.Writer) *Command
-```
-
-### WithTimeout
-
-WithTimeout sets the timeout for the command.
-
-```go
-func (*Command) WithTimeout (d time.Duration) *Command
 ```
 
 ### Run
@@ -245,6 +191,14 @@ RunWithIO executes a command with custom I/O streams, suitable for websocket tra
 
 ```go
 func (*Executor) RunWithIO (ctx context.Context, stdout io.Writer, stdin io.Reader, cmd *Command) Result
+```
+
+### ShellCommand
+
+ShellCommand creates a new Command that runs via the executor's configured shell.
+
+```go
+func (*Executor) ShellCommand (script string) *Command
 ```
 
 ### Start
@@ -284,8 +238,6 @@ func (*Process) PID () int
 ### PTY
 
 PTY returns the PTY file handle for direct I/O.
-This is useful for websocket transport where you want to
-directly copy between the websocket and the PTY.
 
 ```go
 func (*Process) PTY () *os.File
@@ -338,6 +290,54 @@ Write writes to the process input (PTY).
 
 ```go
 func (*Process) Write (b []byte) (int, error)
+```
+
+### Duration
+
+Duration returns 0.
+
+```go
+func (EmptyResult) Duration () time.Duration
+```
+
+### Err
+
+Err returns nil.
+
+```go
+func (EmptyResult) Err () error
+```
+
+### ErrorOutput
+
+ErrorOutput returns empty string.
+
+```go
+func (EmptyResult) ErrorOutput () string
+```
+
+### ExitCode
+
+ExitCode returns 0.
+
+```go
+func (EmptyResult) ExitCode () int
+```
+
+### Output
+
+Output returns empty string.
+
+```go
+func (EmptyResult) Output () string
+```
+
+### Success
+
+Success returns true.
+
+```go
+func (EmptyResult) Success () bool
 ```
 
 

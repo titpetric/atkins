@@ -9,6 +9,21 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
+// Env is a map of environment variables.
+type Env map[string]string
+
+// Environ returns the environment as a slice of KEY=VALUE strings.
+func (e Env) Environ() []string {
+	if e == nil {
+		return nil
+	}
+	s := make([]string, 0, len(e))
+	for k, v := range e {
+		s = append(s, k+"="+v)
+	}
+	return s
+}
+
 // mergeEnv merges environment variables from EnvDecl into the execution context.
 // Handles both workflow-level, job-level, and step-level env declarations.
 func mergeEnv(ctx *ExecutionContext, decl *model.EnvDecl) error {

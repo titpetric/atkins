@@ -2,6 +2,7 @@ package runner_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"strings"
@@ -10,285 +11,178 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/titpetric/atkins/psexec"
 	"github.com/titpetric/atkins/runner"
 )
 
-func TestExecuteCommand_QuietMode(t *testing.T) {
-	tests := []struct {
-		name          string
-		cmd           string
-		expectSuccess bool
-	}{
-		{
-			name:          "simple echo",
-			cmd:           "echo 'hello world'",
-			expectSuccess: true,
-		},
-		{
-			name:          "command with exit code 0",
-			cmd:           "exit 0",
-			expectSuccess: true,
-		},
-		{
-			name:          "command with exit code 1",
-			cmd:           "exit 1",
-			expectSuccess: false,
-		},
-	}
+func TestPsexec_Run(t *testing.T) {
+	ctx := context.Background()
+	exec := psexec.New()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			exec := runner.NewExec()
-			_, err := exec.ExecuteCommand(tt.cmd)
+	t.Run("simple echo", func(t *testing.T) {
+		result := exec.Run(ctx, psexec.NewShellCommand("echo 'hello world'"))
+		assert.True(t, result.Success())
+		assert.Contains(t, result.Output(), "hello world")
+	})
 
-			if tt.expectSuccess {
-				assert.NoError(t, err)
-			} else {
-				assert.Error(t, err)
-			}
+	t.Run("exit 0", func(t *testing.T) {
+		result := exec.Run(ctx, psexec.NewShellCommand("exit 0"))
+		assert.True(t, result.Success())
+	})
+
+	t.Run("exit 1", func(t *testing.T) {
+		result := exec.Run(ctx, psexec.NewShellCommand("exit 1"))
+		assert.False(t, result.Success())
+		assert.Equal(t, 1, result.ExitCode())
+	})
+
+	t.Run("exit 42", func(t *testing.T) {
+		result := exec.Run(ctx, psexec.NewShellCommand("exit 42"))
+		assert.False(t, result.Success())
+		assert.Equal(t, 42, result.ExitCode())
+	})
+}
+
+func TestPsexec_WithEnv(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("custom env", func(t *testing.T) {
+		exec := psexec.NewWithOptions(&psexec.Options{
+			DefaultEnv: []string{"TEST_VAR=custom_value"},
 		})
-	}
-}
-
-func TestExecuteCommand_WithQuiet(t *testing.T) {
-	exec := runner.NewExec()
-	output, err := exec.ExecuteCommandWithQuiet("echo 'test output'", false)
-
-	assert.NoError(t, err)
-	assert.Contains(t, output, "test output")
-}
-
-func TestExecuteCommand_WithCustomEnv(t *testing.T) {
-	exec := runner.NewExecWithEnv(map[string]string{
-		"TEST_VAR": "custom_value",
+		result := exec.Run(ctx, exec.ShellCommand("echo $TEST_VAR"))
+		assert.True(t, result.Success())
+		assert.Contains(t, result.Output(), "custom_value")
 	})
 
-	output, err := exec.ExecuteCommand("echo $TEST_VAR")
-	assert.NoError(t, err)
-	assert.Contains(t, output, "custom_value")
+	t.Run("multiple env vars", func(t *testing.T) {
+		exec := psexec.NewWithOptions(&psexec.Options{
+			DefaultEnv: []string{"VAR1=value1", "VAR2=value2"},
+		})
+		result := exec.Run(ctx, exec.ShellCommand("echo $VAR1 $VAR2"))
+		assert.True(t, result.Success())
+		assert.Contains(t, result.Output(), "value1")
+		assert.Contains(t, result.Output(), "value2")
+	})
 }
 
-func TestExecuteCommand_EnvOverride(t *testing.T) {
-	originalPath := os.Getenv("PATH")
-	t.Cleanup(func() {
-		assert.NoError(t, os.Setenv("PATH", originalPath))
+func TestPsexec_WithDir(t *testing.T) {
+	ctx := context.Background()
+	exec := psexec.NewWithOptions(&psexec.Options{
+		DefaultDir: "/tmp",
 	})
 
-	exec := runner.NewExecWithEnv(map[string]string{
-		"TEST_OVERRIDE": "new_value",
-	})
-
-	output, err := exec.ExecuteCommand("echo $TEST_OVERRIDE")
-	assert.NoError(t, err)
-	assert.Contains(t, output, "new_value")
+	result := exec.Run(ctx, exec.ShellCommand("pwd"))
+	assert.True(t, result.Success())
+	assert.Contains(t, result.Output(), "/tmp")
 }
 
-func TestExecuteCommandWithWriter_NonPTY(t *testing.T) {
+func TestPsexec_WithWriter(t *testing.T) {
+	ctx := context.Background()
+	exec := psexec.New()
+
 	t.Run("captures output to writer", func(t *testing.T) {
-		exec := runner.NewExec()
 		var buf bytes.Buffer
+		cmd := psexec.NewShellCommand("echo 'hello world'")
+		cmd.Stdout = &buf
+		cmd.Stderr = &buf
 
-		output, err := exec.ExecuteCommandWithWriter(&buf, "echo 'hello world'", false)
-
-		assert.NoError(t, err)
-		assert.Contains(t, output, "hello world")
+		result := exec.Run(ctx, cmd)
+		assert.True(t, result.Success())
+		assert.Contains(t, result.Output(), "hello world")
 		assert.Contains(t, buf.String(), "hello world")
 	})
 
-	t.Run("stderr captured in non-pty mode", func(t *testing.T) {
-		exec := runner.NewExec()
+	t.Run("stderr captured", func(t *testing.T) {
 		var buf bytes.Buffer
+		cmd := psexec.NewShellCommand("echo 'error' >&2 && exit 1")
+		cmd.Stdout = &buf
+		cmd.Stderr = &buf
 
-		_, err := exec.ExecuteCommandWithWriter(&buf, "echo 'error' >&2 && exit 1", false)
-
-		assert.Error(t, err)
+		result := exec.Run(ctx, cmd)
+		assert.False(t, result.Success())
 		assert.Contains(t, buf.String(), "error")
 	})
 
-	t.Run("empty command returns no error", func(t *testing.T) {
-		exec := runner.NewExec()
-		var buf bytes.Buffer
-
-		output, err := exec.ExecuteCommandWithWriter(&buf, "", false)
-
-		assert.NoError(t, err)
-		assert.Empty(t, output)
-	})
-}
-
-func TestExecuteCommandWithWriter_PTY(t *testing.T) {
-	t.Run("allocates pty for tty enabled", func(t *testing.T) {
+	t.Run("with PTY", func(t *testing.T) {
 		if os.Getenv("CI") != "" {
 			t.Skip("Skipping PTY test in CI environment")
 		}
 
-		exec := runner.NewExec()
 		var buf bytes.Buffer
+		cmd := psexec.NewShellCommand("echo 'tty test'")
+		cmd.Stdout = &buf
+		cmd.UsePTY = true
 
-		output, err := exec.ExecuteCommandWithWriter(&buf, "echo 'tty test'", true)
-
-		assert.NoError(t, err)
-		assert.Contains(t, output, "tty test")
+		result := exec.Run(ctx, cmd)
+		assert.True(t, result.Success())
+		assert.Contains(t, result.Output(), "tty test")
 	})
 
-	t.Run("pty with color codes", func(t *testing.T) {
-		if os.Getenv("CI") != "" {
-			t.Skip("Skipping PTY test in CI environment")
-		}
-
-		exec := runner.NewExec()
+	t.Run("multiline output", func(t *testing.T) {
 		var buf bytes.Buffer
+		cmd := psexec.NewShellCommand("printf 'line1\\nline2\\nline3\\n'")
+		cmd.Stdout = &buf
 
-		// Use ls with color to test ANSI preservation
-		output, err := exec.ExecuteCommandWithWriter(&buf, "ls --color=always -la /tmp | head -1", true)
-
-		assert.NoError(t, err)
-		assert.NotEmpty(t, output)
+		result := exec.Run(ctx, cmd)
+		assert.True(t, result.Success())
+		lines := strings.Split(strings.TrimSpace(result.Output()), "\n")
+		assert.Len(t, lines, 3)
 	})
-}
 
-func TestExecuteCommandWithWriter_StdinPassthrough(t *testing.T) {
-	t.Run("stdin passed to child process in non-pty mode", func(t *testing.T) {
-		// Note: This test validates that stdin is set on the cmd object.
-		// Full stdin passthrough testing requires interactive testing.
-
-		exec := runner.NewExec()
+	t.Run("large output", func(t *testing.T) {
 		var buf bytes.Buffer
+		cmd := psexec.NewShellCommand("seq 1 1000")
+		cmd.Stdout = &buf
 
-		// Create a simple command that reads from stdin
-		output, err := exec.ExecuteCommandWithWriter(&buf, "cat /etc/hostname", false)
+		result := exec.Run(ctx, cmd)
+		assert.True(t, result.Success())
+		lines := strings.Split(strings.TrimSpace(result.Output()), "\n")
+		assert.Len(t, lines, 1000)
+	})
 
-		assert.NoError(t, err)
-		assert.NotEmpty(t, output)
+	t.Run("discard writer", func(t *testing.T) {
+		cmd := psexec.NewShellCommand("echo 'discarded'")
+		cmd.Stdout = io.Discard
+
+		result := exec.Run(ctx, cmd)
+		assert.True(t, result.Success())
+		assert.Contains(t, result.Output(), "discarded")
 	})
 }
 
-func TestExecuteCommand_MultipleCommands(t *testing.T) {
-	t.Run("sequential commands with environment", func(t *testing.T) {
-		exec := runner.NewExecWithEnv(map[string]string{
-			"VAR1": "value1",
-			"VAR2": "value2",
-		})
-
-		output1, err := exec.ExecuteCommand("echo $VAR1")
-		assert.NoError(t, err)
-		assert.Contains(t, output1, "value1")
-
-		output2, err := exec.ExecuteCommand("echo $VAR2")
-		assert.NoError(t, err)
-		assert.Contains(t, output2, "value2")
-	})
-}
-
-func TestExecuteCommand_ErrorHandling(t *testing.T) {
-	t.Run("capture exit code on failure", func(t *testing.T) {
-		exec := runner.NewExec()
-		_, err := exec.ExecuteCommand("exit 42")
-
-		assert.Error(t, err)
-		execErr, ok := err.(runner.ExecError)
-		assert.True(t, ok, "error should be ExecError")
-		assert.Equal(t, 42, execErr.LastExitCode)
-	})
-
-	t.Run("capture stderr on failure", func(t *testing.T) {
-		exec := runner.NewExec()
-		_, err := exec.ExecuteCommandWithQuiet("echo 'test error' >&2 && exit 1", false)
-
-		assert.Error(t, err)
-		execErr, ok := err.(runner.ExecError)
-		assert.True(t, ok)
-		assert.Contains(t, execErr.Output, "test error")
-	})
-}
-
-func TestExecError_Interface(t *testing.T) {
+func TestExecError(t *testing.T) {
 	t.Run("error message", func(t *testing.T) {
 		execErr := runner.ExecError{
-			Message: "test error",
+			Message:      "test error",
+			Output:       "error output",
+			LastExitCode: 1,
 		}
 
 		assert.Equal(t, "test error", execErr.Error())
-		assert.Equal(t, len("test error"), execErr.Len())
+		assert.Equal(t, len("error output"), execErr.Len())
 	})
 
 	t.Run("implements error interface", func(t *testing.T) {
-		var err error = runner.ExecError{
-			Message: "test",
-		}
-
+		var err error = runner.ExecError{Message: "test"}
 		assert.NotNil(t, err)
 	})
-}
 
-func TestExecuteCommandWithWriter_OutputCapture(t *testing.T) {
-	t.Run("multiline output in non-pty", func(t *testing.T) {
-		exec := runner.NewExec()
-		var buf bytes.Buffer
+	t.Run("NewExecError from result", func(t *testing.T) {
+		ctx := context.Background()
+		exec := psexec.New()
 
-		output, err := exec.ExecuteCommandWithWriter(&buf, "printf 'line1\\nline2\\nline3\\n'", false)
+		result := exec.Run(ctx, psexec.NewShellCommand("exit 42"))
+		execErr := runner.NewExecError(result)
 
-		assert.NoError(t, err)
-		lines := strings.Split(strings.TrimSpace(output), "\n")
-		assert.Len(t, lines, 3)
-		assert.Equal(t, "line1", lines[0])
-		assert.Equal(t, "line2", lines[1])
-		assert.Equal(t, "line3", lines[2])
-	})
-
-	t.Run("large output capture", func(t *testing.T) {
-		exec := runner.NewExec()
-		var buf bytes.Buffer
-
-		// Generate 1000 lines of output
-		output, err := exec.ExecuteCommandWithWriter(&buf, "seq 1 1000", false)
-
-		assert.NoError(t, err)
-		lines := strings.Split(strings.TrimSpace(output), "\n")
-		assert.Len(t, lines, 1000)
+		assert.Equal(t, 42, execErr.LastExitCode)
 	})
 }
 
-func TestExecuteCommandWithWriter_WriterIntegration(t *testing.T) {
-	t.Run("output written to both buffer and writer", func(t *testing.T) {
-		exec := runner.NewExec()
-		var buf bytes.Buffer
+func TestPsexec_SpecialCharacters(t *testing.T) {
+	ctx := context.Background()
+	exec := psexec.New()
 
-		// For non-PTY, we can verify output is written
-		output, err := exec.ExecuteCommandWithWriter(&buf, "echo 'test message'", false)
-
-		assert.NoError(t, err)
-		// Both output return value and buffer should have the content
-		assert.Contains(t, output, "test message")
-		assert.Contains(t, buf.String(), "test message")
-	})
-
-	t.Run("discardAll writer", func(t *testing.T) {
-		exec := runner.NewExec()
-
-		output, err := exec.ExecuteCommandWithWriter(io.Discard, "echo 'discarded'", false)
-
-		assert.NoError(t, err)
-		assert.Contains(t, output, "discarded")
-	})
-}
-
-func TestNewExec(t *testing.T) {
-	t.Run("default constructor", func(t *testing.T) {
-		exec := runner.NewExec()
-		assert.NotNil(t, exec)
-	})
-
-	t.Run("with env constructor", func(t *testing.T) {
-		env := map[string]string{
-			"KEY": "value",
-		}
-		exec := runner.NewExecWithEnv(env)
-		assert.NotNil(t, exec)
-	})
-}
-
-func TestExecuteCommand_SpecialCharacters(t *testing.T) {
 	tests := []struct {
 		name     string
 		cmd      string
@@ -300,7 +194,7 @@ func TestExecuteCommand_SpecialCharacters(t *testing.T) {
 			expected: "hello",
 		},
 		{
-			name:     "double quotes with variable escape",
+			name:     "double quotes with variable",
 			cmd:      "VAR='test' && echo \"$VAR\"",
 			expected: "test",
 		},
@@ -318,22 +212,18 @@ func TestExecuteCommand_SpecialCharacters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exec := runner.NewExec()
-			output, err := exec.ExecuteCommand(tt.cmd)
-
-			require.NoError(t, err)
-			assert.Contains(t, strings.TrimSpace(output), tt.expected)
+			result := exec.Run(ctx, psexec.NewShellCommand(tt.cmd))
+			require.True(t, result.Success())
+			assert.Contains(t, strings.TrimSpace(result.Output()), tt.expected)
 		})
 	}
 }
 
-func TestExecuteCommand_CommandTimeout(t *testing.T) {
-	t.Run("long-running command succeeds", func(t *testing.T) {
-		exec := runner.NewExec()
-		// Simple sleep command that should complete quickly
-		output, err := exec.ExecuteCommand("sleep 0.1 && echo 'done'")
+func TestPsexec_Timeout(t *testing.T) {
+	ctx := context.Background()
+	exec := psexec.New()
 
-		assert.NoError(t, err)
-		assert.Contains(t, output, "done")
-	})
+	result := exec.Run(ctx, psexec.NewShellCommand("sleep 0.1 && echo 'done'"))
+	assert.True(t, result.Success())
+	assert.Contains(t, result.Output(), "done")
 }

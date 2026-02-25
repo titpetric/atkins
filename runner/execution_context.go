@@ -13,7 +13,7 @@ import (
 type ExecutionContext struct {
 	Context context.Context
 
-	Env     map[string]string
+	Env     Env
 	Results map[string]any
 	Verbose bool
 	Dir     string

@@ -9,17 +9,14 @@ import (
 ## Types
 
 ```go
-// Environment represents the discovered project environment.
-type Environment struct {
-	Root string	// Project root directory
-}
+// Env is a map of environment variables.
+type Env map[string]string
 ```
 
 ```go
-// Exec runs shell commands.
-type Exec struct {
-	Env	map[string]string	// Optional environment variables to pass to commands
-	Dir	string			// Optional working directory for commands
+// Environment represents the discovered project environment.
+type Environment struct {
+	Root string	// Project root directory
 }
 ```
 
@@ -29,7 +26,6 @@ type ExecError struct {
 	Message		string
 	Output		string
 	LastExitCode	int
-	Trace		string
 }
 ```
 
@@ -38,7 +34,7 @@ type ExecError struct {
 type ExecutionContext struct {
 	Context	context.Context
 
-	Env	map[string]string
+	Env	Env
 	Results	map[string]any
 	Verbose	bool
 	Dir	string
@@ -220,8 +216,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
 - `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
-- `func NewExec () *Exec`
-- `func NewExecWithEnv (env map[string]string) *Exec`
+- `func NewExecError (result psexec.Result) ExecError`
 - `func NewExecutor () *Executor`
 - `func NewExecutorWithOptions (opts *Options) *Executor`
 - `func NewLineCapturingWriter () *LineCapturingWriter`
@@ -236,11 +231,6 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func StripANSI (in string) string`
 - `func ValidateJobRequirements (ctx *ExecutionContext, job *model.Job) error`
 - `func VisualLength (s string) int`
-- `func (*Exec) ExecuteCommand (cmdStr string) (string, error)`
-- `func (*Exec) ExecuteCommandInteractive (cmdStr string) error`
-- `func (*Exec) ExecuteCommandWithQuiet (cmdStr string, verbose bool) (string, error)`
-- `func (*Exec) ExecuteCommandWithQuietAndCapture (cmdStr string, verbose bool) (string, error)`
-- `func (*Exec) ExecuteCommandWithWriter (writer io.Writer, cmdStr string, usePTY bool) (string, error)`
 - `func (*ExecutionContext) Copy () *ExecutionContext`
 - `func (*ExecutionContext) IsJobCompleted (jobName string) bool`
 - `func (*ExecutionContext) MarkJobCompleted (jobName string)`
@@ -255,6 +245,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func (*Skills) Load () ([]*model.Pipeline, error)`
 - `func (*TaskResolver) Resolve (taskName string) (*ResolvedTask, error)`
 - `func (*TaskResolver) Validate (taskName string) error`
+- `func (Env) Environ () []string`
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
 
@@ -415,20 +406,12 @@ MergeVariables merges variables from Decl into the execution context.
 func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error
 ```
 
-### NewExec
+### NewExecError
 
-NewExec creates a new Exec instance.
-
-```go
-func NewExec () *Exec
-```
-
-### NewExecWithEnv
-
-NewExecWithEnv creates a new Exec instance with environment variables.
+NewExecError creates an ExecError from a psexec.Result.
 
 ```go
-func NewExecWithEnv (env map[string]string) *Exec
+func NewExecError (result psexec.Result) ExecError
 ```
 
 ### NewExecutor
@@ -558,51 +541,6 @@ VisualLength returns the visual length of a string (excluding ANSI sequences).
 func VisualLength (s string) int
 ```
 
-### ExecuteCommand
-
-ExecuteCommand will run the command quietly.
-
-```go
-func (*Exec) ExecuteCommand (cmdStr string) (string, error)
-```
-
-### ExecuteCommandInteractive
-
-ExecuteCommandInteractive executes a command with live streaming output and stdin connected.
-This allows for real-time output inspection and keyboard input during execution.
-It allocates a PTY and connects it directly to the terminal.
-
-```go
-func (*Exec) ExecuteCommandInteractive (cmdStr string) error
-```
-
-### ExecuteCommandWithQuiet
-
-ExecuteCommandWithQuiet executes a shell command with quiet mode.
-
-```go
-func (*Exec) ExecuteCommandWithQuiet (cmdStr string, verbose bool) (string, error)
-```
-
-### ExecuteCommandWithQuietAndCapture
-
-ExecuteCommandWithQuietAndCapture executes a shell command with quiet mode and captures stderr.
-Returns (stdout, error). If error occurs, stderr is logged to the global buffer.
-
-```go
-func (*Exec) ExecuteCommandWithQuietAndCapture (cmdStr string, verbose bool) (string, error)
-```
-
-### ExecuteCommandWithWriter
-
-ExecuteCommandWithWriter executes a command and writes output to the provided writer.
-If usePTY is true, allocates a PTY for the command (enables colored output for tools like gotestsum).
-Also returns the full stdout string for the caller.
-
-```go
-func (*Exec) ExecuteCommandWithWriter (writer io.Writer, cmdStr string, usePTY bool) (string, error)
-```
-
 ### Copy
 
 Copy copies everything except Context. Variables are shallow-copied.
@@ -719,9 +657,17 @@ This is useful for linting where you only need to know if the reference is valid
 func (*TaskResolver) Validate (taskName string) error
 ```
 
+### Environ
+
+Environ returns the environment as a slice of KEY=VALUE strings.
+
+```go
+func (Env) Environ () []string
+```
+
 ### Error
 
-Error returns the error message.
+Error implements the error interface.
 
 ```go
 func (ExecError) Error () string
@@ -729,7 +675,7 @@ func (ExecError) Error () string
 
 ### Len
 
-Len returns the length of the error message.
+Len returns the length of the error output.
 
 ```go
 func (ExecError) Len () int

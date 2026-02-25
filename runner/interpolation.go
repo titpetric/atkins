@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/expr-lang/expr"
 
 	"github.com/titpetric/atkins/eventlog"
+	"github.com/titpetric/atkins/psexec"
 )
 
 // Matches ${{ variable_name }}
@@ -85,14 +87,17 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 			}
 
 			// Execute with context env variables
-			cmdExec := NewExecWithEnv(ctx.Env)
 			startTime := time.Now()
 			var startOffset float64
 			if ctx.EventLogger != nil {
 				startOffset = ctx.EventLogger.GetElapsed()
 			}
 
-			output, err := cmdExec.ExecuteCommand(interpolatedCmd)
+			exec := psexec.NewWithOptions(&psexec.Options{
+				DefaultDir: ctx.Dir,
+				DefaultEnv: ctx.Env.Environ(),
+			})
+			cmdResult := exec.Run(context.Background(), exec.ShellCommand(interpolatedCmd))
 			durationMs := time.Since(startTime).Milliseconds()
 
 			// Log the command execution
@@ -103,15 +108,11 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 				} else if ctx.Job != nil {
 					parentID = ctx.Job.Name
 				}
-				exitCode := 0
+				exitCode := cmdResult.ExitCode()
 				errMsg := ""
-				if err != nil {
-					exitCode = 1
-					if execErr, ok := err.(ExecError); ok {
-						exitCode = execErr.LastExitCode
-						errMsg = execErr.Output
-					} else {
-						errMsg = err.Error()
+				if !cmdResult.Success() {
+					if cmdResult.Err() != nil {
+						errMsg = cmdResult.Err().Error()
 					}
 				}
 				ctx.EventLogger.LogCommand(eventlog.LogEntry{
@@ -120,7 +121,7 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 					ParentID:   parentID,
 					Command:    interpolatedCmd,
 					Dir:        ctx.Dir,
-					Output:     strings.TrimSpace(output),
+					Output:     strings.TrimSpace(cmdResult.Output()),
 					Error:      errMsg,
 					ExitCode:   exitCode,
 					Start:      startOffset,
@@ -128,16 +129,16 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 				})
 			}
 
-			if err != nil {
+			if !cmdResult.Success() {
 				// Capture error with better context showing what command was executed
-				if execErr, ok := err.(ExecError); ok {
-					*cmdErr = fmt.Errorf("command execution failed: %s\nCommand: %s", execErr.Output, interpolatedCmd)
-				} else {
-					*cmdErr = fmt.Errorf("command execution failed in $(%s): %w", interpolatedCmd, err)
+				errMsg := ""
+				if cmdResult.Err() != nil {
+					errMsg = cmdResult.Err().Error()
 				}
+				*cmdErr = fmt.Errorf("command execution failed in $(%s): %s", interpolatedCmd, errMsg)
 				return s
 			}
-			result += strings.TrimSpace(output)
+			result += strings.TrimSpace(cmdResult.Output())
 			i = closeIdx + 1
 		} else {
 			result += string(s[i])

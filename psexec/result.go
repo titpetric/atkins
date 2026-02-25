@@ -69,10 +69,23 @@ func (r *processResult) Duration() time.Duration {
 	return r.duration
 }
 
-// newResult creates a new processResult.
-func newResult() *processResult {
-	return &processResult{
-		stdout: new(bytes.Buffer),
-		stderr: new(bytes.Buffer),
-	}
-}
+// EmptyResult is a Result for empty/no-op commands.
+type EmptyResult struct{}
+
+// Output returns empty string.
+func (EmptyResult) Output() string { return "" }
+
+// ErrorOutput returns empty string.
+func (EmptyResult) ErrorOutput() string { return "" }
+
+// ExitCode returns 0.
+func (EmptyResult) ExitCode() int { return 0 }
+
+// Err returns nil.
+func (EmptyResult) Err() error { return nil }
+
+// Success returns true.
+func (EmptyResult) Success() bool { return true }
+
+// Duration returns 0.
+func (EmptyResult) Duration() time.Duration { return 0 }

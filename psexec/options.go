@@ -27,8 +27,14 @@ func NewWithOptions(opts *Options) *Executor {
 	if opts == nil {
 		opts = DefaultOptions()
 	}
+	shell := opts.DefaultShell
+	if shell == "" {
+		shell = "bash"
+	}
 	return &Executor{
-		DefaultDir: opts.DefaultDir,
-		DefaultEnv: opts.DefaultEnv,
+		DefaultDir:     opts.DefaultDir,
+		DefaultEnv:     opts.DefaultEnv,
+		DefaultTimeout: opts.DefaultTimeout,
+		DefaultShell:   shell,
 	}
 }

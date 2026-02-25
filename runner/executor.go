@@ -12,6 +12,7 @@ import (
 
 	"github.com/titpetric/atkins/eventlog"
 	"github.com/titpetric/atkins/model"
+	"github.com/titpetric/atkins/psexec"
 	"github.com/titpetric/atkins/treeview"
 )
 
@@ -418,8 +419,17 @@ func (e *Executor) logStepSkipped(execCtx *ExecutionContext, step *model.Step, s
 // Each iteration becomes a separate execution with iteration variables overlaid on context
 func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, stepIndex int) error {
 	// Expand the for loop to get all iterations
-	exec := NewExecWithEnv(execCtx.Env)
-	iterations, err := ExpandFor(execCtx, exec.ExecuteCommand)
+	exec := psexec.NewWithOptions(&psexec.Options{
+		DefaultDir: execCtx.Dir,
+		DefaultEnv: execCtx.Env.Environ(),
+	})
+	iterations, err := ExpandFor(execCtx, func(script string) (string, error) {
+		result := exec.Run(ctx, exec.ShellCommand(script))
+		if !result.Success() {
+			return "", NewExecError(result)
+		}
+		return result.Output(), nil
+	})
 	if err != nil {
 		stepNode.SetStatus(treeview.StatusFailed)
 		return fmt.Errorf("failed to expand for loop for step %q: %w", step.Name, err)
@@ -804,8 +814,17 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 	defer execCtx.Render()
 
 	// Expand the for loop to get iteration contexts
-	exec := NewExecWithEnv(execCtx.Env)
-	iterations, err := ExpandFor(execCtx, exec.ExecuteCommand)
+	exec := psexec.NewWithOptions(&psexec.Options{
+		DefaultDir: execCtx.Dir,
+		DefaultEnv: execCtx.Env.Environ(),
+	})
+	iterations, err := ExpandFor(execCtx, func(script string) (string, error) {
+		result := exec.Run(ctx, exec.ShellCommand(script))
+		if !result.Success() {
+			return "", NewExecError(result)
+		}
+		return result.Output(), nil
+	})
 	if err != nil {
 		stepNode.SetStatus(treeview.StatusFailed)
 		return fmt.Errorf("failed to expand for loop: %w", err)
@@ -999,15 +1018,16 @@ func IsEchoCommand(cmd string) bool {
 }
 
 // evaluateEchoCommand executes an echo command and returns its output for use as a label
-func evaluateEchoCommand(ctx context.Context, env map[string]string, dir string, cmd string) (string, error) {
-	exec := NewExecWithEnv(env)
-	exec.Dir = dir
-	output, err := exec.ExecuteCommandWithQuiet(cmd, false)
-	if err != nil {
-		return "", err
+func evaluateEchoCommand(ctx context.Context, env Env, dir string, cmd string) (string, error) {
+	exec := psexec.NewWithOptions(&psexec.Options{
+		DefaultDir: dir,
+		DefaultEnv: env.Environ(),
+	})
+	result := exec.Run(ctx, exec.ShellCommand(cmd))
+	if !result.Success() {
+		return "", NewExecError(result)
 	}
-	// Trim output and return
-	return strings.TrimSpace(output), nil
+	return strings.TrimSpace(result.Output()), nil
 }
 
 // executeCommand runs a single command with interpolation and respects context timeout
@@ -1027,10 +1047,6 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		}
 	}
 
-	// Execute the command via bash with quiet mode, passing execution context env
-	cmdExec := NewExecWithEnv(execCtx.Env)
-	cmdExec.Dir = execCtx.Dir
-
 	// Determine if interactive mode should be used (live streaming with stdin)
 	// Check step interactive flag first, then job interactive flag
 	isInteractive := step.Interactive || (execCtx.Job != nil && execCtx.Job.Interactive)
@@ -1049,37 +1065,45 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		startOffset = execCtx.EventLogger.GetElapsed()
 	}
 
-	// If interactive mode is enabled, run with live streaming and stdin connected
+	// Execute the command
+	executor := psexec.NewWithOptions(&psexec.Options{
+		DefaultDir: execCtx.Dir,
+		DefaultEnv: execCtx.Env.Environ(),
+	})
+	shellCmd := executor.ShellCommand(interpolated)
+
 	var writer *LineCapturingWriter
-	var output string
+	var result psexec.Result
 	if isInteractive {
-		err = cmdExec.ExecuteCommandInteractive(interpolated)
+		shellCmd.Interactive = true
+		result = executor.Run(ctx, shellCmd)
 	} else if shouldPassthru && execCtx.CurrentStep != nil {
 		// If passthru is enabled, capture output to the node for display with tree indentation
 		writer = NewLineCapturingWriter()
-		output, err = cmdExec.ExecuteCommandWithWriter(writer, interpolated, useTTY)
+		shellCmd.Stdout = writer
+		shellCmd.Stderr = writer
+		shellCmd.UsePTY = useTTY
+		result = executor.Run(ctx, shellCmd)
 	} else {
-		output, err = cmdExec.ExecuteCommandWithQuiet(interpolated, execCtx.Verbose)
+		result = executor.Run(ctx, shellCmd)
 	}
 
 	// Log command execution
 	durationMs := time.Since(startTime).Milliseconds()
 	if execCtx.EventLogger != nil {
-		exitCode := 0
+		exitCode := result.ExitCode()
 		errMsg := ""
-		if err != nil {
-			exitCode = 1
-			if execErr, ok := err.(ExecError); ok {
-				exitCode = execErr.LastExitCode
-				errMsg = execErr.Output
-			} else {
-				errMsg = err.Error()
+		if !result.Success() {
+			errMsg = result.ErrorOutput()
+			if errMsg == "" && result.Err() != nil {
+				errMsg = result.Err().Error()
 			}
 		}
 		stepID := ""
 		if execCtx.CurrentStep != nil {
 			stepID = execCtx.CurrentStep.ID
 		}
+		output := result.Output()
 		if writer != nil {
 			output = writer.String()
 		}
@@ -1096,12 +1120,8 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		})
 	}
 
-	if err != nil {
-		// Return the error as-is if it's an ExecError, otherwise wrap it
-		if execErr, ok := err.(ExecError); ok {
-			return execErr
-		}
-		return fmt.Errorf("command execution %s failed: %w", execCtx.CurrentStep.ID, err)
+	if !result.Success() {
+		return NewExecError(result)
 	}
 
 	// For echo commands, update the step node label with the output

@@ -41,59 +41,10 @@ func NewCommand(name string, args ...string) *Command {
 	}
 }
 
-// NewShellCommand creates a new Command that runs via the shell.
+// NewShellCommand creates a new Command that runs via bash.
 func NewShellCommand(script string) *Command {
 	return &Command{
 		Name: "bash",
 		Args: []string{"-c", script},
 	}
-}
-
-// WithDir sets the working directory for the command.
-func (c *Command) WithDir(dir string) *Command {
-	c.Dir = dir
-	return c
-}
-
-// WithEnv sets the environment variables for the command.
-func (c *Command) WithEnv(env []string) *Command {
-	c.Env = env
-	return c
-}
-
-// WithStdin sets the stdin reader for the command.
-func (c *Command) WithStdin(r io.Reader) *Command {
-	c.Stdin = r
-	return c
-}
-
-// WithStdout sets the stdout writer for the command.
-func (c *Command) WithStdout(w io.Writer) *Command {
-	c.Stdout = w
-	return c
-}
-
-// WithStderr sets the stderr writer for the command.
-func (c *Command) WithStderr(w io.Writer) *Command {
-	c.Stderr = w
-	return c
-}
-
-// WithTimeout sets the timeout for the command.
-func (c *Command) WithTimeout(d time.Duration) *Command {
-	c.Timeout = d
-	return c
-}
-
-// WithPTY enables PTY allocation for the command.
-func (c *Command) WithPTY() *Command {
-	c.UsePTY = true
-	return c
-}
-
-// AsInteractive enables full interactive mode.
-func (c *Command) AsInteractive() *Command {
-	c.Interactive = true
-	c.UsePTY = true
-	return c
 }

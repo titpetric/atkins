@@ -18,27 +18,54 @@
 //	cmd := psexec.NewShellCommand("echo $HOME && ls -la")
 //	result := exec.Run(ctx, cmd)
 //
+// Or use the executor's ShellCommand method which respects DefaultShell:
+//
+//	exec := psexec.NewWithOptions(&psexec.Options{DefaultShell: "bash"})
+//	cmd := exec.ShellCommand("echo hello")
+//
 // # Command Configuration
 //
-// Commands can be configured using method chaining:
+// Commands can be configured by setting struct fields directly:
 //
-//	cmd := psexec.NewCommand("my-program").
-//		WithDir("/tmp").
-//		WithEnv([]string{"DEBUG=1"}).
-//		WithTimeout(30 * time.Second).
-//		WithStdin(inputReader)
+//	cmd := psexec.NewCommand("my-program")
+//	cmd.Dir = "/tmp"
+//	cmd.Env = []string{"DEBUG=1"}
+//	cmd.Timeout = 30 * time.Second
+//	cmd.Stdin = inputReader
+//
+// Or using a struct literal:
+//
+//	cmd := &psexec.Command{
+//		Name:    "my-program",
+//		Dir:     "/tmp",
+//		Env:     []string{"DEBUG=1"},
+//		Timeout: 30 * time.Second,
+//	}
+//
+// # Executor Defaults
+//
+// Configure default settings for all commands:
+//
+//	exec := psexec.NewWithOptions(&psexec.Options{
+//		DefaultDir:     "/workspace",
+//		DefaultEnv:     []string{"CI=true"},
+//		DefaultTimeout: 5 * time.Minute,
+//		DefaultShell:   "bash",
+//	})
 //
 // # PTY Support
 //
 // Enable PTY for commands that require terminal emulation:
 //
-//	cmd := psexec.NewCommand("vim").WithPTY()
+//	cmd := psexec.NewCommand("vim")
+//	cmd.UsePTY = true
 //
 // # Interactive Mode
 //
 // For fully interactive commands that need bidirectional terminal I/O:
 //
-//	cmd := psexec.NewCommand("bash").AsInteractive()
+//	cmd := psexec.NewCommand("bash")
+//	cmd.Interactive = true
 //
 // # Process Management
 //

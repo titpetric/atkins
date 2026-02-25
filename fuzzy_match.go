@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/titpetric/atkins/model"
@@ -20,7 +19,7 @@ type FuzzyMatchError struct {
 }
 
 func (e *FuzzyMatchError) Error() string {
-	return fmt.Sprintf("multiple jobs match the pattern; use -l to see all jobs")
+	return "multiple jobs match the pattern; use -l to see all jobs"
 }
 
 // findFuzzyMatches finds all jobs matching the fuzzy pattern (suffix/substring match).
