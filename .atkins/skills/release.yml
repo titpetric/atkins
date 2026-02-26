@@ -40,7 +40,7 @@ jobs:
 
   publish:docker:
     desc: "Push the Docker images"
-    passthru: true
+    interactive: true
     steps:
       - docker push ${{image}}:latest
       - docker push ${{image}}:${{semver}}
