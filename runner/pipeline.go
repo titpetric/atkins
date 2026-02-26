@@ -244,7 +244,12 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 
 		jobLabel := displayName
 		if job.Desc != "" {
-			jobLabel = displayName + " - " + job.Desc
+			descInterpolated, err := InterpolateString(job.Desc, pipelineCtx)
+			if err == nil {
+				jobLabel = displayName + " - " + descInterpolated
+			} else {
+				jobLabel = displayName + " - " + job.Desc
+			}
 		}
 
 		// Get job dependencies

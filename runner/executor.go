@@ -348,6 +348,24 @@ func (e *Executor) recordStepCompletion(execCtx *ExecutionContext, passed bool) 
 	}
 }
 
+// evaluateStepDir evaluates and validates the step's working directory
+func evaluateStepDir(execCtx *ExecutionContext) error {
+	if execCtx.Step == nil || execCtx.Step.Dir == "" {
+		return nil
+	}
+	dir, err := InterpolateString(execCtx.Step.Dir, execCtx)
+	if err != nil {
+		return fmt.Errorf("failed to interpolate step dir %q: %w", execCtx.Step.Dir, err)
+	}
+	if info, statErr := os.Stat(dir); statErr != nil {
+		return fmt.Errorf("step dir %q: %w", dir, statErr)
+	} else if !info.IsDir() {
+		return fmt.Errorf("step dir %q is not a directory", dir)
+	}
+	execCtx.Dir = dir
+	return nil
+}
+
 // prepareStepContext creates a new execution context for a step, copying parent env and context
 func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.Context, step *model.Step) (*ExecutionContext, error) {
 	stepCtx := parentCtx.Copy()
@@ -361,17 +379,11 @@ func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.C
 	stepCtx.Env = env
 
 	// Evaluate step-level working directory (overrides job dir)
-	if step.Dir != "" {
-		dir, err := InterpolateString(step.Dir, stepCtx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to interpolate step dir %q: %w", step.Dir, err)
+	// Skip for steps with for loops - dir will be evaluated per iteration
+	if step.For == "" {
+		if err := evaluateStepDir(stepCtx); err != nil {
+			return nil, err
 		}
-		if info, statErr := os.Stat(dir); statErr != nil {
-			return nil, fmt.Errorf("step dir %q: %w", dir, statErr)
-		} else if !info.IsDir() {
-			return nil, fmt.Errorf("step dir %q is not a directory", dir)
-		}
-		stepCtx.Dir = dir
 	}
 
 	return stepCtx, nil
@@ -387,13 +399,19 @@ func (e *Executor) prepareIterationContext(parentCtx *ExecutionContext, iteratio
 }
 
 // prepareIterationContextWithContext creates a new execution context for a loop iteration with context replacement
-func (e *Executor) prepareIterationContextWithContext(parentCtx *ExecutionContext, ctx context.Context, iteration map[string]any) *ExecutionContext {
+func (e *Executor) prepareIterationContextWithContext(parentCtx *ExecutionContext, ctx context.Context, iteration map[string]any) (*ExecutionContext, error) {
 	iterCtx := parentCtx.Copy()
 	iterCtx.Context = ctx
 	for k, v := range iteration {
 		iterCtx.Variables[k] = v
 	}
-	return iterCtx
+
+	// Evaluate step-level dir with iteration variables
+	if err := evaluateStepDir(iterCtx); err != nil {
+		return nil, err
+	}
+
+	return iterCtx, nil
 }
 
 // createIterationNode creates a new tree node for an iteration
@@ -495,6 +513,14 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 				nodeName = interpolated
 			}
 
+			// If step has a description, use that as the node name (after interpolation)
+			if step.Desc != "" {
+				descInterpolated, err := InterpolateCommand(step.Desc, iterCtx)
+				if err == nil {
+					nodeName = descInterpolated
+				}
+			}
+
 			// Get job name for ID generation
 			jobName := ""
 			if execCtx.Job != nil {
@@ -545,7 +571,10 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 
 		executeIteration := func() error {
 			// Create iteration context by overlaying iteration variables on parent context
-			iterCtx := e.prepareIterationContextWithContext(execCtx, ctx, iteration.Variables)
+			iterCtx, err := e.prepareIterationContextWithContext(execCtx, ctx, iteration.Variables)
+			if err != nil {
+				return fmt.Errorf("failed to prepare iteration context %d: %w", idx, err)
+			}
 
 			// Merge step-level env with interpolation
 			// This needs to happen before building the command so env vars can be interpolated
@@ -881,6 +910,14 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 			iterName = fmt.Sprintf("%s (item: %v)", step.Task, item)
 		} else if path, ok := iterCtx.Variables["path"]; ok {
 			iterName = fmt.Sprintf("%s (path: %v)", step.Task, path)
+		}
+
+		// If step has a description, use that as the node name (after interpolation)
+		if step.Desc != "" {
+			descInterpolated, err := InterpolateCommand(step.Desc, iterCtx)
+			if err == nil {
+				iterName = descInterpolated
+			}
 		}
 
 		iterNode := createIterationNode(iterID, iterName, step.Summarize)
