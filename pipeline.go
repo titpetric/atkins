@@ -20,8 +20,10 @@ import (
 
 // loadSkillPipelines loads skill pipelines from the project-local .atkins/skills/ directory.
 // Global skills from $HOME/.atkins/skills/ are loaded separately with correct working directory.
-func loadSkillPipelines(projectRoot string, opts *Options) ([]*model.Pipeline, error) {
+// workDir is used for when.files checks; if empty, uses current working directory.
+func loadSkillPipelines(projectRoot string, workDir string, opts *Options) ([]*model.Pipeline, error) {
 	skills := runner.NewSkills(projectRoot, true)
+	skills.WorkDir = workDir
 	return skills.Load()
 }
 
@@ -260,7 +262,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 				}
 
 				// Load and merge skill pipelines
-				pipelines, err = loadSkillPipelines(env.Root, opts)
+				pipelines, err = loadSkillPipelines(env.Root, originalCwd, opts)
 				if err != nil {
 					return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 				}
@@ -270,9 +272,12 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			absPath = configPath
 			opts.File = configPath
 
-			// Change to the directory containing the config file
-			if err := os.Chdir(configDir); err != nil {
-				return fmt.Errorf("%s failed to change directory to %s: %v", colors.BrightRed("ERROR:"), configDir, err)
+			// Only change directory when a config file is found (not just .atkins/ folder).
+			// For skills-only mode, stay in user's working directory.
+			if configPath != "" {
+				if err := os.Chdir(configDir); err != nil {
+					return fmt.Errorf("%s failed to change directory to %s: %v", colors.BrightRed("ERROR:"), configDir, err)
+				}
 			}
 		}
 
@@ -286,14 +291,14 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 
 			// Merge autodiscovered skills into the loaded pipeline
 			if env, envErr := runner.DiscoverEnvironmentFromCwd(); envErr == nil {
-				if skillPipelines, skillErr := loadSkillPipelines(env.Root, opts); skillErr == nil {
+				if skillPipelines, skillErr := loadSkillPipelines(env.Root, originalCwd, opts); skillErr == nil {
 					pipelines = append(pipelines, skillPipelines...)
 				}
 			}
 		} else {
 			// .atkins/ folder detected without config file - load skills as primary pipelines
 			opts.File = ".atkins/"
-			if skillPipelines, skillErr := loadSkillPipelines(configDir, opts); skillErr == nil {
+			if skillPipelines, skillErr := loadSkillPipelines(configDir, originalCwd, opts); skillErr == nil {
 				pipelines = skillPipelines
 			}
 		}
