@@ -152,36 +152,48 @@ func (e *Executor) runWithPTY(ctx context.Context, cmd *Command) Result {
 		result.exitCode = 1
 		return result
 	}
-	defer func() { _ = ptmx.Close() }()
 
-	var wg sync.WaitGroup
+	// Copy stdin to PTY if provided — fire and forget since stdin reads block
 	if cmd.Stdin != nil {
-		wg.Add(1)
 		go func() {
-			defer wg.Done()
 			if _, err := io.Copy(ptmx, cmd.Stdin); err != nil && !errors.Is(err, io.EOF) {
 				log.Printf("psexec: stdin copy error: %v", err)
 			}
 		}()
 	}
 
+	// Copy PTY output to writers — this blocks until command finishes
 	var outputBuf bytes.Buffer
 	writers := []io.Writer{&outputBuf}
 	if cmd.Stdout != nil {
 		writers = append(writers, cmd.Stdout)
 	}
 
-	if _, err := io.Copy(io.MultiWriter(writers...), ptmx); err != nil && !errors.Is(err, io.EOF) {
-		// Ignore I/O errors when reading from PTY (e.g., when PTY is closed or in containers)
-		// These are expected and not critical to operation
-		// log.Printf("psexec: stdout copy error: %v", err)
-	}
+	// Use a goroutine to copy output so we can handle context cancellation
+	outputDone := make(chan struct{})
+	go func() {
+		defer close(outputDone)
+		if _, err := io.Copy(io.MultiWriter(writers...), ptmx); err != nil && !errors.Is(err, io.EOF) {
+			// Ignore I/O errors when reading from PTY (e.g., when PTY is closed or in containers)
+		}
+	}()
 
-	wg.Wait()
-
-	if err := execCmd.Wait(); err != nil {
-		result.err = err
-		result.exitCode = e.extractExitCode(execCmd, err)
+	// Wait for either context cancellation or output completion
+	select {
+	case <-ctx.Done():
+		// Context cancelled - close PTY to unblock io.Copy, then wait for command
+		_ = ptmx.Close()
+		<-outputDone
+		_ = execCmd.Wait()
+		result.err = ctx.Err()
+		result.exitCode = 1
+	case <-outputDone:
+		// Output finished (command exited) - get exit status
+		if err := execCmd.Wait(); err != nil {
+			result.err = err
+			result.exitCode = e.extractExitCode(execCmd, err)
+		}
+		_ = ptmx.Close()
 	}
 
 	result.stdout = &outputBuf

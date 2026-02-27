@@ -256,6 +256,73 @@ func TestTaskResolver_Validate(t *testing.T) {
 	}
 }
 
+func TestTaskResolver_ResolveSkillShorthand(t *testing.T) {
+	// Test that "skill:job" without leading colon falls back to skill lookup
+	mainPipeline := &model.Pipeline{
+		ID:   "",
+		Jobs: map[string]*model.Job{},
+	}
+	goSkill := &model.Pipeline{
+		ID: "go",
+		Jobs: map[string]*model.Job{
+			"build": {Desc: "Go build"},
+		},
+	}
+
+	resolver := &TaskResolver{
+		CurrentPipeline: mainPipeline,
+		AllPipelines:    []*model.Pipeline{mainPipeline, goSkill},
+	}
+
+	// "go:build" should fall back to skill lookup when not found locally
+	resolved, err := resolver.Resolve("go:build")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if resolved.Name != "go:build" {
+		t.Errorf("expected name 'go:build', got: %s", resolved.Name)
+	}
+	if resolved.Pipeline != goSkill {
+		t.Errorf("expected pipeline to be goSkill")
+	}
+	if resolved.Job.Desc != "Go build" {
+		t.Errorf("expected job desc 'Go build', got: %s", resolved.Job.Desc)
+	}
+}
+
+func TestTaskResolver_ResolveSkillShorthandLocalPreferred(t *testing.T) {
+	// Test that local jobs take precedence over skill jobs with same colon-format name
+	mainPipeline := &model.Pipeline{
+		ID: "",
+		Jobs: map[string]*model.Job{
+			"go:build": {Desc: "Local go:build"},
+		},
+	}
+	goSkill := &model.Pipeline{
+		ID: "go",
+		Jobs: map[string]*model.Job{
+			"build": {Desc: "Go build"},
+		},
+	}
+
+	resolver := &TaskResolver{
+		CurrentPipeline: mainPipeline,
+		AllPipelines:    []*model.Pipeline{mainPipeline, goSkill},
+	}
+
+	// "go:build" exists locally, so local version is preferred
+	resolved, err := resolver.Resolve("go:build")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if resolved.Pipeline != mainPipeline {
+		t.Errorf("expected local pipeline to be preferred")
+	}
+	if resolved.Job.Desc != "Local go:build" {
+		t.Errorf("expected job desc 'Local go:build', got: %s", resolved.Job.Desc)
+	}
+}
+
 func TestGetJobsFromPipeline(t *testing.T) {
 	t.Run("returns Jobs when present", func(t *testing.T) {
 		p := &model.Pipeline{

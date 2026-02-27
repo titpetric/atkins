@@ -19,6 +19,7 @@ type ResolvedTask struct {
 //   - ":build" → main pipeline (ID="") job "build".
 //   - ":go:build" → skill "go" job "build".
 //   - "build" → current pipeline job "build".
+//   - "go:build" → skill "go" job "build" (fallback when not found locally).
 type TaskResolver struct {
 	CurrentPipeline *model.Pipeline
 	AllPipelines    []*model.Pipeline
@@ -91,6 +92,7 @@ func (r *TaskResolver) resolveInMain(jobName string) (*ResolvedTask, error) {
 }
 
 // resolveLocal looks up a job in the current pipeline.
+// If not found and taskName contains a colon (skill:job format), falls back to skill lookup.
 func (r *TaskResolver) resolveLocal(taskName string) (*ResolvedTask, error) {
 	if r.CurrentPipeline == nil {
 		return nil, fmt.Errorf("no current pipeline set")
@@ -104,6 +106,15 @@ func (r *TaskResolver) resolveLocal(taskName string) (*ResolvedTask, error) {
 			Job:      job,
 		}, nil
 	}
+
+	// If taskName contains a colon and not found locally, try skill resolution
+	// This supports "compose:up" as a shorthand for ":compose:up"
+	if strings.Contains(taskName, ":") && len(r.AllPipelines) > 0 {
+		if resolved, err := r.resolveCrossPipeline(taskName); err == nil {
+			return resolved, nil
+		}
+	}
+
 	return nil, fmt.Errorf("task %q not found in pipeline", taskName)
 }
 
