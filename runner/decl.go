@@ -60,15 +60,15 @@ func MergeVariables(ctx *ExecutionContext, decl *model.Decl) error {
 		return fmt.Errorf("error processing variables: %w", err)
 	}
 
+	// Merge variables into context FIRST so they're available for env interpolation
+	for k, v := range processed {
+		ctx.Variables[k] = v
+	}
+
 	if decl.Env != nil {
 		if err := mergeEnv(ctx, decl.Env); err != nil {
 			return fmt.Errorf("error processing environment: %w", err)
 		}
-	}
-
-	// Merge into context
-	for k, v := range processed {
-		ctx.Variables[k] = v
 	}
 
 	return nil

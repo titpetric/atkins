@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -40,10 +41,13 @@ func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error) {
 	// Parse with plain YAML first (no expression evaluation)
 	decoder := yaml.NewDecoder(r)
 
-	result := []*model.Pipeline{
-		{},
+	result := []*model.Pipeline{{}}
+
+	err := decoder.Decode(result[0])
+	if errors.Is(err, io.EOF) {
+		err = nil
 	}
-	if err := decoder.Decode(result[0]); err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("error decoding pipeline: %w", err)
 	}
 

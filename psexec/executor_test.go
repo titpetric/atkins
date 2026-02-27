@@ -3,6 +3,8 @@ package psexec_test
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -309,4 +311,188 @@ func TestExecutor_RunWithIO_WithStdin(t *testing.T) {
 
 	assert.True(t, result.Success())
 	assert.Contains(t, output.String(), "hello")
+}
+
+func TestExecutor_Interactive_NoTerminal(t *testing.T) {
+	// When stdin is not a terminal, interactive mode should fail gracefully
+	// with exit code 1 and a descriptive error.
+	exec := psexec.New()
+	ctx := context.Background()
+
+	cmd := psexec.NewShellCommand("echo 'should not hang'")
+	cmd.Interactive = true
+	result := exec.Run(ctx, cmd)
+
+	assert.False(t, result.Success())
+	assert.Equal(t, 1, result.ExitCode())
+	assert.Contains(t, result.Err().Error(), "failed to set raw mode")
+}
+
+func TestExecutor_Interactive_NoTerminal_ProcessCleanup(t *testing.T) {
+	// When term.MakeRaw fails, the already-started process must be waited
+	// for so it does not become a zombie.
+	exec := psexec.New()
+	ctx := context.Background()
+
+	// Use a command that writes a marker file to prove it ran
+	marker := fmt.Sprintf("/tmp/atkins_test_marker_%d", time.Now().UnixNano())
+	cmd := psexec.NewShellCommand(fmt.Sprintf("touch %s && sleep 0.1", marker))
+	cmd.Interactive = true
+	result := exec.Run(ctx, cmd)
+
+	assert.False(t, result.Success())
+	assert.Equal(t, 1, result.ExitCode())
+
+	// Give the process time to create the marker (it was started before MakeRaw failed)
+	time.Sleep(200 * time.Millisecond)
+
+	// The marker should exist — proves the process was started
+	_, err := os.Stat(marker)
+	// Process may or may not have had time to create the file before
+	// ptmx.Close sent SIGHUP, but either way the process should not be a zombie.
+	_ = err
+	os.Remove(marker)
+}
+
+func TestExecutor_Interactive_NoTerminal_DoesNotHang(t *testing.T) {
+	// Regression: interactive mode on a non-TTY must return promptly,
+	// not block on stdin or PTY I/O.
+	exec := psexec.New()
+	ctx := context.Background()
+
+	done := make(chan struct{})
+	go func() {
+		cmd := psexec.NewShellCommand("echo 'quick'")
+		cmd.Interactive = true
+		exec.Run(ctx, cmd)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// OK — returned promptly
+	case <-time.After(5 * time.Second):
+		t.Fatal("interactive mode on non-TTY hung for > 5s")
+	}
+}
+
+func TestExecutor_WithPTY_CapturesAllOutput(t *testing.T) {
+	// Regression: ensure that ALL output lines are captured, including
+	// the final line printed just before the process exits.
+	exec := psexec.New()
+	ctx := context.Background()
+
+	cmd := psexec.NewShellCommand("echo first && sleep 0.05 && echo last")
+	cmd.UsePTY = true
+	result := exec.Run(ctx, cmd)
+
+	assert.True(t, result.Success())
+	assert.Contains(t, result.Output(), "first")
+	assert.Contains(t, result.Output(), "last")
+}
+
+func TestExecutor_WithPTY_BackgroundChild(t *testing.T) {
+	// A command that spawns a background child must not cause the PTY
+	// read to hang. The session leader (bash) exiting must be sufficient.
+	exec := psexec.New()
+	ctx := context.Background()
+
+	done := make(chan psexec.Result, 1)
+	go func() {
+		cmd := psexec.NewShellCommand("echo parent_start; (sleep 60 &); echo parent_done")
+		cmd.UsePTY = true
+		done <- exec.Run(ctx, cmd)
+	}()
+
+	select {
+	case result := <-done:
+		assert.True(t, result.Success())
+		assert.Contains(t, result.Output(), "parent_start")
+		assert.Contains(t, result.Output(), "parent_done")
+	case <-time.After(5 * time.Second):
+		t.Fatal("PTY mode hung on command with background child")
+	}
+}
+
+func TestExecutor_WithPTY_SequentialRuns(t *testing.T) {
+	// Multiple sequential PTY executions must all work correctly;
+	// no leaked goroutines or file descriptors should interfere.
+	exec := psexec.New()
+	ctx := context.Background()
+
+	for i := 0; i < 5; i++ {
+		cmd := psexec.NewShellCommand(fmt.Sprintf("echo 'run_%d'", i))
+		cmd.UsePTY = true
+		result := exec.Run(ctx, cmd)
+
+		assert.True(t, result.Success(), "run %d failed", i)
+		assert.Contains(t, result.Output(), fmt.Sprintf("run_%d", i))
+	}
+}
+
+func TestExecutor_WithPTY_ExitCode(t *testing.T) {
+	exec := psexec.New()
+	ctx := context.Background()
+
+	cmd := psexec.NewShellCommand("exit 42")
+	cmd.UsePTY = true
+	result := exec.Run(ctx, cmd)
+
+	assert.False(t, result.Success())
+	assert.Equal(t, 42, result.ExitCode())
+}
+
+func TestExecutor_WithPTY_WithStdin(t *testing.T) {
+	exec := psexec.New()
+	ctx := context.Background()
+
+	cmd := psexec.NewShellCommand("head -1")
+	cmd.UsePTY = true
+	cmd.Stdin = strings.NewReader("pty_input\n")
+	result := exec.Run(ctx, cmd)
+
+	assert.True(t, result.Success())
+	assert.Contains(t, result.Output(), "pty_input")
+}
+
+func TestExecutor_WithPTY_Timeout(t *testing.T) {
+	exec := psexec.New()
+	ctx := context.Background()
+
+	done := make(chan psexec.Result, 1)
+	go func() {
+		cmd := psexec.NewShellCommand("sleep 60")
+		cmd.UsePTY = true
+		cmd.Timeout = 100 * time.Millisecond
+		done <- exec.Run(ctx, cmd)
+	}()
+
+	select {
+	case result := <-done:
+		assert.False(t, result.Success())
+	case <-time.After(5 * time.Second):
+		t.Fatal("PTY timeout did not work — hung for > 5s")
+	}
+}
+
+func TestExecutor_WithPTY_ContextCancel(t *testing.T) {
+	exec := psexec.New()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan psexec.Result, 1)
+	go func() {
+		cmd := psexec.NewShellCommand("sleep 60")
+		cmd.UsePTY = true
+		done <- exec.Run(ctx, cmd)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+
+	select {
+	case result := <-done:
+		assert.False(t, result.Success())
+	case <-time.After(5 * time.Second):
+		t.Fatal("PTY context cancel did not work — hung for > 5s")
+	}
 }

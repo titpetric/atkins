@@ -79,6 +79,58 @@ func TestDiscoverConfig_FallbackToAtkins(t *testing.T) {
 	assert.Equal(t, configPath, foundPath)
 }
 
+func TestDiscoverConfig_AtkinsFolderOnly(t *testing.T) {
+	// Create temp directory with only .atkins/ folder (no config file)
+	tmpDir := t.TempDir()
+
+	atkinsDir := filepath.Join(tmpDir, ".atkins", "skills")
+	err := os.MkdirAll(atkinsDir, 0o755)
+	require.NoError(t, err)
+
+	// Should return empty config path but valid config dir
+	foundPath, foundDir, err := runner.DiscoverConfig(tmpDir)
+	require.NoError(t, err)
+	assert.Equal(t, "", foundPath)
+	assert.Equal(t, tmpDir, foundDir)
+}
+
+func TestDiscoverConfig_AtkinsFolderFromSubdir(t *testing.T) {
+	// Create temp directory with .atkins/ in parent
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "sub", "folder")
+	err := os.MkdirAll(subDir, 0o755)
+	require.NoError(t, err)
+
+	atkinsDir := filepath.Join(tmpDir, ".atkins")
+	err = os.MkdirAll(atkinsDir, 0o755)
+	require.NoError(t, err)
+
+	// Should find .atkins/ from subdir
+	foundPath, foundDir, err := runner.DiscoverConfig(subDir)
+	require.NoError(t, err)
+	assert.Equal(t, "", foundPath)
+	assert.Equal(t, tmpDir, foundDir)
+}
+
+func TestDiscoverConfig_ConfigFilePreferredOverAtkinsFolder(t *testing.T) {
+	// Create temp directory with both config file and .atkins/ folder
+	tmpDir := t.TempDir()
+
+	configPath := filepath.Join(tmpDir, ".atkins.yml")
+	err := os.WriteFile(configPath, []byte("name: test"), 0o644)
+	require.NoError(t, err)
+
+	atkinsDir := filepath.Join(tmpDir, ".atkins")
+	err = os.MkdirAll(atkinsDir, 0o755)
+	require.NoError(t, err)
+
+	// Config file should take precedence
+	foundPath, foundDir, err := runner.DiscoverConfig(tmpDir)
+	require.NoError(t, err)
+	assert.Equal(t, configPath, foundPath)
+	assert.Equal(t, tmpDir, foundDir)
+}
+
 func TestDiscoverConfig_NotFound(t *testing.T) {
 	// Create temp directory with no config
 	tmpDir := t.TempDir()

@@ -27,6 +27,11 @@ func DiscoverConfig(startDir string) (configPath, configDir string, err error) {
 			}
 		}
 
+		atkinsDir := filepath.Join(dir, ".atkins")
+		if info, err := os.Stat(atkinsDir); err == nil && info.IsDir() {
+			return "", dir, nil
+		}
+
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			// Reached filesystem root

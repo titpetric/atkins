@@ -238,6 +238,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 	} else {
 		// Discover or resolve pipeline file before changing directory
 		var absPath string
+		var configDir string
 
 		if fileExplicitlySet {
 			// If -f/--file was explicitly provided, use it directly
@@ -247,7 +248,9 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			}
 		} else {
 			// Discover config file by traversing parent directories
-			configPath, configDir, discoverErr := runner.DiscoverConfigFromCwd()
+			var configPath string
+			var discoverErr error
+			configPath, configDir, discoverErr = runner.DiscoverConfigFromCwd()
 			if discoverErr != nil {
 				// No config file found — try environment autodiscovery
 				env, envErr := runner.DiscoverEnvironmentFromCwd()
@@ -278,16 +281,25 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			}
 		}
 
-		// Load and parse pipeline
-		pipelines, err = runner.LoadPipeline(absPath)
-		if err != nil {
-			return fmt.Errorf("%s %s", colors.BrightRed("ERROR:"), err)
-		}
+		// Load and parse pipeline from detected config path.
+		// No config is given if an .atkins folder exists here.
+		if absPath != "" {
+			pipelines, err = runner.LoadPipeline(absPath)
+			if err != nil {
+				return fmt.Errorf("%s %s", colors.BrightRed("ERROR:"), err)
+			}
 
-		// Merge autodiscovered skills into the loaded pipeline
-		if env, envErr := runner.DiscoverEnvironmentFromCwd(); envErr == nil {
-			if skillPipelines, skillErr := loadSkillPipelines(env.Root, opts); skillErr == nil {
-				pipelines = append(pipelines, skillPipelines...)
+			// Merge autodiscovered skills into the loaded pipeline
+			if env, envErr := runner.DiscoverEnvironmentFromCwd(); envErr == nil {
+				if skillPipelines, skillErr := loadSkillPipelines(env.Root, opts); skillErr == nil {
+					pipelines = append(pipelines, skillPipelines...)
+				}
+			}
+		} else {
+			// .atkins/ folder detected without config file - load skills as primary pipelines
+			opts.File = ".atkins/"
+			if skillPipelines, skillErr := loadSkillPipelines(configDir, opts); skillErr == nil {
+				pipelines = skillPipelines
 			}
 		}
 	}
@@ -299,10 +311,6 @@ pipelineReady:
 		if err := os.Chdir(opts.WorkingDirectory); err != nil {
 			return fmt.Errorf("%s failed to change directory to %s: %v", colors.BrightRed("ERROR:"), opts.WorkingDirectory, err)
 		}
-	}
-
-	if len(pipelines) == 0 {
-		return fmt.Errorf("%s No pipelines found", colors.BrightRed("ERROR:"))
 	}
 
 	// Handle lint mode
@@ -319,7 +327,9 @@ pipelineReady:
 			}
 		}
 		if opts.Lint {
-			fmt.Printf("%s Pipeline '%s' is valid\n", colors.BrightGreen("✓"), pipelines[0].Name)
+			if len(pipelines) > 0 {
+				fmt.Printf("%s Pipeline '%s' is valid\n", colors.BrightGreen("✓"), pipelines[0].Name)
+			}
 			return nil
 		}
 	}
@@ -377,10 +387,9 @@ pipelineReady:
 				break
 			}
 		}
-		if main == nil {
-			return fmt.Errorf("%s no job specified and no main pipeline found (only skills available)", colors.BrightRed("ERROR:"))
+		if main != nil {
+			pipelines = []*model.Pipeline{main}
 		}
-		pipelines = []*model.Pipeline{main}
 	}
 
 	// Run pipeline(s)

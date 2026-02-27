@@ -45,9 +45,11 @@ func (e *Executor) ShellCommand(script string) *Command {
 	if shell == "" {
 		shell = "bash"
 	}
+	// Prepend pipefail to ensure any command in a pipeline failure exits with non-zero
+	wrappedScript := "set -o pipefail\n" + script
 	return &Command{
 		Name: shell,
-		Args: []string{"-c", script},
+		Args: []string{"-c", wrappedScript},
 	}
 }
 
@@ -170,7 +172,9 @@ func (e *Executor) runWithPTY(ctx context.Context, cmd *Command) Result {
 	}
 
 	if _, err := io.Copy(io.MultiWriter(writers...), ptmx); err != nil && !errors.Is(err, io.EOF) {
-		log.Printf("psexec: stdout copy error: %v", err)
+		// Ignore I/O errors when reading from PTY (e.g., when PTY is closed or in containers)
+		// These are expected and not critical to operation
+		// log.Printf("psexec: stdout copy error: %v", err)
 	}
 
 	wg.Wait()
@@ -198,31 +202,33 @@ func (e *Executor) runInteractive(ctx context.Context, cmd *Command) Result {
 		result.exitCode = 1
 		return result
 	}
-	defer func() { _ = ptmx.Close() }()
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
+		// Process already started — clean up before returning
+		_ = ptmx.Close()
+		_ = execCmd.Wait()
 		result.err = fmt.Errorf("failed to set raw mode: %w", err)
 		result.exitCode = 1
 		return result
 	}
 	defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
+	// Copy stdin to PTY — fire and forget since os.Stdin.Read() cannot be
+	// interrupted. The goroutine exits when the next read completes and the
+	// subsequent write to the closed ptmx fails.
 	go func() {
-		defer wg.Done()
-		if _, err := io.Copy(ptmx, os.Stdin); err != nil && !errors.Is(err, io.EOF) {
-			log.Printf("psexec: stdin copy error: %v", err)
-		}
+		_, _ = io.Copy(ptmx, os.Stdin)
 	}()
 
+	// Copy PTY output to stdout — wait for this to complete so all output
+	// is flushed before the function returns.
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if _, err := io.Copy(os.Stdout, ptmx); err != nil && !errors.Is(err, io.EOF) {
-			log.Printf("psexec: stdout copy error: %v", err)
+			// Ignore I/O errors when reading from PTY (e.g., when PTY is closed or in containers)
 		}
 	}()
 
@@ -230,6 +236,10 @@ func (e *Executor) runInteractive(ctx context.Context, cmd *Command) Result {
 		result.err = err
 		result.exitCode = e.extractExitCode(execCmd, err)
 	}
+
+	// Close PTY to unblock the stdout goroutine, then wait for it to drain.
+	_ = ptmx.Close()
+	wg.Wait()
 
 	return result
 }
@@ -266,7 +276,9 @@ func (e *Executor) RunWithIO(ctx context.Context, stdout io.Writer, stdin io.Rea
 		go func() {
 			defer wg.Done()
 			if _, err := io.Copy(stdout, ptmx); err != nil && !errors.Is(err, io.EOF) {
-				log.Printf("psexec: stdout copy error: %v", err)
+				// Ignore I/O errors when reading from PTY (e.g., when PTY is closed or in containers)
+				// These are expected and not critical to operation
+				// log.Printf("psexec: stdout copy error: %v", err)
 			}
 		}()
 	}
