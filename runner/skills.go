@@ -12,7 +12,8 @@ import (
 
 // Skills handles loading skill pipelines from disk directories.
 type Skills struct {
-	Dirs []string // Directories to search (in priority order)
+	Dirs    []string // Directories to search (in priority order)
+	WorkDir string   // Directory used for when.files checks (defaults to cwd if empty)
 }
 
 // NewSkills will create a new skills loader.
@@ -30,9 +31,18 @@ func NewSkills(projectRoot string, jail bool) *Skills {
 	return &Skills{Dirs: dirs}
 }
 
+// NewGlobalSkills creates a skills loader that only searches $HOME/.atkins/skills/.
+func NewGlobalSkills() *Skills {
+	var dirs []string
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".atkins", "skills"))
+	}
+	return &Skills{Dirs: dirs}
+}
+
 // Load discovers and returns all skill pipelines that match their When conditions.
 func (s *Skills) Load() ([]*model.Pipeline, error) {
-	return discoverSkillsFromDirs(s.Dirs)
+	return discoverSkillsFromDirs(s.Dirs, s.WorkDir)
 }
 
 // interpolateString expands shell commands in $(command) syntax.
@@ -60,21 +70,23 @@ func interpolateString(s string) (string, error) {
 }
 
 // findFileInAncestors checks if a file exists at the given path or in parent directories.
-// For absolute paths, checks directly. For relative paths, searches upward from cwd
-// up to (but not including) the filesystem root.
-func findFileInAncestors(path string) bool {
+// For absolute paths, checks directly. For relative paths, searches upward from startDir
+// (or cwd if startDir is empty) up to (but not including) the filesystem root.
+func findFileInAncestors(path string, startDir string) bool {
 	if filepath.IsAbs(path) {
 		_, err := os.Stat(path)
 		return err == nil
 	}
 
-	// Relative path: search from cwd upward
-	cwd, err := os.Getwd()
-	if err != nil {
-		return false
+	// Relative path: search from startDir (or cwd) upward
+	current := startDir
+	if current == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return false
+		}
+		current = cwd
 	}
-
-	current := cwd
 	for {
 		testPath := filepath.Join(current, path)
 		if _, err := os.Stat(testPath); err == nil {
@@ -94,7 +106,8 @@ func findFileInAncestors(path string) bool {
 
 // discoverSkillsFromDirs loads all skill YAML files from the given directories
 // and returns pipelines that match their When conditions.
-func discoverSkillsFromDirs(dirs []string) ([]*model.Pipeline, error) {
+// workDir is used as the starting directory for when.files checks (cwd if empty).
+func discoverSkillsFromDirs(dirs []string, workDir string) ([]*model.Pipeline, error) {
 	var skillPipelines []*model.Pipeline
 
 	// Track seen files to avoid duplicates (project-local takes precedence)
@@ -136,7 +149,7 @@ func discoverSkillsFromDirs(dirs []string) ([]*model.Pipeline, error) {
 					}
 
 					// Check if file exists (relative paths search up parent dirs)
-					if findFileInAncestors(interpolated) {
+					if findFileInAncestors(interpolated, workDir) {
 						enabled = true
 						break // At least one pattern matched
 					}

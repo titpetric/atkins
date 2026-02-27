@@ -220,6 +220,10 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 		}
 	}
 
+	// Save original working directory for global skill when.files checks,
+	// since cwd may change during config/environment discovery.
+	originalCwd, _ := os.Getwd()
+
 	// Check stdin first (before file discovery)
 	var pipelines []*model.Pipeline
 	var err error
@@ -305,6 +309,32 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 	}
 
 pipelineReady:
+
+	// Always merge global skills from $HOME/.atkins/skills/ (unless jailed).
+	// Local .atkins/skills/ takes precedence: skip globals already loaded by ID.
+	// Uses originalCwd for when.files checks since cwd may have changed.
+	if !opts.Jail {
+		globalSkills := runner.NewGlobalSkills()
+		globalSkills.WorkDir = originalCwd
+		if globalPipelines, globalErr := globalSkills.Load(); globalErr == nil {
+			seen := make(map[string]bool)
+			for _, p := range pipelines {
+				if p.ID != "" {
+					seen[p.ID] = true
+				}
+			}
+			for _, gp := range globalPipelines {
+				if !seen[gp.ID] {
+					// Set Dir so global skills execute from the original cwd,
+					// not from the config directory that atkins may have changed to.
+					if gp.Dir == "" {
+						gp.Dir = originalCwd
+					}
+					pipelines = append(pipelines, gp)
+				}
+			}
+		}
+	}
 
 	// Handle working directory override (applies to both stdin and file modes)
 	if opts.WorkingDirectory != "" {
