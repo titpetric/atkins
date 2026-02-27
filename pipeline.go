@@ -18,20 +18,11 @@ import (
 	"github.com/titpetric/atkins/runner"
 )
 
-// loadSkillPipelines loads and merges skill pipelines from disk.
-// Searches .atkins/skills/ in project root, and $HOME/.atkins/skills/ unless jailed.
+// loadSkillPipelines loads skill pipelines from the project-local .atkins/skills/ directory.
+// Global skills from $HOME/.atkins/skills/ are loaded separately with correct working directory.
 func loadSkillPipelines(projectRoot string, opts *Options) ([]*model.Pipeline, error) {
-	skills := runner.NewSkills(projectRoot, opts.Jail)
-	pipelines, err := skills.Load()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(pipelines) == 0 {
-		return nil, fmt.Errorf("no skill pipelines loaded")
-	}
-
-	return pipelines, nil
+	skills := runner.NewSkills(projectRoot, true)
+	return skills.Load()
 }
 
 // stdinHasData checks if stdin has data available without blocking.

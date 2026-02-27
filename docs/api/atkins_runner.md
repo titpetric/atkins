@@ -173,7 +173,8 @@ type ResolvedTask struct {
 ```go
 // Skills handles loading skill pipelines from disk directories.
 type Skills struct {
-	Dirs []string	// Directories to search (in priority order)
+	Dirs	[]string	// Directories to search (in priority order)
+	WorkDir	string		// Directory used for when.files checks (defaults to cwd if empty)
 }
 ```
 
@@ -183,6 +184,7 @@ type Skills struct {
 //   - ":build" → main pipeline (ID="") job "build".
 //   - ":go:build" → skill "go" job "build".
 //   - "build" → current pipeline job "build".
+//   - "go:build" → skill "go" job "build" (fallback when not found locally).
 type TaskResolver struct {
 	CurrentPipeline	*model.Pipeline
 	AllPipelines	[]*model.Pipeline
@@ -219,6 +221,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func NewExecError (result psexec.Result) ExecError`
 - `func NewExecutor () *Executor`
 - `func NewExecutorWithOptions (opts *Options) *Executor`
+- `func NewGlobalSkills () *Skills`
 - `func NewLineCapturingWriter () *LineCapturingWriter`
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter`
@@ -428,6 +431,14 @@ NewExecutorWithOptions creates a new executor with custom options.
 
 ```go
 func NewExecutorWithOptions (opts *Options) *Executor
+```
+
+### NewGlobalSkills
+
+NewGlobalSkills creates a skills loader that only searches $HOME/.atkins/skills/.
+
+```go
+func NewGlobalSkills () *Skills
 ```
 
 ### NewLineCapturingWriter
