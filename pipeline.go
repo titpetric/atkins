@@ -246,7 +246,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			var configPath string
 			var discoverErr error
 			configPath, configDir, discoverErr = runner.DiscoverConfigFromCwd()
-			if discoverErr != nil {
+			if discoverErr != nil && configPath != "" {
 				// No config file found — try environment autodiscovery
 				env, envErr := runner.DiscoverEnvironmentFromCwd()
 				if envErr != nil {
