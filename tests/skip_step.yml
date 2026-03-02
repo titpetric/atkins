@@ -1,0 +1,11 @@
+#!/usr/bin/env atkins
+vars:
+  last_inbox_match: '2026-02-23T12:23:36Z'
+  last_sent_match: '2026-03-02T20:12:59Z'
+
+tasks:
+  default:
+    desc: "Conditionally run a notification script"
+    steps:
+      - cmd: echo "Hello"
+        if: last_sent_match < last_inbox_match

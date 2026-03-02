@@ -1,8 +1,13 @@
 package runner
 
 import (
+	"errors"
+
 	"github.com/titpetric/atkins/psexec"
 )
+
+// ErrJobSkipped is returned when a job's if condition evaluates to false.
+var ErrJobSkipped = errors.New("job skipped")
 
 // ExecError represents an error from command execution.
 type ExecError struct {

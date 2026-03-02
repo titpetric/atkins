@@ -117,6 +117,15 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 		return err
 	}
 
+	// Evaluate job-level if condition
+	shouldRun, err := EvaluateJobIf(execCtx)
+	if err != nil {
+		return fmt.Errorf("failed to evaluate if condition for job %q: %w", job.Name, err)
+	}
+	if !shouldRun {
+		return ErrJobSkipped
+	}
+
 	// Evaluate job-level working directory
 	if job.Dir != "" {
 		dir, err := InterpolateString(job.Dir, execCtx)

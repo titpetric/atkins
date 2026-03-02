@@ -335,6 +335,28 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		jobDuration := time.Since(jobStartTime)
 		jobNode.SetDuration(jobDuration.Seconds())
 
+		// Handle job-level if condition skip
+		if errors.Is(execErr, ErrJobSkipped) {
+			jobNode.SetStatus(treeview.StatusSkipped)
+			if job.If != "" {
+				jobNode.SetIf(job.If)
+			}
+			// Mark child steps as skipped too
+			for _, child := range jobNode.GetChildren() {
+				child.Node.SetStatus(treeview.StatusSkipped)
+			}
+			display.Render(root)
+
+			// Log skip event
+			jobID := "jobs." + jobName
+			if logger != nil {
+				logger.LogExec(eventlog.ResultSkipped, jobID, jobName, jobStartOffset, jobDuration.Milliseconds(), nil)
+			}
+
+			pipelineCtx.MarkJobCompleted(jobName)
+			return nil
+		}
+
 		// Log job event
 		jobID := "jobs." + jobName
 		if logger != nil {

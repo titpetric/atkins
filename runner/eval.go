@@ -17,9 +17,26 @@ func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 		return true, nil // No condition means always execute
 	}
 
-	prog, err := expr.Compile(s.If, expr.AllowUndefinedVariables())
+	return evaluateIfExpression(s.If, ctx)
+}
+
+// EvaluateJobIf evaluates the If condition on a job using expr-lang.
+// Returns true if the condition is met or no condition is set.
+// Returns error only for invalid expressions.
+func EvaluateJobIf(ctx *ExecutionContext) (bool, error) {
+	job := ctx.Job
+	if job == nil || job.If == "" {
+		return true, nil // No condition means always execute
+	}
+
+	return evaluateIfExpression(job.If, ctx)
+}
+
+// evaluateIfExpression compiles and evaluates an if expression string against the context.
+func evaluateIfExpression(ifExpr string, ctx *ExecutionContext) (bool, error) {
+	prog, err := expr.Compile(ifExpr, expr.AllowUndefinedVariables())
 	if err != nil {
-		return false, fmt.Errorf("failed to compile if expression %q: %w", s.If, err)
+		return false, fmt.Errorf("failed to compile if expression %q: %w", ifExpr, err)
 	}
 
 	// Build the environment for expression evaluation
@@ -38,7 +55,7 @@ func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 	// Run the compiled program
 	result, err := expr.Run(prog, env)
 	if err != nil {
-		return false, fmt.Errorf("failed to evaluate if expression %q: %w", s.If, err)
+		return false, fmt.Errorf("failed to evaluate if expression %q: %w", ifExpr, err)
 	}
 
 	// Coerce the result to boolean

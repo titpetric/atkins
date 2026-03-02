@@ -583,6 +583,153 @@ func TestStepVarsWithLoopVariable(t *testing.T) {
 	})
 }
 
+func TestEvaluateJobIf(t *testing.T) {
+	tests := []struct {
+		name     string
+		job      *model.Job
+		vars     map[string]any
+		env      map[string]string
+		wantBool bool
+		wantErr  bool
+	}{
+		{
+			name:     "no if condition",
+			job:      &model.Job{Name: "test"},
+			vars:     map[string]any{},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "nil job",
+			job:      nil,
+			vars:     map[string]any{},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "true condition",
+			job:      &model.Job{Name: "test", If: "true"},
+			vars:     map[string]any{},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "false condition",
+			job:      &model.Job{Name: "test", If: "false"},
+			vars:     map[string]any{},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "variable comparison true",
+			job:      &model.Job{Name: "test", If: "last_sent_match < last_inbox_match"},
+			vars:     map[string]any{"last_sent_match": "2026-02-20T00:00:00Z", "last_inbox_match": "2026-02-23T12:23:36Z"},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "variable comparison false",
+			job:      &model.Job{Name: "test", If: "last_sent_match < last_inbox_match"},
+			vars:     map[string]any{"last_sent_match": "2026-03-02T20:12:59Z", "last_inbox_match": "2026-02-23T12:23:36Z"},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &runner.ExecutionContext{
+				Variables: tt.vars,
+				Env:       tt.env,
+				Job:       tt.job,
+			}
+
+			result, err := runner.EvaluateJobIf(ctx)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantBool, result)
+		})
+	}
+}
+
+func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
+	t.Run("job with false if condition returns ErrJobSkipped", func(t *testing.T) {
+		job := &model.Job{
+			Name: "conditional_job",
+			If:   "false",
+			Steps: []*model.Step{
+				{Run: "echo should not run"},
+			},
+		}
+
+		ctx := &runner.ExecutionContext{
+			Variables: make(map[string]any),
+			Env:       make(map[string]string),
+			Job:       job,
+		}
+
+		executor := runner.NewExecutor()
+		err := executor.ExecuteJob(t.Context(), ctx)
+		assert.ErrorIs(t, err, runner.ErrJobSkipped)
+	})
+
+	t.Run("job with true if condition runs normally", func(t *testing.T) {
+		job := &model.Job{
+			Name: "conditional_job",
+			If:   "true",
+			Steps: []*model.Step{
+				{Run: "echo hello"},
+			},
+		}
+
+		display := treeview.NewSilentDisplay()
+		builder := treeview.NewBuilder("test")
+		jobNode := builder.AddJob(job, nil, "conditional_job")
+
+		ctx := &runner.ExecutionContext{
+			Variables: make(map[string]any),
+			Env:       make(map[string]string),
+			Job:       job,
+			CurrentJob: jobNode,
+			Display:    display,
+			Builder:    builder,
+		}
+
+		executor := runner.NewExecutor()
+		err := executor.ExecuteJob(t.Context(), ctx)
+		assert.NoError(t, err)
+	})
+
+	t.Run("job with variable-based if condition skipped", func(t *testing.T) {
+		job := &model.Job{
+			Name: "notification",
+			If:   "last_sent_match < last_inbox_match",
+			Decl: &model.Decl{
+				Vars: map[string]any{
+					"last_inbox_match": "2026-02-23T12:23:36Z",
+					"last_sent_match":  "2026-03-02T20:12:59Z",
+				},
+			},
+			Steps: []*model.Step{
+				{Run: "echo Hello"},
+			},
+		}
+
+		ctx := &runner.ExecutionContext{
+			Variables: make(map[string]any),
+			Env:       make(map[string]string),
+			Job:       job,
+		}
+
+		executor := runner.NewExecutor()
+		err := executor.ExecuteJob(t.Context(), ctx)
+		assert.ErrorIs(t, err, runner.ErrJobSkipped)
+	})
+}
+
 func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
 	t.Run("CurrentStep should be set to iteration node during execution", func(t *testing.T) {
 		// This tests the fix for BUG 1: output should go to the correct iteration node,
