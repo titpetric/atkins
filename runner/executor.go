@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -356,6 +357,10 @@ func evaluateStepDir(execCtx *ExecutionContext) error {
 	dir, err := InterpolateString(execCtx.Step.Dir, execCtx)
 	if err != nil {
 		return fmt.Errorf("failed to interpolate step dir %q: %w", execCtx.Step.Dir, err)
+	}
+	// Resolve relative paths against the current execution directory
+	if !filepath.IsAbs(dir) && execCtx.Dir != "" {
+		dir = filepath.Join(execCtx.Dir, dir)
 	}
 	if info, statErr := os.Stat(dir); statErr != nil {
 		return fmt.Errorf("step dir %q: %w", dir, statErr)
@@ -1044,6 +1049,7 @@ func interpolateVariables(ctx *ExecutionContext, vars map[string]any) (map[strin
 	workCtx := &ExecutionContext{
 		Variables: make(map[string]any),
 		Env:       ctx.Env,
+		Dir:       ctx.Dir,
 	}
 	for k, v := range ctx.Variables {
 		workCtx.Variables[k] = v

@@ -19,12 +19,11 @@ import (
 )
 
 // loadSkillPipelines loads skill pipelines from the project-local .atkins/skills/ directory.
-// Global skills from $HOME/.atkins/skills/ are loaded separately with correct working directory.
-// workDir is used for when.files checks; if empty, uses current working directory.
-func loadSkillPipelines(projectRoot string, workDir string, opts *Options) ([]*model.Pipeline, error) {
-	skills := runner.NewSkills(projectRoot, true)
-	skills.WorkDir = workDir
-	return skills.Load()
+// workspaceDir is the folder containing .atkins/ (used as Dir for skills without when:).
+// startDir is where to start searching for when: files (typically user's cwd).
+func loadSkillPipelines(workspaceDir string, startDir string, opts *Options) ([]*model.Pipeline, error) {
+	loader := runner.NewSkillsLoader(workspaceDir, startDir)
+	return loader.Load()
 }
 
 // stdinHasData checks if stdin has data available without blocking.
@@ -290,10 +289,8 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			}
 
 			// Merge autodiscovered skills into the loaded pipeline
-			if env, envErr := runner.DiscoverEnvironmentFromCwd(); envErr == nil {
-				if skillPipelines, skillErr := loadSkillPipelines(env.Root, originalCwd, opts); skillErr == nil {
-					pipelines = append(pipelines, skillPipelines...)
-				}
+			if skillPipelines, skillErr := loadSkillPipelines(configDir, originalCwd, opts); skillErr == nil {
+				pipelines = append(pipelines, skillPipelines...)
 			}
 		} else {
 			// .atkins/ folder detected without config file - load skills as primary pipelines
@@ -308,25 +305,21 @@ pipelineReady:
 
 	// Always merge global skills from $HOME/.atkins/skills/ (unless jailed).
 	// Local .atkins/skills/ takes precedence: skip globals already loaded by ID.
-	// Uses originalCwd for when.files checks since cwd may have changed.
 	if !opts.Jail {
-		globalSkills := runner.NewGlobalSkills()
-		globalSkills.WorkDir = originalCwd
-		if globalPipelines, globalErr := globalSkills.Load(); globalErr == nil {
-			seen := make(map[string]bool)
-			for _, p := range pipelines {
-				if p.ID != "" {
-					seen[p.ID] = true
-				}
-			}
-			for _, gp := range globalPipelines {
-				if !seen[gp.ID] {
-					// Set Dir so global skills execute from the original cwd,
-					// not from the config directory that atkins may have changed to.
-					if gp.Dir == "" {
-						gp.Dir = originalCwd
+		if home, err := os.UserHomeDir(); err == nil {
+			globalLoader := runner.NewSkillsLoader(originalCwd, originalCwd)
+			globalLoader.SkillsDirs = []string{filepath.Join(home, ".atkins", "skills")}
+			if globalPipelines, globalErr := globalLoader.Load(); globalErr == nil {
+				seen := make(map[string]bool)
+				for _, p := range pipelines {
+					if p.ID != "" {
+						seen[p.ID] = true
 					}
-					pipelines = append(pipelines, gp)
+				}
+				for _, gp := range globalPipelines {
+					if !seen[gp.ID] {
+						pipelines = append(pipelines, gp)
+					}
 				}
 			}
 		}

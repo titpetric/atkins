@@ -171,10 +171,20 @@ type ResolvedTask struct {
 ```
 
 ```go
-// Skills handles loading skill pipelines from disk directories.
-type Skills struct {
-	Dirs	[]string	// Directories to search (in priority order)
-	WorkDir	string		// Directory used for when.files checks (defaults to cwd if empty)
+// SkillsLoader discovers and loads skill pipelines from .atkins/skills/ directories.
+// It evaluates `when:` conditions to determine which skills are enabled and sets
+// the appropriate working directory for each skill based on the rules.
+type SkillsLoader struct {
+	// SkillsDirs are the directories to search for skill files, in priority order.
+	// First directory takes precedence for skills with the same ID.
+	SkillsDirs	[]string
+
+	// StartDir is the directory from which to start searching for when: files.
+	// This is typically the user's working directory.
+	StartDir	string
+
+	// WorkspaceDir is the folder containing .atkins/ (used for skills without when:).
+	WorkspaceDir	string
 }
 ```
 
@@ -221,12 +231,11 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func NewExecError (result psexec.Result) ExecError`
 - `func NewExecutor () *Executor`
 - `func NewExecutorWithOptions (opts *Options) *Executor`
-- `func NewGlobalSkills () *Skills`
 - `func NewLineCapturingWriter () *LineCapturingWriter`
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
-- `func NewSkills (projectRoot string, jail bool) *Skills`
+- `func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
@@ -245,7 +254,10 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func (*LineCapturingWriter) Write (p []byte) (int, error)`
 - `func (*Linter) Lint () []LintError`
 - `func (*NoDefaultJobError) Error () string`
-- `func (*Skills) Load () ([]*model.Pipeline, error)`
+- `func (*SkillsLoader) AddSkillsDir (dir string)`
+- `func (*SkillsLoader) FindFile (patterns []string, startDir string) (bool, string)`
+- `func (*SkillsLoader) FindFolder (name,startDir string) (bool, string)`
+- `func (*SkillsLoader) Load () ([]*model.Pipeline, error)`
 - `func (*TaskResolver) Resolve (taskName string) (*ResolvedTask, error)`
 - `func (*TaskResolver) Validate (taskName string) error`
 - `func (Env) Environ () []string`
@@ -433,14 +445,6 @@ NewExecutorWithOptions creates a new executor with custom options.
 func NewExecutorWithOptions (opts *Options) *Executor
 ```
 
-### NewGlobalSkills
-
-NewGlobalSkills creates a skills loader that only searches $HOME/.atkins/skills/.
-
-```go
-func NewGlobalSkills () *Skills
-```
-
 ### NewLineCapturingWriter
 
 NewLineCapturingWriter creates a new LineCapturingWriter.
@@ -473,14 +477,14 @@ NewPipeline allocates a new *Pipeline with dependencies.
 func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline
 ```
 
-### NewSkills
+### NewSkillsLoader
 
-NewSkills will create a new skills loader.
-If jailed it only searches `.atkins/skills/` in project root.
-If not jailed, it also loads `$HOME/.atkins/skills/`.
+NewSkillsLoader creates a loader for the given workspace.
+workspaceDir is the folder containing .atkins/ (used as Dir for skills without when:).
+startDir is where to start searching for when: files (typically user's cwd).
 
 ```go
-func NewSkills (projectRoot string, jail bool) *Skills
+func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader
 ```
 
 ### ProcessDecl
@@ -642,12 +646,44 @@ Error returns the error hinting a default job should be defined.
 func (*NoDefaultJobError) Error () string
 ```
 
-### Load
+### AddSkillsDir
 
-Load discovers and returns all skill pipelines that match their When conditions.
+AddSkillsDir adds an additional skills directory to search.
+Directories added later have lower precedence.
 
 ```go
-func (*Skills) Load () ([]*model.Pipeline, error)
+func (*SkillsLoader) AddSkillsDir (dir string)
+```
+
+### FindFile
+
+FindFile searches for files matching any of the given patterns starting from
+startDir and traversing parent directories. Returns (found, matchDir) where
+matchDir is the directory containing the first matched file.
+
+For each directory (starting with startDir, going up), all patterns are checked.
+This means closer matches are preferred over pattern order.
+
+```go
+func (*SkillsLoader) FindFile (patterns []string, startDir string) (bool, string)
+```
+
+### FindFolder
+
+FindFolder searches for a directory with the given name starting from startDir
+and traversing parent directories. Returns (found, containingDir) where
+containingDir is the parent directory that contains the named folder.
+
+```go
+func (*SkillsLoader) FindFolder (name,startDir string) (bool, string)
+```
+
+### Load
+
+Load discovers and returns all enabled skill pipelines.
+
+```go
+func (*SkillsLoader) Load () ([]*model.Pipeline, error)
 ```
 
 ### Resolve

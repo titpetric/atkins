@@ -114,11 +114,8 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		}
 	}
 
-	if err := MergeVariables(pipelineCtx, pipeline.Decl); err != nil {
-		return err
-	}
-
-	// Evaluate pipeline-level working directory
+	// Evaluate pipeline-level working directory BEFORE merging variables,
+	// so that $(command) interpolation in vars runs from the correct directory.
 	if pipeline.Dir != "" {
 		dir, err := InterpolateString(pipeline.Dir, pipelineCtx)
 		if err != nil {
@@ -130,6 +127,10 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			return fmt.Errorf("pipeline dir %q is not a directory", dir)
 		}
 		pipelineCtx.Dir = dir
+	}
+
+	if err := MergeVariables(pipelineCtx, pipeline.Decl); err != nil {
+		return err
 	}
 
 	// Resolve jobs to run
