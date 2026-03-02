@@ -690,9 +690,9 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 		jobNode := builder.AddJob(job, nil, "conditional_job")
 
 		ctx := &runner.ExecutionContext{
-			Variables: make(map[string]any),
-			Env:       make(map[string]string),
-			Job:       job,
+			Variables:  make(map[string]any),
+			Env:        make(map[string]string),
+			Job:        job,
 			CurrentJob: jobNode,
 			Display:    display,
 			Builder:    builder,

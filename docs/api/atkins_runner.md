@@ -208,6 +208,11 @@ type TaskResolver struct {
 var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.yaml"}
 ```
 
+```go
+// ErrJobSkipped is returned when a job's if condition evaluates to false.
+var ErrJobSkipped = errors.New("job skipped")
+```
+
 ## Function symbols
 
 - `func DefaultOptions () *Options`
@@ -216,6 +221,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func DiscoverEnvironment (startDir string) (*Environment, error)`
 - `func DiscoverEnvironmentFromCwd () (*Environment, error)`
 - `func EvaluateIf (ctx *ExecutionContext) (bool, error)`
+- `func EvaluateJobIf (ctx *ExecutionContext) (bool, error)`
 - `func ExpandFor (ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)`
 - `func GetDependencies (dependsOn any) []string`
 - `func InterpolateCommand (cmd string, ctx *ExecutionContext) (string, error)`
@@ -255,8 +261,8 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 - `func (*Linter) Lint () []LintError`
 - `func (*NoDefaultJobError) Error () string`
 - `func (*SkillsLoader) AddSkillsDir (dir string)`
-- `func (*SkillsLoader) FindFile (patterns []string, startDir string) (bool, string)`
-- `func (*SkillsLoader) FindFolder (name,startDir string) (bool, string)`
+- `func (*SkillsLoader) FindFile (patterns []string, startDir string) (string, bool)`
+- `func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)`
 - `func (*SkillsLoader) Load () ([]*model.Pipeline, error)`
 - `func (*TaskResolver) Resolve (taskName string) (*ResolvedTask, error)`
 - `func (*TaskResolver) Validate (taskName string) error`
@@ -316,6 +322,16 @@ Returns error only for invalid expressions.
 
 ```go
 func EvaluateIf (ctx *ExecutionContext) (bool, error)
+```
+
+### EvaluateJobIf
+
+EvaluateJobIf evaluates the If condition on a job using expr-lang.
+Returns true if the condition is met or no condition is set.
+Returns error only for invalid expressions.
+
+```go
+func EvaluateJobIf (ctx *ExecutionContext) (bool, error)
 ```
 
 ### ExpandFor
@@ -665,7 +681,7 @@ For each directory (starting with startDir, going up), all patterns are checked.
 This means closer matches are preferred over pattern order.
 
 ```go
-func (*SkillsLoader) FindFile (patterns []string, startDir string) (bool, string)
+func (*SkillsLoader) FindFile (patterns []string, startDir string) (string, bool)
 ```
 
 ### FindFolder
@@ -675,7 +691,7 @@ and traversing parent directories. Returns (found, containingDir) where
 containingDir is the parent directory that contains the named folder.
 
 ```go
-func (*SkillsLoader) FindFolder (name,startDir string) (bool, string)
+func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)
 ```
 
 ### Load
