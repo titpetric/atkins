@@ -77,8 +77,8 @@ func Pipeline() *cli.Command {
 // resolveJobTarget determines which pipeline and job to run based on the job name.
 // Resolution order:
 // 0. Explicit root reference (e.g., ":build" or ":go:build") - bypass alias resolution
-// 1. Prefixed job (e.g., "go:test") - explicit skill:job reference
-// 2. Exact main pipeline match - job name exactly matches a job in main pipeline
+// 1. Exact main pipeline match - job name exactly matches a job in main pipeline (handles colons in job names)
+// 2. Prefixed job (e.g., "go:test") - explicit skill:job reference
 // 3. Alias match - job with matching alias in any skill pipeline
 // 4. Skill ID with default - skill name that has a "default" job
 // 5. Skill ID (for listing) - skill name without requiring default job
@@ -112,19 +112,9 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		return nil, "", fmt.Errorf("%s main pipeline not found", colors.BrightRed("ERROR:"))
 	}
 
-	// 1. Check if job has a skill prefix (e.g., "go:test")
-	if parts := strings.SplitN(jobName, ":", 2); len(parts) == 2 {
-		skillID, skillJob := parts[0], parts[1]
-		for _, p := range pipelines {
-			if p.ID == skillID {
-				return []*model.Pipeline{p}, skillJob, nil
-			}
-		}
-		return nil, "", fmt.Errorf("%s skill %q not found", colors.BrightRed("ERROR:"), skillID)
-	}
-
-	// 2. Check if jobName exactly matches a job in the main pipeline
-	// Main pipeline jobs take precedence over aliases
+	// 1. Check if jobName exactly matches a job in any pipeline (main first).
+	// This handles job names containing colons (e.g., "test:mergecov") that
+	// should not be split as skill:job references.
 	for _, p := range pipelines {
 		if p.ID == "" {
 			jobs := p.Jobs
@@ -134,8 +124,18 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 			if _, exists := jobs[jobName]; exists {
 				return []*model.Pipeline{p}, jobName, nil
 			}
-			break // Only check the main pipeline (ID="")
 		}
+	}
+
+	// 2. Check if job has a skill prefix (e.g., "go:test")
+	if parts := strings.SplitN(jobName, ":", 2); len(parts) == 2 {
+		skillID, skillJob := parts[0], parts[1]
+		for _, p := range pipelines {
+			if p.ID == skillID {
+				return []*model.Pipeline{p}, skillJob, nil
+			}
+		}
+		return nil, "", fmt.Errorf("%s skill %q not found", colors.BrightRed("ERROR:"), skillID)
 	}
 
 	// 3. Check if jobName matches an alias in any pipeline

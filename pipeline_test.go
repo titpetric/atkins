@@ -230,6 +230,35 @@ func TestResolveJobTarget(t *testing.T) {
 		assert.Equal(t, "nonexistent", jobName, "should fall back and pass job name as-is")
 	})
 
+	t.Run("colon_job_name_not_treated_as_skill_prefix", func(t *testing.T) {
+		// Job name "test:mergecov" in main pipeline should match exactly,
+		// not be split as skill "test" + job "mergecov"
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{
+				"test:mergecov": {},
+				"test:simple":   {},
+				"default":       {},
+			}),
+		}
+		result, jobName, err := resolveJobTarget(pipelines, "test:mergecov")
+		require.NoError(t, err)
+		assert.Equal(t, "", result[0].ID, "should match main pipeline, not look for skill 'test'")
+		assert.Equal(t, "test:mergecov", jobName)
+	})
+
+	t.Run("colon_job_prefers_exact_over_skill", func(t *testing.T) {
+		// Main pipeline has "go:test" as a job name, and there's a "go" skill with "test" job
+		// Exact match in main pipeline should win
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"go:test": {}}),
+			makePipeline("go", map[string]*model.Job{"test": {}}),
+		}
+		result, jobName, err := resolveJobTarget(pipelines, "go:test")
+		require.NoError(t, err)
+		assert.Equal(t, "", result[0].ID, "exact main pipeline match should win over skill prefix")
+		assert.Equal(t, "go:test", jobName)
+	})
+
 	t.Run("error_skill_not_found", func(t *testing.T) {
 		pipelines := []*model.Pipeline{
 			makePipeline("", map[string]*model.Job{"build": {}}),
