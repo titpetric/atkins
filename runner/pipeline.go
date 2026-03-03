@@ -49,6 +49,7 @@ func NewPipeline(data *model.Pipeline, opts PipelineOptions) *Pipeline {
 func buildAndAddStepsToJob(jobNode *treeview.TreeNode, steps []*model.Step) {
 	for _, step := range steps {
 		stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
+		stepNode.Quiet = step.Quiet
 		// Only add command child nodes if step has multiple commands (single command already shown in label)
 		commands := step.Commands()
 		if len(commands) > 1 {

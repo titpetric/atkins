@@ -50,6 +50,7 @@ type Node struct {
 	Dependencies	[]string
 	Deferred	bool
 	Summarize	bool
+	Quiet		bool
 	Output		[]string	// Multi-line output from command execution
 }
 ```
@@ -126,6 +127,7 @@ const (
 - `func (*Builder) AddJobWithSummary (job *model.Job, deps []string, jobName string) *TreeNode`
 - `func (*Builder) AddJobWithoutSteps (deps []string, jobName string, nested bool) *TreeNode`
 - `func (*Builder) Root () *Node`
+- `func (*Display) Invalidate ()`
 - `func (*Display) IsTerminal () bool`
 - `func (*Display) Render (root *Node)`
 - `func (*Display) RenderStatic (root *Node)`
@@ -341,6 +343,16 @@ Root returns the root node.
 
 ```go
 func (*Builder) Root () *Node
+```
+
+### Invalidate
+
+Invalidate resets the line counter so the next Render does not
+roll back over output that was produced outside the tree (e.g. by
+an interactive command).
+
+```go
+func (*Display) Invalidate ()
 ```
 
 ### IsTerminal

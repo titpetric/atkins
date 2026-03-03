@@ -23,6 +23,7 @@ type Node struct {
 	Dependencies []string
 	Deferred     bool
 	Summarize    bool
+	Quiet        bool
 	Output       []string // Multi-line output from command execution
 }
 

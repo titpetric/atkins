@@ -100,10 +100,12 @@ jobs:
     vars:
       tests: $(./bin/${{ item }} -test.list ^Test.)
     steps:
-      - mkdir -p coverage/${{ item }}
+      - run: mkdir -p coverage/${{ item }}
+        quiet: true
       - for: funcName in tests
         summarize: true
         detach: true
+        desc: "Testing ${{ item }} ${{ funcName }}"
         run: ./bin/${{ item }} -test.coverprofile "./coverage/${{ item }}/${{ funcName }}.cov" -test.run "^${{ funcName }}$"
 
   test:coverage:
@@ -115,11 +117,11 @@ jobs:
       - for: funcName in tests
         summarize: true
         detach: true
+        desc: "Running covertrace ${{ item }} ${{ funcName }}"
         run: covertrace --name ${{ funcName }} -i "./coverage/${{ item }}/${{ funcName }}.cov" > "./coverage/${{ item }}/${{ funcName }}.yml"
 
   test:mergecov:
     desc: "Merge coverage files and generate reports"
-    passthru: true
     steps:
       - go run ./scripts/mergecov.go ./coverage/merged.cov ./coverage
       - go tool cover -func=./coverage/merged.cov | summary coverfunc --json > ./coverage/merged.cov.json

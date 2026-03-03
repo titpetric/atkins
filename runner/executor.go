@@ -296,14 +296,18 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	}
 	stepCtx.StepSequence = seqIndex // Set the index for this step
 
-	// Get step node from tree
+	// Get step node from tree, or create one on-demand for dynamically expanded iterations
 	var stepNode *treeview.Node
 	if jobNode := execCtx.CurrentJob; jobNode != nil {
 		children := jobNode.GetChildren()
 		if stepIndex < len(children) {
 			stepNode = children[stepIndex].Node
-			stepCtx.CurrentStep = stepNode
+		} else {
+			stepNode = treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
+			stepNode.Quiet = step.Quiet
+			jobNode.AddChild(stepNode)
 		}
+		stepCtx.CurrentStep = stepNode
 	}
 
 	// Merge step-level vars with interpolation - but skip if step has a for loop
@@ -594,6 +598,15 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 			// This needs to happen before building the command so env vars can be interpolated
 			if err := MergeVariables(iterCtx, step.Decl); err != nil {
 				return fmt.Errorf("failed to process step env for iteration %d: %w", idx, err)
+			}
+
+			// Update step node label with interpolated desc for this iteration
+			if step.Desc != "" {
+				if descInterpolated, err := InterpolateCommand(step.Desc, iterCtx); err == nil {
+					stepNode.Lock()
+					stepNode.Name = descInterpolated
+					stepNode.Unlock()
+				}
 			}
 
 			// Get the iteration sub-node
@@ -1148,6 +1161,11 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	if isInteractive {
 		shellCmd.Interactive = true
 		result = executor.Run(ctx, shellCmd)
+		// Interactive output was written directly to stdout, so the
+		// display's line counter is stale. Reset it so the next Render
+		// redraws the tree below the interactive output instead of
+		// rolling back over it.
+		execCtx.Display.Invalidate()
 	} else if shouldPassthru && execCtx.CurrentStep != nil {
 		// If passthru is enabled, capture output to the node for display with tree indentation
 		writer = NewLineCapturingWriter()

@@ -26,6 +26,7 @@ type Step struct {
 	Deferred    bool                   `yaml:"deferred,omitempty"`
 	Verbose     bool                   `yaml:"verbose,omitempty"`
 	Summarize   bool                   `yaml:"summarize,omitempty"`
+	Quiet       bool                   `yaml:"quiet,omitempty"`
 	Passthru    bool                   `yaml:"passthru,omitempty"`    // If true, output is printed with tree indentation
 	TTY         bool                   `yaml:"tty,omitempty"`         // If true, allocate a PTY for the command (enables color output)
 	Interactive bool                   `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
@@ -54,6 +55,9 @@ func (s *Step) String() string {
 // DisplayLabel returns a display label for the step, always showing prefixes.
 // This is used during execution to clearly show what type of operation is being run.
 func (s *Step) DisplayLabel() string {
+	if s.Desc != "" {
+		return s.Desc
+	}
 	switch {
 	case s.Task != "":
 		return "task: " + s.Task

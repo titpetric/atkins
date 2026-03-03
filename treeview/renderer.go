@@ -103,17 +103,13 @@ func (r *Renderer) renderNodeSummary(node *Node, prefix string, isLast bool) str
 		}
 	}
 
-	total := pending + running + passing
-	summary := colors.White(fmt.Sprintf("%d/%d", passing, total))
-	if total == passing {
-		summary = colors.Green(fmt.Sprintf("%d/%d", passing, total))
-	}
+	total := pending + running + passing + failed
 
 	// Trim label to fit viewport (prefix + branch = indentation)
 	prefixLen := colors.VisualLength(prefix + branch)
 
-	// If no summary items, just show the node name
-	if len(summary) == 0 {
+	// If no children, just show the node name
+	if total == 0 {
 		label := node.Label()
 		status := node.StatusColor()
 		if status != "" {
@@ -123,7 +119,12 @@ func (r *Renderer) renderNodeSummary(node *Node, prefix string, isLast bool) str
 		return prefix + branch + label + "\n"
 	}
 
-	label := node.Label() + " " + node.StatusColor() + " (" + colors.Gray(summary) + ")"
+	summary := colors.White(fmt.Sprintf("%d/%d", passing, total))
+	if total == passing {
+		summary = colors.Green(fmt.Sprintf("%d/%d", passing, total))
+	}
+
+	label := node.Label() + " " + node.StatusColor() + " (" + summary + ")"
 	label = r.trimLabel(label, prefixLen)
 	return prefix + branch + label + "\n"
 }
@@ -140,6 +141,10 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 
 	if node.Summarize {
 		return r.renderNodeSummary(node, prefix, isLast)
+	}
+
+	if node.Quiet {
+		return ""
 	}
 
 	label := node.Label()
@@ -160,6 +165,25 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 		!strings.HasSuffix(strings.TrimSpace(label), "✓") &&
 		!strings.HasSuffix(strings.TrimSpace(label), "✗") {
 		label = label + " " + status
+	}
+
+	// Get children once for consistent progress counter and rendering
+	children := node.GetChildren()
+
+	// Add progress counter for nodes with multiple children
+	if len(children) > 1 {
+		var passing, total int
+		for _, child := range children {
+			total++
+			if child.Status == StatusPassed {
+				passing++
+			}
+		}
+		progress := colors.White(fmt.Sprintf("%d/%d", passing, total))
+		if total == passing {
+			progress = colors.Green(fmt.Sprintf("%d/%d", passing, total))
+		}
+		label = label + " (" + progress + ")"
 	}
 
 	// Trim label to fit viewport (prefix + branch = indentation)
@@ -218,7 +242,6 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 	}
 
 	// Render children
-	children := node.GetChildren()
 	if len(children) > 0 {
 		// Determine continuation character
 		continuation := "│  "
@@ -247,6 +270,10 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 
 	if node.Summarize {
 		return r.renderNodeSummary(node, prefix, isLast)
+	}
+
+	if node.Quiet {
+		return ""
 	}
 
 	label := node.Label()

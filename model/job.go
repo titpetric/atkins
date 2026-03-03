@@ -26,6 +26,7 @@ type Job struct {
 	Requires    []string     `yaml:"requires,omitempty"` // Variables required when invoked in a loop
 	Timeout     string       `yaml:"timeout,omitempty"`  // e.g., "10m", "300s"
 	Summarize   bool         `yaml:"summarize,omitempty"`
+	Quiet       bool         `yaml:"quiet,omitempty"`
 	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, output is printed with tree indentation
 	TTY         bool         `yaml:"tty,omitempty"`         // If true, allocate a PTY for all steps (enables color output)
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input

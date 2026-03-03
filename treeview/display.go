@@ -55,6 +55,15 @@ func (d *Display) IsTerminal() bool {
 	return d.isTerminal
 }
 
+// Invalidate resets the line counter so the next Render does not
+// roll back over output that was produced outside the tree (e.g. by
+// an interactive command).
+func (d *Display) Invalidate() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.lastLineCount = 0
+}
+
 // Render outputs the tree, updating in-place if previously rendered.
 func (d *Display) Render(root *Node) {
 	d.mu.Lock()
