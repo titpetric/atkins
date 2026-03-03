@@ -9,7 +9,7 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// ProcessDecl processes an Decl and returns a map of variables.
+// ProcessDecl processes a Decl and returns a map of variables.
 // It handles:
 // - Manual vars with interpolation ($(...), ${{ ... }})
 // - Include files (.yml format)
@@ -20,7 +20,7 @@ func ProcessDecl(ctx *ExecutionContext, decl *model.Decl) (map[string]any, error
 	// First, load included files
 	if decl != nil && decl.Include != nil {
 		for _, filename := range decl.Include.Files {
-			if err := loadYaml(filename, &result); err != nil {
+			if err := loadVarsFile(filename, result); err != nil {
 				return nil, fmt.Errorf("failed to load vars file %q: %w", filename, err)
 			}
 		}
@@ -40,27 +40,43 @@ func ProcessDecl(ctx *ExecutionContext, decl *model.Decl) (map[string]any, error
 	return result, nil
 }
 
-func loadYaml(filename string, dest any) error {
+// loadVarsFile reads a YAML file and merges its contents into the vars map.
+func loadVarsFile(filename string, vars map[string]any) error {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
-
-	return yaml.Unmarshal(data, dest)
+	return yaml.Unmarshal(data, &vars)
 }
 
 // MergeVariables merges variables from Decl into the execution context.
+// When both vars and env.vars are present, they are resolved together using
+// a unified dependency graph so that cross-references work correctly
+// (e.g., vars using $(echo $ENV_VAR) and env using ${{ var_name }}).
 func MergeVariables(ctx *ExecutionContext, decl *model.Decl) error {
 	if decl == nil {
 		return nil
 	}
 
+	hasVars := decl.Vars != nil && len(decl.Vars) > 0
+	hasEnvVars := decl.Env != nil && decl.Env.Vars != nil && len(decl.Env.Vars) > 0
+
+	// When both vars and env.vars have entries, use unified resolution
+	// to handle cross-dependencies correctly.
+	if hasVars && hasEnvVars {
+		r, err := newResolver(ctx, decl)
+		if err != nil {
+			return err
+		}
+		return r.mergeInto(ctx)
+	}
+
+	// Otherwise, use the original sequential path.
 	processed, err := ProcessDecl(ctx, decl)
 	if err != nil {
 		return fmt.Errorf("error processing variables: %w", err)
 	}
 
-	// Merge variables into context FIRST so they're available for env interpolation
 	for k, v := range processed {
 		ctx.Variables[k] = v
 	}

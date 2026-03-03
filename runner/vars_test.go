@@ -87,6 +87,106 @@ func TestVariableEvaluation_DependencyOrdering(t *testing.T) {
 	}
 }
 
+func TestVariableEvaluation_ShellWithEnvDependency(t *testing.T) {
+	ctx := &runner.ExecutionContext{
+		Variables: make(map[string]any),
+		Env:       make(map[string]string),
+	}
+
+	decl := &model.Decl{
+		Env: &model.EnvDecl{
+			Vars: map[string]any{
+				"AUTH_USERNAME": "titpetric",
+			},
+		},
+		Vars: map[string]any{
+			"username": "$(echo $AUTH_USERNAME)",
+		},
+	}
+
+	err := runner.MergeVariables(ctx, decl)
+	require.NoError(t, err)
+
+	assert.Equal(t, "titpetric", ctx.Variables["username"], "vars should resolve env vars set in env section")
+	assert.Equal(t, "titpetric", ctx.Env["AUTH_USERNAME"], "env should be set in context")
+}
+
+func TestVariableEvaluation_EnvDependsOnVar(t *testing.T) {
+	ctx := &runner.ExecutionContext{
+		Variables: make(map[string]any),
+		Env:       make(map[string]string),
+	}
+
+	decl := &model.Decl{
+		Vars: map[string]any{
+			"base_path": "/opt/app",
+		},
+		Env: &model.EnvDecl{
+			Vars: map[string]any{
+				"APP_PATH": "${{ base_path }}/bin",
+			},
+		},
+	}
+
+	err := runner.MergeVariables(ctx, decl)
+	require.NoError(t, err)
+
+	assert.Equal(t, "/opt/app", ctx.Variables["base_path"])
+	assert.Equal(t, "/opt/app/bin", ctx.Env["APP_PATH"], "env should resolve ${{ }} refs to vars")
+}
+
+func TestVariableEvaluation_EnvShellWithPartialEnv(t *testing.T) {
+	ctx := &runner.ExecutionContext{
+		Variables: make(map[string]any),
+		Env:       make(map[string]string),
+	}
+
+	decl := &model.Decl{
+		Vars: map[string]any{
+			"greeting": "hello",
+		},
+		Env: &model.EnvDecl{
+			Vars: map[string]any{
+				"FIRST":  "world",
+				"SECOND": "$(echo $FIRST)",
+			},
+		},
+	}
+
+	err := runner.MergeVariables(ctx, decl)
+	require.NoError(t, err)
+
+	assert.Equal(t, "world", ctx.Env["FIRST"])
+	assert.Equal(t, "world", ctx.Env["SECOND"], "env $() should run with already-resolved env vars")
+}
+
+func TestVariableEvaluation_CrossDepChain(t *testing.T) {
+	ctx := &runner.ExecutionContext{
+		Variables: make(map[string]any),
+		Env:       make(map[string]string),
+	}
+
+	// Chain: env AUTH_USERNAME -> var username (via $()) -> env GREETING (via ${{ }})
+	decl := &model.Decl{
+		Env: &model.EnvDecl{
+			Vars: map[string]any{
+				"AUTH_USERNAME": "titpetric",
+				"GREETING":      "${{ username }}",
+			},
+		},
+		Vars: map[string]any{
+			"username": "$(echo $AUTH_USERNAME)",
+		},
+	}
+
+	err := runner.MergeVariables(ctx, decl)
+	require.NoError(t, err)
+
+	assert.Equal(t, "titpetric", ctx.Env["AUTH_USERNAME"])
+	assert.Equal(t, "titpetric", ctx.Variables["username"])
+	assert.Equal(t, "titpetric", ctx.Env["GREETING"], "env should resolve var that itself depends on env")
+}
+
 func TestVariableEvaluation_CyclicDependency(t *testing.T) {
 	ctx := &runner.ExecutionContext{
 		Variables: make(map[string]any),

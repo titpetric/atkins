@@ -171,6 +171,21 @@ type ResolvedTask struct {
 ```
 
 ```go
+// Resolver resolves vars and env.vars together using a unified dependency
+// graph. This handles cross-dependencies where vars use $(echo $ENV_VAR)
+// and env uses ${{ var_name }}.
+type Resolver struct {
+	vars	map[string]any
+	envVars	map[string]any
+
+	baseVars	map[string]any
+	baseEnv		map[string]string
+
+	workCtx	*ExecutionContext
+}
+```
+
+```go
 // SkillsLoader discovers and loads skill pipelines from .atkins/skills/ directories.
 // It evaluates `when:` conditions to determine which skills are enabled and sets
 // the appropriate working directory for each skill based on the rules.
@@ -432,6 +447,9 @@ func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)
 ### MergeVariables
 
 MergeVariables merges variables from Decl into the execution context.
+When both vars and env.vars are present, they are resolved together using
+a unified dependency graph so that cross-references work correctly
+(e.g., vars using $(echo $ENV_VAR) and env using ${{ var_name }}).
 
 ```go
 func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error
@@ -505,7 +523,7 @@ func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader
 
 ### ProcessDecl
 
-ProcessDecl processes an Decl and returns a map of variables.
+ProcessDecl processes a Decl and returns a map of variables.
 It handles:
 - Manual vars with interpolation ($(...), ${{ ... }})
 - Include files (.yml format)

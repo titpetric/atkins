@@ -1,0 +1,13 @@
+#!/usr/bin/env atkins
+env:
+  vars:
+    AUTH_USERNAME: titpetric
+
+vars:
+  username: $(echo $AUTH_USERNAME)
+
+tasks:
+  default:
+    desc: "Resolve vars that depend on env"
+    steps:
+      - cmd: echo "Hello ${{ username }}"
