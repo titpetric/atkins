@@ -44,9 +44,9 @@ func (r *Renderer) Render(root *Node) string {
 		r.trimmer.RefreshViewport()
 	}
 
-	output := colors.BrightWhite(root.Name) + "\n"
+	output := colors.BrightWhite(root.GetName()) + "\n"
 
-	if root.Summarize {
+	if root.IsSummarize() {
 		output += r.renderNodeSummary(root, "", true)
 		return output
 	}
@@ -65,9 +65,9 @@ func (r *Renderer) RenderStatic(root *Node) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	output := colors.BrightWhite(root.Name) + "\n"
+	output := colors.BrightWhite(root.GetName()) + "\n"
 
-	if root.Summarize {
+	if root.IsSummarize() {
 		output += r.renderNodeSummary(root, "", true)
 		return output
 	}
@@ -91,7 +91,7 @@ func (r *Renderer) renderNodeSummary(node *Node, prefix string, isLast bool) str
 
 	var pending, running, passing, failed int
 	for _, child := range node.GetChildren() {
-		switch child.Status {
+		switch child.GetStatus() {
 		case StatusRunning:
 			running++
 		case StatusFailed:
@@ -139,11 +139,11 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 		branch = "└─ "
 	}
 
-	if node.Summarize {
+	if node.IsSummarize() {
 		return r.renderNodeSummary(node, prefix, isLast)
 	}
 
-	if node.Quiet {
+	if node.IsQuiet() {
 		return ""
 	}
 
@@ -151,9 +151,10 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 	status := node.StatusColor()
 
 	// Build the node label with dependencies and deferred info
-	if len(node.Dependencies) > 0 {
-		depItems := make([]string, len(node.Dependencies))
-		for j, dep := range node.Dependencies {
+	deps := node.GetDependencies()
+	if len(deps) > 0 {
+		depItems := make([]string, len(deps))
+		for j, dep := range deps {
 			depItems[j] = colors.BrightOrange(dep)
 		}
 		depsStr := strings.Join(depItems, ", ")
@@ -175,7 +176,7 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 		var passing, total int
 		for _, child := range children {
 			total++
-			if child.Status == StatusPassed {
+			if child.GetStatus() == StatusPassed {
 				passing++
 			}
 		}
@@ -195,7 +196,9 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 	output += "\n"
 
 	// Render output lines from command execution (with proper indentation)
-	if len(node.Output) > 0 {
+	// Use GetOutput() for thread-safe access to output slice
+	nodeOutput := node.GetOutput()
+	if len(nodeOutput) > 0 {
 		// Determine continuation character for output indentation
 		continuation := "│  "
 		if isLast {
@@ -204,10 +207,16 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 
 		// Trim output lines and calculate max width for border (visual width, excluding ANSI)
 		outputPrefixLen := colors.VisualLength(prefix + continuation)
-		trimmedLines := make([]string, len(node.Output))
+		hasBorder := len(nodeOutput) >= 2
+		// Account for border characters: │ content │ adds 4 visual chars (┌/└, space, space, ┐/┘)
+		borderOverhead := 0
+		if hasBorder {
+			borderOverhead = 4
+		}
+		trimmedLines := make([]string, len(nodeOutput))
 		maxWidth := 0
-		for i, outputLine := range node.Output {
-			trimmedLine := r.trimLabel(outputLine, outputPrefixLen)
+		for i, outputLine := range nodeOutput {
+			trimmedLine := r.trimLabel(outputLine, outputPrefixLen+borderOverhead)
 			trimmedLines[i] = trimmedLine
 			width := colors.VisualLength(trimmedLine)
 			if width > maxWidth {
@@ -216,7 +225,7 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 		}
 
 		// Add top border if 2+ elements (account for spaces around content)
-		if len(trimmedLines) >= 2 {
+		if hasBorder {
 			topBorder := prefix + continuation + colors.Gray("┌"+strings.Repeat("─", maxWidth+2)+"┐") + "\n"
 			output += topBorder
 		}
@@ -227,7 +236,7 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 			currentWidth := colors.VisualLength(trimmedLine)
 			padding := strings.Repeat(" ", maxWidth-currentWidth)
 			paddedLine := " " + trimmedLine + padding + " "
-			if len(trimmedLines) >= 2 {
+			if hasBorder {
 				output += prefix + continuation + colors.Gray("│") + colors.White(paddedLine) + colors.Gray("│") + "\n"
 			} else {
 				output += prefix + continuation + colors.White(trimmedLine) + "\n"
@@ -235,7 +244,7 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 		}
 
 		// Add bottom border if 2+ elements (account for spaces around content)
-		if len(trimmedLines) >= 2 {
+		if hasBorder {
 			bottomBorder := prefix + continuation + colors.Gray("└"+strings.Repeat("─", maxWidth+2)+"┘") + "\n"
 			output += bottomBorder
 		}
@@ -268,11 +277,11 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		branch = "└─ "
 	}
 
-	if node.Summarize {
+	if node.IsSummarize() {
 		return r.renderNodeSummary(node, prefix, isLast)
 	}
 
-	if node.Quiet {
+	if node.IsQuiet() {
 		return ""
 	}
 
@@ -280,9 +289,10 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 	status := node.StatusColor()
 
 	// Build the node label with dependencies and deferred info
-	if len(node.Dependencies) > 0 {
-		depItems := make([]string, len(node.Dependencies))
-		for j, dep := range node.Dependencies {
+	deps := node.GetDependencies()
+	if len(deps) > 0 {
+		depItems := make([]string, len(deps))
+		for j, dep := range deps {
 			depItems[j] = colors.BrightOrange(dep)
 		}
 		depsStr := strings.Join(depItems, ", ")
@@ -290,8 +300,9 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 	}
 
 	// Add status indicator only for jobs, not for steps (in list view)
-	isStep := strings.Contains(node.Name, "task:") || strings.Contains(node.Name, "run:") ||
-		strings.Contains(node.Name, "cmd:") || strings.Contains(node.Name, "cmds:")
+	nodeName := node.GetName()
+	isStep := strings.Contains(nodeName, "task:") || strings.Contains(nodeName, "run:") ||
+		strings.Contains(nodeName, "cmd:") || strings.Contains(nodeName, "cmds:")
 	if status != "" && !isStep {
 		label = label + " " + status
 	}
@@ -305,7 +316,9 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 	output += "\n"
 
 	// Render output lines from command execution (with proper indentation)
-	if len(node.Output) > 0 {
+	// Use GetOutput() for thread-safe access to output slice
+	nodeOutput := node.GetOutput()
+	if len(nodeOutput) > 0 {
 		// Determine continuation character for output indentation
 		continuation := "│  "
 		if isLast {
@@ -314,10 +327,16 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 
 		// Trim output lines and calculate max width for border (visual width, excluding ANSI)
 		outputPrefixLen := colors.VisualLength(prefix + continuation)
-		trimmedLines := make([]string, len(node.Output))
+		hasBorder := len(nodeOutput) >= 2
+		// Account for border characters: │ content │ adds 4 visual chars (┌/└, space, space, ┐/┘)
+		borderOverhead := 0
+		if hasBorder {
+			borderOverhead = 4
+		}
+		trimmedLines := make([]string, len(nodeOutput))
 		maxWidth := 0
-		for i, outputLine := range node.Output {
-			trimmedLine := r.trimLabel(outputLine, outputPrefixLen)
+		for i, outputLine := range nodeOutput {
+			trimmedLine := r.trimLabel(outputLine, outputPrefixLen+borderOverhead)
 			trimmedLines[i] = trimmedLine
 			width := colors.VisualLength(trimmedLine)
 			if width > maxWidth {
@@ -326,7 +345,7 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		}
 
 		// Add top border if 2+ elements (account for spaces around content)
-		if len(trimmedLines) >= 2 {
+		if hasBorder {
 			topBorder := prefix + continuation + colors.Gray("┌"+strings.Repeat("─", maxWidth+2)+"┐") + "\n"
 			output += topBorder
 		}
@@ -337,7 +356,7 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 			currentWidth := colors.VisualLength(trimmedLine)
 			padding := strings.Repeat(" ", maxWidth-currentWidth)
 			paddedLine := " " + trimmedLine + padding + " "
-			if len(trimmedLines) >= 2 {
+			if hasBorder {
 				output += prefix + continuation + colors.Gray("│") + colors.White(paddedLine) + colors.Gray("│") + "\n"
 			} else {
 				output += prefix + continuation + colors.White(trimmedLine) + "\n"
@@ -345,7 +364,7 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		}
 
 		// Add bottom border if 2+ elements (account for spaces around content)
-		if len(trimmedLines) >= 2 {
+		if hasBorder {
 			bottomBorder := prefix + continuation + colors.Gray("└"+strings.Repeat("─", maxWidth+2)+"┘") + "\n"
 			output += bottomBorder
 		}

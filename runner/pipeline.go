@@ -291,6 +291,59 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			jobNodes[jobName] = &treeview.TreeNode{Node: jobNode}
 		}
 	}
+	// Pre-attach task job nodes as children of direct task: step nodes.
+	// This ensures the initial tree render accounts for the correct line count
+	// before execution begins (e.g., "task: test:mergecov" expands its children).
+	// Also pre-attach depends_on dependency nodes (mirroring executor behavior).
+	preAttached := make(map[string]bool)
+	var preAttachTaskSteps func(jobName string)
+	preAttachTaskSteps = func(jobName string) {
+		if preAttached[jobName] {
+			return
+		}
+		preAttached[jobName] = true
+
+		jobNode := jobNodes[jobName]
+		if jobNode == nil {
+			return
+		}
+		job := allJobs[jobName]
+		if job == nil {
+			job = crossPipelineJobs[jobName]
+		}
+		if job == nil {
+			return
+		}
+		stepChildren := jobNode.Node.GetChildren()
+		for i, step := range job.Children() {
+			if step.Task == "" || step.For != "" || i >= len(stepChildren) {
+				continue
+			}
+			taskJob := allJobs[step.Task]
+			if taskJob == nil {
+				taskJob = crossPipelineJobs[step.Task]
+			}
+			if taskJob == nil {
+				continue
+			}
+			// Pre-attach depends_on dependency nodes to the step node
+			// (the executor does the same at runtime via synthetic depStep calls)
+			for _, depName := range GetDependencies(taskJob.DependsOn) {
+				if depNode := jobNodes[depName]; depNode != nil {
+					stepChildren[i].AddChild(depNode.Node)
+				}
+			}
+			// Pre-attach the task's own job node
+			if taskNode := jobNodes[step.Task]; taskNode != nil {
+				stepChildren[i].AddChild(taskNode.Node)
+				preAttachTaskSteps(step.Task)
+			}
+		}
+	}
+	for _, jobName := range jobsToCreateSorted {
+		preAttachTaskSteps(jobName)
+	}
+
 	pipelineCtx.JobNodes = jobNodes
 	display.Render(root)
 

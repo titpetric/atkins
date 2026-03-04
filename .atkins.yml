@@ -122,6 +122,7 @@ jobs:
 
   test:mergecov:
     desc: "Merge coverage files and generate reports"
+    passthru: true
     steps:
       - go run ./scripts/mergecov.go ./coverage/merged.cov ./coverage
       - go tool cover -func=./coverage/merged.cov | summary coverfunc --json > ./coverage/merged.cov.json

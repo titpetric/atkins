@@ -804,9 +804,18 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	}
 
 	// Add task node as child of step node so it appears expanded in the tree
-	// Only for non-loop task invocations
+	// Only for non-loop task invocations; skip if already pre-attached during tree building
 	if stepNode != nil && taskJobNode != nil {
-		stepNode.AddChild(taskJobNode.Node)
+		alreadyChild := false
+		for _, child := range stepNode.GetChildren() {
+			if child == taskJobNode.Node {
+				alreadyChild = true
+				break
+			}
+		}
+		if !alreadyChild {
+			stepNode.AddChild(taskJobNode.Node)
+		}
 	}
 
 	// Mark the task as running
@@ -1161,10 +1170,6 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	if isInteractive {
 		shellCmd.Interactive = true
 		result = executor.Run(ctx, shellCmd)
-		// Interactive output was written directly to stdout, so the
-		// display's line counter is stale. Reset it so the next Render
-		// redraws the tree below the interactive output instead of
-		// rolling back over it.
 		execCtx.Display.Invalidate()
 	} else if shouldPassthru && execCtx.CurrentStep != nil {
 		// If passthru is enabled, capture output to the node for display with tree indentation

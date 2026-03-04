@@ -12,6 +12,6 @@ type Options struct {
 // DefaultOptions returns the default executor options.
 func DefaultOptions() *Options {
 	return &Options{
-		DefaultTimeout: 300 * time.Second, // 5 minutes default
+		DefaultTimeout: 900 * time.Second, // 15 minutes default
 	}
 }

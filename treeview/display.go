@@ -3,6 +3,7 @@ package treeview
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"golang.org/x/term"
@@ -74,15 +75,39 @@ func (d *Display) Render(root *Node) {
 		return
 	}
 
+	output := d.renderer.Render(root)
+
+	// Determine how many lines we can actually display. When the tree is
+	// taller than the terminal, only show the bottom portion so the
+	// rollback always matches what was previously on screen.
+	_, termHeight, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil || termHeight <= 0 {
+		termHeight = 0 // unknown, no clamping
+	}
+
+	lines := strings.Split(output, "\n")
+	// Remove trailing empty element from final \n
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	lineCount := len(lines)
+
+	// Clamp to terminal height: keep only the bottom portion that fits
+	if termHeight > 0 && lineCount > termHeight {
+		lines = lines[lineCount-termHeight:]
+		lineCount = termHeight
+	}
+
 	if d.lastLineCount > 0 {
-		// Move cursor up, clear to end of display
 		fmt.Printf("\033[%dA\033[J", d.lastLineCount)
 	}
 
-	output := d.renderer.Render(root)
-	fmt.Print(output)
+	for _, line := range lines {
+		fmt.Print(line + "\n")
+	}
 
-	d.lastLineCount = countOutputLines(output)
+	d.lastLineCount = lineCount
 }
 
 // RenderStatic displays a static tree view (for list).

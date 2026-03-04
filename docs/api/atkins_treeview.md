@@ -138,7 +138,13 @@ const (
 - `func (*Node) AddChild (child *Node)`
 - `func (*Node) AddChildren (children ...*Node)`
 - `func (*Node) GetChildren () []*Node`
+- `func (*Node) GetDependencies () []string`
+- `func (*Node) GetName () string`
+- `func (*Node) GetOutput () []string`
+- `func (*Node) GetStatus () Status`
 - `func (*Node) HasChildren () bool`
+- `func (*Node) IsQuiet () bool`
+- `func (*Node) IsSummarize () bool`
 - `func (*Node) Label () string`
 - `func (*Node) SetDuration (duration float64)`
 - `func (*Node) SetID (id string)`
@@ -435,12 +441,68 @@ GetChildren returns a copy of the children slice (thread-safe).
 func (*Node) GetChildren () []*Node
 ```
 
+### GetDependencies
+
+GetDependencies returns a copy of the dependencies slice (thread-safe).
+
+```go
+func (*Node) GetDependencies () []string
+```
+
+### GetName
+
+GetName returns the node name (thread-safe).
+
+```go
+func (*Node) GetName () string
+```
+
+### GetOutput
+
+GetOutput returns a copy of the output lines (thread-safe).
+
+```go
+func (*Node) GetOutput () []string
+```
+
+### GetStatus
+
+GetStatus returns the node's status (thread-safe).
+
+```go
+func (*Node) GetStatus () Status
+```
+
 ### HasChildren
 
 HasChildren returns true or false if the node has children.
 
 ```go
 func (*Node) HasChildren () bool
+```
+
+### IsQuiet
+
+IsQuiet returns the quiet flag (thread-safe).
+
+```go
+func (*Node) IsQuiet () bool
+```
+
+### IsSummarize
+
+IsSummarize returns the summarize flag (thread-safe).
+
+```go
+func (*Node) IsSummarize () bool
+```
+
+### Label
+
+Label returns the node label with color formatting. Thread-safe.
+
+```go
+func (*Node) Label () string
 ```
 
 ### SetDuration
@@ -502,7 +564,7 @@ func (*Node) SetSummarize (summarize bool)
 ### StatusColor
 
 StatusColor will return the status indicator for the node.
-The indicator contains ANSI color sequences.
+The indicator contains ANSI color sequences. Thread-safe.
 
 ```go
 func (*Node) StatusColor () string
@@ -631,12 +693,6 @@ String returns a colored string representation of the Status for display.
 
 ```go
 func (Status) String () string
-```
-
-### Label
-
-```go
-func (*Node) Label () string
 ```
 
 

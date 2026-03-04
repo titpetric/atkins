@@ -72,12 +72,13 @@ func NewCmdNode(name string) *Node {
 }
 
 // StatusColor will return the status indicator for the node.
-// The indicator contains ANSI color sequences.
+// The indicator contains ANSI color sequences. Thread-safe.
 func (n *Node) StatusColor() string {
-	var (
-		haveChildren = n.HasChildren()
-		haveDeps     = len(n.Dependencies) > 0
-	)
+	n.Lock()
+	defer n.Unlock()
+
+	haveChildren := len(n.Children) > 0
+	haveDeps := len(n.Dependencies) > 0
 
 	status := n.Status.String()
 	if status == "" && (haveChildren || haveDeps) {
@@ -90,13 +91,14 @@ func (n *Node) StatusColor() string {
 	return status
 }
 
+// Label returns the node label with color formatting. Thread-safe.
 func (n *Node) Label() string {
-	var (
-		haveChildren = n.HasChildren()
-		haveDeps     = len(n.Dependencies) > 0
-	)
+	n.Lock()
+	defer n.Unlock()
 
-	name := n.Name //        = fmt.Sprintf("%s, [summarize %v]", n.Name, n.Summarize)
+	haveChildren := len(n.Children) > 0
+	haveDeps := len(n.Dependencies) > 0
+	name := n.Name
 
 	switch n.Status {
 	case StatusRunning:
@@ -190,6 +192,25 @@ func (n *Node) SetOutput(lines []string) {
 	n.Output = lines
 }
 
+// GetOutput returns a copy of the output lines (thread-safe).
+func (n *Node) GetOutput() []string {
+	n.Lock()
+	defer n.Unlock()
+	if n.Output == nil {
+		return nil
+	}
+	output := make([]string, len(n.Output))
+	copy(output, n.Output)
+	return output
+}
+
+// GetStatus returns the node's status (thread-safe).
+func (n *Node) GetStatus() Status {
+	n.Lock()
+	defer n.Unlock()
+	return n.Status
+}
+
 // AddChild adds a child node.
 func (n *Node) AddChild(child *Node) {
 	n.Lock()
@@ -210,6 +231,36 @@ func (n *Node) HasChildren() bool {
 	defer n.Unlock()
 
 	return len(n.Children) > 0
+}
+
+// GetName returns the node name (thread-safe).
+func (n *Node) GetName() string {
+	n.Lock()
+	defer n.Unlock()
+	return n.Name
+}
+
+// GetDependencies returns a copy of the dependencies slice (thread-safe).
+func (n *Node) GetDependencies() []string {
+	n.Lock()
+	defer n.Unlock()
+	deps := make([]string, len(n.Dependencies))
+	copy(deps, n.Dependencies)
+	return deps
+}
+
+// IsSummarize returns the summarize flag (thread-safe).
+func (n *Node) IsSummarize() bool {
+	n.Lock()
+	defer n.Unlock()
+	return n.Summarize
+}
+
+// IsQuiet returns the quiet flag (thread-safe).
+func (n *Node) IsQuiet() bool {
+	n.Lock()
+	defer n.Unlock()
+	return n.Quiet
 }
 
 // GetChildren returns a copy of the children slice (thread-safe).
