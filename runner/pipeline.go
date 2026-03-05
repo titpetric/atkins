@@ -92,6 +92,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	} else {
 		display = treeview.NewDisplayWithFinal(finalOnly)
 	}
+
 	pipelineCtx := &ExecutionContext{
 		Variables:    make(map[string]any),
 		Env:          make(map[string]string),
@@ -464,12 +465,9 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 
 		if err := executeJobWithDeps(name, job); err != nil {
 			root.SetStatus(treeview.StatusFailed)
-			display.Render(root)
 
-			// If not a TTY, print final tree at the end
-			if !display.IsTerminal() {
-				display.RenderStatic(root)
-			}
+			// Clear the live tree and print final scrollable output
+			display.RenderFinal(root)
 
 			// Write event log on failure
 			writeEventLog(logger, root, err)
@@ -485,7 +483,6 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		if err := eg.Wait(); err != nil {
 			// Mark pipeline as failed
 			root.SetStatus(treeview.StatusFailed)
-			display.Render(root)
 			runErr = err
 		}
 	}
@@ -494,11 +491,10 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		// Mark pipeline as passed and render final tree
 		root.SetStatus(treeview.StatusPassed)
 	}
-	display.Render(root)
 
-	// If not a TTY, print final tree at the end (unless using JSON/YAML output)
-	if !display.IsTerminal() && !silentOutput {
-		display.RenderStatic(root)
+	// Clear the live tree and print final scrollable output
+	if !silentOutput {
+		display.RenderFinal(root)
 	}
 
 	// Write event log

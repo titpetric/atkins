@@ -127,9 +127,11 @@ const (
 - `func (*Builder) AddJobWithSummary (job *model.Job, deps []string, jobName string) *TreeNode`
 - `func (*Builder) AddJobWithoutSteps (deps []string, jobName string, nested bool) *TreeNode`
 - `func (*Builder) Root () *Node`
+- `func (*Display) Cleanup ()`
 - `func (*Display) Invalidate ()`
 - `func (*Display) IsTerminal () bool`
 - `func (*Display) Render (root *Node)`
+- `func (*Display) RenderFinal (root *Node)`
 - `func (*Display) RenderStatic (root *Node)`
 - `func (*ExecutionTree) AddJob (job *model.Job) *TreeNode`
 - `func (*ExecutionTree) AddJobWithDeps (jobName string, deps []string) *TreeNode`
@@ -351,6 +353,14 @@ Root returns the root node.
 func (*Builder) Root () *Node
 ```
 
+### Cleanup
+
+Cleanup is a no-op kept for API compatibility.
+
+```go
+func (*Display) Cleanup ()
+```
+
 ### Invalidate
 
 Invalidate resets the line counter so the next Render does not
@@ -375,6 +385,15 @@ Render outputs the tree, updating in-place if previously rendered.
 
 ```go
 func (*Display) Render (root *Node)
+```
+
+### RenderFinal
+
+RenderFinal clears the live-updating tree and prints the full tree statically.
+This should be called when execution completes so the output is scrollable.
+
+```go
+func (*Display) RenderFinal (root *Node)
 ```
 
 ### RenderStatic

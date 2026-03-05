@@ -70,35 +70,28 @@ func (d *Display) Render(root *Node) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	// Only render if stdout is a TTY (interactive terminal)
 	if !d.isTerminal {
 		return
 	}
 
-	output := d.renderer.Render(root)
-
-	// Determine how many lines we can actually display. When the tree is
-	// taller than the terminal, only show the bottom portion so the
-	// rollback always matches what was previously on screen.
 	_, termHeight, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || termHeight <= 0 {
-		termHeight = 0 // unknown, no clamping
+		termHeight = 24
 	}
 
+	output := d.renderer.Render(root)
 	lines := strings.Split(output, "\n")
-	// Remove trailing empty element from final \n
 	if len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
 
-	lineCount := len(lines)
-
-	// Clamp to terminal height: keep only the bottom portion that fits
-	if termHeight > 0 && lineCount > termHeight {
-		lines = lines[lineCount-termHeight:]
-		lineCount = termHeight
+	// Sliding window: show last (termHeight-1) lines to stay within terminal
+	maxLines := termHeight - 1
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
 	}
 
+	// Roll back exactly what we printed last time (never more)
 	if d.lastLineCount > 0 {
 		fmt.Printf("\033[%dA\033[J", d.lastLineCount)
 	}
@@ -107,7 +100,7 @@ func (d *Display) Render(root *Node) {
 		fmt.Print(line + "\n")
 	}
 
-	d.lastLineCount = lineCount
+	d.lastLineCount = len(lines)
 }
 
 // RenderStatic displays a static tree view (for list).
@@ -118,6 +111,26 @@ func (d *Display) RenderStatic(root *Node) {
 	output := d.renderer.RenderStatic(root)
 	fmt.Print(output)
 }
+
+// RenderFinal clears the live-updating tree and prints the full tree statically.
+// This should be called when execution completes so the output is scrollable.
+func (d *Display) RenderFinal(root *Node) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Roll back what we printed
+	if d.isTerminal && d.lastLineCount > 0 {
+		fmt.Printf("\033[%dA\033[J", d.lastLineCount)
+		d.lastLineCount = 0
+	}
+
+	// Print the full tree
+	output := d.renderer.Render(root)
+	fmt.Print(output)
+}
+
+// Cleanup is a no-op kept for API compatibility.
+func (d *Display) Cleanup() {}
 
 // countOutputLines counts the number of newlines in output
 func countOutputLines(output string) int {
