@@ -320,10 +320,10 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 		}
 	}
 
-	// Interpolate step description with current context
-	if step.Desc != "" {
-		if descInterpolated, err := InterpolateCommand(step.Desc, stepCtx); err == nil {
-			stepNode.SetName(descInterpolated)
+	// Interpolate step display label with current context
+	if label := step.DisplayLabel(); label != "" {
+		if interpolated, err := InterpolateCommand(label, stepCtx); err == nil {
+			stepNode.SetName(interpolated)
 		}
 	}
 
@@ -606,10 +606,10 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 				return fmt.Errorf("failed to process step env for iteration %d: %w", idx, err)
 			}
 
-			// Update step node label with interpolated desc for this iteration
-			if step.Desc != "" {
-				if descInterpolated, err := InterpolateCommand(step.Desc, iterCtx); err == nil {
-					stepNode.SetName(descInterpolated)
+			// Update step node label with interpolated display label for this iteration
+			if label := step.DisplayLabel(); label != "" {
+				if interpolated, err := InterpolateCommand(label, iterCtx); err == nil {
+					stepNode.SetName(interpolated)
 				}
 			}
 
