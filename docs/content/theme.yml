@@ -1,5 +1,7 @@
 theme:
   header:
     title: Atkins
-    subtitle: Documentation
+    subtitle: CLI workflows runner
     icon: "bug-play"
+
+github: https://github.com/titpetric/atkins
