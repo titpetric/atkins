@@ -45,25 +45,27 @@ Conditions have access to:
 
 Expr-lang supports common operators and comparisons:
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `==` | Equals | `env == "prod"` |
-| `!=` | Not equals | `env != "dev"` |
-| `&&` | Logical AND | `a == 1 && b == 2` |
-| `\|\|` | Logical OR | `a == 1 \|\| b == 2` |
-| `!` | Logical NOT | `!skip_tests` |
-| `>`, `<`, `>=`, `<=` | Comparisons | `num_retries > 0` |
-| `in` | Contains | `"prod" in environments` |
-| `matches` | Regex match | `branch matches "^release/"` |
+| Operator             | Description | Example                      |
+|----------------------|-------------|------------------------------|
+| `==`                 | Equals      | `env == "prod"`              |
+| `!=`                 | Not equals  | `env != "dev"`               |
+| `&&`                 | Logical AND | `a == 1 && b == 2`           |
+| `                    |             | `                            |
+| `!`                  | Logical NOT | `!skip_tests`                |
+| `>`, `<`, `>=`, `<=` | Comparisons | `num_retries > 0`            |
+| `in`                 | Contains    | `"prod" in environments`     |
+| `matches`            | Regex match | `branch matches "^release/"` |
 
 ## Examples
 
 **Combining conditions:**
+
 ```yaml
 if: environment == "production" && branch == "main"
 ```
 
 **Checking for values in lists:**
+
 ```yaml
 vars:
   allowed_envs:
@@ -78,6 +80,7 @@ jobs:
 ```
 
 **Pattern matching:**
+
 ```yaml
 if: branch matches "^release/.*"
 ```
@@ -86,16 +89,16 @@ if: branch matches "^release/.*"
 
 Values are coerced to boolean as follows:
 
-| Value | Result |
-|-------|--------|
-| `true` | true |
-| `false` | false |
-| `nil` / undefined | false |
-| `""` (empty string) | false |
-| `"false"`, `"0"` | false |
-| Any other string | true |
-| `0` | false |
-| Any other number | true |
+| Value               | Result |
+|---------------------|--------|
+| `true`              | true   |
+| `false`             | false  |
+| `nil` / undefined   | false  |
+| `""` (empty string) | false  |
+| `"false"`, `"0"`    | false  |
+| Any other string    | true   |
+| `0`                 | false  |
+| Any other number    | true   |
 
 ## Undefined Variables
 

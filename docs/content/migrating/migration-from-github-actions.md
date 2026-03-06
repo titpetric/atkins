@@ -11,6 +11,7 @@ This guide covers the syntax mappings and key differences between the two.
 ## Syntax Comparison
 
 **GitHub Actions:**
+
 ```yaml
 name: Build
 
@@ -26,6 +27,7 @@ jobs:
 ```
 
 **Atkins:**
+
 ```yaml
 name: Build
 
@@ -47,6 +49,7 @@ Atkins doesn't handle CI triggers (`on:`) or runner selection (`runs-on:`). It's
 Atkins doesn't support GitHub's action ecosystem. Replace `uses:` steps with equivalent shell commands:
 
 **GHA:**
+
 ```yaml
 - uses: actions/checkout@v4
 - uses: actions/setup-go@v5
@@ -55,6 +58,7 @@ Atkins doesn't support GitHub's action ecosystem. Replace `uses:` steps with equ
 ```
 
 **Atkins:**
+
 ```yaml
 # Checkout is typically already done by CI
 # Go setup depends on your environment
@@ -63,14 +67,15 @@ Atkins doesn't support GitHub's action ecosystem. Replace `uses:` steps with equ
 
 ### Field Name Differences
 
-| GitHub Actions | Atkins |
-|----------------|--------|
-| `runs-on` | Not supported |
-| `needs` | `depends_on:` |
+| GitHub Actions | Atkins        |
+|----------------|---------------|
+| `runs-on`      | Not supported |
+| `needs`        | `depends_on:` |
 
 ## Jobs and Dependencies
 
 **GitHub Actions:**
+
 ```yaml
 jobs:
   test:
@@ -86,6 +91,7 @@ jobs:
 ```
 
 **Atkins:**
+
 ```yaml
 jobs:
   test:
@@ -101,6 +107,7 @@ jobs:
 ## Variables
 
 **GitHub Actions:**
+
 ```yaml
 env:
   MY_VAR: value
@@ -114,6 +121,7 @@ jobs:
 ```
 
 **Atkins:**
+
 ```yaml
 vars:
   my_var: value
@@ -132,6 +140,7 @@ jobs:
 GHA's matrix strategy maps to Atkins' `for:` loops:
 
 **GitHub Actions:**
+
 ```yaml
 jobs:
   test:
@@ -145,6 +154,7 @@ jobs:
 ```
 
 **Atkins:**
+
 ```yaml
 vars:
   go_versions:
@@ -166,6 +176,7 @@ jobs:
 ## Conditional Execution
 
 **GitHub Actions:**
+
 ```yaml
 - name: Deploy
   if: github.ref == 'refs/heads/main'
@@ -173,6 +184,7 @@ jobs:
 ```
 
 **Atkins:**
+
 ```yaml
 - name: Deploy
   if: branch == "main"
@@ -205,14 +217,14 @@ jobs:
 
 ## Summary
 
-| Concept | GitHub Actions | Atkins |
-|---------|---------------|--------|
-| Triggers | `on: [push]` | Not supported (use CI) |
-| Runner selection | `runs-on:` | Not supported (local execution) |
-| Actions | `uses: actions/checkout@v4` | `run:` commands |
-| Dependencies | `needs:` | `depends_on:` |
-| Matrix | `strategy.matrix` | `for:` loops |
-| Parallel | Default | `detach: true` |
+| Concept          | GitHub Actions              | Atkins                          |
+|------------------|-----------------------------|---------------------------------|
+| Triggers         | `on: [push]`                | Not supported (use CI)          |
+| Runner selection | `runs-on:`                  | Not supported (local execution) |
+| Actions          | `uses: actions/checkout@v4` | `run:` commands                 |
+| Dependencies     | `needs:`                    | `depends_on:`                   |
+| Matrix           | `strategy.matrix`           | `for:` loops                    |
+| Parallel         | Default                     | `detach: true`                  |
 
 ## Best Practices
 

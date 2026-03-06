@@ -18,11 +18,11 @@ type Builder struct {
 ```go
 // Display manages in-place tree rendering with ANSI cursor control.
 type Display struct {
-	lastLineCount	int
-	mu		sync.Mutex
-	isTerminal	bool
-	renderer	*Renderer
-	finalOnly	bool
+	lastLineCount int
+	mu            sync.Mutex
+	isTerminal    bool
+	renderer      *Renderer
+	finalOnly     bool
 }
 ```
 
@@ -36,31 +36,31 @@ type ExecutionTree struct {
 ```go
 // Node represents a node in the tree (job, step, or iteration).
 type Node struct {
-	mu	sync.Mutex
+	mu sync.Mutex
 
-	Name		string
-	ID		string	// Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
-	Status		Status
-	CreatedAt	time.Time
-	UpdatedAt	time.Time
-	StartOffset	float64	// Seconds offset from run start
-	Duration	float64	// Duration in seconds
-	If		string	// Condition that was evaluated (for conditional steps)
-	Children	[]*Node
-	Dependencies	[]string
-	Deferred	bool
-	Summarize	bool
-	Quiet		bool
-	Output		[]string	// Multi-line output from command execution
+	Name         string
+	ID           string // Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
+	Status       Status
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	StartOffset  float64 // Seconds offset from run start
+	Duration     float64 // Duration in seconds
+	If           string  // Condition that was evaluated (for conditional steps)
+	Children     []*Node
+	Dependencies []string
+	Deferred     bool
+	Summarize    bool
+	Quiet        bool
+	Output       []string // Multi-line output from command execution
 }
 ```
 
 ```go
 // Renderer handles rendering of tree nodes to strings with proper formatting.
 type Renderer struct {
-	mu		sync.Mutex
-	trimmer		*Trimmer
-	maxArgLen	int
+	mu        sync.Mutex
+	trimmer   *Trimmer
+	maxArgLen int
 }
 ```
 
@@ -79,8 +79,8 @@ type TreeNode struct {
 ```go
 // Trimmer handles label and line trimming for viewport constraints.
 type Trimmer struct {
-	viewportWidth	int
-	mu		sync.RWMutex
+	viewportWidth int
+	mu            sync.RWMutex
 }
 ```
 
@@ -94,7 +94,7 @@ const DefaultMaxArgLen = 25
 ```go
 // Status constants.
 const (
-	StatusPending	Status	= iota
+	StatusPending Status = iota
 	StatusRunning
 	StatusPassed
 	StatusFailed
@@ -181,7 +181,7 @@ BuildFromPipeline constructs a complete tree from a pipeline.
 Returns the root node ready to be rendered.
 
 ```go
-func BuildFromPipeline (pipeline *model.Pipeline, resolveDeps func(map[string]*model.Job, string) ([]string, error)) (*Node, error)
+func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*model.Job, string) ([]string, error)) (*Node, error)
 ```
 
 ### CompactArgs
@@ -190,7 +190,7 @@ CompactArgs trims long argument values in a command string.
 Arguments longer than maxArgLen are replaced with <...N chars>.
 
 ```go
-func CompactArgs (cmd string, maxArgLen int) string
+func CompactArgs(cmd string, maxArgLen int) string
 ```
 
 ### CountLines
@@ -198,7 +198,7 @@ func CompactArgs (cmd string, maxArgLen int) string
 CountLines returns the number of lines the tree will render.
 
 ```go
-func CountLines (root *Node) int
+func CountLines(root *Node) int
 ```
 
 ### NewBuilder
@@ -206,7 +206,7 @@ func CountLines (root *Node) int
 NewBuilder creates a new tree builder.
 
 ```go
-func NewBuilder (pipelineName string) *Builder
+func NewBuilder(pipelineName string) *Builder
 ```
 
 ### NewCmdNode
@@ -214,7 +214,7 @@ func NewBuilder (pipelineName string) *Builder
 NewCmdNode creates a new command node as a child of a step.
 
 ```go
-func NewCmdNode (name string) *Node
+func NewCmdNode(name string) *Node
 ```
 
 ### NewDisplay
@@ -222,7 +222,7 @@ func NewCmdNode (name string) *Node
 NewDisplay creates a new display manager.
 
 ```go
-func NewDisplay () *Display
+func NewDisplay() *Display
 ```
 
 ### NewDisplayWithFinal
@@ -230,7 +230,7 @@ func NewDisplay () *Display
 NewDisplayWithFinal creates a new display manager with final-only mode.
 
 ```go
-func NewDisplayWithFinal (finalOnly bool) *Display
+func NewDisplayWithFinal(finalOnly bool) *Display
 ```
 
 ### NewExecutionTree
@@ -238,7 +238,7 @@ func NewDisplayWithFinal (finalOnly bool) *Display
 NewExecutionTree creates a new execution tree with a root node.
 
 ```go
-func NewExecutionTree (pipelineName string) *ExecutionTree
+func NewExecutionTree(pipelineName string) *ExecutionTree
 ```
 
 ### NewJobNode
@@ -246,7 +246,7 @@ func NewExecutionTree (pipelineName string) *ExecutionTree
 NewJobNode creates a new job node.
 
 ```go
-func NewJobNode (name string, nested bool) *Node
+func NewJobNode(name string, nested bool) *Node
 ```
 
 ### NewNode
@@ -254,7 +254,7 @@ func NewJobNode (name string, nested bool) *Node
 NewNode creates a new tree node.
 
 ```go
-func NewNode (name string) *Node
+func NewNode(name string) *Node
 ```
 
 ### NewPendingStepNode
@@ -262,7 +262,7 @@ func NewNode (name string) *Node
 NewPendingStepNode creates a new step node with pending status.
 
 ```go
-func NewPendingStepNode (name string, deferred,summarize bool) *Node
+func NewPendingStepNode(name string, deferred, summarize bool) *Node
 ```
 
 ### NewRenderer
@@ -270,7 +270,7 @@ func NewPendingStepNode (name string, deferred,summarize bool) *Node
 NewRenderer creates a new tree renderer.
 
 ```go
-func NewRenderer () *Renderer
+func NewRenderer() *Renderer
 ```
 
 ### NewSilentDisplay
@@ -279,7 +279,7 @@ NewSilentDisplay creates a display that produces no output.
 Used when JSON/YAML output mode is enabled.
 
 ```go
-func NewSilentDisplay () *Display
+func NewSilentDisplay() *Display
 ```
 
 ### NewStepNode
@@ -287,7 +287,7 @@ func NewSilentDisplay () *Display
 NewStepNode creates a new step node.
 
 ```go
-func NewStepNode (name string, deferred bool) *Node
+func NewStepNode(name string, deferred bool) *Node
 ```
 
 ### NewTreeNode
@@ -295,7 +295,7 @@ func NewStepNode (name string, deferred bool) *Node
 NewTreeNode creates a new tree node.
 
 ```go
-func NewTreeNode (name string) *TreeNode
+func NewTreeNode(name string) *TreeNode
 ```
 
 ### NewTrimmer
@@ -303,7 +303,7 @@ func NewTreeNode (name string) *TreeNode
 NewTrimmer creates a new trimmer with detected viewport width.
 
 ```go
-func NewTrimmer () *Trimmer
+func NewTrimmer() *Trimmer
 ```
 
 ### SortByOrder
@@ -312,7 +312,7 @@ SortByOrder returns the job names from the set in the order specified by orderLi
 Jobs in the set that are not in orderList are appended at the end.
 
 ```go
-func SortByOrder (jobSet map[string]bool, orderList []string) []string
+func SortByOrder(jobSet map[string]bool, orderList []string) []string
 ```
 
 ### SortJobsByDepth
@@ -321,7 +321,7 @@ SortJobsByDepth sorts job names by ':' depth, then alphabetically.
 Depth is determined by the count of ':' separators in the job name.
 
 ```go
-func SortJobsByDepth (jobNames []string) []string
+func SortJobsByDepth(jobNames []string) []string
 ```
 
 ### AddJob
@@ -329,7 +329,7 @@ func SortJobsByDepth (jobNames []string) []string
 AddJob adds a job node to the tree with all its steps.
 
 ```go
-func (*Builder) AddJob (job *model.Job, deps []string, jobName string) *TreeNode
+func (*Builder) AddJob(job *model.Job, deps []string, jobName string) *TreeNode
 ```
 
 ### AddJobWithSummary
@@ -337,7 +337,7 @@ func (*Builder) AddJob (job *model.Job, deps []string, jobName string) *TreeNode
 AddJobWithSummary adds a job node to the tree with summarization enabled.
 
 ```go
-func (*Builder) AddJobWithSummary (job *model.Job, deps []string, jobName string) *TreeNode
+func (*Builder) AddJobWithSummary(job *model.Job, deps []string, jobName string) *TreeNode
 ```
 
 ### AddJobWithoutSteps
@@ -345,7 +345,7 @@ func (*Builder) AddJobWithSummary (job *model.Job, deps []string, jobName string
 AddJobWithoutSteps adds a job node to the tree without steps (steps should be added manually afterwards).
 
 ```go
-func (*Builder) AddJobWithoutSteps (deps []string, jobName string, nested bool) *TreeNode
+func (*Builder) AddJobWithoutSteps(deps []string, jobName string, nested bool) *TreeNode
 ```
 
 ### Root
@@ -353,7 +353,7 @@ func (*Builder) AddJobWithoutSteps (deps []string, jobName string, nested bool) 
 Root returns the root node.
 
 ```go
-func (*Builder) Root () *Node
+func (*Builder) Root() *Node
 ```
 
 ### Cleanup
@@ -361,7 +361,7 @@ func (*Builder) Root () *Node
 Cleanup is a no-op kept for API compatibility.
 
 ```go
-func (*Display) Cleanup ()
+func (*Display) Cleanup()
 ```
 
 ### Invalidate
@@ -371,7 +371,7 @@ roll back over output that was produced outside the tree (e.g. by
 an interactive command).
 
 ```go
-func (*Display) Invalidate ()
+func (*Display) Invalidate()
 ```
 
 ### IsTerminal
@@ -379,7 +379,7 @@ func (*Display) Invalidate ()
 IsTerminal returns whether stdout is a TTY.
 
 ```go
-func (*Display) IsTerminal () bool
+func (*Display) IsTerminal() bool
 ```
 
 ### Render
@@ -387,7 +387,7 @@ func (*Display) IsTerminal () bool
 Render outputs the tree, updating in-place if previously rendered.
 
 ```go
-func (*Display) Render (root *Node)
+func (*Display) Render(root *Node)
 ```
 
 ### RenderFinal
@@ -396,7 +396,7 @@ RenderFinal clears the live-updating tree and prints the full tree statically.
 This should be called when execution completes so the output is scrollable.
 
 ```go
-func (*Display) RenderFinal (root *Node)
+func (*Display) RenderFinal(root *Node)
 ```
 
 ### RenderStatic
@@ -404,7 +404,7 @@ func (*Display) RenderFinal (root *Node)
 RenderStatic displays a static tree view (for list).
 
 ```go
-func (*Display) RenderStatic (root *Node)
+func (*Display) RenderStatic(root *Node)
 ```
 
 ### AddJob
@@ -412,7 +412,7 @@ func (*Display) RenderStatic (root *Node)
 AddJob adds a job node to the tree.
 
 ```go
-func (*ExecutionTree) AddJob (job *model.Job) *TreeNode
+func (*ExecutionTree) AddJob(job *model.Job) *TreeNode
 ```
 
 ### AddJobWithDeps
@@ -420,7 +420,7 @@ func (*ExecutionTree) AddJob (job *model.Job) *TreeNode
 AddJobWithDeps adds a job node to the tree with dependencies.
 
 ```go
-func (*ExecutionTree) AddJobWithDeps (jobName string, deps []string) *TreeNode
+func (*ExecutionTree) AddJobWithDeps(jobName string, deps []string) *TreeNode
 ```
 
 ### CountLines
@@ -428,7 +428,7 @@ func (*ExecutionTree) AddJobWithDeps (jobName string, deps []string) *TreeNode
 CountLines returns the number of lines the tree will render.
 
 ```go
-func (*ExecutionTree) CountLines () int
+func (*ExecutionTree) CountLines() int
 ```
 
 ### RenderTree
@@ -436,7 +436,7 @@ func (*ExecutionTree) CountLines () int
 RenderTree renders the entire tree to a string (live rendering).
 
 ```go
-func (*ExecutionTree) RenderTree () string
+func (*ExecutionTree) RenderTree() string
 ```
 
 ### AddChild
@@ -444,7 +444,7 @@ func (*ExecutionTree) RenderTree () string
 AddChild adds a child node.
 
 ```go
-func (*Node) AddChild (child *Node)
+func (*Node) AddChild(child *Node)
 ```
 
 ### AddChildren
@@ -452,7 +452,7 @@ func (*Node) AddChild (child *Node)
 AddChildren adds multiple child nodes.
 
 ```go
-func (*Node) AddChildren (children ...*Node)
+func (*Node) AddChildren(children ...*Node)
 ```
 
 ### GetChildren
@@ -460,7 +460,7 @@ func (*Node) AddChildren (children ...*Node)
 GetChildren returns a copy of the children slice (thread-safe).
 
 ```go
-func (*Node) GetChildren () []*Node
+func (*Node) GetChildren() []*Node
 ```
 
 ### GetDependencies
@@ -468,7 +468,7 @@ func (*Node) GetChildren () []*Node
 GetDependencies returns a copy of the dependencies slice (thread-safe).
 
 ```go
-func (*Node) GetDependencies () []string
+func (*Node) GetDependencies() []string
 ```
 
 ### GetIf
@@ -476,7 +476,7 @@ func (*Node) GetDependencies () []string
 GetIf returns the condition string (thread-safe).
 
 ```go
-func (*Node) GetIf () string
+func (*Node) GetIf() string
 ```
 
 ### GetName
@@ -484,7 +484,7 @@ func (*Node) GetIf () string
 GetName returns the node name (thread-safe).
 
 ```go
-func (*Node) GetName () string
+func (*Node) GetName() string
 ```
 
 ### GetOutput
@@ -492,7 +492,7 @@ func (*Node) GetName () string
 GetOutput returns a copy of the output lines (thread-safe).
 
 ```go
-func (*Node) GetOutput () []string
+func (*Node) GetOutput() []string
 ```
 
 ### GetStatus
@@ -500,7 +500,7 @@ func (*Node) GetOutput () []string
 GetStatus returns the node's status (thread-safe).
 
 ```go
-func (*Node) GetStatus () Status
+func (*Node) GetStatus() Status
 ```
 
 ### HasChildren
@@ -508,7 +508,7 @@ func (*Node) GetStatus () Status
 HasChildren returns true or false if the node has children.
 
 ```go
-func (*Node) HasChildren () bool
+func (*Node) HasChildren() bool
 ```
 
 ### IsQuiet
@@ -516,7 +516,7 @@ func (*Node) HasChildren () bool
 IsQuiet returns the quiet flag (thread-safe).
 
 ```go
-func (*Node) IsQuiet () bool
+func (*Node) IsQuiet() bool
 ```
 
 ### IsSummarize
@@ -524,7 +524,7 @@ func (*Node) IsQuiet () bool
 IsSummarize returns the summarize flag (thread-safe).
 
 ```go
-func (*Node) IsSummarize () bool
+func (*Node) IsSummarize() bool
 ```
 
 ### Label
@@ -532,7 +532,7 @@ func (*Node) IsSummarize () bool
 Label returns the node label with color formatting. Thread-safe.
 
 ```go
-func (*Node) Label () string
+func (*Node) Label() string
 ```
 
 ### SetDuration
@@ -540,7 +540,7 @@ func (*Node) Label () string
 SetDuration sets the duration in seconds. Nil-safe: no-op on nil receiver.
 
 ```go
-func (*Node) SetDuration (duration float64)
+func (*Node) SetDuration(duration float64)
 ```
 
 ### SetID
@@ -548,7 +548,7 @@ func (*Node) SetDuration (duration float64)
 SetID sets the node ID. Nil-safe: no-op on nil receiver.
 
 ```go
-func (*Node) SetID (id string)
+func (*Node) SetID(id string)
 ```
 
 ### SetIf
@@ -556,7 +556,7 @@ func (*Node) SetID (id string)
 SetIf sets the condition string that was evaluated. Nil-safe: no-op on nil receiver.
 
 ```go
-func (*Node) SetIf (condition string)
+func (*Node) SetIf(condition string)
 ```
 
 ### SetName
@@ -564,7 +564,7 @@ func (*Node) SetIf (condition string)
 SetName sets the display name of a node. Nil-safe: no-op on nil receiver.
 
 ```go
-func (*Node) SetName (name string)
+func (*Node) SetName(name string)
 ```
 
 ### SetOutput
@@ -572,7 +572,7 @@ func (*Node) SetName (name string)
 SetOutput sets the output lines for this node (from command execution).
 
 ```go
-func (*Node) SetOutput (lines []string)
+func (*Node) SetOutput(lines []string)
 ```
 
 ### SetQuiet
@@ -580,7 +580,7 @@ func (*Node) SetOutput (lines []string)
 SetQuiet sets the quiet flag. Nil-safe: no-op on nil receiver.
 
 ```go
-func (*Node) SetQuiet (quiet bool)
+func (*Node) SetQuiet(quiet bool)
 ```
 
 ### SetStartOffset
@@ -588,7 +588,7 @@ func (*Node) SetQuiet (quiet bool)
 SetStartOffset sets the start offset from run start. Nil-safe: no-op on nil receiver.
 
 ```go
-func (*Node) SetStartOffset (offset float64)
+func (*Node) SetStartOffset(offset float64)
 ```
 
 ### SetStatus
@@ -596,7 +596,7 @@ func (*Node) SetStartOffset (offset float64)
 SetStatus updates a node's status thread-safely. Nil-safe: no-op on nil receiver.
 
 ```go
-func (*Node) SetStatus (status Status)
+func (*Node) SetStatus(status Status)
 ```
 
 ### SetSummarize
@@ -604,7 +604,7 @@ func (*Node) SetStatus (status Status)
 SetSummarize sets the summarize flag. Nil-safe: no-op on nil receiver.
 
 ```go
-func (*Node) SetSummarize (summarize bool)
+func (*Node) SetSummarize(summarize bool)
 ```
 
 ### StatusColor
@@ -613,7 +613,7 @@ StatusColor will return the status indicator for the node.
 The indicator contains ANSI color sequences. Thread-safe.
 
 ```go
-func (*Node) StatusColor () string
+func (*Node) StatusColor() string
 ```
 
 ### Render
@@ -621,7 +621,7 @@ func (*Node) StatusColor () string
 Render converts a node to a string representation during execution (shows status for all nodes).
 
 ```go
-func (*Renderer) Render (root *Node) string
+func (*Renderer) Render(root *Node) string
 ```
 
 ### RenderStatic
@@ -629,7 +629,7 @@ func (*Renderer) Render (root *Node) string
 RenderStatic renders a static tree (for list views) without spinners.
 
 ```go
-func (*Renderer) RenderStatic (root *Node) string
+func (*Renderer) RenderStatic(root *Node) string
 ```
 
 ### AddStep
@@ -637,7 +637,7 @@ func (*Renderer) RenderStatic (root *Node) string
 AddStep adds a step node to a job.
 
 ```go
-func (*TreeNode) AddStep (stepName string) *TreeNode
+func (*TreeNode) AddStep(stepName string) *TreeNode
 ```
 
 ### AddStepDeferred
@@ -645,7 +645,7 @@ func (*TreeNode) AddStep (stepName string) *TreeNode
 AddStepDeferred adds a deferred step node to a job.
 
 ```go
-func (*TreeNode) AddStepDeferred (stepName string) *TreeNode
+func (*TreeNode) AddStepDeferred(stepName string) *TreeNode
 ```
 
 ### GetChildren
@@ -653,7 +653,7 @@ func (*TreeNode) AddStepDeferred (stepName string) *TreeNode
 GetChildren returns the children of a node.
 
 ```go
-func (*TreeNode) GetChildren () []*TreeNode
+func (*TreeNode) GetChildren() []*TreeNode
 ```
 
 ### GetName
@@ -661,7 +661,7 @@ func (*TreeNode) GetChildren () []*TreeNode
 GetName returns the name of the node.
 
 ```go
-func (*TreeNode) GetName () string
+func (*TreeNode) GetName() string
 ```
 
 ### GetStatus
@@ -669,7 +669,7 @@ func (*TreeNode) GetName () string
 GetStatus returns the status of the node.
 
 ```go
-func (*TreeNode) GetStatus () Status
+func (*TreeNode) GetStatus() Status
 ```
 
 ### SetStatus
@@ -677,7 +677,7 @@ func (*TreeNode) GetStatus () Status
 SetStatus updates a node's status.
 
 ```go
-func (*TreeNode) SetStatus (status Status)
+func (*TreeNode) SetStatus(status Status)
 ```
 
 ### GetViewportWidth
@@ -685,7 +685,7 @@ func (*TreeNode) SetStatus (status Status)
 GetViewportWidth returns the current viewport width.
 
 ```go
-func (*Trimmer) GetViewportWidth () int
+func (*Trimmer) GetViewportWidth() int
 ```
 
 ### RefreshViewport
@@ -693,7 +693,7 @@ func (*Trimmer) GetViewportWidth () int
 RefreshViewport re-detects the terminal width (call before each render).
 
 ```go
-func (*Trimmer) RefreshViewport ()
+func (*Trimmer) RefreshViewport()
 ```
 
 ### SetViewportWidth
@@ -701,7 +701,7 @@ func (*Trimmer) RefreshViewport ()
 SetViewportWidth sets a custom viewport width (useful for testing).
 
 ```go
-func (*Trimmer) SetViewportWidth (width int)
+func (*Trimmer) SetViewportWidth(width int)
 ```
 
 ### TrimLabel
@@ -711,7 +711,7 @@ TrimLabel applies both compaction and viewport trimming to a label.
 - prefixLen: visual length of the prefix (indentation, branch chars).
 
 ```go
-func (*Trimmer) TrimLabel (label string, maxArgLen,prefixLen int) string
+func (*Trimmer) TrimLabel(label string, maxArgLen, prefixLen int) string
 ```
 
 ### TrimToViewport
@@ -722,7 +722,7 @@ The prefixLen parameter indicates how many visual characters of prefix
 (indentation, branch characters) are already used.
 
 ```go
-func (*Trimmer) TrimToViewport (line string, prefixLen int) string
+func (*Trimmer) TrimToViewport(line string, prefixLen int) string
 ```
 
 ### Label
@@ -730,7 +730,7 @@ func (*Trimmer) TrimToViewport (line string, prefixLen int) string
 Label returns a lowercase readable label for the Status (for logging/serialization).
 
 ```go
-func (Status) Label () string
+func (Status) Label() string
 ```
 
 ### String
@@ -738,7 +738,5 @@ func (Status) Label () string
 String returns a colored string representation of the Status for display.
 
 ```go
-func (Status) String () string
+func (Status) String() string
 ```
-
-

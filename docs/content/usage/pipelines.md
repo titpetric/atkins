@@ -18,14 +18,14 @@ Pipeline (atkins.yml)
 
 ## Pipeline Fields
 
-| Field | Description |
-|-------|-------------|
-| `name:` | Pipeline display name |
-| `dir:` | Working directory for the pipeline |
-| `vars:` | Pipeline-level variables available to all jobs |
-| `env:` | Pipeline-level environment variables |
-| `jobs:` | Job definitions (map of name → job) |
-| `tasks:` | Alias for `jobs:` (Taskfile-style) |
+| Field    | Description                                    |
+|----------|------------------------------------------------|
+| `name:`  | Pipeline display name                          |
+| `dir:`   | Working directory for the pipeline             |
+| `vars:`  | Pipeline-level variables available to all jobs |
+| `env:`   | Pipeline-level environment variables           |
+| `jobs:`  | Job definitions (map of name → job)            |
+| `tasks:` | Alias for `jobs:` (Taskfile-style)             |
 
 `jobs:` and `tasks:` are interchangeable. Use whichever style you prefer.
 

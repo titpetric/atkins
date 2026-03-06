@@ -14,20 +14,20 @@ atkins [flags] [job-name]
 
 ## Flag Reference
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--file` | `-f` | Path to pipeline file |
-| `--job` | | Specific job to run |
-| `--list` | `-l` | List available jobs |
-| `--lint` | | Validate pipeline syntax |
-| `--json` | `-j` | Output in JSON format |
-| `--yaml` | `-y` | Output in YAML format |
-| `--final` | | Show only final tree (no live updates) |
-| `--log` | | Log execution to file |
-| `--debug` | | Enable debug output |
-| `--version` | `-v` | Print version and build information |
-| `--working-directory` | `-w` | Change directory before running |
-| `--jail` | | Restrict to project scope only |
+| Flag                  | Short | Description                            |
+|-----------------------|-------|----------------------------------------|
+| `--file`              | `-f`  | Path to pipeline file                  |
+| `--job`               |       | Specific job to run                    |
+| `--list`              | `-l`  | List available jobs                    |
+| `--lint`              |       | Validate pipeline syntax               |
+| `--json`              | `-j`  | Output in JSON format                  |
+| `--yaml`              | `-y`  | Output in YAML format                  |
+| `--final`             |       | Show only final tree (no live updates) |
+| `--log`               |       | Log execution to file                  |
+| `--debug`             |       | Enable debug output                    |
+| `--version`           | `-v`  | Print version and build information    |
+| `--working-directory` | `-w`  | Change directory before running        |
+| `--jail`              |       | Restrict to project scope only         |
 
 ## File Discovery
 
@@ -163,6 +163,7 @@ atkins -w ./subproject
 ```
 
 Equivalent to:
+
 ```bash
 cd ./subproject && atkins
 ```

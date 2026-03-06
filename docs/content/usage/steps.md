@@ -8,25 +8,25 @@ Steps are the individual commands or actions within a job. They execute sequenti
 
 ## Step Fields
 
-| Field | Description |
-|-------|-------------|
-| `run:` | Shell command to execute |
-| `cmd:` | Alias for `run:` |
-| `cmds:` | List of commands (run sequentially) |
-| `task:` | Invoke another job/task by name |
-| `name:` | Display name for the step |
-| `if:` | Conditional execution |
-| `for:` | Loop iteration (`for: item in collection`) |
-| `dir:` | Working directory |
-| `detach: true` | Run step in background |
-| `deferred: true` | Run after other steps complete |
-| `defer:` | Shorthand for a deferred step |
-| `verbose: true` | Show more output |
-| `passthru: true` | Output with tree indentation |
-| `tty: true` | Allocate a PTY for color output |
-| `interactive: true` | Live streaming with stdin |
-| `vars:` | Step-level variables |
-| `env:` | Step-level environment variables |
+| Field               | Description                                |
+|---------------------|--------------------------------------------|
+| `run:`              | Shell command to execute                   |
+| `cmd:`              | Alias for `run:`                           |
+| `cmds:`             | List of commands (run sequentially)        |
+| `task:`             | Invoke another job/task by name            |
+| `name:`             | Display name for the step                  |
+| `if:`               | Conditional execution                      |
+| `for:`              | Loop iteration (`for: item in collection`) |
+| `dir:`              | Working directory                          |
+| `detach: true`      | Run step in background                     |
+| `deferred: true`    | Run after other steps complete             |
+| `defer:`            | Shorthand for a deferred step              |
+| `verbose: true`     | Show more output                           |
+| `passthru: true`    | Output with tree indentation               |
+| `tty: true`         | Allocate a PTY for color output            |
+| `interactive: true` | Live streaming with stdin                  |
+| `vars:`             | Step-level variables                       |
+| `env:`              | Step-level environment variables           |
 
 ## Example
 

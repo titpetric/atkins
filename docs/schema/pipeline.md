@@ -24,15 +24,15 @@ jobs:       # or 'tasks:'
 
 ## Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Pipeline name displayed in output |
-| `vars` | map | Variables available to all jobs |
-| `env` | object | Environment variables for all jobs |
-| `include` | list | Files to include for additional variables |
-| `jobs` | map | Job definitions (GHA-style) |
-| `tasks` | map | Task definitions (Taskfile-style) |
-| `when` | object | Conditions for skill activation |
+| Field     | Type   | Description                               |
+|-----------|--------|-------------------------------------------|
+| `name`    | string | Pipeline name displayed in output         |
+| `vars`    | map    | Variables available to all jobs           |
+| `env`     | object | Environment variables for all jobs        |
+| `include` | list   | Files to include for additional variables |
+| `jobs`    | map    | Job definitions (GHA-style)               |
+| `tasks`   | map    | Task definitions (Taskfile-style)         |
+| `when`    | object | Conditions for skill activation           |
 
 ## Jobs vs Tasks
 

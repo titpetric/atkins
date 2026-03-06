@@ -78,12 +78,12 @@ vars:
 
 ## Why This Syntax?
 
-| Syntax | Purpose | Example |
-|--------|---------|---------|
-| `${{ var }}` | Atkins variables | `${{ version }}` |
-| `$(cmd)` | Shell substitution | `$(date +%s)` |
-| `${VAR}` | Bash variables | `${HOME}` |
-| `$VAR` | Bash variables | `$PATH` |
+| Syntax       | Purpose            | Example          |
+|--------------|--------------------|------------------|
+| `${{ var }}` | Atkins variables   | `${{ version }}` |
+| `$(cmd)`     | Shell substitution | `$(date +%s)`    |
+| `${VAR}`     | Bash variables     | `${HOME}`        |
+| `$VAR`       | Bash variables     | `$PATH`          |
 
 This design ensures:
 - No YAML quoting required for `${{ }}`
@@ -172,6 +172,7 @@ include:
 ```
 
 **config/defaults.yml:**
+
 ```yaml
 app_name: myapp
 version: 1.0.0
@@ -246,10 +247,10 @@ vars:
 
 Some variables are automatically available:
 
-| Variable | Description |
-|----------|-------------|
-| `item` | Current item in a for loop |
-| `index` | Current index in a for loop |
+| Variable | Description                 |
+|----------|-----------------------------|
+| `item`   | Current item in a for loop  |
+| `index`  | Current index in a for loop |
 
 ## Examples
 

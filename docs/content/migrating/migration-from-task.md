@@ -13,6 +13,7 @@ This guide covers the syntax mappings and common patterns you'll encounter when 
 The overall structure is nearly identical. Atkins doesn't require a `version` field.
 
 **Taskfile:**
+
 ```yaml
 version: '3'
 
@@ -27,6 +28,7 @@ tasks:
 ```
 
 **Atkins:**
+
 ```yaml
 vars:
   key: val
@@ -43,6 +45,7 @@ tasks:
 Taskfile uses the `sh:` field for dynamic values. Atkins uses bash-style `$(...)` which can also be used inline within commands.
 
 **Taskfile:**
+
 ```yaml
 vars:
   uname:
@@ -50,6 +53,7 @@ vars:
 ```
 
 **Atkins:**
+
 ```yaml
 vars:
   uname: $(uname -n)
@@ -60,6 +64,7 @@ vars:
 Taskfile uses Go templates which require quoting in YAML. Atkins uses `${{ }}` syntax which is YAML-safe.
 
 **Taskfile:**
+
 ```yaml
 vars:
   foo: bar
@@ -72,6 +77,7 @@ tasks:
 ```
 
 **Atkins:**
+
 ```yaml
 vars:
   foo: bar
@@ -121,11 +127,13 @@ tasks:
 ## Listing Tasks
 
 **Taskfile:**
+
 ```bash
 task --list-all  # -l requires descriptions
 ```
 
 **Atkins:**
+
 ```bash
 atkins -l  # Shows all tasks; uses command as description if none provided
 ```
@@ -144,10 +152,10 @@ tasks:
 
 ## What Needs Changes
 
-| Taskfile | Atkins |
-|----------|--------|
-| `sh: command` | `$(command)` |
-| `{{.var}}` | `${{ var }}` |
+| Taskfile                    | Atkins                  |
+|-----------------------------|-------------------------|
+| `sh: command`               | `$(command)`            |
+| `{{.var}}`                  | `${{ var }}`            |
 | Quoted interpolation values | Often can remove quotes |
 
 ## Binary Size
@@ -157,6 +165,7 @@ Atkins is smaller than Task. The most notable dependency is `expr-lang` for eval
 ## Example Migration
 
 **Before (Taskfile):**
+
 ```yaml
 version: '3'
 
@@ -172,6 +181,7 @@ tasks:
 ```
 
 **After (Atkins):**
+
 ```yaml
 vars:
   commit: $(git rev-parse --short HEAD)

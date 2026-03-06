@@ -35,7 +35,7 @@ import (
 BrightCyan returns text in bright cyan color.
 
 ```go
-func BrightCyan (text string) string
+func BrightCyan(text string) string
 ```
 
 ### BrightGreen
@@ -43,7 +43,7 @@ func BrightCyan (text string) string
 BrightGreen returns text in bright green color.
 
 ```go
-func BrightGreen (text string) string
+func BrightGreen(text string) string
 ```
 
 ### BrightMagenta
@@ -51,7 +51,7 @@ func BrightGreen (text string) string
 BrightMagenta returns text in bright magenta color.
 
 ```go
-func BrightMagenta (text string) string
+func BrightMagenta(text string) string
 ```
 
 ### BrightOrange
@@ -59,7 +59,7 @@ func BrightMagenta (text string) string
 BrightOrange returns text in bright orange color.
 
 ```go
-func BrightOrange (text string) string
+func BrightOrange(text string) string
 ```
 
 ### BrightRed
@@ -67,7 +67,7 @@ func BrightOrange (text string) string
 BrightRed returns text in bright red color.
 
 ```go
-func BrightRed (text string) string
+func BrightRed(text string) string
 ```
 
 ### BrightWhite
@@ -75,7 +75,7 @@ func BrightRed (text string) string
 BrightWhite returns text in bright white color.
 
 ```go
-func BrightWhite (text string) string
+func BrightWhite(text string) string
 ```
 
 ### BrightYellow
@@ -83,7 +83,7 @@ func BrightWhite (text string) string
 BrightYellow returns text in bright yellow color.
 
 ```go
-func BrightYellow (text string) string
+func BrightYellow(text string) string
 ```
 
 ### Dim
@@ -91,7 +91,7 @@ func BrightYellow (text string) string
 Dim returns text in dim color.
 
 ```go
-func Dim (text string) string
+func Dim(text string) string
 ```
 
 ### Gray
@@ -99,7 +99,7 @@ func Dim (text string) string
 Gray returns text in gray color.
 
 ```go
-func Gray (text string) string
+func Gray(text string) string
 ```
 
 ### Green
@@ -107,7 +107,7 @@ func Gray (text string) string
 Green returns text in green color.
 
 ```go
-func Green (text string) string
+func Green(text string) string
 ```
 
 ### PrintFail
@@ -115,7 +115,7 @@ func Green (text string) string
 PrintFail prints a failed item with error message.
 
 ```go
-func PrintFail (name,errMsg string)
+func PrintFail(name, errMsg string)
 ```
 
 ### PrintHeader
@@ -123,7 +123,7 @@ func PrintFail (name,errMsg string)
 PrintHeader prints a header with bright cyan color.
 
 ```go
-func PrintHeader (title string)
+func PrintHeader(title string)
 ```
 
 ### PrintInfo
@@ -131,7 +131,7 @@ func PrintHeader (title string)
 PrintInfo prints an information line.
 
 ```go
-func PrintInfo (key,value string)
+func PrintInfo(key, value string)
 ```
 
 ### PrintPass
@@ -139,7 +139,7 @@ func PrintInfo (key,value string)
 PrintPass prints a passing item.
 
 ```go
-func PrintPass (name string)
+func PrintPass(name string)
 ```
 
 ### PrintSectionEnd
@@ -147,7 +147,7 @@ func PrintPass (name string)
 PrintSectionEnd prints a section end marker.
 
 ```go
-func PrintSectionEnd (section string, success bool)
+func PrintSectionEnd(section string, success bool)
 ```
 
 ### PrintSectionStart
@@ -155,7 +155,7 @@ func PrintSectionEnd (section string, success bool)
 PrintSectionStart prints a section start marker.
 
 ```go
-func PrintSectionStart (section string)
+func PrintSectionStart(section string)
 ```
 
 ### PrintSuccess
@@ -163,7 +163,7 @@ func PrintSectionStart (section string)
 PrintSuccess prints a success message.
 
 ```go
-func PrintSuccess (text string)
+func PrintSuccess(text string)
 ```
 
 ### PrintWarning
@@ -171,7 +171,7 @@ func PrintSuccess (text string)
 PrintWarning prints a warning message.
 
 ```go
-func PrintWarning (text string)
+func PrintWarning(text string)
 ```
 
 ### StripANSI
@@ -179,7 +179,7 @@ func PrintWarning (text string)
 StripANSI removes all ANSI escape sequences from a string.
 
 ```go
-func StripANSI (in string) string
+func StripANSI(in string) string
 ```
 
 ### VisualLength
@@ -187,7 +187,7 @@ func StripANSI (in string) string
 VisualLength returns the visual length of a string (excluding ANSI sequences).
 
 ```go
-func VisualLength (s string) int
+func VisualLength(s string) int
 ```
 
 ### White
@@ -195,7 +195,5 @@ func VisualLength (s string) int
 White returns text in white color.
 
 ```go
-func White (text string) string
+func White(text string) string
 ```
-
-

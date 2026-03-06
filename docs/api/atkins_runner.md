@@ -16,55 +16,55 @@ type Env map[string]string
 ```go
 // Environment represents the discovered project environment.
 type Environment struct {
-	Root string	// Project root directory
+	Root string // Project root directory
 }
 ```
 
 ```go
 // ExecError represents an error from command execution.
 type ExecError struct {
-	Message		string
-	Output		string
-	LastExitCode	int
+	Message      string
+	Output       string
+	LastExitCode int
 }
 ```
 
 ```go
 // ExecutionContext holds runtime state during pipeline Exec.
 type ExecutionContext struct {
-	Context	context.Context
+	Context context.Context
 
-	Env	Env
-	Results	map[string]any
-	Verbose	bool
-	Dir	string
+	Env     Env
+	Results map[string]any
+	Verbose bool
+	Dir     string
 
-	Variables	map[string]any
+	Variables map[string]any
 
-	Pipeline	*model.Pipeline
-	AllPipelines	[]*model.Pipeline	// All loaded pipelines for cross-pipeline task references
-	Job		*model.Job
-	Step		*model.Step
+	Pipeline     *model.Pipeline
+	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
+	Job          *model.Job
+	Step         *model.Step
 
-	Depth		int	// Nesting depth for indentation
-	StepsCount	int	// Total number of steps executed
-	StepsPassed	int	// Number of steps that passed
+	Depth       int // Nesting depth for indentation
+	StepsCount  int // Total number of steps executed
+	StepsPassed int // Number of steps that passed
 
-	CurrentJob	*treeview.TreeNode
-	CurrentStep	*treeview.Node
+	CurrentJob  *treeview.TreeNode
+	CurrentStep *treeview.Node
 
-	Display		*treeview.Display
-	Builder		*treeview.Builder
-	JobNodes	map[string]*treeview.TreeNode	// Map of job names to their tree nodes
-	EventLogger	*eventlog.Logger
+	Display     *treeview.Display
+	Builder     *treeview.Builder
+	JobNodes    map[string]*treeview.TreeNode // Map of job names to their tree nodes
+	EventLogger *eventlog.Logger
 
 	// Sequential step counter for this job (incremented for each step execution)
-	StepSequence	int
-	stepSeqMu	sync.Mutex
+	StepSequence int
+	stepSeqMu    sync.Mutex
 
 	// JobCompleted tracks which jobs have finished execution (for dependency resolution)
-	JobCompleted	map[string]bool
-	jobCompMu	sync.Mutex
+	JobCompleted map[string]bool
+	jobCompMu    sync.Mutex
 }
 ```
 
@@ -85,43 +85,43 @@ type IterationContext struct {
 ```go
 // LineCapturingWriter captures all output written to it.
 type LineCapturingWriter struct {
-	buffer	bytes.Buffer
-	mu	sync.Mutex
+	buffer bytes.Buffer
+	mu     sync.Mutex
 }
 ```
 
 ```go
 // LintError represents a linting error.
 type LintError struct {
-	Job	string
-	Issue	string
-	Detail	string
+	Job    string
+	Issue  string
+	Detail string
 }
 ```
 
 ```go
 // Linter validates a pipeline for correctness.
 type Linter struct {
-	pipeline	*model.Pipeline
-	allPipelines	[]*model.Pipeline	// All pipelines for cross-pipeline validation
-	errors		[]LintError
+	pipeline     *model.Pipeline
+	allPipelines []*model.Pipeline // All pipelines for cross-pipeline validation
+	errors       []LintError
 }
 ```
 
 ```go
 // ListOutputItem represents a single command in the list output.
 type ListOutputItem struct {
-	ID	string	`json:"id" yaml:"id"`
-	Desc	string	`json:"desc,omitempty" yaml:"desc,omitempty"`
-	Cmd	string	`json:"cmd" yaml:"cmd"`
+	ID   string `json:"id" yaml:"id"`
+	Desc string `json:"desc,omitempty" yaml:"desc,omitempty"`
+	Cmd  string `json:"cmd" yaml:"cmd"`
 }
 ```
 
 ```go
 // ListOutputSection represents a pipeline section in the list output.
 type ListOutputSection struct {
-	Desc	string			`json:"desc" yaml:"desc"`
-	Cmds	[]ListOutputItem	`json:"cmds" yaml:"cmds"`
+	Desc string           `json:"desc" yaml:"desc"`
+	Cmds []ListOutputItem `json:"cmds" yaml:"cmds"`
 }
 ```
 
@@ -142,31 +142,31 @@ type Options struct {
 ```go
 // Pipeline holds pipeline execution logic.
 type Pipeline struct {
-	opts	PipelineOptions
-	data	*model.Pipeline
+	opts PipelineOptions
+	data *model.Pipeline
 }
 ```
 
 ```go
 // PipelineOptions contains options for running a pipeline.
 type PipelineOptions struct {
-	Job		string
-	LogFile		string
-	PipelineFile	string
-	Debug		bool
-	FinalOnly	bool
-	JSON		bool
-	YAML		bool
-	AllPipelines	[]*model.Pipeline	// All loaded pipelines for cross-pipeline task references
+	Job          string
+	LogFile      string
+	PipelineFile string
+	Debug        bool
+	FinalOnly    bool
+	JSON         bool
+	YAML         bool
+	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
 }
 ```
 
 ```go
 // ResolvedTask contains the result of resolving a task reference.
 type ResolvedTask struct {
-	Name		string		// Canonical name (e.g., "go:build" or "build")
-	Pipeline	*model.Pipeline	// The pipeline containing the task
-	Job		*model.Job	// The resolved job
+	Name     string          // Canonical name (e.g., "go:build" or "build")
+	Pipeline *model.Pipeline // The pipeline containing the task
+	Job      *model.Job      // The resolved job
 }
 ```
 
@@ -175,13 +175,13 @@ type ResolvedTask struct {
 // graph. This handles cross-dependencies where vars use $(echo $ENV_VAR)
 // and env uses ${{ var_name }}.
 type Resolver struct {
-	vars	map[string]any
-	envVars	map[string]any
+	vars    map[string]any
+	envVars map[string]any
 
-	baseVars	map[string]any
-	baseEnv		map[string]string
+	baseVars map[string]any
+	baseEnv  map[string]string
 
-	workCtx	*ExecutionContext
+	workCtx *ExecutionContext
 }
 ```
 
@@ -192,14 +192,14 @@ type Resolver struct {
 type SkillsLoader struct {
 	// SkillsDirs are the directories to search for skill files, in priority order.
 	// First directory takes precedence for skills with the same ID.
-	SkillsDirs	[]string
+	SkillsDirs []string
 
 	// StartDir is the directory from which to start searching for when: files.
 	// This is typically the user's working directory.
-	StartDir	string
+	StartDir string
 
 	// WorkspaceDir is the folder containing .atkins/ (used for skills without when:).
-	WorkspaceDir	string
+	WorkspaceDir string
 }
 ```
 
@@ -211,8 +211,8 @@ type SkillsLoader struct {
 //   - "build" → current pipeline job "build".
 //   - "go:build" → skill "go" job "build" (fallback when not found locally).
 type TaskResolver struct {
-	CurrentPipeline	*model.Pipeline
-	AllPipelines	[]*model.Pipeline
+	CurrentPipeline *model.Pipeline
+	AllPipelines    []*model.Pipeline
 }
 ```
 
@@ -290,7 +290,7 @@ var ErrJobSkipped = errors.New("job skipped")
 DefaultOptions returns the default executor options.
 
 ```go
-func DefaultOptions () *Options
+func DefaultOptions() *Options
 ```
 
 ### DiscoverConfig
@@ -300,7 +300,7 @@ traversing parent directories until a config file is found or root is reached.
 Returns the absolute path to the config file and the directory containing it.
 
 ```go
-func DiscoverConfig (startDir string) (string, error)
+func DiscoverConfig(startDir string) (string, error)
 ```
 
 ### DiscoverConfigFromCwd
@@ -308,7 +308,7 @@ func DiscoverConfig (startDir string) (string, error)
 DiscoverConfigFromCwd is a convenience wrapper that starts from the current working directory.
 
 ```go
-func DiscoverConfigFromCwd () (string, error)
+func DiscoverConfigFromCwd() (string, error)
 ```
 
 ### DiscoverEnvironment
@@ -318,7 +318,7 @@ traversing parent directories until the filesystem root is reached.
 Root is set to the highest directory that contains any markers.
 
 ```go
-func DiscoverEnvironment (startDir string) (*Environment, error)
+func DiscoverEnvironment(startDir string) (*Environment, error)
 ```
 
 ### DiscoverEnvironmentFromCwd
@@ -326,7 +326,7 @@ func DiscoverEnvironment (startDir string) (*Environment, error)
 DiscoverEnvironmentFromCwd is a convenience wrapper that starts from the current working directory.
 
 ```go
-func DiscoverEnvironmentFromCwd () (*Environment, error)
+func DiscoverEnvironmentFromCwd() (*Environment, error)
 ```
 
 ### EvaluateIf
@@ -336,7 +336,7 @@ Returns true if the condition is met, false if no condition or condition is fals
 Returns error only for invalid expressions.
 
 ```go
-func EvaluateIf (ctx *ExecutionContext) (bool, error)
+func EvaluateIf(ctx *ExecutionContext) (bool, error)
 ```
 
 ### EvaluateJobIf
@@ -346,7 +346,7 @@ Returns true if the condition is met or no condition is set.
 Returns error only for invalid expressions.
 
 ```go
-func EvaluateJobIf (ctx *ExecutionContext) (bool, error)
+func EvaluateJobIf(ctx *ExecutionContext) (bool, error)
 ```
 
 ### ExpandFor
@@ -357,7 +357,7 @@ Supports patterns: "item in items" (items is a variable name),
 or any of the above with bash expansion: "item in $(ls ./bin/*.test)".
 
 ```go
-func ExpandFor (ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)
+func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)
 ```
 
 ### GetDependencies
@@ -365,7 +365,7 @@ func ExpandFor (ctx *ExecutionContext, executeCommand func(string) (string, erro
 GetDependencies converts depends_on field (string or []string) to a slice of job names.
 
 ```go
-func GetDependencies (dependsOn any) []string
+func GetDependencies(dependsOn any) []string
 ```
 
 ### InterpolateCommand
@@ -373,7 +373,7 @@ func GetDependencies (dependsOn any) []string
 InterpolateCommand interpolates a command string.
 
 ```go
-func InterpolateCommand (cmd string, ctx *ExecutionContext) (string, error)
+func InterpolateCommand(cmd string, ctx *ExecutionContext) (string, error)
 ```
 
 ### InterpolateMap
@@ -381,7 +381,7 @@ func InterpolateCommand (cmd string, ctx *ExecutionContext) (string, error)
 InterpolateMap recursively interpolates all string values in a map.
 
 ```go
-func InterpolateMap (ctx *ExecutionContext, m map[string]any) error
+func InterpolateMap(ctx *ExecutionContext, m map[string]any) error
 ```
 
 ### InterpolateString
@@ -390,7 +390,7 @@ InterpolateString replaces ${{ expression }} with values from context.
 Supports variable interpolation, dot notation, and expr expressions with ?? and || operators.
 
 ```go
-func InterpolateString (s string, ctx *ExecutionContext) (string, error)
+func InterpolateString(s string, ctx *ExecutionContext) (string, error)
 ```
 
 ### IsEchoCommand
@@ -398,7 +398,7 @@ func InterpolateString (s string, ctx *ExecutionContext) (string, error)
 IsEchoCommand checks if a command is a bare echo command.
 
 ```go
-func IsEchoCommand (cmd string) bool
+func IsEchoCommand(cmd string) bool
 ```
 
 ### ListPipelines
@@ -407,7 +407,7 @@ ListPipelines displays pipelines grouped by section in a flat list format:
 Main Pipeline, then Aliases, then Skills.
 
 ```go
-func ListPipelines (pipelines []*model.Pipeline)
+func ListPipelines(pipelines []*model.Pipeline)
 ```
 
 ### ListPipelinesJSON
@@ -415,7 +415,7 @@ func ListPipelines (pipelines []*model.Pipeline)
 ListPipelinesJSON outputs pipelines in JSON format.
 
 ```go
-func ListPipelinesJSON (pipelines []*model.Pipeline) error
+func ListPipelinesJSON(pipelines []*model.Pipeline) error
 ```
 
 ### ListPipelinesYAML
@@ -423,7 +423,7 @@ func ListPipelinesJSON (pipelines []*model.Pipeline) error
 ListPipelinesYAML outputs pipelines in YAML format.
 
 ```go
-func ListPipelinesYAML (pipelines []*model.Pipeline) error
+func ListPipelinesYAML(pipelines []*model.Pipeline) error
 ```
 
 ### LoadPipeline
@@ -432,7 +432,7 @@ LoadPipeline loads and parses a pipeline from a yaml file.
 Returns the number of documents loaded, the parsed pipeline, and any error.
 
 ```go
-func LoadPipeline (filePath string) ([]*model.Pipeline, error)
+func LoadPipeline(filePath string) ([]*model.Pipeline, error)
 ```
 
 ### LoadPipelineFromReader
@@ -441,7 +441,7 @@ LoadPipelineFromReader loads and parses a pipeline from an io.Reader.
 Returns the parsed pipeline(s) and any error.
 
 ```go
-func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)
+func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error)
 ```
 
 ### MergeVariables
@@ -452,7 +452,7 @@ a unified dependency graph so that cross-references work correctly
 (e.g., vars using $(echo $ENV_VAR) and env using ${{ var_name }}).
 
 ```go
-func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error
+func MergeVariables(ctx *ExecutionContext, decl *model.Decl) error
 ```
 
 ### NewExecError
@@ -460,7 +460,7 @@ func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error
 NewExecError creates an ExecError from a psexec.Result.
 
 ```go
-func NewExecError (result psexec.Result) ExecError
+func NewExecError(result psexec.Result) ExecError
 ```
 
 ### NewExecutor
@@ -468,7 +468,7 @@ func NewExecError (result psexec.Result) ExecError
 NewExecutor creates a new executor with default options.
 
 ```go
-func NewExecutor () *Executor
+func NewExecutor() *Executor
 ```
 
 ### NewExecutorWithOptions
@@ -476,7 +476,7 @@ func NewExecutor () *Executor
 NewExecutorWithOptions creates a new executor with custom options.
 
 ```go
-func NewExecutorWithOptions (opts *Options) *Executor
+func NewExecutorWithOptions(opts *Options) *Executor
 ```
 
 ### NewLineCapturingWriter
@@ -484,7 +484,7 @@ func NewExecutorWithOptions (opts *Options) *Executor
 NewLineCapturingWriter creates a new LineCapturingWriter.
 
 ```go
-func NewLineCapturingWriter () *LineCapturingWriter
+func NewLineCapturingWriter() *LineCapturingWriter
 ```
 
 ### NewLinter
@@ -492,7 +492,7 @@ func NewLineCapturingWriter () *LineCapturingWriter
 NewLinter creates a new linter.
 
 ```go
-func NewLinter (pipeline *model.Pipeline) *Linter
+func NewLinter(pipeline *model.Pipeline) *Linter
 ```
 
 ### NewLinterWithPipelines
@@ -500,7 +500,7 @@ func NewLinter (pipeline *model.Pipeline) *Linter
 NewLinterWithPipelines creates a linter with access to all pipelines for cross-pipeline validation.
 
 ```go
-func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter
+func NewLinterWithPipelines(pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter
 ```
 
 ### NewPipeline
@@ -508,7 +508,7 @@ func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pip
 NewPipeline allocates a new *Pipeline with dependencies.
 
 ```go
-func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline
+func NewPipeline(data *model.Pipeline, opts PipelineOptions) *Pipeline
 ```
 
 ### NewSkillsLoader
@@ -518,7 +518,7 @@ workspaceDir is the folder containing .atkins/ (used as Dir for skills without w
 startDir is where to start searching for when: files (typically user's cwd).
 
 ```go
-func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader
+func NewSkillsLoader(workspaceDir, startDir string) *SkillsLoader
 ```
 
 ### ProcessDecl
@@ -527,10 +527,10 @@ ProcessDecl processes a Decl and returns a map of variables.
 It handles:
 - Manual vars with interpolation ($(...), ${{ ... }})
 - Include files (.yml format)
-Vars take precedence over included files.
+  Vars take precedence over included files.
 
 ```go
-func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)
+func ProcessDecl(ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)
 ```
 
 ### ResolveJobDependencies
@@ -539,7 +539,7 @@ ResolveJobDependencies returns jobs in dependency order.
 Returns the jobs to run and any resolution errors.
 
 ```go
-func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)
+func ResolveJobDependencies(jobs map[string]*model.Job, startingJob string) ([]string, error)
 ```
 
 ### RunPipeline
@@ -547,7 +547,7 @@ func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]
 RunPipeline runs a pipeline with the given options.
 
 ```go
-func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error
+func RunPipeline(ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error
 ```
 
 ### Sanitize
@@ -562,7 +562,7 @@ It handles:
 Returns sanitized lines with colors preserved.
 
 ```go
-func Sanitize (in string) ([]string, error)
+func Sanitize(in string) ([]string, error)
 ```
 
 ### StripANSI
@@ -570,7 +570,7 @@ func Sanitize (in string) ([]string, error)
 StripANSI removes all ANSI escape sequences from a string.
 
 ```go
-func StripANSI (in string) string
+func StripANSI(in string) string
 ```
 
 ### ValidateJobRequirements
@@ -579,7 +579,7 @@ ValidateJobRequirements checks that all required variables are present in the co
 Returns an error with a clear message listing missing variables.
 
 ```go
-func ValidateJobRequirements (ctx *ExecutionContext, job *model.Job) error
+func ValidateJobRequirements(ctx *ExecutionContext, job *model.Job) error
 ```
 
 ### VisualLength
@@ -587,7 +587,7 @@ func ValidateJobRequirements (ctx *ExecutionContext, job *model.Job) error
 VisualLength returns the visual length of a string (excluding ANSI sequences).
 
 ```go
-func VisualLength (s string) int
+func VisualLength(s string) int
 ```
 
 ### Copy
@@ -596,7 +596,7 @@ Copy copies everything except Context. Variables are shallow-copied.
 JobCompleted is shared (not copied) to maintain consistent dependency tracking.
 
 ```go
-func (*ExecutionContext) Copy () *ExecutionContext
+func (*ExecutionContext) Copy() *ExecutionContext
 ```
 
 ### IsJobCompleted
@@ -604,7 +604,7 @@ func (*ExecutionContext) Copy () *ExecutionContext
 IsJobCompleted checks if a job has been completed.
 
 ```go
-func (*ExecutionContext) IsJobCompleted (jobName string) bool
+func (*ExecutionContext) IsJobCompleted(jobName string) bool
 ```
 
 ### MarkJobCompleted
@@ -612,7 +612,7 @@ func (*ExecutionContext) IsJobCompleted (jobName string) bool
 MarkJobCompleted marks a job as completed.
 
 ```go
-func (*ExecutionContext) MarkJobCompleted (jobName string)
+func (*ExecutionContext) MarkJobCompleted(jobName string)
 ```
 
 ### NextStepIndex
@@ -621,7 +621,7 @@ NextStepIndex returns the next sequential step index for this job execution.
 This ensures each step/iteration gets a unique number.
 
 ```go
-func (*ExecutionContext) NextStepIndex () int
+func (*ExecutionContext) NextStepIndex() int
 ```
 
 ### Render
@@ -629,7 +629,7 @@ func (*ExecutionContext) NextStepIndex () int
 Render refreshes the treeview.
 
 ```go
-func (*ExecutionContext) Render ()
+func (*ExecutionContext) Render()
 ```
 
 ### ExecuteJob
@@ -637,7 +637,7 @@ func (*ExecutionContext) Render ()
 ExecuteJob runs a single job.
 
 ```go
-func (*Executor) ExecuteJob (parentCtx context.Context, execCtx *ExecutionContext) error
+func (*Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionContext) error
 ```
 
 ### GetLines
@@ -645,7 +645,7 @@ func (*Executor) ExecuteJob (parentCtx context.Context, execCtx *ExecutionContex
 GetLines returns all captured output as lines.
 
 ```go
-func (*LineCapturingWriter) GetLines () []string
+func (*LineCapturingWriter) GetLines() []string
 ```
 
 ### String
@@ -653,7 +653,7 @@ func (*LineCapturingWriter) GetLines () []string
 String returns the raw captured output.
 
 ```go
-func (*LineCapturingWriter) String () string
+func (*LineCapturingWriter) String() string
 ```
 
 ### Write
@@ -661,7 +661,7 @@ func (*LineCapturingWriter) String () string
 Write implements io.Writer.
 
 ```go
-func (*LineCapturingWriter) Write (p []byte) (int, error)
+func (*LineCapturingWriter) Write(p []byte) (int, error)
 ```
 
 ### Lint
@@ -669,7 +669,7 @@ func (*LineCapturingWriter) Write (p []byte) (int, error)
 Lint validates the pipeline and returns any errors.
 
 ```go
-func (*Linter) Lint () []LintError
+func (*Linter) Lint() []LintError
 ```
 
 ### Error
@@ -677,7 +677,7 @@ func (*Linter) Lint () []LintError
 Error returns the error hinting a default job should be defined.
 
 ```go
-func (*NoDefaultJobError) Error () string
+func (*NoDefaultJobError) Error() string
 ```
 
 ### AddSkillsDir
@@ -686,7 +686,7 @@ AddSkillsDir adds an additional skills directory to search.
 Directories added later have lower precedence.
 
 ```go
-func (*SkillsLoader) AddSkillsDir (dir string)
+func (*SkillsLoader) AddSkillsDir(dir string)
 ```
 
 ### FindFile
@@ -699,7 +699,7 @@ For each directory (starting with startDir, going up), all patterns are checked.
 This means closer matches are preferred over pattern order.
 
 ```go
-func (*SkillsLoader) FindFile (patterns []string, startDir string) (string, bool)
+func (*SkillsLoader) FindFile(patterns []string, startDir string) (string, bool)
 ```
 
 ### FindFolder
@@ -709,7 +709,7 @@ and traversing parent directories. Returns (found, containingDir) where
 containingDir is the parent directory that contains the named folder.
 
 ```go
-func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)
+func (*SkillsLoader) FindFolder(name, startDir string) (string, bool)
 ```
 
 ### Load
@@ -717,7 +717,7 @@ func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)
 Load discovers and returns all enabled skill pipelines.
 
 ```go
-func (*SkillsLoader) Load () ([]*model.Pipeline, error)
+func (*SkillsLoader) Load() ([]*model.Pipeline, error)
 ```
 
 ### Resolve
@@ -726,7 +726,7 @@ Resolve resolves a task name to its pipeline and job.
 Returns an error if the task cannot be found.
 
 ```go
-func (*TaskResolver) Resolve (taskName string) (*ResolvedTask, error)
+func (*TaskResolver) Resolve(taskName string) (*ResolvedTask, error)
 ```
 
 ### Validate
@@ -735,7 +735,7 @@ Validate checks if a task reference is valid without returning the full result.
 This is useful for linting where you only need to know if the reference is valid.
 
 ```go
-func (*TaskResolver) Validate (taskName string) error
+func (*TaskResolver) Validate(taskName string) error
 ```
 
 ### Environ
@@ -743,7 +743,7 @@ func (*TaskResolver) Validate (taskName string) error
 Environ returns the environment as a slice of KEY=VALUE strings.
 
 ```go
-func (Env) Environ () []string
+func (Env) Environ() []string
 ```
 
 ### Error
@@ -751,7 +751,7 @@ func (Env) Environ () []string
 Error implements the error interface.
 
 ```go
-func (ExecError) Error () string
+func (ExecError) Error() string
 ```
 
 ### Len
@@ -759,7 +759,5 @@ func (ExecError) Error () string
 Len returns the length of the error output.
 
 ```go
-func (ExecError) Len () int
+func (ExecError) Len() int
 ```
-
-

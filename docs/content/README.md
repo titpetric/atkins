@@ -1,8 +1,8 @@
 ---
 title: Atkins Documentation
 subtitle: Portable command runner and CI tooling
-layout: page
 redirect: /getting-started/introduction
+layout: page
 ---
 
 Atkins is a command runner for local development and CI/CD environments. It executes jobs defined in YAML files, displaying progress in an interactive tree view.

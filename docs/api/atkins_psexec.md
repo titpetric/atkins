@@ -16,29 +16,29 @@ transports including websockets.
 // Command represents a command to be executed.
 type Command struct {
 	// Name is the command or executable name.
-	Name	string
+	Name string
 	// Args are the command arguments.
-	Args	[]string
+	Args []string
 	// Dir is the working directory for the command.
-	Dir	string
+	Dir string
 	// Env is the environment variables for the command.
 	// Each entry should be in the form "KEY=VALUE".
-	Env	[]string
+	Env []string
 	// Stdin is an optional reader for process input.
-	Stdin	io.Reader
+	Stdin io.Reader
 	// Stdout is an optional writer for stdout.
 	// If nil, output is captured in Result.
-	Stdout	io.Writer
+	Stdout io.Writer
 	// Stderr is an optional writer for stderr.
 	// If nil, output is captured in Result.
-	Stderr	io.Writer
+	Stderr io.Writer
 	// Timeout is the maximum duration for the command.
 	// Zero means no timeout.
-	Timeout	time.Duration
+	Timeout time.Duration
 	// UsePTY enables pseudo-terminal allocation for the command.
-	UsePTY	bool
+	UsePTY bool
 	// Interactive enables full interactive mode with stdin/stdout binding.
-	Interactive	bool
+	Interactive bool
 }
 ```
 
@@ -51,15 +51,15 @@ type EmptyResult struct{}
 // Executor manages process execution.
 type Executor struct {
 	// DefaultEnv is the default environment for all commands.
-	DefaultEnv	[]string
+	DefaultEnv []string
 	// DefaultDir is the default working directory for all commands.
-	DefaultDir	string
+	DefaultDir string
 	// DefaultTimeout is the default timeout for commands when not specified.
 	// Zero means no timeout.
-	DefaultTimeout	time.Duration
+	DefaultTimeout time.Duration
 	// DefaultShell is the shell used for shell commands.
 	// Defaults to "bash" if empty.
-	DefaultShell	string
+	DefaultShell string
 }
 ```
 
@@ -67,27 +67,27 @@ type Executor struct {
 // Options configures the Executor.
 type Options struct {
 	// DefaultTimeout is the default timeout for commands.
-	DefaultTimeout	time.Duration
+	DefaultTimeout time.Duration
 	// DefaultDir is the default working directory for commands.
-	DefaultDir	string
+	DefaultDir string
 	// DefaultEnv is the default environment variables for commands.
-	DefaultEnv	[]string
+	DefaultEnv []string
 	// DefaultShell is the shell to use for shell commands.
-	DefaultShell	string
+	DefaultShell string
 }
 ```
 
 ```go
 // Process represents a running process with PTY support.
 type Process struct {
-	cmd		*exec.Cmd
-	ptmx		*os.File
-	result		*processResult
-	startTime	time.Time
+	cmd       *exec.Cmd
+	ptmx      *os.File
+	result    *processResult
+	startTime time.Time
 
-	mu	sync.Mutex
-	done	chan struct{}
-	closed	bool
+	mu     sync.Mutex
+	done   chan struct{}
+	closed bool
 }
 ```
 
@@ -142,7 +142,7 @@ type Result interface {
 DefaultOptions returns the default options.
 
 ```go
-func DefaultOptions () *Options
+func DefaultOptions() *Options
 ```
 
 ### New
@@ -150,7 +150,7 @@ func DefaultOptions () *Options
 New creates a new Executor with default settings.
 
 ```go
-func New () *Executor
+func New() *Executor
 ```
 
 ### NewCommand
@@ -158,7 +158,7 @@ func New () *Executor
 NewCommand creates a new Command with the given name and arguments.
 
 ```go
-func NewCommand (name string, args ...string) *Command
+func NewCommand(name string, args ...string) *Command
 ```
 
 ### NewShellCommand
@@ -166,7 +166,7 @@ func NewCommand (name string, args ...string) *Command
 NewShellCommand creates a new Command that runs via bash.
 
 ```go
-func NewShellCommand (script string) *Command
+func NewShellCommand(script string) *Command
 ```
 
 ### NewWithOptions
@@ -174,7 +174,7 @@ func NewShellCommand (script string) *Command
 NewWithOptions creates a new Executor with the given options.
 
 ```go
-func NewWithOptions (opts *Options) *Executor
+func NewWithOptions(opts *Options) *Executor
 ```
 
 ### Run
@@ -182,7 +182,7 @@ func NewWithOptions (opts *Options) *Executor
 Run executes a command and returns the result.
 
 ```go
-func (*Executor) Run (ctx context.Context, cmd *Command) Result
+func (*Executor) Run(ctx context.Context, cmd *Command) Result
 ```
 
 ### RunWithIO
@@ -190,7 +190,7 @@ func (*Executor) Run (ctx context.Context, cmd *Command) Result
 RunWithIO executes a command with custom I/O streams, suitable for websocket transport.
 
 ```go
-func (*Executor) RunWithIO (ctx context.Context, stdout io.Writer, stdin io.Reader, cmd *Command) Result
+func (*Executor) RunWithIO(ctx context.Context, stdout io.Writer, stdin io.Reader, cmd *Command) Result
 ```
 
 ### ShellCommand
@@ -198,7 +198,7 @@ func (*Executor) RunWithIO (ctx context.Context, stdout io.Writer, stdin io.Read
 ShellCommand creates a new Command that runs via the executor's configured shell.
 
 ```go
-func (*Executor) ShellCommand (script string) *Command
+func (*Executor) ShellCommand(script string) *Command
 ```
 
 ### Start
@@ -208,7 +208,7 @@ The process can be used for bidirectional I/O, particularly useful
 for websocket transport.
 
 ```go
-func (*Executor) Start (ctx context.Context, cmd *Command) (*Process, error)
+func (*Executor) Start(ctx context.Context, cmd *Command) (*Process, error)
 ```
 
 ### Close
@@ -216,7 +216,7 @@ func (*Executor) Start (ctx context.Context, cmd *Command) (*Process, error)
 Close closes the PTY and terminates the process if still running.
 
 ```go
-func (*Process) Close () error
+func (*Process) Close() error
 ```
 
 ### Done
@@ -224,7 +224,7 @@ func (*Process) Close () error
 Done returns a channel that is closed when the process completes.
 
 ```go
-func (*Process) Done () <-chan struct{}
+func (*Process) Done() <-chan struct{}
 ```
 
 ### PID
@@ -232,7 +232,7 @@ func (*Process) Done () <-chan struct{}
 PID returns the process ID.
 
 ```go
-func (*Process) PID () int
+func (*Process) PID() int
 ```
 
 ### PTY
@@ -240,7 +240,7 @@ func (*Process) PID () int
 PTY returns the PTY file handle for direct I/O.
 
 ```go
-func (*Process) PTY () *os.File
+func (*Process) PTY() *os.File
 ```
 
 ### Pipe
@@ -249,7 +249,7 @@ Pipe sets up bidirectional I/O between the process and the provided
 reader/writer. This is the primary method for websocket integration.
 
 ```go
-func (*Process) Pipe (stdout io.Writer, stdin io.Reader) error
+func (*Process) Pipe(stdout io.Writer, stdin io.Reader) error
 ```
 
 ### Read
@@ -257,7 +257,7 @@ func (*Process) Pipe (stdout io.Writer, stdin io.Reader) error
 Read reads from the process output (PTY).
 
 ```go
-func (*Process) Read (b []byte) (int, error)
+func (*Process) Read(b []byte) (int, error)
 ```
 
 ### Resize
@@ -265,7 +265,7 @@ func (*Process) Read (b []byte) (int, error)
 Resize resizes the PTY window.
 
 ```go
-func (*Process) Resize (rows,cols uint16) error
+func (*Process) Resize(rows, cols uint16) error
 ```
 
 ### Signal
@@ -273,7 +273,7 @@ func (*Process) Resize (rows,cols uint16) error
 Signal sends a signal to the process.
 
 ```go
-func (*Process) Signal (sig os.Signal) error
+func (*Process) Signal(sig os.Signal) error
 ```
 
 ### Wait
@@ -281,7 +281,7 @@ func (*Process) Signal (sig os.Signal) error
 Wait waits for the process to complete and returns the result.
 
 ```go
-func (*Process) Wait () Result
+func (*Process) Wait() Result
 ```
 
 ### Write
@@ -289,7 +289,7 @@ func (*Process) Wait () Result
 Write writes to the process input (PTY).
 
 ```go
-func (*Process) Write (b []byte) (int, error)
+func (*Process) Write(b []byte) (int, error)
 ```
 
 ### Duration
@@ -297,7 +297,7 @@ func (*Process) Write (b []byte) (int, error)
 Duration returns 0.
 
 ```go
-func (EmptyResult) Duration () time.Duration
+func (EmptyResult) Duration() time.Duration
 ```
 
 ### Err
@@ -305,7 +305,7 @@ func (EmptyResult) Duration () time.Duration
 Err returns nil.
 
 ```go
-func (EmptyResult) Err () error
+func (EmptyResult) Err() error
 ```
 
 ### ErrorOutput
@@ -313,7 +313,7 @@ func (EmptyResult) Err () error
 ErrorOutput returns empty string.
 
 ```go
-func (EmptyResult) ErrorOutput () string
+func (EmptyResult) ErrorOutput() string
 ```
 
 ### ExitCode
@@ -321,7 +321,7 @@ func (EmptyResult) ErrorOutput () string
 ExitCode returns 0.
 
 ```go
-func (EmptyResult) ExitCode () int
+func (EmptyResult) ExitCode() int
 ```
 
 ### Output
@@ -329,7 +329,7 @@ func (EmptyResult) ExitCode () int
 Output returns empty string.
 
 ```go
-func (EmptyResult) Output () string
+func (EmptyResult) Output() string
 ```
 
 ### Success
@@ -337,7 +337,5 @@ func (EmptyResult) Output () string
 Success returns true.
 
 ```go
-func (EmptyResult) Success () bool
+func (EmptyResult) Success() bool
 ```
-
-

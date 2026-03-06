@@ -112,6 +112,7 @@ jobs:
 ### Example: Multi-Skill Coordination
 
 **Main pipeline (atkins.yml):**
+
 ```yaml
 name: My App
 
@@ -128,6 +129,7 @@ jobs:
 ```
 
 **Go skill (.atkins/skills/go.yml):**
+
 ```yaml
 name: Go Skill
 when:
@@ -140,6 +142,7 @@ jobs:
 ```
 
 **Docker skill (.atkins/skills/docker.yml):**
+
 ```yaml
 name: Docker Skill
 when:

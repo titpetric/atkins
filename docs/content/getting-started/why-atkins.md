@@ -28,23 +28,23 @@ Atkins is a good fit when:
 
 ## Comparison Table
 
-| Feature | Atkins | GitHub Actions | Taskfile | Lefthook |
-|---------|--------|----------------|----------|----------|
-| Primary use case | Local dev + CI runner | CI/CD platform | Task runner | Git hooks |
-| Distributed execution | No [^1] | Yes [^2] | No [^3] | No [^4] |
-| Variable interpolation | `${{ var }}` [^5] | `${{ env.VAR }}` [^6] | `{{.Var}}` (Go templates) [^7] | N/A [^8] |
-| Shell exec interpolation | `$(cmd)` [^9] | N/A [^10] | `sh: cmd` [^11] | N/A [^12] |
-| Secrets management | No | Yes (encrypted) [^13] | No [^14] | No |
-| Environment inheritance | Full [^15] | Explicit [^16] | Partial [^17] | Full |
-| Parallel execution | Yes (`detach: true`) [^18] | Yes (jobs) [^19] | Yes (`--parallel`) [^20] | Yes (parallel hooks) [^21] |
-| Conditional execution | `if:` (expr-lang) [^22] | `if:` (expressions) [^23] | `preconditions:` [^24] | `skip` patterns [^25] |
-| File discovery | Auto-discovers config [^26] | Fixed `.github/workflows/` [^27] | `Taskfile.yml` [^28] | `.lefthook.yml` [^29] |
-| Dependencies | `depends_on:` | `needs:` | `deps:` | N/A |
-| Plugin/extension system | Skills [^30] | Actions marketplace [^31] | Includes [^32] | N/A |
-| Output formats | Tree, JSON, YAML | Logs | Text | Text |
-| Binary size | ~10MB | N/A (cloud) | ~15MB | ~5MB |
-| Shebang support | Yes | No | No | No |
-| Stdin pipeline | Yes | No | No | No |
+| Feature                  | Atkins                      | GitHub Actions                   | Taskfile                       | Lefthook                   |
+|--------------------------|-----------------------------|----------------------------------|--------------------------------|----------------------------|
+| Primary use case         | Local dev + CI runner       | CI/CD platform                   | Task runner                    | Git hooks                  |
+| Distributed execution    | No [^1]                     | Yes [^2]                         | No [^3]                        | No [^4]                    |
+| Variable interpolation   | `${{ var }}` [^5]           | `${{ env.VAR }}` [^6]            | `{{.Var}}` (Go templates) [^7] | N/A [^8]                   |
+| Shell exec interpolation | `$(cmd)` [^9]               | N/A [^10]                        | `sh: cmd` [^11]                | N/A [^12]                  |
+| Secrets management       | No                          | Yes (encrypted) [^13]            | No [^14]                       | No                         |
+| Environment inheritance  | Full [^15]                  | Explicit [^16]                   | Partial [^17]                  | Full                       |
+| Parallel execution       | Yes (`detach: true`) [^18]  | Yes (jobs) [^19]                 | Yes (`--parallel`) [^20]       | Yes (parallel hooks) [^21] |
+| Conditional execution    | `if:` (expr-lang) [^22]     | `if:` (expressions) [^23]        | `preconditions:` [^24]         | `skip` patterns [^25]      |
+| File discovery           | Auto-discovers config [^26] | Fixed `.github/workflows/` [^27] | `Taskfile.yml` [^28]           | `.lefthook.yml` [^29]      |
+| Dependencies             | `depends_on:`               | `needs:`                         | `deps:`                        | N/A                        |
+| Plugin/extension system  | Skills [^30]                | Actions marketplace [^31]        | Includes [^32]                 | N/A                        |
+| Output formats           | Tree, JSON, YAML            | Logs                             | Text                           | Text                       |
+| Binary size              | ~10MB                       | N/A (cloud)                      | ~15MB                          | ~5MB                       |
+| Shebang support          | Yes                         | No                               | No                             | No                         |
+| Stdin pipeline           | Yes                         | No                               | No                             | No                         |
 
 [^1]: Atkins runs locally on a single machine
 [^2]: [Using jobs in a workflow](https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow)

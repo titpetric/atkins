@@ -11,10 +11,10 @@ import (
 ```go
 // Info contains injected build environment information.
 type Info struct {
-	Version		string
-	Commit		string
-	CommitTime	string
-	Branch		string
+	Version    string
+	Commit     string
+	CommitTime string
+	Branch     string
 }
 ```
 
@@ -35,7 +35,7 @@ const Name = "Show version/build information"
 NewCommand creates a new version command with build information.
 
 ```go
-func NewCommand (info Info) *cli.Command
+func NewCommand(info Info) *cli.Command
 ```
 
 ### Run
@@ -43,7 +43,5 @@ func NewCommand (info Info) *cli.Command
 Run will print version information for the build.
 
 ```go
-func Run (info Info) error
+func Run(info Info) error
 ```
-
-

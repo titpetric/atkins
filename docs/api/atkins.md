@@ -11,9 +11,9 @@ import (
 ```go
 // FuzzyMatch represents a fuzzy match result
 type FuzzyMatch struct {
-	Pipeline	*model.Pipeline
-	JobName		string
-	FullName	string	// e.g., "skill:job" or just "job"
+	Pipeline *model.Pipeline
+	JobName  string
+	FullName string // e.g., "skill:job" or just "job"
 }
 ```
 
@@ -27,20 +27,20 @@ type FuzzyMatchError struct {
 ```go
 // Options holds pipeline command-line arguments
 type Options struct {
-	File			string
-	Job			string
-	List			bool
-	Lint			bool
-	Debug			bool
-	LogFile			string
-	FinalOnly		bool
-	WorkingDirectory	string
-	Jail			bool
-	JSON			bool
-	YAML			bool
-	Version			bool
+	File             string
+	Job              string
+	List             bool
+	Lint             bool
+	Debug            bool
+	LogFile          string
+	FinalOnly        bool
+	WorkingDirectory string
+	Jail             bool
+	JSON             bool
+	YAML             bool
+	Version          bool
 
-	FlagSet	*cli.FlagSet
+	FlagSet *cli.FlagSet
 }
 ```
 
@@ -49,10 +49,10 @@ type Options struct {
 ```go
 // Version information injected at build time via ldflags
 var (
-	Version		= "dev"
-	Commit		= "unknown"
-	CommitTime	= "unknown"
-	Branch		= "unknown"
+	Version    = "dev"
+	Commit     = "unknown"
+	CommitTime = "unknown"
+	Branch     = "unknown"
 )
 ```
 
@@ -68,25 +68,23 @@ var (
 Pipeline provides a cli.Command that runs the atkins command pipeline.
 
 ```go
-func Pipeline () *cli.Command
+func Pipeline() *cli.Command
 ```
 
 ### NewOptions
 
 ```go
-func NewOptions () *Options
+func NewOptions() *Options
 ```
 
 ### Error
 
 ```go
-func (*FuzzyMatchError) Error () string
+func (*FuzzyMatchError) Error() string
 ```
 
 ### Bind
 
 ```go
-func (*Options) Bind (fs *cli.FlagSet)
+func (*Options) Bind(fs *cli.FlagSet)
 ```
-
-

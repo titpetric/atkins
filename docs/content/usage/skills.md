@@ -44,6 +44,7 @@ Project skills take precedence over global skills with the same name.
 ## Creating a Skill
 
 **`.atkins/skills/go.yml`:**
+
 ```yaml
 name: Go build and test
 
@@ -127,6 +128,7 @@ Skills automatically namespace their jobs:
 - `go:test`
 
 Access them with:
+
 ```bash
 atkins go:build
 atkins go:test
@@ -151,6 +153,7 @@ Now `atkins build` invokes `go:build`.
 If multiple skills define the same alias, the first-loaded wins (project before global).
 
 To target explicitly:
+
 ```bash
 atkins :go:build      # Explicit skill reference
 atkins :docker:build  # Different skill
@@ -175,6 +178,7 @@ atkins go        # Runs go:default
 Skills can reference each other using `:skill:job` syntax:
 
 **release.yml:**
+
 ```yaml
 jobs:
   release:
