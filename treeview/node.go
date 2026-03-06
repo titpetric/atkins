@@ -211,6 +211,13 @@ func (n *Node) GetStatus() Status {
 	return n.Status
 }
 
+// GetIf returns the condition string (thread-safe).
+func (n *Node) GetIf() string {
+	n.Lock()
+	defer n.Unlock()
+	return n.If
+}
+
 // AddChild adds a child node.
 func (n *Node) AddChild(child *Node) {
 	n.Lock()

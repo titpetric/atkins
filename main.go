@@ -5,8 +5,6 @@ import (
 	"os"
 
 	"github.com/titpetric/cli"
-
-	"github.com/titpetric/atkins/version"
 )
 
 func main() {
@@ -19,14 +17,6 @@ func main() {
 func start() error {
 	app := cli.NewApp("atkins")
 	app.AddCommand("run", "Run pipeline", Pipeline)
-	app.AddCommand("version", version.Name, func() *cli.Command {
-		return version.NewCommand(version.Info{
-			Version:    Version,
-			Commit:     Commit,
-			CommitTime: CommitTime,
-			Branch:     Branch,
-		})
-	})
 
 	app.DefaultCommand = "run"
 

@@ -161,6 +161,13 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 		label = label + fmt.Sprintf(" (depends_on: %s)", depsStr)
 	}
 
+	// Add if condition for skipped nodes
+	if node.GetStatus() == StatusSkipped {
+		if ifCond := node.GetIf(); ifCond != "" {
+			label = label + " " + colors.BrightYellow(fmt.Sprintf("(if: %s)", ifCond))
+		}
+	}
+
 	// Add status indicator - show all status during execution
 	if status != "" && !strings.HasSuffix(strings.TrimSpace(label), "●") &&
 		!strings.HasSuffix(strings.TrimSpace(label), "✓") &&
@@ -297,6 +304,13 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		}
 		depsStr := strings.Join(depItems, ", ")
 		label = label + fmt.Sprintf(" (depends_on: %s)", depsStr)
+	}
+
+	// Add if condition for skipped nodes
+	if node.GetStatus() == StatusSkipped {
+		if ifCond := node.GetIf(); ifCond != "" {
+			label = label + " " + colors.BrightYellow(fmt.Sprintf("(if: %s)", ifCond))
+		}
 	}
 
 	// Add status indicator only for jobs, not for steps (in list view)

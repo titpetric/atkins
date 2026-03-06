@@ -15,6 +15,7 @@ type Options struct {
 	Jail             bool
 	JSON             bool
 	YAML             bool
+	Version          bool
 
 	FlagSet *cli.FlagSet
 }
@@ -35,6 +36,7 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.BoolVar(&o.Jail, "jail", false, "Restrict to project scope, skip global resources from $HOME")
 	fs.BoolVarP(&o.JSON, "json", "j", false, "Output in JSON format")
 	fs.BoolVarP(&o.YAML, "yaml", "y", false, "Output in YAML format")
+	fs.BoolVarP(&o.Version, "version", "v", false, "Print version and build information")
 
 	o.FlagSet = fs
 }

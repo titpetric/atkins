@@ -50,8 +50,6 @@ type Job struct {
 	*Decl
 
 	Desc		string		`yaml:"desc,omitempty"`
-	RunsOn		string		`yaml:"runs_on,omitempty"`
-	Container	string		`yaml:"container,omitempty"`
 	Dir		string		`yaml:"dir,omitempty"`
 	If		string		`yaml:"if,omitempty"`
 	Cmd		string		`yaml:"cmd,omitempty"`
@@ -115,26 +113,24 @@ type PipelineWhen struct {
 type Step struct {
 	*Decl
 
-	Name		string			`yaml:"name,omitempty"`
-	Desc		string			`yaml:"desc,omitempty"`
-	Dir		string			`yaml:"dir,omitempty"`
-	Run		string			`yaml:"run,omitempty"`
-	Cmd		string			`yaml:"cmd,omitempty"`
-	Cmds		[]string		`yaml:"cmds,omitempty"`
-	Task		string			`yaml:"task,omitempty"`	// Task/job name to invoke
-	If		string			`yaml:"if,omitempty"`
-	For		string			`yaml:"for,omitempty"`
-	Uses		string			`yaml:"uses,omitempty"`
-	With		map[string]interface{}	`yaml:"with,omitempty"`
-	Detach		bool			`yaml:"detach,omitempty"`
-	Deferred	bool			`yaml:"deferred,omitempty"`
-	Verbose		bool			`yaml:"verbose,omitempty"`
-	Summarize	bool			`yaml:"summarize,omitempty"`
-	Quiet		bool			`yaml:"quiet,omitempty"`
-	Passthru	bool			`yaml:"passthru,omitempty"`	// If true, output is printed with tree indentation
-	TTY		bool			`yaml:"tty,omitempty"`		// If true, allocate a PTY for the command (enables color output)
-	Interactive	bool			`yaml:"interactive,omitempty"`	// If true, stream output live and connect stdin for keyboard input
-	HidePrefix	bool			`yaml:"-"`			// If true, don't show "run:" prefix in display
+	Name		string		`yaml:"name,omitempty"`
+	Desc		string		`yaml:"desc,omitempty"`
+	Dir		string		`yaml:"dir,omitempty"`
+	Run		string		`yaml:"run,omitempty"`
+	Cmd		string		`yaml:"cmd,omitempty"`
+	Cmds		[]string	`yaml:"cmds,omitempty"`
+	Task		string		`yaml:"task,omitempty"`	// Task/job name to invoke
+	If		string		`yaml:"if,omitempty"`
+	For		string		`yaml:"for,omitempty"`
+	Detach		bool		`yaml:"detach,omitempty"`
+	Deferred	bool		`yaml:"deferred,omitempty"`
+	Verbose		bool		`yaml:"verbose,omitempty"`
+	Summarize	bool		`yaml:"summarize,omitempty"`
+	Quiet		bool		`yaml:"quiet,omitempty"`
+	Passthru	bool		`yaml:"passthru,omitempty"`	// If true, output is printed with tree indentation
+	TTY		bool		`yaml:"tty,omitempty"`		// If true, allocate a PTY for the command (enables color output)
+	Interactive	bool		`yaml:"interactive,omitempty"`	// If true, stream output live and connect stdin for keyboard input
+	HidePrefix	bool		`yaml:"-"`			// If true, don't show "run:" prefix in display
 }
 ```
 

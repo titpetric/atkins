@@ -38,6 +38,7 @@ type Options struct {
 	Jail			bool
 	JSON			bool
 	YAML			bool
+	Version			bool
 
 	FlagSet	*cli.FlagSet
 }

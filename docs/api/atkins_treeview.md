@@ -141,6 +141,7 @@ const (
 - `func (*Node) AddChildren (children ...*Node)`
 - `func (*Node) GetChildren () []*Node`
 - `func (*Node) GetDependencies () []string`
+- `func (*Node) GetIf () string`
 - `func (*Node) GetName () string`
 - `func (*Node) GetOutput () []string`
 - `func (*Node) GetStatus () Status`
@@ -466,6 +467,14 @@ GetDependencies returns a copy of the dependencies slice (thread-safe).
 
 ```go
 func (*Node) GetDependencies () []string
+```
+
+### GetIf
+
+GetIf returns the condition string (thread-safe).
+
+```go
+func (*Node) GetIf () string
 ```
 
 ### GetName

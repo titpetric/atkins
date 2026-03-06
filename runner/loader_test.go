@@ -123,6 +123,7 @@ jobs:
 }
 
 // TestEvaluateIfInContext tests if conditions with context variables
+// These tests cover the documentation examples from pipelines-jobs-steps.md
 func TestEvaluateIfInContext(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -131,13 +132,90 @@ func TestEvaluateIfInContext(t *testing.T) {
 		env      map[string]string
 		wantBool bool
 	}{
+		// Basic string comparisons (from docs: "String comparisons")
 		{
-			name:     "context variable comparison",
-			ifCond:   "matrix_os == 'linux'",
-			vars:     map[string]any{"matrix_os": "linux"},
+			name:     "string equals",
+			ifCond:   `environment == "production"`,
+			vars:     map[string]any{"environment": "production"},
 			env:      make(map[string]string),
 			wantBool: true,
 		},
+		{
+			name:     "string not equals",
+			ifCond:   `branch != "main"`,
+			vars:     map[string]any{"branch": "feature"},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "string equals false",
+			ifCond:   `environment == "production"`,
+			vars:     map[string]any{"environment": "staging"},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+
+		// Boolean variables (from docs: "Boolean variables")
+		{
+			name:     "boolean true variable",
+			ifCond:   "enable_deploy",
+			vars:     map[string]any{"enable_deploy": true},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "boolean false variable",
+			ifCond:   "skip_tests",
+			vars:     map[string]any{"skip_tests": false},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "negated boolean",
+			ifCond:   "!skip_tests",
+			vars:     map[string]any{"skip_tests": false},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "explicit boolean comparison",
+			ifCond:   "run_integration_tests == true",
+			vars:     map[string]any{"run_integration_tests": true},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+
+		// Combined conditions (from docs: "Combining conditions")
+		{
+			name:     "AND condition both true",
+			ifCond:   `environment == "production" && branch == "main"`,
+			vars:     map[string]any{"environment": "production", "branch": "main"},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "AND condition one false",
+			ifCond:   `environment == "production" && branch == "main"`,
+			vars:     map[string]any{"environment": "production", "branch": "develop"},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "OR condition one true",
+			ifCond:   `skip_tests || environment == "development"`,
+			vars:     map[string]any{"skip_tests": false, "environment": "development"},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "OR condition both false",
+			ifCond:   `skip_tests || environment == "development"`,
+			vars:     map[string]any{"skip_tests": false, "environment": "production"},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+
+		// Environment variables
 		{
 			name:     "env variable check",
 			ifCond:   "GOARCH == 'amd64'",
@@ -146,10 +224,111 @@ func TestEvaluateIfInContext(t *testing.T) {
 			wantBool: true,
 		},
 		{
-			name:     "combined condition",
-			ifCond:   "matrix_os == 'linux' && GOARCH == 'amd64'",
-			vars:     map[string]any{"matrix_os": "linux"},
-			env:      map[string]string{"GOARCH": "amd64"},
+			name:     "combined vars and env",
+			ifCond:   `deploy_env == "production" && CI == "true"`,
+			vars:     map[string]any{"deploy_env": "production"},
+			env:      map[string]string{"CI": "true"},
+			wantBool: true,
+		},
+
+		// List membership (from docs: "Checking for values in lists")
+		{
+			name:     "in operator with list - found",
+			ifCond:   `environment in allowed_envs`,
+			vars:     map[string]any{"environment": "staging", "allowed_envs": []any{"staging", "production"}},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "in operator with list - not found",
+			ifCond:   `environment in allowed_envs`,
+			vars:     map[string]any{"environment": "development", "allowed_envs": []any{"staging", "production"}},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+
+		// Pattern matching (from docs: "Pattern matching")
+		{
+			name:     "matches operator - release branch",
+			ifCond:   `branch matches "^release/.*"`,
+			vars:     map[string]any{"branch": "release/v1.0"},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "matches operator - not release branch",
+			ifCond:   `branch matches "^release/.*"`,
+			vars:     map[string]any{"branch": "feature/new-thing"},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+
+		// Truthiness rules (from docs: "Truthiness" table)
+		{
+			name:     "empty string is falsy",
+			ifCond:   "value",
+			vars:     map[string]any{"value": ""},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "non-empty string is truthy",
+			ifCond:   "value",
+			vars:     map[string]any{"value": "hello"},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "string 'false' is falsy",
+			ifCond:   "value",
+			vars:     map[string]any{"value": "false"},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "string '0' is falsy",
+			ifCond:   "value",
+			vars:     map[string]any{"value": "0"},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "zero int is falsy",
+			ifCond:   "count",
+			vars:     map[string]any{"count": 0},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "non-zero int is truthy",
+			ifCond:   "count",
+			vars:     map[string]any{"count": 42},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+
+		// Undefined variables (from docs: "Undefined Variables")
+		{
+			name:     "undefined variable is falsy",
+			ifCond:   "maybe_defined",
+			vars:     make(map[string]any), // variable not defined
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+
+		// Numeric comparisons (from docs: "Expression Syntax" table)
+		{
+			name:     "greater than",
+			ifCond:   "num_items > 0",
+			vars:     map[string]any{"num_items": 5},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "less than or equal",
+			ifCond:   "num_items <= 10",
+			vars:     map[string]any{"num_items": 10},
+			env:      make(map[string]string),
 			wantBool: true,
 		},
 	}

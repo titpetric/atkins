@@ -16,6 +16,7 @@ import (
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
+	"github.com/titpetric/atkins/version"
 )
 
 // loadSkillPipelines loads skill pipelines from the project-local .atkins/skills/ directory.
@@ -189,6 +190,16 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 }
 
 func runPipeline(ctx context.Context, opts *Options, args []string) error {
+	// Handle version flag early, before any file discovery
+	if opts.Version {
+		return version.Run(version.Info{
+			Version:    Version,
+			Commit:     Commit,
+			CommitTime: CommitTime,
+			Branch:     Branch,
+		})
+	}
+
 	// Validate mutually exclusive flags
 	if opts.JSON && opts.YAML {
 		return fmt.Errorf("%s --json and --yaml flags cannot be combined", colors.BrightRed("ERROR:"))

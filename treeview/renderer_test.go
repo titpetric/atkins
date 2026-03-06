@@ -315,6 +315,84 @@ func TestConcurrentOutputAndRender(t *testing.T) {
 	})
 }
 
+func TestRenderSkippedWithIfCondition(t *testing.T) {
+	t.Run("skipped step shows if condition", func(t *testing.T) {
+		renderer := NewRenderer()
+		root := NewNode("pipeline")
+
+		step := NewNode("run: ./deploy.sh")
+		step.SetStatus(StatusSkipped)
+		step.SetIf(`environment == "production"`)
+		root.AddChild(step)
+
+		output := renderer.Render(root)
+		stripped := colors.StripANSI(output)
+
+		assert.Contains(t, stripped, `(if: environment == "production")`, "skipped step should show if condition")
+		assert.Contains(t, stripped, "deploy.sh", "should still show step name")
+	})
+
+	t.Run("skipped job shows if condition", func(t *testing.T) {
+		renderer := NewRenderer()
+		root := NewNode("pipeline")
+
+		job := NewNode("deploy")
+		job.SetStatus(StatusSkipped)
+		job.SetIf(`branch == "main"`)
+		root.AddChild(job)
+
+		output := renderer.Render(root)
+		stripped := colors.StripANSI(output)
+
+		assert.Contains(t, stripped, `(if: branch == "main")`, "skipped job should show if condition")
+	})
+
+	t.Run("skipped without if condition shows no condition", func(t *testing.T) {
+		renderer := NewRenderer()
+		root := NewNode("pipeline")
+
+		step := NewNode("run: echo hello")
+		step.SetStatus(StatusSkipped)
+		// No SetIf called
+		root.AddChild(step)
+
+		output := renderer.Render(root)
+		stripped := colors.StripANSI(output)
+
+		assert.NotContains(t, stripped, "(if:", "skipped without condition should not show (if:)")
+	})
+
+	t.Run("passed step does not show if condition even if set", func(t *testing.T) {
+		renderer := NewRenderer()
+		root := NewNode("pipeline")
+
+		step := NewNode("run: ./deploy.sh")
+		step.SetStatus(StatusPassed)
+		step.SetIf(`environment == "production"`) // Set but should not display since passed
+		root.AddChild(step)
+
+		output := renderer.Render(root)
+		stripped := colors.StripANSI(output)
+
+		assert.NotContains(t, stripped, "(if:", "passed step should not show if condition")
+	})
+
+	t.Run("static render also shows if condition for skipped", func(t *testing.T) {
+		renderer := NewRenderer()
+		root := NewNode("pipeline")
+
+		step := NewNode("run: ./deploy.sh")
+		step.SetStatus(StatusSkipped)
+		step.SetIf(`env == "prod"`)
+		root.AddChild(step)
+
+		output := renderer.RenderStatic(root)
+		stripped := colors.StripANSI(output)
+
+		assert.Contains(t, stripped, `(if: env == "prod")`, "static render should also show if condition")
+	})
+}
+
 func TestRenderProgressCounter(t *testing.T) {
 	t.Run("expanded node with multiple children shows progress", func(t *testing.T) {
 		renderer := NewRenderer()
