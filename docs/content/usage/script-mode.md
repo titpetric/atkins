@@ -4,9 +4,7 @@ subtitle: Executable pipelines and stdin input
 layout: page
 ---
 
-# Script Mode
-
-Atkins pipelines can be run as executable scripts or piped via stdin. This lets you treat pipeline files like shell scripts—make them executable, pass arguments, and integrate them into larger toolchains.
+Atkins pipelines can be run as executable scripts or piped via stdin. This lets you treat pipeline files like shell scripts: make them executable, pass arguments, and integrate them into larger toolchains.
 
 This page covers shebang execution, stdin input, and combining script mode with CLI flags.
 
@@ -83,5 +81,5 @@ cat pipeline.yml | atkins --json
 
 ## See Also
 
-- [CLI Flags](./cli-flags) — Command-line options
-- [Automation](./automation) — JSON/YAML output details
+- [CLI Flags](./cli-flags) - Command-line options
+- [Automation](./automation) - JSON/YAML output details

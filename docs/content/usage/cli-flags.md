@@ -4,8 +4,6 @@ subtitle: Command-line options reference
 layout: page
 ---
 
-# CLI Flags
-
 Atkins provides command-line flags to control which pipeline file to use, which jobs to run, and how output is formatted. This page covers all available flags and common usage patterns.
 
 ## Usage
@@ -250,6 +248,6 @@ EOF
 
 ## See Also
 
-- [Job Targeting](./job-targeting) — Running specific jobs
-- [Script Mode](./script-mode) — Executable pipelines
-- [Automation](./automation) — JSON/YAML output details
+- [Job Targeting](./job-targeting) - Running specific jobs
+- [Script Mode](./script-mode) - Executable pipelines
+- [Automation](./automation) - JSON/YAML output details

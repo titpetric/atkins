@@ -4,26 +4,24 @@ subtitle: Why and how to migrate from other tools
 layout: page
 ---
 
-# Migrating to Atkins
-
 If you're currently using Taskfile, GitHub Actions workflows for local tasks, or another task runner, Atkins offers a familiar syntax with some key improvements. This page explains why you might migrate and provides links to detailed guides for specific tools.
 
-Atkins supports two syntax styles—Taskfile-compatible and GitHub Actions-inspired—so migration often involves only minor changes to your existing configuration.
+Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspired) so migration often involves only minor changes to your existing configuration.
 
 ## Why Migrate?
 
-- **Cleaner interpolation syntax** — Atkins uses `${{ var }}` for variable interpolation and `$(command)` for shell substitution, which don't require YAML quoting or conflict with bash syntax
-- **Full environment inheritance** — Commands inherit the shell environment automatically, reducing configuration boilerplate
-- **Local and CI parity** — The same configuration works for local development and CI environments
-- **Smaller binary** — Single ~10MB binary with minimal dependencies
-- **Skills system** — Modular, reusable pipelines that can be shared across projects and activated conditionally
+- **Cleaner interpolation syntax** - Atkins uses `${{ var }}` for variable interpolation and `$(command)` for shell substitution, which don't require YAML quoting or conflict with bash syntax
+- **Full environment inheritance** - Commands inherit the shell environment automatically, reducing configuration boilerplate
+- **Local and CI parity** - The same configuration works for local development and CI environments
+- **Smaller binary** - Single ~10MB binary with minimal dependencies
+- **Skills system** - Modular, reusable pipelines that can be shared across projects and activated conditionally
 
 ## Migration Guides
 
 Choose the guide that matches your current tool:
 
-- [Migrating from Taskfile](./migration-from-task) — Covers syntax differences including interpolation, shell substitution, and environment handling
-- [Migrating from GitHub Actions](./migration-from-github-actions) — Covers syntax mapping including triggers, actions, matrix builds, and field naming
+- [Migrating from Taskfile](./migration-from-task) - Covers syntax differences including interpolation, shell substitution, and environment handling
+- [Migrating from GitHub Actions](./migration-from-github-actions) - Covers syntax mapping including triggers, actions, matrix builds, and field naming
 
 ## Using Atkins in CI
 
@@ -55,5 +53,5 @@ atkins --final
 
 ## Next Steps
 
-- [Configuration](../usage/configuration) — Full configuration reference
-- [Why use Atkins?](../why-atkins) — Detailed comparison with other tools
+- [Configuration](../usage/configuration) - Full configuration reference
+- [Why use Atkins?](../why-atkins) - Detailed comparison with other tools

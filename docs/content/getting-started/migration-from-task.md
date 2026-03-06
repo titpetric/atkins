@@ -4,8 +4,6 @@ subtitle: Moving from Taskfile to Atkins
 layout: page
 ---
 
-# Migrating from Taskfile
-
 Atkins supports a Taskfile-compatible structure, making migration straightforward for most pipelines. The main differences are in interpolation syntax and shell substitution. Simple Taskfiles without interpolation often work without any changes.
 
 This guide covers the syntax mappings and common patterns you'll encounter when migrating.

@@ -4,8 +4,6 @@ subtitle: How to install Atkins
 layout: page
 ---
 
-# Installation
-
 Atkins ships as a single binary with no runtime dependencies. You can install it from source using Go, download a pre-built binary, or copy it from the official Docker image. Choose whichever method fits your environment.
 
 ## From Source (Go)
@@ -90,5 +88,5 @@ Atkins strips the shebang line before parsing, so the file remains valid YAML fo
 
 ## Next Steps
 
-- [Configuration](../usage/configuration) — Learn the pipeline format
-- [CLI Flags](../usage/cli-flags) — Command-line reference
+- [Configuration](../usage/configuration) - Learn the pipeline format
+- [CLI Flags](../usage/cli-flags) - Command-line reference

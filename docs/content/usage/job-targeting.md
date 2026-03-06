@@ -4,8 +4,6 @@ subtitle: Running specific jobs with targeting syntax
 layout: page
 ---
 
-# Job Targeting
-
 When you have multiple jobs and skills, Atkins provides flexible syntax for targeting exactly which job to run. You can target jobs by name, by skill namespace, or by alias. Understanding the resolution order helps when job names overlap.
 
 This page covers targeting syntax and how Atkins resolves job names.
@@ -178,14 +176,14 @@ atkins db            # Another alias
 
 When you invoke `atkins <name>`, resolution follows this precedence:
 
-1. **Explicit root reference** (`:` prefix) — bypasses all other rules
-2. **Prefixed job reference** (`skill:job` syntax) — explicit skill targeting
-3. **Exact main pipeline match** — job name matches exactly in main pipeline
-4. **Alias match** — job alias in any pipeline
-5. **Skill ID with default** — name matches skill with `default` job
-6. **Skill ID** (listing only) — name matches skill name
-7. **Fuzzy match** — substring/suffix match (single match only)
-8. **Fallback** — main pipeline with name as-is
+1. **Explicit root reference** (`:` prefix) - bypasses all other rules
+2. **Prefixed job reference** (`skill:job` syntax) - explicit skill targeting
+3. **Exact main pipeline match** - job name matches exactly in main pipeline
+4. **Alias match** - job alias in any pipeline
+5. **Skill ID with default** - name matches skill with `default` job
+6. **Skill ID** (listing only) - name matches skill name
+7. **Fuzzy match** - substring/suffix match (single match only)
+8. **Fallback** - main pipeline with name as-is
 
 Main pipeline jobs take precedence over aliases. If your main pipeline has a job named `up`, running `atkins up` will invoke it even if a skill has an alias `up` pointing elsewhere.
 
@@ -305,5 +303,5 @@ atkins -f ci/test.yml integration
 
 ## See Also
 
-- [CLI Flags](./cli-flags) — Command-line options
-- [Skills](./skills) — Skill namespacing and aliases
+- [CLI Flags](./cli-flags) - Command-line options
+- [Skills](./skills) - Skill namespacing and aliases

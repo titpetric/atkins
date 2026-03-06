@@ -4,9 +4,7 @@ subtitle: Pipeline configuration format and syntax
 layout: page
 ---
 
-# Configuration
-
-Atkins pipelines are defined in YAML files, typically named `atkins.yml` or `.atkins.yml`. A pipeline contains jobs (or tasks), each with a sequence of steps to execute. Atkins supports two syntax styles—Taskfile-compatible and GitHub Actions-inspired—which can be mixed in the same file.
+Atkins pipelines are defined in YAML files, typically named `atkins.yml` or `.atkins.yml`. A pipeline contains jobs (or tasks), each with a sequence of steps to execute. Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspired) which can be mixed in the same file.
 
 This page covers the configuration format, variable interpolation, and key configuration concepts.
 
@@ -88,9 +86,9 @@ jobs:
 
 ## Variable Interpolation
 
-### `${{ expr }}` — Atkins Variables
+### `${{ expr }}` - Atkins Variables
 
-Atkins uses `${{ expr }}` for variable interpolation. This syntax was chosen to avoid conflicts with bash `${var}`—both can coexist in the same command without escaping:
+Atkins uses `${{ expr }}` for variable interpolation. This syntax was chosen to avoid conflicts with bash `${var}}`. Both can coexist in the same command without escaping:
 
 ```yaml
 vars:
@@ -104,7 +102,7 @@ jobs:
 
 Here `${GIT_TAG}` is resolved by the shell at runtime, while `${{ binary }}` is resolved by Atkins before execution.
 
-### `$(command)` — Shell Execution
+### `$(command)` - Shell Execution
 
 Shell command output can fill variable values:
 
@@ -196,7 +194,7 @@ jobs:
 
 ### Environment Inheritance
 
-Atkins passes the existing shell environment through to all commands. There's no need to explicitly declare which variables to pass—everything is inherited automatically. This differs from tools like Taskfile that require explicit environment declarations.
+Atkins passes the existing shell environment through to all commands. There's no need to explicitly declare which variables to pass. Everything is inherited automatically. This differs from tools like Taskfile that require explicit environment declarations.
 
 ## Include (`include:`)
 
@@ -228,7 +226,7 @@ jobs:
       - run: go test ./...
 ```
 
-The skill activates only when `go.mod` exists. Multiple files use OR logic—any match activates the skill. See [Skills](./skills) for details.
+The skill activates only when `go.mod` exists. Multiple files use OR logic. Any match activates the skill. See [Skills](./skills) for details.
 
 ## Complete Example
 
@@ -279,6 +277,8 @@ jobs:
 
 ## See Also
 
-- [Pipelines, Jobs and Steps](./pipelines-jobs-steps) — Execution hierarchy details
-- [CLI Flags](./cli-flags) — Command-line options
-- [Job Targeting](./job-targeting) — Running specific jobs
+- [Pipelines](./pipelines) - Pipeline-level configuration
+- [Jobs](./jobs) - Job configuration and dependencies
+- [Steps](./steps) - Step configuration and loops
+- [CLI Flags](./cli-flags) - Command-line options
+- [Job Targeting](./job-targeting) - Running specific jobs

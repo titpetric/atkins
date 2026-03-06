@@ -4,8 +4,6 @@ subtitle: Machine-readable output for tooling integration
 layout: page
 ---
 
-# Automation with JSON/YAML Output
-
 Atkins provides machine-readable output formats for integration with scripts, tools, and LLMs. The `--json` and `--yaml` flags suppress interactive output and produce structured data that can be parsed programmatically.
 
 This page covers the output formats, schemas, and practical integration patterns.
@@ -261,5 +259,5 @@ This makes output parsing reliable without filtering ANSI codes or progress upda
 
 ## See Also
 
-- [CLI Flags](./cli-flags) — Command-line options
-- [Script Mode](./script-mode) — Executable pipelines
+- [CLI Flags](./cli-flags) - Command-line options
+- [Script Mode](./script-mode) - Executable pipelines

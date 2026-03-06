@@ -4,8 +4,6 @@ subtitle: Using Atkins with GHA-style syntax
 layout: page
 ---
 
-# Migrating from GitHub Actions
-
 Atkins supports a GitHub Actions-inspired syntax with `jobs:` and `steps:`, making it familiar for teams that use GHA workflows. While Atkins isn't a replacement for GitHub Actions as a CI platform, it lets you run similar job definitions locally and in any CI environment.
 
 This guide covers the syntax mappings and key differences between the two.
@@ -218,6 +216,6 @@ jobs:
 
 ## Best Practices
 
-1. **Keep it simple** — Atkins is for running commands, not replacing CI
-2. **Use for local dev** — Run the same tasks locally that CI runs
-3. **Combine with CI** — Call `atkins` from your GHA workflow for consistency
+1. **Keep it simple** - Atkins is for running commands, not replacing CI
+2. **Use for local dev** - Run the same tasks locally that CI runs
+3. **Combine with CI** - Call `atkins` from your GHA workflow for consistency

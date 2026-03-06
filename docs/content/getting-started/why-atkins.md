@@ -4,9 +4,7 @@ subtitle: When and why to choose Atkins
 layout: page
 ---
 
-# Why use Atkins?
-
-Atkins fills a specific niche: a command runner that works the same way on your laptop and in CI, with an emphasis on simplicity and YAML-friendly syntax. It's not trying to replace GitHub Actions or be a full CI platform—it's a tool for running tasks locally and in automation.
+Atkins fills a specific niche: a command runner that works the same way on your laptop and in CI, with an emphasis on simplicity and YAML-friendly syntax. It's not trying to replace GitHub Actions or be a full CI platform. It's a tool for running tasks locally and in automation.
 
 This page explains when Atkins is a good fit and compares it with related tools.
 
@@ -16,7 +14,7 @@ Atkins is a good fit when:
 
 - **You want environment inheritance without boilerplate.** Commands inherit the full shell environment automatically. Variables set in one step are available in the next without extra configuration.
 
-- **You don't need secrets management built into the runner.** Atkins keeps things simple—secrets are handled by your environment or an external tool, not baked into the runner itself.
+- **You don't need secrets management built into the runner.** Atkins keeps things simple. Secrets are handled by your environment or an external tool, not baked into the runner itself.
 
 - **You want YAML-friendly interpolation.** The `${{ }}` syntax doesn't require quoting in YAML and won't collide with bash `${var}` constructs.
 
@@ -83,5 +81,5 @@ Atkins is a good fit when:
 
 ## See Also
 
-- [Introduction](./getting-started/introduction) — Overview and quick start
-- [Migrating to Atkins](./getting-started/migrating) — Migration guides
+- [Introduction](./introduction) - Overview and quick start
+- [Migrating to Atkins](./migrating) - Migration guides

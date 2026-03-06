@@ -4,8 +4,6 @@ subtitle: Modular, reusable pipeline components
 layout: page
 ---
 
-# Skills
-
 Skills are modular pipeline files that automatically activate based on project context. A Go skill can provide `go:build`, `go:test`, and `go:lint` jobs that appear only when `go.mod` exists in your project. Skills let you build a library of reusable workflows that work across projects without copying configuration.
 
 This page covers skill creation, conditional activation, namespacing, and how skills interact with the main pipeline.
@@ -14,8 +12,8 @@ This page covers skill creation, conditional activation, namespacing, and how sk
 
 Skills are YAML pipeline files stored in special directories:
 
-- `.atkins/skills/` — Project-local skills
-- `$HOME/.atkins/skills/` — Global skills (shared across all projects)
+- `.atkins/skills/` - Project-local skills
+- `$HOME/.atkins/skills/` - Global skills (shared across all projects)
 
 Each skill file becomes a namespace. For example, `go.yml` creates jobs like `go:build`, `go:test`.
 
@@ -99,7 +97,7 @@ when:
     - yarn.lock
 ```
 
-Multiple files use OR logic—any match activates the skill.
+Multiple files use OR logic. Any match activates the skill.
 
 ### Dynamic File Patterns
 
@@ -294,9 +292,9 @@ jobs:
 
 A workspace skill in `[project]/.atkins/skills/` applies to the entire project.
 
-**With `when:`** — working directory is set to the folder containing the matched file.
+**With `when:`** - working directory is set to the folder containing the matched file.
 
-**Without `when:`** — working directory is set to the folder containing `.atkins/`. This allows the skill to run project-level commands from the workspace root.
+**Without `when:`** - working directory is set to the folder containing `.atkins/`. This allows the skill to run project-level commands from the workspace root.
 
 ### Global Skill Behavior
 
@@ -367,5 +365,5 @@ Go build and test
 
 ## See Also
 
-- [Configuration](./configuration) — Pipeline format details
-- [Job Targeting](./job-targeting) — Running specific jobs
+- [Configuration](./configuration) - Pipeline format details
+- [Job Targeting](./job-targeting) - Running specific jobs

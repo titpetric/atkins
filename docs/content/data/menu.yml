@@ -6,13 +6,23 @@ menu:
         url: /getting-started/introduction
       - label: Installation
         url: /getting-started/installation
+      - label: Why use Atkins?
+        url: /getting-started/why-atkins
   - type: group
     label: Usage
     items:
       - label: Configuration
         url: /usage/configuration
-      - label: Pipelines, Jobs and Steps
-        url: /usage/pipelines-jobs-steps
+      - label: Pipelines
+        url: /usage/pipelines
+      - label: Jobs
+        url: /usage/jobs
+      - label: Steps
+        url: /usage/steps
+      - label: Conditionals
+        url: /usage/conditionals
+      - label: Loops
+        url: /usage/loops
       - label: Skills
         url: /usage/skills
       - label: CLI Flags
@@ -23,11 +33,6 @@ menu:
         url: /usage/script-mode
       - label: Automation (JSON/YAML)
         url: /usage/automation
-  - type: group
-    label: Why Atkins?
-    items:
-      - label: Why use Atkins?
-        url: /why-atkins
   - type: group
     label: Migrating
     items:

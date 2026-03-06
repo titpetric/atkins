@@ -5,15 +5,19 @@ This is the table of contents for the docs:
 - Getting Started
   - [Introduction](./getting-started/introduction.md)
   - [Installation](./getting-started/installation.md)
+  - [Why use Atkins?](./getting-started/why-atkins.md)
 - Usage
   - [Configuration](./usage/configuration.md)
-  - [Pipelines, Jobs and Steps](./usage/pipelines-jobs-steps.md)
+  - [Pipelines](./usage/pipelines.md)
+  - [Jobs](./usage/jobs.md)
+  - [Steps](./usage/steps.md)
+  - [Conditionals](./usage/conditionals.md)
+  - [Loops](./usage/loops.md)
   - [Skills](./usage/skills.md)
   - [CLI Flags](./usage/cli-flags.md)
   - [Job Targeting](./usage/job-targeting.md)
   - [Script Mode](./usage/script-mode.md)
   - [Automation (JSON/YAML)](./usage/automation.md)
-- [Why use Atkins?](./why-atkins.md)
 - Migrating
   - [Migrating to Atkins](./getting-started/migrating.md)
   - [Migration from Taskfile](./getting-started/migration-from-task.md)
@@ -29,15 +33,35 @@ Overview of Atkins: what it is, key features (interactive tree display, parallel
 
 Installation methods: from source with Go, binary release download, and Docker image. Includes verification steps and shebang support for executable pipelines.
 
+### Why use Atkins?
+
+When and why to choose Atkins over other solutions. Includes a comparison table with GitHub Actions, Taskfile, and Lefthook covering features like distributed execution, interpolation format, secrets management, environment inheritance, parallel execution, and more.
+
 ## Usage
 
 ### Configuration
 
 Pipeline configuration format and syntax. Covers both syntax flavors (Taskfile-style and GHA-style), variable interpolation (`${{ expr }}` and `$(command)`), environment inheritance, `vars:` block, `env:` block, `include:` for composition, and `when:` for conditional skill activation.
 
-### Pipelines, Jobs and Steps
+### Pipelines
 
-The three-tier execution hierarchy. Complete field reference for pipelines, jobs, and steps. Covers dependencies, detached jobs, string shorthand, deferred steps, for loops with task invocation, and conditional execution with `if:` (expr-lang syntax, available variables, operators, truthiness rules).
+Top-level pipeline configuration. Covers pipeline fields (name, dir, vars, env, jobs/tasks).
+
+### Jobs
+
+Job configuration and dependencies. Covers job fields, dependencies, detached jobs, conditional execution, and string shorthand.
+
+### Steps
+
+Step configuration and execution. Covers step fields, task invocation, deferred steps, and for loops.
+
+### Conditionals
+
+Conditional execution with if expressions. Covers expr-lang syntax, available variables, operators, truthiness rules, and skipped output.
+
+### Loops
+
+For loops and iteration. Covers loop syntax, required variables, and task invocation with loop variables.
 
 ### Skills
 
@@ -58,10 +82,6 @@ Executable pipelines and stdin input. Covers shebang execution, piping via stdin
 ### Automation (JSON/YAML)
 
 Machine-readable output for tooling integration. Covers list and execution output in JSON/YAML formats, schema, and use cases (LLM integration, CI discovery, script integration, monitoring).
-
-## Why use Atkins?
-
-When and why to choose Atkins over other solutions. Includes a comparison table with GitHub Actions, Taskfile, and Lefthook covering features like distributed execution, interpolation format, secrets management, environment inheritance, parallel execution, and more.
 
 ## Migrating
 
