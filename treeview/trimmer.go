@@ -168,3 +168,19 @@ func (t *Trimmer) TrimLabel(label string, maxArgLen, prefixLen int) string {
 	// Then trim to viewport
 	return t.TrimToViewport(compacted, prefixLen)
 }
+
+// TrimMultilineLabel trims a multi-line string to its first line,
+// appending a summary of remaining lines (e.g., "[... and 7 more]").
+func TrimMultilineLabel(label string) string {
+	lines := strings.Split(label, "\n")
+	if len(lines) <= 1 {
+		return label
+	}
+
+	firstLine := lines[0]
+	remaining := len(lines) - 1
+	if remaining == 1 {
+		return firstLine + " [... and 1 more]"
+	}
+	return firstLine + " [... and " + strconv.Itoa(remaining) + " more]"
+}

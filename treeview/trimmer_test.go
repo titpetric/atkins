@@ -152,6 +152,52 @@ func TestTrimmer_GetSetViewportWidth(t *testing.T) {
 	assert.Equal(t, 80, trimmer.GetViewportWidth())
 }
 
+func TestTrimMultilineLabel(t *testing.T) {
+	tests := []struct {
+		name     string
+		label    string
+		expected string
+	}{
+		{
+			name:     "single line unchanged",
+			label:    "run: some command",
+			expected: "run: some command",
+		},
+		{
+			name:     "two lines",
+			label:    "run: cmd file1.txt\nfile2.txt",
+			expected: "run: cmd file1.txt [... and 1 more]",
+		},
+		{
+			name:     "multiple lines",
+			label:    "run: mdox fmt --check ./docs/schema/steps.md\n./docs/schema/jobs.md\n./docs/schema/pipeline.md\n./docs/schema/variables.md\n./docs/api/atkins_model.md\n./docs/api/atkins.md\n./docs/api/atkins_scripts.md\n./docs/api/other.md",
+			expected: "run: mdox fmt --check ./docs/schema/steps.md [... and 7 more]",
+		},
+		{
+			name:     "empty string",
+			label:    "",
+			expected: "",
+		},
+		{
+			name:     "newline only",
+			label:    "\n",
+			expected: " [... and 1 more]",
+		},
+		{
+			name:     "trailing newline",
+			label:    "single line\n",
+			expected: "single line [... and 1 more]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := TrimMultilineLabel(tt.label)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 // stripResetCode removes all ANSI reset codes added by trimWithANSI
 func stripResetCode(s string) string {
 	const resetCode = "\033[0m"

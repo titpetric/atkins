@@ -28,10 +28,11 @@ type Node struct {
 }
 
 // NewNode creates a new tree node.
+// Multi-line names are trimmed to the first line with a summary suffix.
 func NewNode(name string) *Node {
 	now := time.Now()
 	return &Node{
-		Name:         name,
+		Name:         TrimMultilineLabel(name),
 		Status:       StatusPending,
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -123,13 +124,14 @@ func (n *Node) Label() string {
 }
 
 // SetName sets the display name of a node. Nil-safe: no-op on nil receiver.
+// Multi-line names are trimmed to the first line with a summary suffix.
 func (n *Node) SetName(name string) {
 	if n == nil {
 		return
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.Name = name
+	n.Name = TrimMultilineLabel(name)
 }
 
 // SetStatus updates a node's status thread-safely. Nil-safe: no-op on nil receiver.
