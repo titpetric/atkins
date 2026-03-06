@@ -14,7 +14,7 @@ jobs:
     aliases: [release]
     passthru: true
     steps:
-      - docker buildx build --platform linux/amd64 -t ${{image}}:${{semver}} -t ${{image}}:latest -f docker/Dockerfile .
+      - docker buildx build --no-cache --platform linux/amd64 -t ${{image}}:${{semver}} -t ${{image}}:latest -f docker/Dockerfile .
 
   test:
     desc: "Run tests required for release"
@@ -40,7 +40,6 @@ jobs:
 
   publish:docker:
     desc: "Push the Docker images"
-    interactive: true
     steps:
       - docker push ${{image}}:latest
       - docker push ${{image}}:${{semver}}
