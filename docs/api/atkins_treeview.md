@@ -36,7 +36,7 @@ type ExecutionTree struct {
 ```go
 // Node represents a node in the tree (job, step, or iteration).
 type Node struct {
-	sync.Mutex
+	mu	sync.Mutex
 
 	Name		string
 	ID		string	// Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
@@ -152,7 +152,9 @@ const (
 - `func (*Node) SetDuration (duration float64)`
 - `func (*Node) SetID (id string)`
 - `func (*Node) SetIf (condition string)`
+- `func (*Node) SetName (name string)`
 - `func (*Node) SetOutput (lines []string)`
+- `func (*Node) SetQuiet (quiet bool)`
 - `func (*Node) SetStartOffset (offset float64)`
 - `func (*Node) SetStatus (status Status)`
 - `func (*Node) SetSummarize (summarize bool)`
@@ -557,12 +559,28 @@ SetIf sets the condition string that was evaluated. Nil-safe: no-op on nil recei
 func (*Node) SetIf (condition string)
 ```
 
+### SetName
+
+SetName sets the display name of a node. Nil-safe: no-op on nil receiver.
+
+```go
+func (*Node) SetName (name string)
+```
+
 ### SetOutput
 
 SetOutput sets the output lines for this node (from command execution).
 
 ```go
 func (*Node) SetOutput (lines []string)
+```
+
+### SetQuiet
+
+SetQuiet sets the quiet flag. Nil-safe: no-op on nil receiver.
+
+```go
+func (*Node) SetQuiet (quiet bool)
 ```
 
 ### SetStartOffset

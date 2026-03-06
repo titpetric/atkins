@@ -14,24 +14,18 @@ func NewTreeNode(name string) *TreeNode {
 
 // AddStep adds a step node to a job.
 func (job *TreeNode) AddStep(stepName string) *TreeNode {
-	job.Lock()
-	defer job.Unlock()
-
 	node := &TreeNode{
 		Node: &Node{
 			Name:   stepName,
 			Status: StatusRunning,
 		},
 	}
-	job.Children = append(job.Children, node.Node)
+	job.Node.AddChild(node.Node)
 	return node
 }
 
 // AddStepDeferred adds a deferred step node to a job.
 func (job *TreeNode) AddStepDeferred(stepName string) *TreeNode {
-	job.Lock()
-	defer job.Unlock()
-
 	node := &TreeNode{
 		Node: &Node{
 			Name:     stepName,
@@ -39,7 +33,7 @@ func (job *TreeNode) AddStepDeferred(stepName string) *TreeNode {
 			Deferred: true,
 		},
 	}
-	job.Children = append(job.Children, node.Node)
+	job.Node.AddChild(node.Node)
 	return node
 }
 
@@ -60,10 +54,10 @@ func (node *TreeNode) GetChildren() []*TreeNode {
 
 // GetName returns the name of the node.
 func (node *TreeNode) GetName() string {
-	return node.Name
+	return node.Node.GetName()
 }
 
 // GetStatus returns the status of the node.
 func (node *TreeNode) GetStatus() Status {
-	return node.Status
+	return node.Node.GetStatus()
 }

@@ -9,7 +9,7 @@ import (
 
 // Node represents a node in the tree (job, step, or iteration).
 type Node struct {
-	sync.Mutex
+	mu sync.Mutex
 
 	Name         string
 	ID           string // Unique identifier (e.g., "job.steps.0", "job.steps.1" for iterations)
@@ -74,8 +74,8 @@ func NewCmdNode(name string) *Node {
 // StatusColor will return the status indicator for the node.
 // The indicator contains ANSI color sequences. Thread-safe.
 func (n *Node) StatusColor() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	haveChildren := len(n.Children) > 0
 	haveDeps := len(n.Dependencies) > 0
@@ -93,8 +93,8 @@ func (n *Node) StatusColor() string {
 
 // Label returns the node label with color formatting. Thread-safe.
 func (n *Node) Label() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	haveChildren := len(n.Children) > 0
 	haveDeps := len(n.Dependencies) > 0
@@ -122,13 +122,23 @@ func (n *Node) Label() string {
 	return colors.White(name)
 }
 
+// SetName sets the display name of a node. Nil-safe: no-op on nil receiver.
+func (n *Node) SetName(name string) {
+	if n == nil {
+		return
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.Name = name
+}
+
 // SetStatus updates a node's status thread-safely. Nil-safe: no-op on nil receiver.
 func (n *Node) SetStatus(status Status) {
 	if n == nil {
 		return
 	}
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.Status = status
 	n.Deferred = false
 	n.UpdatedAt = time.Now()
@@ -139,8 +149,8 @@ func (n *Node) SetStartOffset(offset float64) {
 	if n == nil {
 		return
 	}
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.StartOffset = offset
 }
 
@@ -149,8 +159,8 @@ func (n *Node) SetDuration(duration float64) {
 	if n == nil {
 		return
 	}
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.Duration = duration
 	n.UpdatedAt = time.Now()
 }
@@ -160,8 +170,8 @@ func (n *Node) SetIf(condition string) {
 	if n == nil {
 		return
 	}
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.If = condition
 }
 
@@ -170,8 +180,8 @@ func (n *Node) SetSummarize(summarize bool) {
 	if n == nil {
 		return
 	}
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.Summarize = summarize
 }
 
@@ -180,22 +190,22 @@ func (n *Node) SetID(id string) {
 	if n == nil {
 		return
 	}
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.ID = id
 }
 
 // SetOutput sets the output lines for this node (from command execution).
 func (n *Node) SetOutput(lines []string) {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.Output = lines
 }
 
 // GetOutput returns a copy of the output lines (thread-safe).
 func (n *Node) GetOutput() []string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	if n.Output == nil {
 		return nil
 	}
@@ -206,51 +216,51 @@ func (n *Node) GetOutput() []string {
 
 // GetStatus returns the node's status (thread-safe).
 func (n *Node) GetStatus() Status {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.Status
 }
 
 // GetIf returns the condition string (thread-safe).
 func (n *Node) GetIf() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.If
 }
 
 // AddChild adds a child node.
 func (n *Node) AddChild(child *Node) {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.Children = append(n.Children, child)
 }
 
 // AddChildren adds multiple child nodes.
 func (n *Node) AddChildren(children ...*Node) {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.Children = append(n.Children, children...)
 }
 
 // HasChildren returns true or false if the node has children.
 func (n *Node) HasChildren() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
 	return len(n.Children) > 0
 }
 
 // GetName returns the node name (thread-safe).
 func (n *Node) GetName() string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.Name
 }
 
 // GetDependencies returns a copy of the dependencies slice (thread-safe).
 func (n *Node) GetDependencies() []string {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	deps := make([]string, len(n.Dependencies))
 	copy(deps, n.Dependencies)
 	return deps
@@ -258,22 +268,32 @@ func (n *Node) GetDependencies() []string {
 
 // IsSummarize returns the summarize flag (thread-safe).
 func (n *Node) IsSummarize() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.Summarize
 }
 
 // IsQuiet returns the quiet flag (thread-safe).
 func (n *Node) IsQuiet() bool {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.Quiet
+}
+
+// SetQuiet sets the quiet flag. Nil-safe: no-op on nil receiver.
+func (n *Node) SetQuiet(quiet bool) {
+	if n == nil {
+		return
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.Quiet = quiet
 }
 
 // GetChildren returns a copy of the children slice (thread-safe).
 func (n *Node) GetChildren() []*Node {
-	n.Lock()
-	defer n.Unlock()
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	children := make([]*Node, len(n.Children))
 	copy(children, n.Children)
 	return children

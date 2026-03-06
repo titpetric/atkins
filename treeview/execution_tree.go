@@ -24,9 +24,6 @@ func NewExecutionTree(pipelineName string) *ExecutionTree {
 
 // AddJob adds a job node to the tree.
 func (et *ExecutionTree) AddJob(job *model.Job) *TreeNode {
-	et.Lock()
-	defer et.Unlock()
-
 	status := StatusPending
 	if job.Nested {
 		status = StatusConditional
@@ -40,15 +37,12 @@ func (et *ExecutionTree) AddJob(job *model.Job) *TreeNode {
 			Dependencies: make([]string, 0),
 		},
 	}
-	et.Children = append(et.Children, node.Node)
+	et.Node.AddChild(node.Node)
 	return node
 }
 
 // AddJobWithDeps adds a job node to the tree with dependencies.
 func (et *ExecutionTree) AddJobWithDeps(jobName string, deps []string) *TreeNode {
-	et.Lock()
-	defer et.Unlock()
-
 	node := &TreeNode{
 		Node: &Node{
 			Name:         jobName,
@@ -57,23 +51,17 @@ func (et *ExecutionTree) AddJobWithDeps(jobName string, deps []string) *TreeNode
 			Dependencies: deps,
 		},
 	}
-	et.Children = append(et.Children, node.Node)
+	et.Node.AddChild(node.Node)
 	return node
 }
 
 // RenderTree renders the entire tree to a string (live rendering).
 func (et *ExecutionTree) RenderTree() string {
-	et.Lock()
-	defer et.Unlock()
-
 	renderer := NewRenderer()
 	return renderer.Render(et.Node)
 }
 
 // CountLines returns the number of lines the tree will render.
 func (et *ExecutionTree) CountLines() int {
-	et.Lock()
-	defer et.Unlock()
-
 	return CountLines(et.Node)
 }

@@ -736,9 +736,9 @@ func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
 		// not be overwritten by subsequent iterations
 
 		// Create a simple context with a CurrentStep set
-		parentNode := &treeview.Node{Name: "parent"}
-		iterNode1 := &treeview.Node{Name: "iter1"}
-		iterNode2 := &treeview.Node{Name: "iter2"}
+		parentNode := treeview.NewNode("parent")
+		iterNode1 := treeview.NewNode("iter1")
+		iterNode2 := treeview.NewNode("iter2")
 
 		execCtx := &runner.ExecutionContext{
 			CurrentStep: parentNode,

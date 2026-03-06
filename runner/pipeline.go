@@ -49,7 +49,7 @@ func NewPipeline(data *model.Pipeline, opts PipelineOptions) *Pipeline {
 func buildAndAddStepsToJob(jobNode *treeview.TreeNode, steps []*model.Step) {
 	for _, step := range steps {
 		stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
-		stepNode.Quiet = step.Quiet
+		stepNode.SetQuiet(step.Quiet)
 		// Only add command child nodes if step has multiple commands (single command already shown in label)
 		commands := step.Commands()
 		if len(commands) > 1 {
@@ -273,7 +273,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		// Only add to tree if it's in jobOrder (root-level execution)
 		if isRootJob {
 			jobNode := tree.AddJobWithoutSteps(deps, jobLabel, job.Nested)
-			jobNode.Summarize = job.Summarize
+			jobNode.SetSummarize(job.Summarize)
 
 			if !isSimpleTask {
 				buildAndAddStepsToJob(jobNode, steps)
@@ -283,7 +283,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		} else {
 			// For non-root jobs (only invoked as tasks), create nodes but don't add to tree
 			jobNode := treeview.NewNode(jobLabel)
-			jobNode.Summarize = job.Summarize
+			jobNode.SetSummarize(job.Summarize)
 
 			if !isSimpleTask {
 				buildAndAddStepsToJob(&treeview.TreeNode{Node: jobNode}, steps)

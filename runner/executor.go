@@ -304,7 +304,7 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 			stepNode = children[stepIndex].Node
 		} else {
 			stepNode = treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
-			stepNode.Quiet = step.Quiet
+			stepNode.SetQuiet(step.Quiet)
 			jobNode.AddChild(stepNode)
 		}
 		stepCtx.CurrentStep = stepNode
@@ -317,6 +317,13 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 		if err := MergeVariables(stepCtx, step.Decl); err != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
 			return fmt.Errorf("failed to process step env: %w", err)
+		}
+	}
+
+	// Interpolate step description with current context
+	if step.Desc != "" {
+		if descInterpolated, err := InterpolateCommand(step.Desc, stepCtx); err == nil {
+			stepNode.SetName(descInterpolated)
 		}
 	}
 
@@ -434,12 +441,11 @@ func (e *Executor) prepareIterationContextWithContext(parentCtx *ExecutionContex
 
 // createIterationNode creates a new tree node for an iteration
 func createIterationNode(id, name string, summarize bool) *treeview.Node {
-	return &treeview.Node{
-		Name:      name,
-		ID:        id,
-		Status:    treeview.StatusPending,
-		Summarize: summarize,
-	}
+	node := treeview.NewNode(name)
+	node.SetID(id)
+	node.SetStatus(treeview.StatusPending)
+	node.SetSummarize(summarize)
+	return node
 }
 
 // logStepSkipped marks a step as skipped and logs the skip event
@@ -453,7 +459,7 @@ func (e *Executor) logStepSkipped(execCtx *ExecutionContext, step *model.Step, s
 	// Get step name for logging
 	stepName := step.Name
 	if stepName == "" && stepNode != nil {
-		stepName = stepNode.Name
+		stepName = stepNode.GetName()
 	}
 
 	// Get job name for ID
@@ -603,9 +609,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 			// Update step node label with interpolated desc for this iteration
 			if step.Desc != "" {
 				if descInterpolated, err := InterpolateCommand(step.Desc, iterCtx); err == nil {
-					stepNode.Lock()
-					stepNode.Name = descInterpolated
-					stepNode.Unlock()
+					stepNode.SetName(descInterpolated)
 				}
 			}
 
@@ -670,7 +674,7 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 	// Get step name for logging
 	stepName := step.Name
 	if stepName == "" && stepNode != nil {
-		stepName = stepNode.Name
+		stepName = stepNode.GetName()
 	}
 
 	// Use the pre-assigned step sequence from the context
