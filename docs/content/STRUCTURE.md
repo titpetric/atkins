@@ -19,9 +19,9 @@ This is the table of contents for the docs:
   - [Script Mode](./usage/script-mode.md)
   - [Automation (JSON/YAML)](./usage/automation.md)
 - Migrating
-  - [Migrating to Atkins](./getting-started/migrating.md)
-  - [Migration from Taskfile](./getting-started/migration-from-task.md)
-  - [Migration from GitHub Actions](./getting-started/migration-from-github-actions.md)
+  - [Migrating to Atkins](./migrating/migrating.md)
+  - [Migration from Taskfile](./migrating/migration-from-task.md)
+  - [Migration from GitHub Actions](./migrating/migration-from-github-actions.md)
 
 ## Getting Started
 

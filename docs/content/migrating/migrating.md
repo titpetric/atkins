@@ -54,4 +54,4 @@ atkins --final
 ## Next Steps
 
 - [Configuration](../usage/configuration) - Full configuration reference
-- [Why use Atkins?](../why-atkins) - Detailed comparison with other tools
+- [Why use Atkins?](../getting-started/why-atkins) - Detailed comparison with other tools

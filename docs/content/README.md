@@ -23,7 +23,7 @@ Atkins is a command runner for local development and CI/CD environments. It exec
 - [CLI Flags](./usage/cli-flags.md) - Command-line reference
 
 **Reference**
-- [Migrating to Atkins](./getting-started/migrating.md) - Migration guides
+- [Migrating to Atkins](./migrating/migrating.md) - Migration guides
 
 ## Getting Help
 
