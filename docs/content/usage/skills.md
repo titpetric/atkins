@@ -6,18 +6,18 @@ layout: page
 
 # Skills
 
-Skills are modular pipeline components that automatically activate based on project context. They enable reusable workflows across projects.
+Skills are modular pipeline files that automatically activate based on project context. A Go skill can provide `go:build`, `go:test`, and `go:lint` jobs that appear only when `go.mod` exists in your project. Skills let you build a library of reusable workflows that work across projects without copying configuration.
 
-## What Are Skills?
+This page covers skill creation, conditional activation, namespacing, and how skills interact with the main pipeline.
+
+## Skill Locations
 
 Skills are YAML pipeline files stored in special directories:
 
-- `.atkins/skills/` - Project-local skills
-- `$HOME/.atkins/skills/` - Global skills (shared across projects)
+- `.atkins/skills/` — Project-local skills
+- `$HOME/.atkins/skills/` — Global skills (shared across all projects)
 
 Each skill file becomes a namespace. For example, `go.yml` creates jobs like `go:build`, `go:test`.
-
-## Skill Locations
 
 ### Project Skills
 
@@ -82,7 +82,7 @@ jobs:
 
 ## Conditional Activation
 
-The `when` block controls when a skill is available.
+The `when:` block controls when a skill is available.
 
 ### File-Based Conditions
 
@@ -99,7 +99,7 @@ when:
     - yarn.lock
 ```
 
-Multiple files use OR logic - any match activates the skill.
+Multiple files use OR logic—any match activates the skill.
 
 ### Dynamic File Patterns
 
@@ -136,7 +136,7 @@ atkins go:test
 
 ## Aliases
 
-Skills can provide global aliases:
+Skills can provide global aliases that map to namespaced jobs:
 
 ```yaml
 jobs:
@@ -290,6 +290,38 @@ jobs:
       - run: npm test
 ```
 
+## Workspace Skills
+
+A workspace skill in `[project]/.atkins/skills/` applies to the entire project.
+
+**With `when:`** — working directory is set to the folder containing the matched file.
+
+**Without `when:`** — working directory is set to the folder containing `.atkins/`. This allows the skill to run project-level commands from the workspace root.
+
+### Global Skill Behavior
+
+Global skills in `~/.atkins/skills/` are available everywhere without populating your source tree.
+
+Global skills do not change the working directory. They run from wherever you invoke atkins, unless:
+
+- They have a `when:` that matches a file (uses that file's folder)
+- They explicitly set `dir:` in the pipeline
+
+### Project Structure
+
+The main pipeline and `.atkins/` folder define workspace boundaries:
+
+```
+/project/.atkins/          # workspace skills
+/project/atkins.yml        # main pipeline
+/project/app/compose.yml   # matched by compose skill
+/project/app/sub/          # can invoke skills from here
+```
+
+From `/project/app/sub/`, atkins searches upward to find configuration and skills. A compose skill with `when: files: [compose.yml]` would match `/project/app/compose.yml` and run from `/project/app/`.
+
+Nested `.atkins/` folders or pipelines create separate workspaces with their own scope.
+
 ## Jail Mode
 
 To disable global skills:
@@ -332,3 +364,8 @@ Go build and test
 * go:build:   Build binary
 * go:test:    Run tests
 ```
+
+## See Also
+
+- [Configuration](./configuration) — Pipeline format details
+- [Job Targeting](./job-targeting) — Running specific jobs

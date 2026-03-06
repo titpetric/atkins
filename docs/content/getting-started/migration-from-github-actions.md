@@ -4,9 +4,11 @@ subtitle: Using Atkins with GHA-style syntax
 layout: page
 ---
 
-# Migration from GitHub Actions
+# Migrating from GitHub Actions
 
-Atkins supports a GitHub Actions-inspired syntax, making it familiar for teams using GHA workflows.
+Atkins supports a GitHub Actions-inspired syntax with `jobs:` and `steps:`, making it familiar for teams that use GHA workflows. While Atkins isn't a replacement for GitHub Actions as a CI platform, it lets you run similar job definitions locally and in any CI environment.
+
+This guide covers the syntax mappings and key differences between the two.
 
 ## Syntax Comparison
 
@@ -31,7 +33,6 @@ name: Build
 
 jobs:
   build:
-    runs_on: ubuntu-latest
     steps:
       - name: Build
         run: go build ./...
@@ -39,11 +40,13 @@ jobs:
 
 ## Key Differences
 
-### No Triggers
-Atkins doesn't handle CI triggers (`on:`). It's a command runner, not a CI system. Use it within your existing CI or as a local tool.
+### No Triggers or Runner Selection
+
+Atkins doesn't handle CI triggers (`on:`) or runner selection (`runs-on:`). It's a command runner, not a CI platform. Use it within your existing CI or as a local development tool.
 
 ### No `uses:` Actions
-Atkins doesn't support GitHub's action ecosystem. Replace `uses:` steps with equivalent commands:
+
+Atkins doesn't support GitHub's action ecosystem. Replace `uses:` steps with equivalent shell commands:
 
 **GHA:**
 ```yaml
@@ -60,13 +63,12 @@ Atkins doesn't support GitHub's action ecosystem. Replace `uses:` steps with equ
 - run: go version
 ```
 
-### Underscore vs Hyphen
-Atkins uses underscores in field names for YAML compatibility:
+### Field Name Differences
 
 | GitHub Actions | Atkins |
-|---------------|--------|
-| `runs-on` | `runs_on` |
-| `depends-on` | `depends_on` |
+|----------------|--------|
+| `runs-on` | Not supported |
+| `needs` | `depends_on:` |
 
 ## Jobs and Dependencies
 
@@ -183,9 +185,7 @@ Atkins uses [expr-lang](https://expr-lang.org/) for condition evaluation.
 
 ## Parallel Execution
 
-**GitHub Actions** runs jobs in parallel by default.
-
-**Atkins** runs jobs sequentially unless you use `detach: true`:
+GitHub Actions runs jobs in parallel by default. Atkins runs jobs sequentially unless you use `detach: true`:
 
 ```yaml
 jobs:
@@ -205,8 +205,19 @@ jobs:
       - run: go build ./...
 ```
 
+## Summary
+
+| Concept | GitHub Actions | Atkins |
+|---------|---------------|--------|
+| Triggers | `on: [push]` | Not supported (use CI) |
+| Runner selection | `runs-on:` | Not supported (local execution) |
+| Actions | `uses: actions/checkout@v4` | `run:` commands |
+| Dependencies | `needs:` | `depends_on:` |
+| Matrix | `strategy.matrix` | `for:` loops |
+| Parallel | Default | `detach: true` |
+
 ## Best Practices
 
-1. **Keep it simple**: Atkins is for running commands, not replacing CI
-2. **Use for local dev**: Great for running the same tasks locally that CI runs
-3. **Combine with CI**: Call `atkins` from your GHA workflow for consistency
+1. **Keep it simple** — Atkins is for running commands, not replacing CI
+2. **Use for local dev** — Run the same tasks locally that CI runs
+3. **Combine with CI** — Call `atkins` from your GHA workflow for consistency

@@ -4,22 +4,26 @@ subtitle: How to install Atkins
 layout: page
 ---
 
-# Installing Atkins
+# Installation
 
-There are three methods to install Atkins depending on your environment.
+Atkins ships as a single binary with no runtime dependencies. You can install it from source using Go, download a pre-built binary, or copy it from the official Docker image. Choose whichever method fits your environment.
 
 ## From Source (Go)
 
-If you have Go installed, this is the simplest method:
+If you have Go 1.21+ installed, this is the simplest method:
 
 ```bash
 go install github.com/titpetric/atkins@latest
 ```
 
+The binary will be placed in your `$GOPATH/bin` directory.
+
 ## Binary Release
 
+Pre-built binaries are available for Linux and macOS (amd64 and arm64):
+
 1. Navigate to the [Releases page](https://github.com/titpetric/atkins/releases)
-2. Download the binary for your platform (linux/amd64, linux/arm64, darwin/amd64, darwin/arm64)
+2. Download the binary for your platform
 3. Install to your PATH:
 
 ```bash
@@ -30,22 +34,25 @@ chmod +x /usr/local/bin/atkins
 
 ## Docker
 
-Atkins is available as a Docker image. Add it to your Dockerfile:
+Atkins is available as `titpetric/atkins:latest`. You can copy the binary into your own images or run it directly.
+
+Add it to your Dockerfile:
 
 ```dockerfile
-# Copy atkins from the official image
 COPY --from=titpetric/atkins:latest /usr/local/bin/atkins /usr/local/bin/atkins
 ```
 
-Or use it directly:
+Or run it directly:
 
 ```bash
 docker run --rm -v $PWD:/app titpetric/atkins -l
 ```
 
+The image is built from scratch in [docker/Dockerfile](https://github.com/titpetric/atkins/blob/main/docker/Dockerfile). See [docker/Dockerfile.example](https://github.com/titpetric/atkins/blob/main/docker/Dockerfile.example) for a full example.
+
 ## Verify Installation
 
-After installation, verify with:
+After installation, verify Atkins is working:
 
 ```bash
 # Print version
@@ -60,7 +67,7 @@ atkins
 
 ## Shebang Support (Linux/macOS)
 
-On Unix systems, you can make pipeline files directly executable:
+On Unix systems, pipeline files can be made directly executable using a shebang line:
 
 ```yaml
 #!/usr/bin/env atkins
@@ -78,3 +85,10 @@ Then:
 chmod +x my-pipeline.yml
 ./my-pipeline.yml
 ```
+
+Atkins strips the shebang line before parsing, so the file remains valid YAML for other tools.
+
+## Next Steps
+
+- [Configuration](../usage/configuration) — Learn the pipeline format
+- [CLI Flags](../usage/cli-flags) — Command-line reference

@@ -6,7 +6,9 @@ layout: page
 
 # Job Targeting
 
-Atkins provides flexible ways to target and run specific jobs, including cross-pipeline references.
+When you have multiple jobs and skills, Atkins provides flexible syntax for targeting exactly which job to run. You can target jobs by name, by skill namespace, or by alias. Understanding the resolution order helps when job names overlap.
+
+This page covers targeting syntax and how Atkins resolves job names.
 
 ## Basic Targeting
 
@@ -66,7 +68,7 @@ The `:` prefix bypasses alias resolution and targets jobs directly.
 atkins :build
 ```
 
-This is useful when:
+Use this when:
 - A skill has aliased `build` but you want the main pipeline's `build`
 - You want explicit, unambiguous job targeting
 
@@ -172,20 +174,20 @@ atkins b             # Short alias
 atkins db            # Another alias
 ```
 
-### Job Resolution Order
+## Job Resolution Order
 
-When you invoke `atkins <name>`, the resolution follows this precedence:
+When you invoke `atkins <name>`, resolution follows this precedence:
 
-1. **Explicit root reference** (`:` prefix) - bypasses all other rules
-2. **Prefixed job reference** (`skill:job` syntax) - explicit skill targeting
-3. **Exact main pipeline match** - job name matches exactly in main pipeline
-4. **Alias match** - job alias in any pipeline
-5. **Skill ID with default** - name matches skill with `default` job
-6. **Skill ID** (listing only) - name matches skill name
-7. **Fuzzy match** - substring/suffix match (single match only)
-8. **Fallback** - main pipeline with name as-is
+1. **Explicit root reference** (`:` prefix) — bypasses all other rules
+2. **Prefixed job reference** (`skill:job` syntax) — explicit skill targeting
+3. **Exact main pipeline match** — job name matches exactly in main pipeline
+4. **Alias match** — job alias in any pipeline
+5. **Skill ID with default** — name matches skill with `default` job
+6. **Skill ID** (listing only) — name matches skill name
+7. **Fuzzy match** — substring/suffix match (single match only)
+8. **Fallback** — main pipeline with name as-is
 
-**Key behavior:** Main pipeline jobs take precedence over aliases. If your main pipeline has a job named `up`, running `atkins up` will invoke it even if a skill has an alias `up` pointing elsewhere.
+Main pipeline jobs take precedence over aliases. If your main pipeline has a job named `up`, running `atkins up` will invoke it even if a skill has an alias `up` pointing elsewhere.
 
 ## Fuzzy Matching
 
@@ -232,7 +234,7 @@ atkins build         # Runs build:linux and build:darwin
 atkins build:linux   # Error - nested job
 ```
 
-## Targeting Examples
+## Examples
 
 ### Common Invocations
 
@@ -300,3 +302,8 @@ atkins b
 # With file flag
 atkins -f ci/test.yml integration
 ```
+
+## See Also
+
+- [CLI Flags](./cli-flags) — Command-line options
+- [Skills](./skills) — Skill namespacing and aliases

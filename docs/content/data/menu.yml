@@ -6,29 +6,34 @@ menu:
         url: /getting-started/introduction
       - label: Installation
         url: /getting-started/installation
-      - label: Migration from Task
-        url: /getting-started/migration-from-task
-      - label: Migration from GitHub Actions
-        url: /getting-started/migration-from-github-actions
   - type: group
     label: Usage
     items:
+      - label: Configuration
+        url: /usage/configuration
+      - label: Pipelines, Jobs and Steps
+        url: /usage/pipelines-jobs-steps
+      - label: Skills
+        url: /usage/skills
       - label: CLI Flags
         url: /usage/cli-flags
       - label: Job Targeting
         url: /usage/job-targeting
-      - label: Skills
-        url: /usage/skills
+      - label: Script Mode
+        url: /usage/script-mode
       - label: Automation (JSON/YAML)
         url: /usage/automation
   - type: group
-    label: Schema Reference
+    label: Why Atkins?
     items:
-      - label: Pipeline
-        url: /schema/pipeline
-      - label: Jobs & Tasks
-        url: /schema/jobs
-      - label: Steps
-        url: /schema/steps
-      - label: Variables & Interpolation
-        url: /schema/variables
+      - label: Why use Atkins?
+        url: /why-atkins
+  - type: group
+    label: Migrating
+    items:
+      - label: Overview
+        url: /getting-started/migrating
+      - label: From Taskfile
+        url: /getting-started/migration-from-task
+      - label: From GitHub Actions
+        url: /getting-started/migration-from-github-actions

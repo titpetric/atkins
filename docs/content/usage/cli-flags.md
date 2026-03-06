@@ -6,7 +6,7 @@ layout: page
 
 # CLI Flags
 
-Atkins provides several command-line flags to control execution and output.
+Atkins provides command-line flags to control which pipeline file to use, which jobs to run, and how output is formatted. This page covers all available flags and common usage patterns.
 
 ## Usage
 
@@ -27,6 +27,7 @@ atkins [flags] [job-name]
 | `--final` | | Show only final tree (no live updates) |
 | `--log` | | Log execution to file |
 | `--debug` | | Enable debug output |
+| `--version` | `-v` | Print version and build information |
 | `--working-directory` | `-w` | Change directory before running |
 | `--jail` | | Restrict to project scope only |
 
@@ -139,7 +140,7 @@ atkins --yaml
 atkins -l -j
 ```
 
-Note: `--json` and `--yaml` are mutually exclusive.
+`--json` and `--yaml` are mutually exclusive.
 
 ## Logging
 
@@ -246,3 +247,9 @@ tasks:
       - run: echo "From stdin"
 EOF
 ```
+
+## See Also
+
+- [Job Targeting](./job-targeting) — Running specific jobs
+- [Script Mode](./script-mode) — Executable pipelines
+- [Automation](./automation) — JSON/YAML output details
