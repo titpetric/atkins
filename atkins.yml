@@ -47,6 +47,9 @@ jobs:
     desc: "Generate docs"
     steps:
       - go-fsck docs --split --out=docs/api --strip=github.com/titpetric ./...
+      - task: mdox:fmt
+        vars:
+          source: ./docs
 
   fmt:
     desc: "Format the code"
