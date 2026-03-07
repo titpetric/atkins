@@ -1,0 +1,16 @@
+name: Syntax Comparison
+
+vars:
+  app_name: myapp
+  env: production
+
+tasks:
+  default:
+    desc: Show YAML-friendly syntax
+    steps:
+      - name: No quoting needed
+        run: echo "App - ${{ app_name }}"
+      - name: Mix with bash variables
+        run: echo "Env - ${{ env }}, User - $USER"
+      - name: Shell substitution
+        run: echo "Built at $(date)"

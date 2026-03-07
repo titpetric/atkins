@@ -1,0 +1,8 @@
+name: Basic Pipeline
+
+jobs:
+  hello:
+    aliases: [default]
+    desc: Say hello
+    steps:
+      - run: echo "Hello from basic pipeline"

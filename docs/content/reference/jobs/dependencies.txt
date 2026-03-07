@@ -1,0 +1,9 @@
+$ atkins -f dependencies.yml -w /root/github/workspace/atkins/docs/content/reference/jobs --final
+
+Job Dependencies
+├─ lint - Check code style ✓
+│  └─ Linting... ✓
+├─ test - Run tests ✓
+│  └─ Testing... ✓
+└─ default - Run everything (depends_on: lint, test) ✓
+   └─ All checks passed ✓

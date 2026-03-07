@@ -1,0 +1,7 @@
+$ atkins -f basic.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+
+Basic Steps
+└─ example ✓ (3/3)
+   ├─ First step ✓
+   ├─ Second step ✓
+   └─ Third step ✓

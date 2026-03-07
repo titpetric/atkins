@@ -8,6 +8,14 @@ If you're currently using Taskfile, GitHub Actions workflows for local tasks, or
 
 Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspired) so migration often involves only minor changes to your existing configuration.
 
+## Quick Comparison
+
+@tabs
+@file "Taskfile" migrating/taskfile-before.yml
+@file "Atkins" migrating/atkins-after.yml
+
+![](./migrating/atkins-after.png)
+
 ## Why Migrate?
 
 - **Cleaner interpolation syntax** - Atkins uses `${{ var }}` for variable interpolation and `$(command)` for shell substitution, which don't require YAML quoting or conflict with bash syntax

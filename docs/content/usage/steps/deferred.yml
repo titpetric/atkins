@@ -1,0 +1,11 @@
+name: Deferred Steps Example
+
+jobs:
+  test:
+    aliases: [default]
+    steps:
+      - defer:
+          run: 'echo "Cleanup: stopping services..."'
+      - run: echo "Starting services..."
+      - run: echo "Running tests..."
+      - run: echo "Tests complete!"

@@ -1,0 +1,19 @@
+name: Job Aliases Example
+
+jobs:
+  docker_build:
+    desc: Build Docker image
+    aliases: [build, b, db]
+    steps:
+      - run: echo "Building Docker image..."
+
+  docker_push:
+    desc: Push Docker image
+    aliases: [push, p]
+    steps:
+      - run: echo "Pushing Docker image..."
+
+  all:
+    desc: Build and push
+    aliases: [default]
+    depends_on: [docker_build, docker_push]

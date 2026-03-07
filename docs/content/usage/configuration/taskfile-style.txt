@@ -1,0 +1,6 @@
+$ atkins -f taskfile-style.yml -w /root/github/workspace/atkins/docs/content/usage/configuration --final
+
+Taskfile-Style Example
+└─ default - Run checks ✓ (2/2)
+   ├─ Running tests... ✓
+   └─ Building project... ✓

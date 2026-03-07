@@ -1,0 +1,15 @@
+name: Pipeline with Variables
+
+vars:
+  greeting: Hello
+  target: World
+  items:
+    - alpha
+    - beta
+    - gamma
+
+jobs:
+  greet:
+    aliases: [default]
+    steps:
+      - run: echo "${{ greeting }}, ${{ target }}!"

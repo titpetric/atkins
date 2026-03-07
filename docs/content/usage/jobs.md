@@ -31,67 +31,13 @@ A job groups related steps and controls how they execute. Jobs are defined as a 
 | `vars:`             | Job-level variables                                                    |
 | `env:`              | Job-level environment variables                                        |
 
-## Example
+## Examples
 
-```yaml
-tasks:
-  lint:
-    desc: Run linters
-    steps:
-      - run: golangci-lint run
+@tabs
+@file "Dependencies" jobs/dependencies.yml
+@file "Detached" jobs/detached.yml
 
-  build:
-    desc: Build the application
-    depends_on: lint
-    timeout: 10m
-    steps:
-      - run: go build -o app .
-
-  test:
-    desc: Run test suite
-    depends_on: lint
-    tty: true
-    steps:
-      - run: gotestsum ./...
-```
-
-## Dependencies
-
-Use `depends_on:` to declare that a job must run after another:
-
-```yaml
-jobs:
-  lint:
-    steps:
-      - run: golangci-lint run
-
-  build:
-    depends_on: lint
-    steps:
-      - run: go build .
-
-  deploy:
-    depends_on: [build, test]
-    steps:
-      - run: ./deploy.sh
-```
-
-## Detached (Background) Jobs
-
-Jobs with `detach: true` run in the background, allowing subsequent jobs to start immediately:
-
-```yaml
-jobs:
-  server:
-    detach: true
-    steps:
-      - run: docker compose up
-
-  test:
-    depends_on: server
-    steps:
-      - run: go test ./...
-```
+![](./jobs/dependencies.png)
 
 ## Conditional Execution
 

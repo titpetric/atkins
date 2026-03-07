@@ -26,6 +26,35 @@ Atkins is a good fit when:
 
 - **You want modular, reusable pipelines.** Skills let you compose and conditionally activate groups of jobs across projects.
 
+## Examples
+
+### YAML-Friendly Syntax
+
+The `${{ }}` syntax works naturally in YAML without quoting, and mixes cleanly with bash variables:
+
+@tabs
+@file "syntax-comparison.yml" why-atkins/syntax-comparison.yml
+
+![](./why-atkins/syntax-comparison.png)
+
+### Environment Inheritance
+
+Commands inherit the full shell environment automatically:
+
+@tabs
+@file "environment-inheritance.yml" why-atkins/environment-inheritance.yml
+
+![](./why-atkins/environment-inheritance.png)
+
+### Parallel Execution
+
+Run jobs concurrently with `detach: true` and see progress in the tree view:
+
+@tabs
+@file "parallel-execution.yml" why-atkins/parallel-execution.yml
+
+![](./why-atkins/parallel-execution.png)
+
 ## Comparison Table
 
 | Feature                  | Atkins                      | GitHub Actions                   | Taskfile                       | Lefthook                   |

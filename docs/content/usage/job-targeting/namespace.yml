@@ -1,0 +1,20 @@
+name: Job Namespace Example
+
+jobs:
+  build:
+    aliases: [default]
+    desc: Main build job
+    steps:
+      - run: echo "Building from main pipeline..."
+
+  test:
+    desc: Main test job
+    steps:
+      - run: echo "Testing from main pipeline..."
+
+  deploy:
+    desc: Deploy using skill jobs
+    steps:
+      # Reference jobs from other skills using :skill:job syntax
+      - task: :build
+      - run: echo "Deploying application..."

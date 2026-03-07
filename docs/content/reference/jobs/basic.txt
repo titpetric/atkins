@@ -1,0 +1,6 @@
+$ atkins -f basic.yml -w /root/github/workspace/atkins/docs/content/reference/jobs --final
+
+Basic Job
+└─ build - Build the application ✓ (2/2)
+   ├─ Building... ✓
+   └─ Build complete ✓

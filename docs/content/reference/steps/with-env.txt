@@ -1,0 +1,6 @@
+$ atkins -f with-env.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+
+Step Environment
+└─ build ✓ (2/2)
+   ├─ Building for linux/amd64 ✓
+   └─ Building for darwin/arm64 ✓

@@ -1,0 +1,9 @@
+#!/usr/bin/env atkins
+name: Executable Script
+
+tasks:
+  default:
+    desc: Run as executable
+    steps:
+      - run: echo "Hello from executable script!"
+      - run: echo "This file can be run with ./shebang.yml"

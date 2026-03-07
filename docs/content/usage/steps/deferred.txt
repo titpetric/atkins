@@ -1,0 +1,8 @@
+$ atkins -f deferred.yml -w /root/github/workspace/atkins/docs/content/usage/steps --final
+
+Deferred Steps Example
+└─ test ✓ (4/4)
+   ├─ Cleanup: stopping services... ✓
+   ├─ Starting services... ✓
+   ├─ Running tests... ✓
+   └─ Tests complete! ✓

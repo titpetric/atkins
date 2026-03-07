@@ -1,0 +1,6 @@
+jobs:
+  test:
+    aliases: [default]
+    desc: Run tests
+    steps:
+      - run: echo "Testing..."

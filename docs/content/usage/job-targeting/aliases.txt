@@ -1,0 +1,8 @@
+$ atkins -f aliases.yml -w /root/github/workspace/atkins/docs/content/usage/job-targeting --final
+
+Job Aliases Example
+├─ docker_build - Build Docker image ✓
+│  └─ Building Docker image... ✓
+├─ docker_push - Push Docker image ✓
+│  └─ Pushing Docker image... ✓
+└─ all - Build and push (depends_on: docker_build, docker_push) ✓

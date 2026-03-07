@@ -1,0 +1,6 @@
+$ atkins -f scope.yml -w /root/github/workspace/atkins/docs/content/reference/variables --final
+
+Variable Scope
+└─ override ✓ (2/2)
+   ├─ Level is job ✓
+   └─ Level is step ✓

@@ -1,0 +1,14 @@
+name: Environment Variables
+
+env:
+  vars:
+    APP_ENV: production
+    LOG_LEVEL: info
+    DEBUG: "false"
+
+jobs:
+  show:
+    aliases: [default]
+    steps:
+      - run: echo "Environment $APP_ENV"
+      - run: echo "Log level $LOG_LEVEL"

@@ -1,0 +1,17 @@
+name: GHA-Style Example
+
+jobs:
+  default:
+    desc: Build and test
+    depends_on: [lint, test]
+    steps:
+      - name: Build
+        run: echo "Building application..."
+
+  lint:
+    steps:
+      - run: echo "Running linter..."
+
+  test:
+    steps:
+      - run: echo "Running tests..."

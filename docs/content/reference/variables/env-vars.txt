@@ -1,0 +1,6 @@
+$ atkins -f env-vars.yml -w /root/github/workspace/atkins/docs/content/reference/variables --final
+
+Environment Variables
+└─ show ✓ (2/2)
+   ├─ Environment production ✓
+   └─ Log level info ✓

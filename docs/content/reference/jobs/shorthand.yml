@@ -1,0 +1,10 @@
+name: String Shorthand
+
+tasks:
+  up:
+    aliases: [default]
+    steps:
+      - run: echo "Starting services"
+  down: echo "Stopping services"
+  status: echo "Checking status"
+  logs: echo "Showing logs"

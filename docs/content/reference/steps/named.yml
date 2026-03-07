@@ -1,0 +1,14 @@
+name: Named Steps
+
+jobs:
+  deploy:
+    aliases: [default]
+    steps:
+      - name: Prepare
+        run: echo "Preparing deployment"
+
+      - name: Deploy
+        run: echo "Deploying application"
+
+      - name: Verify
+        run: echo "Verifying deployment"

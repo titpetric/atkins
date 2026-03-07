@@ -1,0 +1,32 @@
+# Atkins syntax - runnable with: atkins -f atkins-after.yml build
+name: CI Pipeline
+
+vars:
+  app_name: my-app
+  go_versions:
+    - '1.21'
+    - '1.22'
+
+jobs:
+  lint:
+    detach: true
+    steps:
+      - name: Run linter
+        run: echo "Running golangci-lint..."
+
+  test:
+    detach: true
+    steps:
+      - name: Run tests for each Go version
+        for: version in go_versions
+        run: echo "Running tests with Go ${{ version }}"
+
+  build:
+    aliases: [default]
+    depends_on: [lint, test]
+    steps:
+      - name: Build
+        run: echo "Building ${{ app_name }}..."
+      - name: Deploy
+        if: branch == "main"
+        run: echo "Deploying to production..."

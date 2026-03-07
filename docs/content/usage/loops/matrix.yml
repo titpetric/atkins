@@ -1,0 +1,29 @@
+name: Matrix Loop Example
+
+vars:
+  platforms:
+    - linux
+    - darwin
+    - windows
+  architectures:
+    - amd64
+    - arm64
+
+tasks:
+  build_all:
+    aliases: [default]
+    desc: Cross-compile for all platforms
+    steps:
+      - for: platform in platforms
+        task: build_platform
+
+  build_platform:
+    requires: [platform]
+    steps:
+      - for: arch in architectures
+        task: compile
+
+  compile:
+    requires: [platform, arch]
+    steps:
+      - run: echo "Building for ${{ platform }}/${{ arch }}..."

@@ -21,23 +21,10 @@ This page covers Atkins' core capabilities, a quick example to get started, and 
 
 Create an `atkins.yml` file:
 
-```yaml
-name: My Project
+@tabs
+@file "hello-world.yml" introduction/hello-world.yml
 
-vars:
-  greeting: Hello
-
-tasks:
-  default:
-    desc: Run the greeting
-    steps:
-      - run: echo "${{ greeting }}, World!"
-
-  build:
-    desc: Build the project
-    steps:
-      - run: go build ./...
-```
+![](./introduction/hello-world.png)
 
 Run it:
 
@@ -61,9 +48,23 @@ Atkins was built to address common friction points in existing task runners:
 3. **Minimal dependencies** - Small binary size without unnecessary features
 4. **Familiar patterns** - Borrows concepts from Taskfile, GitHub Actions, and Drone CI
 
+## Key Features Demo
+
+This example demonstrates several key features including variable interpolation, shell substitution, and parallel execution:
+
+@tabs
+@file "features.yml" introduction/features.yml
+
+![](./introduction/features.png)
+
 ## Output Formats
 
-Atkins supports multiple output formats for different use cases:
+Atkins supports multiple output formats for different use cases. Use the following example file to try different output modes:
+
+@tabs
+@file "output-formats.yml" introduction/output-formats.yml
+
+![](./introduction/output-formats.png)
 
 ```bash
 # Interactive tree (default)

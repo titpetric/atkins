@@ -1,0 +1,14 @@
+name: For Loops
+
+vars:
+  platforms:
+    - linux
+    - darwin
+    - windows
+
+jobs:
+  build:
+    aliases: [default]
+    steps:
+      - for: platform in platforms
+        run: echo "Building for ${{ platform }}"

@@ -12,15 +12,10 @@ This page covers shebang execution, stdin input, and combining script mode with 
 
 On Linux and macOS, pipeline files can be made directly executable with a shebang line:
 
-```yaml
-#!/usr/bin/env atkins
-name: My Script
+@tabs
+@file "Shebang" script-mode/shebang.yml
 
-tasks:
-  default:
-    steps:
-      - run: echo "Hello!"
-```
+![](./script-mode/shebang.png)
 
 ```bash
 chmod +x script.yml

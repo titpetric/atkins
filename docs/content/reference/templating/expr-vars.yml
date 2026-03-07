@@ -1,0 +1,19 @@
+name: Expression Variables
+
+vars:
+  version: 2
+  env: production
+  enabled: true
+
+jobs:
+  check:
+    aliases: [default]
+    steps:
+      - if: version > 1
+        run: echo "Version is greater than 1"
+
+      - if: env == "production"
+        run: echo "Running in production"
+
+      - if: enabled
+        run: echo "Feature is enabled"

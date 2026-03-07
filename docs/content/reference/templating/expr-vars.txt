@@ -1,0 +1,7 @@
+$ atkins -f expr-vars.yml -w /root/github/workspace/atkins/docs/content/reference/templating --final
+
+Expression Variables
+└─ check ✓ (3/3)
+   ├─ Version is greater than 1 ✓
+   ├─ Running in production ✓
+   └─ Feature is enabled ✓

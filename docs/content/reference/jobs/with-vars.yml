@@ -1,0 +1,18 @@
+name: Job Variables
+
+vars:
+  app: myapp
+
+jobs:
+  build:
+    aliases: [default]
+    vars:
+      output: bin
+    steps:
+      - run: echo "Building ${{ app }} to ${{ output }}"
+
+  test:
+    vars:
+      coverage: true
+    steps:
+      - run: echo "Testing ${{ app }} with coverage=${{ coverage }}"

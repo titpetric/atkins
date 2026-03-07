@@ -1,0 +1,19 @@
+name: Complex Expressions
+
+vars:
+  env: production
+  version: 3
+  deploy: true
+
+jobs:
+  conditional:
+    aliases: [default]
+    steps:
+      - if: env == "production" && version >= 2
+        run: echo "Production v2+"
+
+      - if: env == "staging" || env == "production"
+        run: echo "Non-development environment"
+
+      - if: deploy && version > 1
+        run: echo "Deploying version ${{ version }}"

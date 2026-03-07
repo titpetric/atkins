@@ -1,0 +1,5 @@
+$ atkins -f interpolation.yml -w /root/github/workspace/atkins/docs/content/usage/configuration --final
+
+Variable Interpolation Example
+└─ build ✓
+   └─ Building myapp version 1.2.3 ✓

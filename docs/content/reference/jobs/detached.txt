@@ -1,0 +1,7 @@
+$ atkins -f detached.yml -w /root/github/workspace/atkins/docs/content/reference/jobs --final
+
+Detached Jobs
+└─ background - Run in background ✓ (3/3)
+   ├─ Starting background task ✓
+   ├─ run: sleep 1 ✓
+   └─ Background task done ✓

@@ -8,6 +8,16 @@ Atkins supports a GitHub Actions-inspired syntax with `jobs:` and `steps:`, maki
 
 This guide covers the syntax mappings and key differences between the two.
 
+## Full Example
+
+Here's a complete CI pipeline comparison showing jobs, dependencies, matrix builds, and conditional execution:
+
+@tabs
+@file "GitHub Actions" migration-from-github-actions/workflow-before.yml
+@file "Atkins" migration-from-github-actions/atkins-after.yml
+
+![](./migration-from-github-actions/atkins-after.png)
+
 ## Syntax Comparison
 
 **GitHub Actions:**

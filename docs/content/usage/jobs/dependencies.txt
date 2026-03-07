@@ -1,0 +1,11 @@
+$ atkins -f dependencies.yml -w /root/github/workspace/atkins/docs/content/usage/jobs --final
+
+Job Dependencies Example
+├─ lint - Run linters ✓
+│  └─ Running linter... ✓
+├─ build - Build application (depends_on: lint) ✓
+│  └─ Building app... ✓
+├─ test - Run test suite (depends_on: lint) ✓
+│  └─ Running tests... ✓
+└─ deploy - Deploy application (depends_on: build, test) ✓
+   └─ Deploying... ✓

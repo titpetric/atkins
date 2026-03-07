@@ -1,0 +1,11 @@
+$ atkins -f list.yml -w /root/github/workspace/atkins/docs/content/usage/loops --final
+
+List Loop Example
+└─ build - Build all components ✓
+   └─ task: build_component ✓ (3/3)
+      ├─ build_component ✓
+      │  └─ Building component: src/main ✓
+      ├─ build_component ✓
+      │  └─ Building component: src/utils ✓
+      └─ build_component ✓
+         └─ Building component: src/api ✓

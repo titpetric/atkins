@@ -1,0 +1,24 @@
+name: Conditional Skill Activation
+
+# This skill activates when any of these files exist
+when:
+  files:
+    - go.mod
+    - package.json
+
+jobs:
+  default:
+    desc: Project lifecycle
+    depends_on: [lint, test, build]
+
+  lint:
+    steps:
+      - run: echo "Running project linter..."
+
+  test:
+    steps:
+      - run: echo "Running project tests..."
+
+  build:
+    steps:
+      - run: echo "Building project..."

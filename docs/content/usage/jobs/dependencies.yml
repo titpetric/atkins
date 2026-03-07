@@ -1,0 +1,26 @@
+name: Job Dependencies Example
+
+jobs:
+  lint:
+    desc: Run linters
+    steps:
+      - run: echo "Running linter..."
+
+  test:
+    desc: Run test suite
+    depends_on: lint
+    steps:
+      - run: echo "Running tests..."
+
+  build:
+    desc: Build application
+    depends_on: lint
+    steps:
+      - run: echo "Building app..."
+
+  deploy:
+    aliases: [default]
+    desc: Deploy application
+    depends_on: [build, test]
+    steps:
+      - run: echo "Deploying..."

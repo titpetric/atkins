@@ -1,0 +1,16 @@
+name: My Project
+
+vars:
+  greeting: Hello
+
+tasks:
+  default:
+    desc: Run the greeting
+    steps:
+      - run: echo "${{ greeting }}, World!"
+
+  build:
+    desc: Build the project
+    steps:
+      - run: echo "Building project..."
+      - run: echo "Build complete!"

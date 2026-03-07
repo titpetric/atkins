@@ -1,0 +1,7 @@
+$ atkins -f step-if.yml -w /root/github/workspace/atkins/docs/content/usage/conditionals --final
+
+Step Conditionals Example
+└─ deploy ✓ (2/3)
+   ├─ run: echo "Deploying to production..." (if: environment == "production") ⊘
+   ├─ Deploying to staging... ✓
+   └─ Deployment complete for staging ✓

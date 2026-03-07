@@ -8,8 +8,27 @@ menu:
         url: /getting-started/installation
       - label: Why use Atkins?
         url: /getting-started/why-atkins
+
   - type: group
-    label: Usage
+    label: Reference
+    items:
+      - label: Schema
+        url: /reference/schema
+      - label: Pipeline
+        url: /reference/pipeline
+      - label: Jobs
+        url: /reference/jobs
+      - label: Steps
+        url: /reference/steps
+      - label: Variables
+        url: /reference/variables
+      - label: Includes
+        url: /reference/includes
+      - label: Templating
+        url: /reference/templating
+
+  - type: group
+    label: Usage Guide
     items:
       - label: Configuration
         url: /usage/configuration
@@ -33,6 +52,7 @@ menu:
         url: /usage/script-mode
       - label: Automation (JSON/YAML)
         url: /usage/automation
+
   - type: group
     label: Migrating
     items:

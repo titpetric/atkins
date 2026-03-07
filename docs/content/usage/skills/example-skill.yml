@@ -1,0 +1,28 @@
+name: Example Skill
+
+jobs:
+  default:
+    desc: Run full lifecycle
+    depends_on: [fmt, lint, test, build]
+
+  fmt:
+    desc: Format code
+    steps:
+      - run: echo "Formatting code..."
+
+  lint:
+    desc: Run linter
+    steps:
+      - run: echo "Running linter..."
+
+  test:
+    desc: Run tests
+    aliases: [test]
+    steps:
+      - run: echo "Running tests..."
+
+  build:
+    desc: Build binary
+    aliases: [build]
+    steps:
+      - run: echo "Building binary..."

@@ -1,0 +1,5 @@
+$ atkins -f conditional.yml -w /root/github/workspace/atkins/docs/content/reference/jobs --final
+
+Conditional Jobs
+└─ build - Always runs ✓
+   └─ Building... ✓

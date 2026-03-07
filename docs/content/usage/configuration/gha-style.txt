@@ -1,0 +1,9 @@
+$ atkins -f gha-style.yml -w /root/github/workspace/atkins/docs/content/usage/configuration --final
+
+GHA-Style Example
+├─ lint ✓
+│  └─ Running linter... ✓
+├─ test ✓
+│  └─ Running tests... ✓
+└─ default - Build and test (depends_on: lint, test) ✓
+   └─ Building application... ✓

@@ -1,0 +1,15 @@
+name: Deferred Steps
+
+jobs:
+  with-cleanup:
+    aliases: [default]
+    steps:
+      - name: Cleanup (runs last)
+        deferred: true
+        run: echo "Cleaning up resources"
+
+      - name: Setup
+        run: echo "Setting up"
+
+      - name: Work
+        run: echo "Doing work"

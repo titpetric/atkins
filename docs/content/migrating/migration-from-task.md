@@ -8,6 +8,16 @@ Atkins supports a Taskfile-compatible structure, making migration straightforwar
 
 This guide covers the syntax mappings and common patterns you'll encounter when migrating.
 
+## Full Example
+
+Here's a complete side-by-side comparison showing variable interpolation, shell substitution, and task dependencies:
+
+@tabs
+@file "Taskfile" migration-from-task/taskfile-before.yml
+@file "Atkins" migration-from-task/atkins-after.yml
+
+![](./migration-from-task/atkins-after.png)
+
 ## Structure Comparison
 
 The overall structure is nearly identical. Atkins doesn't require a `version` field.
@@ -164,31 +174,11 @@ Atkins is smaller than Task. The most notable dependency is `expr-lang` for eval
 
 ## Example Migration
 
-**Before (Taskfile):**
+See the full example at the top of this page for a complete before/after comparison. The key changes are:
 
-```yaml
-version: '3'
-
-vars:
-  commit:
-    sh: git rev-parse --short HEAD
-
-tasks:
-  build:
-    cmds:
-      - echo "Building {{.commit}}"
-      - go build -ldflags "-X main.Commit={{.commit}}"
-```
-
-**After (Atkins):**
-
-```yaml
-vars:
-  commit: $(git rev-parse --short HEAD)
-
-tasks:
-  build:
-    cmds:
-      - echo "Building ${{ commit }}"
-      - go build -ldflags "-X main.Commit=${{ commit }}"
-```
+| Taskfile                    | Atkins                  |
+|-----------------------------|-------------------------|
+| `version: '3'`              | Not required            |
+| `sh: command`               | `$(command)`            |
+| `{{.var}}`                  | `${{ var }}`            |
+| Quoted interpolation values | Often can remove quotes |

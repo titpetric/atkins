@@ -1,0 +1,6 @@
+$ atkins -f complete.yml -w /root/github/workspace/atkins/docs/content/usage/pipelines --final
+
+Complete Pipeline
+└─ build - Build the application ✓ (2/2)
+   ├─ Building myapp v1.0.0 ✓
+   └─ Environment: production ✓

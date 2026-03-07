@@ -1,0 +1,7 @@
+$ atkins -f dynamic.yml -w /root/github/workspace/atkins/docs/content/reference/variables --final
+
+Dynamic Variables
+└─ info ✓ (3/3)
+   ├─ Host lab ✓
+   ├─ User root ✓
+   └─ Directory /root/github/workspace/atkins/docs/content/reference/variables ✓

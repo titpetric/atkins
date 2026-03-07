@@ -1,0 +1,17 @@
+name: Step Conditionals Example
+
+vars:
+  environment: staging
+
+jobs:
+  deploy:
+    aliases: [default]
+    steps:
+      - name: Deploy to production
+        if: environment == "production"
+        run: echo "Deploying to production..."
+      - name: Deploy to staging
+        if: environment == "staging"
+        run: echo "Deploying to staging..."
+      - name: Always run
+        run: echo "Deployment complete for ${{ environment }}"

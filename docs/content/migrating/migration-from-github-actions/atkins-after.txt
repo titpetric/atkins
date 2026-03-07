@@ -1,0 +1,13 @@
+$ atkins -f atkins-after.yml -w /root/github/workspace/atkins/docs/content/migrating/migration-from-github-actions --fin
+al
+
+CI Pipeline
+├─ lint ✓
+│  └─ Running golangci-lint... ✓
+├─ test ✓
+│  └─ run: echo "Running tests with Go 1.22" ✓ (2/2)
+│     ├─ Running tests with Go 1.21 ✓
+│     └─ Running tests with Go 1.22 ✓
+└─ build (depends_on: lint, test) ✓ (1/2)
+   ├─ Building my-app... ✓
+   └─ run: echo "Deploying to production..." (if: branch == "main") ⊘

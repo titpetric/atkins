@@ -1,0 +1,11 @@
+$ atkins -f nested.yml -w /root/github/workspace/atkins/docs/content/usage/loops --final
+
+Nested Loop Example
+└─ deploy_all - Deploy to all environments ✓
+   └─ task: deploy_service ✓ (3/3)
+      ├─ deploy_service ✓
+      │  └─ Deploying v1.2.3 to dev... ✓
+      ├─ deploy_service ✓
+      │  └─ Deploying v1.2.3 to staging... ✓
+      └─ deploy_service ✓
+         └─ Deploying v1.2.3 to prod... ✓

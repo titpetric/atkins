@@ -43,80 +43,15 @@ Project skills take precedence over global skills with the same name.
 
 ## Creating a Skill
 
-**`.atkins/skills/go.yml`:**
+Skills are YAML pipeline files with a `when:` block for conditional activation:
 
-```yaml
-name: Go build and test
+@tabs
+@file "Example Skill" skills/example-skill.yml
+@file "When Activation" skills/when-activation.yml
 
-when:
-  files:
-    - go.mod
+![](./skills/example-skill.png)
 
-jobs:
-  default:
-    desc: Go lifecycle
-    depends_on: [fmt, lint, test, build]
-
-  fmt:
-    desc: Format code
-    steps:
-      - run: gofmt -w .
-
-  lint:
-    desc: Run linter
-    steps:
-      - run: golangci-lint run
-
-  test:
-    desc: Run tests
-    steps:
-      - run: go test ./...
-
-  build:
-    desc: Build binary
-    aliases: [build]  # Creates global 'build' alias
-    steps:
-      - run: go build -o bin/app ./...
-```
-
-## Conditional Activation
-
-The `when:` block controls when a skill is available.
-
-### File-Based Conditions
-
-```yaml
-when:
-  files:
-    - go.mod          # Activate if go.mod exists
-```
-
-```yaml
-when:
-  files:
-    - package.json    # Activate for Node projects
-    - yarn.lock
-```
-
-Multiple files use OR logic. Any match activates the skill.
-
-### Dynamic File Patterns
-
-```yaml
-when:
-  files:
-    - $(find . -name "*.go" | head -1)  # Shell command
-```
-
-### Path Searching
-
-File patterns search upward from the current directory:
-
-```yaml
-when:
-  files:
-    - Dockerfile      # Finds Dockerfile in cwd or parent dirs
-```
+The `when:` block controls when a skill is available. Multiple files use OR logic - any match activates the skill. File patterns search upward from the current directory.
 
 ## Skill Namespacing
 

@@ -1,0 +1,21 @@
+name: Taskfile-Style Example
+
+tasks:
+  default:
+    desc: Run checks
+    cmds:
+      - echo "Running tests..."
+      - echo "Building project..."
+
+  up: echo "Starting services..."
+  down: echo "Stopping services..."
+  ps: echo "Listing services..."
+  logs: echo "Showing logs..."
+
+  build:
+    cmd: echo "Building single command..."
+
+  deploy:
+    cmds:
+      - echo "Building artifact..."
+      - echo "Deploying to server..."

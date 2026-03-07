@@ -1,0 +1,13 @@
+name: Static Variables
+
+vars:
+  app_name: myservice
+  version: 1.0.0
+  debug: true
+
+jobs:
+  info:
+    aliases: [default]
+    steps:
+      - run: echo "App ${{ app_name }} v${{ version }}"
+      - run: echo "Debug mode ${{ debug }}"

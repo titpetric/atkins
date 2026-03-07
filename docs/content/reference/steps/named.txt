@@ -1,0 +1,7 @@
+$ atkins -f named.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+
+Named Steps
+└─ deploy ✓ (3/3)
+   ├─ Preparing deployment ✓
+   ├─ Deploying application ✓
+   └─ Verifying deployment ✓

@@ -1,0 +1,7 @@
+$ atkins -f syntax-comparison.yml -w /root/github/workspace/atkins/docs/content/getting-started/why-atkins --final
+
+Syntax Comparison
+└─ default - Show YAML-friendly syntax ✓ (3/3)
+   ├─ App - myapp ✓
+   ├─ Env - production, User - root ✓
+   └─ Built at Sat Mar  7 20:17:35 CET 2026 ✓

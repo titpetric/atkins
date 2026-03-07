@@ -1,0 +1,19 @@
+name: Step Environment
+
+jobs:
+  build:
+    aliases: [default]
+    steps:
+      - name: Linux build
+        env:
+          vars:
+            GOOS: linux
+            GOARCH: amd64
+        run: echo "Building for $GOOS/$GOARCH"
+
+      - name: Darwin build
+        env:
+          vars:
+            GOOS: darwin
+            GOARCH: arm64
+        run: echo "Building for $GOOS/$GOARCH"

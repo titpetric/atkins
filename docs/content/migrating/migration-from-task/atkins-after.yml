@@ -1,0 +1,33 @@
+# Atkins syntax - runnable with: atkins -f atkins-after.yml
+vars:
+  project_name: my-app
+  commit: $(git rev-parse --short HEAD 2>/dev/null || echo "dev")
+  timestamp: $(date +%Y%m%d)
+
+tasks:
+  default:
+    desc: Run all build tasks
+    cmds:
+      - task: clean
+      - task: build
+      - task: package
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - echo "Cleaning ${{ project_name }} build files..."
+      - echo "rm -rf dist/"
+
+  build:
+    desc: Build the project
+    vars:
+      build_flags: -ldflags '-X main.Version=${{ commit }}'
+    cmds:
+      - echo "Building ${{ project_name }} at commit ${{ commit }}"
+      - echo "go build ${{ build_flags }} ./..."
+
+  package:
+    desc: Package for distribution
+    deps: [build]
+    cmds:
+      - echo "Packaging ${{ project_name }}-${{ timestamp }}.tar.gz"

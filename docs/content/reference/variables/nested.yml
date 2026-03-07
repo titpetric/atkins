@@ -1,0 +1,16 @@
+name: Nested Variables
+
+vars:
+  build:
+    output: bin
+    name: app
+  deploy:
+    target: production
+    region: us-east
+
+jobs:
+  show:
+    aliases: [default]
+    steps:
+      - run: echo "Output to ${{ build.output }}/${{ build.name }}"
+      - run: echo "Deploy to ${{ deploy.target }} in ${{ deploy.region }}"

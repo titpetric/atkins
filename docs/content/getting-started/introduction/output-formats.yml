@@ -1,0 +1,22 @@
+name: Output Formats
+
+tasks:
+  default:
+    desc: Default task for output demo
+    steps:
+      - run: echo "This is the default task"
+
+  build:
+    desc: Build the application
+    steps:
+      - run: echo "Compiling..."
+
+  test:
+    desc: Run tests
+    steps:
+      - run: echo "Testing..."
+
+  deploy:
+    desc: Deploy to production
+    steps:
+      - run: echo "Deploying..."

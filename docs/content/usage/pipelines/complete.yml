@@ -1,0 +1,22 @@
+name: Complete Pipeline
+dir: /tmp
+
+vars:
+  version: 1.0.0
+  app_name: myapp
+
+env:
+  vars:
+    BUILD_ENV: production
+
+jobs:
+  build:
+    aliases: [default]
+    desc: Build the application
+    steps:
+      - run: echo "Building ${{ app_name }} v${{ version }}"
+      - run: 'echo "Environment: $BUILD_ENV"'
+  test:
+    desc: Run tests
+    steps:
+      - run: echo "Testing ${{ app_name }}..."

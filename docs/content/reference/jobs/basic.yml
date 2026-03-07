@@ -1,0 +1,9 @@
+name: Basic Job
+
+jobs:
+  build:
+    aliases: [default]
+    desc: Build the application
+    steps:
+      - run: echo "Building..."
+      - run: echo "Build complete"

@@ -1,0 +1,9 @@
+name: Pipeline with Directory
+
+dir: /tmp
+
+jobs:
+  show-dir:
+    aliases: [default]
+    steps:
+      - run: echo "Working in $(pwd)"

@@ -1,0 +1,20 @@
+name: List Loop Example
+
+vars:
+  components:
+    - src/main
+    - src/utils
+    - src/api
+
+tasks:
+  build:
+    aliases: [default]
+    desc: Build all components
+    steps:
+      - for: component in components
+        task: build_component
+
+  build_component:
+    requires: [component]
+    steps:
+      - run: 'echo "Building component: ${{ component }}"'

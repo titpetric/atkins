@@ -1,0 +1,14 @@
+name: Dynamic Variables
+
+vars:
+  hostname: $(hostname)
+  user: $(whoami)
+  pwd: $(pwd)
+
+jobs:
+  info:
+    aliases: [default]
+    steps:
+      - run: echo "Host ${{ hostname }}"
+      - run: echo "User ${{ user }}"
+      - run: echo "Directory ${{ pwd }}"

@@ -1,0 +1,28 @@
+name: Job Conditionals Example
+
+vars:
+  environment: production
+  send_notifications: true
+  allowed_envs:
+    - staging
+    - production
+
+jobs:
+  deploy:
+    aliases: [default]
+    desc: Deploy to production
+    if: environment == "production"
+    steps:
+      - run: echo "Deploying to production..."
+
+  notify:
+    desc: Send notifications
+    if: send_notifications == true
+    steps:
+      - run: echo "Sending notifications..."
+
+  validate:
+    desc: Validate environment
+    if: environment in allowed_envs
+    steps:
+      - run: echo "Environment ${{ environment }} is valid"

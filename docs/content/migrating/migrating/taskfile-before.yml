@@ -1,0 +1,11 @@
+# Taskfile syntax (before migration)
+version: '3'
+
+vars:
+  greeting: "Hello, World"
+
+tasks:
+  default:
+    desc: Show a greeting message
+    cmds:
+      - echo "{{.greeting}}"

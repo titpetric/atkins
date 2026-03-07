@@ -1,0 +1,13 @@
+$ atkins -f task-invoke.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+
+Task Invocation
+└─ default ✓ (3/3)
+   ├─ task: prepare ✓
+   │  └─ prepare ✓
+   │     └─ Preparing... ✓
+   ├─ task: build ✓
+   │  └─ build ✓
+   │     └─ Building... ✓
+   └─ task: verify ✓
+      └─ verify ✓
+         └─ Verifying... ✓

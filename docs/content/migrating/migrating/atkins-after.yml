@@ -1,0 +1,9 @@
+# Atkins syntax (after migration)
+vars:
+  greeting: "Hello, World"
+
+tasks:
+  default:
+    desc: Show a greeting message
+    cmds:
+      - echo "${{ greeting }}"

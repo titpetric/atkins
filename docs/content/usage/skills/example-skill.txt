@@ -1,0 +1,12 @@
+$ atkins -f example-skill.yml -w /root/github/workspace/atkins/docs/content/usage/skills --final
+
+Example Skill
+├─ fmt - Format code ✓
+│  └─ Formatting code... ✓
+├─ lint - Run linter ✓
+│  └─ Running linter... ✓
+├─ test - Run tests ✓
+│  └─ Running tests... ✓
+├─ build - Build binary ✓
+│  └─ Building binary... ✓
+└─ default - Run full lifecycle (depends_on: fmt, lint, test, build) ✓

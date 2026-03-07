@@ -1,0 +1,20 @@
+name: For Loop Steps Example
+
+vars:
+  environments:
+    - dev
+    - staging
+    - prod
+
+tasks:
+  deploy_all:
+    aliases: [default]
+    desc: Deploy to all environments
+    steps:
+      - for: env in environments
+        task: deploy_service
+
+  deploy_service:
+    requires: [env]
+    steps:
+      - run: echo "Deploying to ${{ env }} environment..."

@@ -1,0 +1,7 @@
+$ atkins -f complex.yml -w /root/github/workspace/atkins/docs/content/reference/templating --final
+
+Complex Expressions
+└─ conditional ✓ (3/3)
+   ├─ Production v2+ ✓
+   ├─ Non-development environment ✓
+   └─ Deploying version 3 ✓

@@ -1,0 +1,16 @@
+name: Detached Jobs Example
+
+jobs:
+  server:
+    desc: Start server in background
+    detach: true
+    steps:
+      - run: echo "Starting server in background..."
+
+  test:
+    aliases: [default]
+    desc: Run tests against server
+    depends_on: server
+    steps:
+      - run: echo "Running tests against server..."
+      - run: echo "Tests complete!"

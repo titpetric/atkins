@@ -1,0 +1,13 @@
+$ atkins -f parallel-execution.yml -w /root/github/workspace/atkins/docs/content/getting-started/why-atkins --final
+
+Parallel Execution
+├─ build - Build application ✓ (2/2)
+│  ├─ Building... ✓
+│  └─ Build complete ✓
+├─ test - Run tests ✓ (2/2)
+│  ├─ Running tests... ✓
+│  └─ Tests passed ✓
+├─ lint - Lint code ✓ (2/2)
+│  ├─ Linting... ✓
+│  └─ Lint complete ✓
+└─ default - Run tasks in parallel (depends_on: build, test, lint) ✓

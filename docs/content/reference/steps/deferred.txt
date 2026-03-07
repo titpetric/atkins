@@ -1,0 +1,7 @@
+$ atkins -f deferred.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+
+Deferred Steps
+└─ with-cleanup ✓ (3/3)
+   ├─ Cleaning up resources ✓
+   ├─ Setting up ✓
+   └─ Doing work ✓

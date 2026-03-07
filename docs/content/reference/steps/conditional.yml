@@ -1,0 +1,17 @@
+name: Conditional Steps
+
+vars:
+  verbose: true
+  deploy: false
+
+jobs:
+  example:
+    aliases: [default]
+    steps:
+      - run: echo "Always runs"
+
+      - if: verbose == true
+        run: echo "Verbose output enabled"
+
+      - if: deploy == true
+        run: echo "This is skipped"

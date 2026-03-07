@@ -1,0 +1,9 @@
+$ atkins -f environment-inheritance.yml -w /root/github/workspace/atkins/docs/content/getting-started/why-atkins --final
+
+Environment Inheritance
+└─ default - Show environment inheritance ✓ (5/5)
+   ├─ User - root ✓
+   ├─ Home - /root ✓
+   ├─ Shell - /bin/bash ✓
+   ├─ run: export MY_VAR="hello" ✓
+   └─ MY_VAR is available - ✓

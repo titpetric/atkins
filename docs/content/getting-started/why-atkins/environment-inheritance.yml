@@ -1,0 +1,16 @@
+name: Environment Inheritance
+
+tasks:
+  default:
+    desc: Show environment inheritance
+    steps:
+      - name: Access USER
+        run: echo "User - $USER"
+      - name: Access HOME
+        run: echo "Home - $HOME"
+      - name: Access SHELL
+        run: echo "Shell - $SHELL"
+      - name: Set variable
+        run: export MY_VAR="hello"
+      - name: Use variable
+        run: echo "MY_VAR is available - $MY_VAR"

@@ -1,0 +1,13 @@
+name: Main Pipeline
+
+include:
+  - ci/build.yml
+  - ci/test.yml
+
+jobs:
+  default:
+    aliases: [default]
+    desc: Run all tasks
+    steps:
+      - run: echo "Running main pipeline"
+      - run: echo "Included jobs are available as build, test"

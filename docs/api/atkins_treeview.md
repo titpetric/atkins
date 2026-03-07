@@ -123,6 +123,7 @@ const (
 - `func NewTrimmer () *Trimmer`
 - `func SortByOrder (jobSet map[string]bool, orderList []string) []string`
 - `func SortJobsByDepth (jobNames []string) []string`
+- `func TrimMultilineLabel (label string) string`
 - `func (*Builder) AddJob (job *model.Job, deps []string, jobName string) *TreeNode`
 - `func (*Builder) AddJobWithSummary (job *model.Job, deps []string, jobName string) *TreeNode`
 - `func (*Builder) AddJobWithoutSteps (deps []string, jobName string, nested bool) *TreeNode`
@@ -252,6 +253,7 @@ func NewJobNode(name string, nested bool) *Node
 ### NewNode
 
 NewNode creates a new tree node.
+Multi-line names are trimmed to the first line with a summary suffix.
 
 ```go
 func NewNode(name string) *Node
@@ -322,6 +324,15 @@ Depth is determined by the count of ':' separators in the job name.
 
 ```go
 func SortJobsByDepth(jobNames []string) []string
+```
+
+### TrimMultilineLabel
+
+TrimMultilineLabel trims a multi-line string to its first line,
+appending a summary of remaining lines (e.g., "[... and 7 more]").
+
+```go
+func TrimMultilineLabel(label string) string
 ```
 
 ### AddJob
@@ -562,6 +573,7 @@ func (*Node) SetIf(condition string)
 ### SetName
 
 SetName sets the display name of a node. Nil-safe: no-op on nil receiver.
+Multi-line names are trimmed to the first line with a summary suffix.
 
 ```go
 func (*Node) SetName(name string)

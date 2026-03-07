@@ -1,0 +1,22 @@
+name: Nested Loop Example
+
+vars:
+  environments:
+    - dev
+    - staging
+    - prod
+  service_version: 1.2.3
+
+tasks:
+  deploy_all:
+    aliases: [default]
+    desc: Deploy to all environments
+    steps:
+      - for: env in environments
+        task: deploy_service
+
+  deploy_service:
+    desc: Deploy to a specific environment
+    requires: [env, service_version]
+    steps:
+      - run: echo "Deploying v${{ service_version }} to ${{ env }}..."

@@ -1,0 +1,13 @@
+$ atkins -f basic.yml -w /root/github/workspace/atkins/docs/content/usage/steps --final
+
+Basic Steps Example
+└─ default ✓ (3/3)
+   ├─ task: lint ✓
+   │  └─ lint ✓
+   │     └─ Running linter... ✓
+   ├─ task: build ✓
+   │  └─ build ✓
+   │     └─ Building... ✓
+   └─ task: test ✓
+      └─ test ✓
+         └─ Testing... ✓

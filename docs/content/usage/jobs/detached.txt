@@ -1,0 +1,8 @@
+$ atkins -f detached.yml -w /root/github/workspace/atkins/docs/content/usage/jobs --final
+
+Detached Jobs Example
+├─ server - Start server in background ✓
+│  └─ Starting server in background... ✓
+└─ test - Run tests against server (depends_on: server) ✓ (2/2)
+   ├─ Running tests against server... ✓
+   └─ Tests complete! ✓

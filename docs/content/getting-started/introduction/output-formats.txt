@@ -1,0 +1,5 @@
+$ atkins -f output-formats.yml -w /root/github/workspace/atkins/docs/content/getting-started/introduction --final
+
+Output Formats
+└─ default - Default task for output demo ✓
+   └─ This is the default task ✓

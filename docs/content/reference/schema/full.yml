@@ -1,0 +1,26 @@
+name: Example Pipeline
+
+vars:
+  app: myapp
+  version: 1.0.0
+
+env:
+  vars:
+    BUILD_MODE: release
+
+jobs:
+  default:
+    desc: Run all tasks
+    depends_on: [lint, test]
+    steps:
+      - run: echo "All checks passed"
+
+  lint:
+    desc: Check code style
+    steps:
+      - run: echo "Linting ${{ app }}..."
+
+  test:
+    desc: Run tests
+    steps:
+      - run: echo "Testing ${{ app }} v${{ version }}"

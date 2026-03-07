@@ -1,0 +1,6 @@
+jobs:
+  build:
+    aliases: [default]
+    desc: Build application
+    steps:
+      - run: echo "Building..."

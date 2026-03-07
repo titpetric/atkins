@@ -1,0 +1,30 @@
+name: Basic Steps Example
+
+jobs:
+  setup:
+    steps:
+      - name: Install dependencies
+        run: echo "Installing dependencies..."
+      - name: Run migrations
+        run: echo "Running migrations..."
+      - name: Start server
+        run: echo "Starting server..."
+        detach: true
+
+  default:
+    steps:
+      - task: lint
+      - task: build
+      - task: test
+
+  lint:
+    steps:
+      - run: echo "Running linter..."
+
+  build:
+    steps:
+      - run: echo "Building..."
+
+  test:
+    steps:
+      - run: echo "Testing..."

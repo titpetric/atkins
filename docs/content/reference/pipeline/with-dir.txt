@@ -1,0 +1,5 @@
+$ atkins -f with-dir.yml -w /root/github/workspace/atkins/docs/content/reference/pipeline --final
+
+Pipeline with Directory
+└─ show-dir ✓
+   └─ Working in /tmp ✓

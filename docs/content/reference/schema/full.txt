@@ -1,0 +1,9 @@
+$ atkins -f full.yml -w /root/github/workspace/atkins/docs/content/reference/schema --final
+
+Example Pipeline
+├─ lint - Check code style ✓
+│  └─ Linting myapp... ✓
+├─ test - Run tests ✓
+│  └─ Testing myapp v1.0.0 ✓
+└─ default - Run all tasks (depends_on: lint, test) ✓
+   └─ All checks passed ✓

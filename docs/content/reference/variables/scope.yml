@@ -1,0 +1,16 @@
+name: Variable Scope
+
+vars:
+  level: pipeline
+
+jobs:
+  override:
+    aliases: [default]
+    vars:
+      level: job
+    steps:
+      - run: echo "Level is ${{ level }}"
+
+      - vars:
+          level: step
+        run: echo "Level is ${{ level }}"

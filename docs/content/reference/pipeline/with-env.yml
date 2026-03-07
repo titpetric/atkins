@@ -1,0 +1,13 @@
+name: Pipeline with Environment
+
+env:
+  vars:
+    APP_ENV: production
+    LOG_LEVEL: info
+
+jobs:
+  show:
+    aliases: [default]
+    steps:
+      - run: echo "Environment is $APP_ENV"
+      - run: echo "Log level is $LOG_LEVEL"

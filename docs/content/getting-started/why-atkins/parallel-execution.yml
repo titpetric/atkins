@@ -1,0 +1,27 @@
+name: Parallel Execution
+
+tasks:
+  default:
+    desc: Run tasks in parallel
+    depends_on: [build, test, lint]
+
+  build:
+    desc: Build application
+    detach: true
+    steps:
+      - run: echo "Building..."
+      - run: echo "Build complete"
+
+  test:
+    desc: Run tests
+    detach: true
+    steps:
+      - run: echo "Running tests..."
+      - run: echo "Tests passed"
+
+  lint:
+    desc: Lint code
+    detach: true
+    steps:
+      - run: echo "Linting..."
+      - run: echo "Lint complete"

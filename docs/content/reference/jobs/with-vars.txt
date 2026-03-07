@@ -1,0 +1,5 @@
+$ atkins -f with-vars.yml -w /root/github/workspace/atkins/docs/content/reference/jobs --final
+
+Job Variables
+└─ build ✓
+   └─ Building myapp to bin ✓

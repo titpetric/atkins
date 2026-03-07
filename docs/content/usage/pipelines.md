@@ -29,28 +29,13 @@ Pipeline (atkins.yml)
 
 `jobs:` and `tasks:` are interchangeable. Use whichever style you prefer.
 
-## Example
+## Examples
 
-```yaml
-name: My Project
-dir: ./src
+@tabs
+@file "Basic" pipelines/basic.yml
+@file "Complete" pipelines/complete.yml
 
-vars:
-  version: 1.0.0
-  app_name: myapp
-
-env:
-  vars:
-    GO111MODULE: "on"
-
-jobs:
-  build:
-    steps:
-      - run: go build -o ${{ app_name }}
-  test:
-    steps:
-      - run: go test ./...
-```
+![](./pipelines/basic.png)
 
 ## See Also
 

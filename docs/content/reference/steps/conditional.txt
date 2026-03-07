@@ -1,0 +1,7 @@
+$ atkins -f conditional.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+
+Conditional Steps
+└─ example ✓ (2/3)
+   ├─ Always runs ✓
+   ├─ Verbose output enabled ✓
+   └─ run: echo "This is skipped" (if: deploy == true) ⊘

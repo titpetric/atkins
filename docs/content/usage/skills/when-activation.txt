@@ -1,0 +1,10 @@
+$ atkins -f when-activation.yml -w /root/github/workspace/atkins/docs/content/usage/skills --final
+
+Conditional Skill Activation
+├─ lint ✓
+│  └─ Running project linter... ✓
+├─ test ✓
+│  └─ Running project tests... ✓
+├─ build ✓
+│  └─ Building project... ✓
+└─ default - Project lifecycle (depends_on: lint, test, build) ✓

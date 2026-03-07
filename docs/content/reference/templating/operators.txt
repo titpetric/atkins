@@ -1,0 +1,9 @@
+$ atkins -f operators.yml -w /root/github/workspace/atkins/docs/content/reference/templating --final
+
+Expression Operators
+└─ examples ✓ (4/5)
+   ├─ Count is at least 5 ✓
+   ├─ Count is not zero ✓
+   ├─ Name contains world ✓
+   ├─ Name starts with hello ✓
+   └─ run: echo "This is skipped" (if: !active) ⊘

@@ -158,13 +158,11 @@ jobs:
 
 Jobs can have alternative names:
 
-```yaml
-jobs:
-  docker:build:
-    aliases: [build, b, db]
-    steps:
-      - run: docker build -t app .
-```
+@tabs
+@file "Namespace" job-targeting/namespace.yml
+@file "Aliases" job-targeting/aliases.yml
+
+![](./job-targeting/namespace.png)
 
 Now all of these work:
 

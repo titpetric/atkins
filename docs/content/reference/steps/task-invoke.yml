@@ -1,0 +1,20 @@
+name: Task Invocation
+
+jobs:
+  default:
+    steps:
+      - task: prepare
+      - task: build
+      - task: verify
+
+  prepare:
+    steps:
+      - run: echo "Preparing..."
+
+  build:
+    steps:
+      - run: echo "Building..."
+
+  verify:
+    steps:
+      - run: echo "Verifying..."

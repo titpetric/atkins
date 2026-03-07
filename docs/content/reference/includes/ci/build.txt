@@ -1,0 +1,5 @@
+$ atkins -f build.yml -w /root/github/workspace/atkins/docs/content/reference/includes/ci --final
+
+build.yml
+└─ build - Build application ✓
+   └─ Building... ✓

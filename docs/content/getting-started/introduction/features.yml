@@ -1,0 +1,30 @@
+name: Feature Demo
+
+vars:
+  project: my-app
+  version: 1.0.0
+
+tasks:
+  default:
+    desc: Show key features
+    depends_on: [variables, parallel]
+
+  variables:
+    desc: Variable interpolation
+    steps:
+      - run: echo "Project - ${{ project }}"
+      - run: echo "Version - ${{ version }}"
+      - run: echo "Shell substitution - $(date +%Y-%m-%d)"
+
+  parallel:
+    desc: Parallel execution demo
+    steps:
+      - name: Task A
+        run: echo "Running task A"
+        detach: true
+      - name: Task B
+        run: echo "Running task B"
+        detach: true
+      - name: Task C
+        run: echo "Running task C"
+        detach: true

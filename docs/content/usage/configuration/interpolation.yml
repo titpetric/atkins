@@ -1,0 +1,28 @@
+name: Variable Interpolation Example
+
+vars:
+  binary: myapp
+  app_name: myservice
+  version: 1.2.3
+  platforms:
+    - linux
+    - darwin
+  build:
+    goarch: [arm64, amd64]
+
+jobs:
+  build:
+    aliases: [default]
+    steps:
+      - run: echo "Building ${{ binary }} version ${{ version }}"
+
+  info:
+    vars:
+      output_dir: bin
+    steps:
+      - run: echo "Output to ${{ output_dir }}/${{ app_name }}"
+
+  compile:
+    steps:
+      - for: goarch in ${{ build.goarch }}
+        run: echo "Compiling for GOARCH=${{ goarch }}"

@@ -1,0 +1,25 @@
+name: Expression Operators
+
+vars:
+  total: 5
+  name: "hello-world"
+  active: true
+
+jobs:
+  examples:
+    aliases: [default]
+    steps:
+      - if: total >= 5
+        run: echo "Count is at least 5"
+
+      - if: total != 0
+        run: echo "Count is not zero"
+
+      - if: name contains "world"
+        run: echo "Name contains world"
+
+      - if: name startsWith "hello"
+        run: echo "Name starts with hello"
+
+      - if: '!active'
+        run: echo "This is skipped"

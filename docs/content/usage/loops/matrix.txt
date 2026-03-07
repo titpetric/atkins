@@ -1,0 +1,23 @@
+$ atkins -f matrix.yml -w /root/github/workspace/atkins/docs/content/usage/loops --final
+
+Matrix Loop Example
+└─ build_all - Cross-compile for all platforms ✓
+   └─ task: build_platform ✓ (3/3)
+      ├─ build_platform ✓
+      │  └─ task: compile ✓ (2/2)
+      │     ├─ compile ✓
+      │     │  └─ Building for linux/amd64... ✓
+      │     └─ compile ✓
+      │        └─ Building for linux/arm64... ✓
+      ├─ build_platform ✓
+      │  └─ task: compile ✓ (2/2)
+      │     ├─ compile ✓
+      │     │  └─ Building for darwin/amd64... ✓
+      │     └─ compile ✓
+      │        └─ Building for darwin/arm64... ✓
+      └─ build_platform ✓
+         └─ task: compile ✓ (2/2)
+            ├─ compile ✓
+            │  └─ Building for windows/amd64... ✓
+            └─ compile ✓
+               └─ Building for windows/arm64... ✓

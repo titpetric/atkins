@@ -1,0 +1,9 @@
+name: Basic Steps
+
+jobs:
+  example:
+    aliases: [default]
+    steps:
+      - run: echo "First step"
+      - run: echo "Second step"
+      - run: echo "Third step"

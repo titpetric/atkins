@@ -1,0 +1,6 @@
+$ atkins -f main.yml -w /root/github/workspace/atkins/docs/content/reference/includes --final
+
+Main Pipeline
+└─ default - Run all tasks ✓ (2/2)
+   ├─ Running main pipeline ✓
+   └─ Included jobs are available as build, test ✓

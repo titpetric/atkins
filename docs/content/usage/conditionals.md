@@ -6,32 +6,13 @@ layout: page
 
 Jobs and steps can be conditionally executed using the `if:` field. Conditions are evaluated using [expr-lang](https://expr-lang.org/), a simple expression language.
 
-## Basic Syntax
+## Examples
 
-```yaml
-jobs:
-  deploy:
-    if: environment == "production"
-    steps:
-      - run: ./deploy.sh
+@tabs
+@file "Job Conditionals" conditionals/job-if.yml
+@file "Step Conditionals" conditionals/step-if.yml
 
-  notify:
-    if: send_notifications == true
-    steps:
-      - run: ./notify.sh
-```
-
-Steps can also have conditions:
-
-```yaml
-steps:
-  - name: Deploy to production
-    if: environment == "production"
-    run: ./deploy.sh
-  - name: Deploy to staging
-    if: environment == "staging"
-    run: ./deploy-staging.sh
-```
+![](./conditionals/job-if.png)
 
 ## Available Variables
 

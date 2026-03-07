@@ -1,0 +1,6 @@
+$ atkins -f nested.yml -w /root/github/workspace/atkins/docs/content/reference/variables --final
+
+Nested Variables
+└─ show ✓ (2/2)
+   ├─ Output to bin/app ✓
+   └─ Deploy to production in us-east ✓

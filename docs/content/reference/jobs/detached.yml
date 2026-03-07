@@ -1,0 +1,16 @@
+name: Detached Jobs
+
+jobs:
+  background:
+    aliases: [default]
+    desc: Run in background
+    detach: true
+    steps:
+      - run: echo "Starting background task"
+      - run: sleep 1
+      - run: echo "Background task done"
+
+  foreground:
+    desc: Run in foreground
+    steps:
+      - run: echo "Foreground continues immediately"

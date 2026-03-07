@@ -1,0 +1,6 @@
+$ atkins -f static.yml -w /root/github/workspace/atkins/docs/content/reference/variables --final
+
+Static Variables
+└─ info ✓ (2/2)
+   ├─ App myservice v1.0.0 ✓
+   └─ Debug mode true ✓

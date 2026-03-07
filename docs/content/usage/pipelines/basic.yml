@@ -1,0 +1,14 @@
+name: Basic Pipeline
+
+vars:
+  version: 1.0.0
+  app_name: myapp
+
+jobs:
+  build:
+    aliases: [default]
+    steps:
+      - run: echo "Building ${{ app_name }}"
+  test:
+    steps:
+      - run: echo "Testing ${{ app_name }}"
