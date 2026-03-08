@@ -1,4 +1,4 @@
-$ atkins -f atkins-after.yml -w /root/github/workspace/atkins/docs/content/migrating/migrating --final
+$ atkins -f atkins-after.yml --final
 
 atkins-after.yml
 └─ default - Show a greeting message ✓

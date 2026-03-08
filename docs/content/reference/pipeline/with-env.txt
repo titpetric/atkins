@@ -1,4 +1,4 @@
-$ atkins -f with-env.yml -w /root/github/workspace/atkins/docs/content/reference/pipeline --final
+$ atkins -f with-env.yml --final
 
 Pipeline with Environment
 └─ show ✓ (2/2)

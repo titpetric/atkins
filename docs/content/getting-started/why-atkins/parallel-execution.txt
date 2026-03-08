@@ -1,4 +1,4 @@
-$ atkins -f parallel-execution.yml -w /root/github/workspace/atkins/docs/content/getting-started/why-atkins --final
+$ atkins -f parallel-execution.yml --final
 
 Parallel Execution
 ├─ build - Build application ✓ (2/2)

@@ -1,4 +1,4 @@
-$ atkins -f static.yml -w /root/github/workspace/atkins/docs/content/reference/variables --final
+$ atkins -f static.yml --final
 
 Static Variables
 └─ info ✓ (2/2)

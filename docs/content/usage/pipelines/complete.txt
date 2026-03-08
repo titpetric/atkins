@@ -1,4 +1,4 @@
-$ atkins -f complete.yml -w /root/github/workspace/atkins/docs/content/usage/pipelines --final
+$ atkins -f complete.yml --final
 
 Complete Pipeline
 └─ build - Build the application ✓ (2/2)

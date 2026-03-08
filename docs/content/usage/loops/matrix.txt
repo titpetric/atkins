@@ -1,4 +1,4 @@
-$ atkins -f matrix.yml -w /root/github/workspace/atkins/docs/content/usage/loops --final
+$ atkins -f matrix.yml --final
 
 Matrix Loop Example
 └─ build_all - Cross-compile for all platforms ✓

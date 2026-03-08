@@ -86,7 +86,7 @@ run_test() {
 
         # Take screenshot with termos shot if available
         if command -v termos &> /dev/null; then
-            termos shot -c 120 --filename "$yml_name" -- atkins -f "$(basename "$yml_file")" -w "$yml_dir" --final >/dev/null 2>&1 || true
+            termos shot -c 80 --filename "$yml_name" -- atkins -f "$(basename "$yml_file")" --final >/dev/null 2>&1 || true
         fi
     elif [[ $exit_code -eq 124 ]]; then
         echo -e "${RED}[FAIL]${NC} $rel_path (timeout after ${TIMEOUT}s)"

@@ -1,4 +1,4 @@
-$ atkins -f scope.yml -w /root/github/workspace/atkins/docs/content/reference/variables --final
+$ atkins -f scope.yml --final
 
 Variable Scope
 └─ override ✓ (2/2)

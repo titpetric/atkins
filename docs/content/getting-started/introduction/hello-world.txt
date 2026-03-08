@@ -1,4 +1,4 @@
-$ atkins -f hello-world.yml -w /root/github/workspace/atkins/docs/content/getting-started/introduction --final
+$ atkins -f hello-world.yml --final
 
 My Project
 └─ default - Run the greeting ✓

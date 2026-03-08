@@ -1,4 +1,4 @@
-$ atkins -f minimal.yml -w /root/github/workspace/atkins/docs/content/reference/schema --final
+$ atkins -f minimal.yml --final
 
 minimal.yml
 └─ default ✓

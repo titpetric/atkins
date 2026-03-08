@@ -1,4 +1,4 @@
-$ atkins -f when-activation.yml -w /root/github/workspace/atkins/docs/content/usage/skills --final
+$ atkins -f when-activation.yml --final
 
 Conditional Skill Activation
 ├─ lint ✓

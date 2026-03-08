@@ -1,4 +1,4 @@
-$ atkins -f basic.yml -w /root/github/workspace/atkins/docs/content/usage/pipelines --final
+$ atkins -f basic.yml --final
 
 Basic Pipeline
 └─ build ✓

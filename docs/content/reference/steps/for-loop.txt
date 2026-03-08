@@ -1,4 +1,4 @@
-$ atkins -f for-loop.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+$ atkins -f for-loop.yml --final
 
 For Loops
 └─ build ✓

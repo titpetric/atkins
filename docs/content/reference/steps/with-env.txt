@@ -1,4 +1,4 @@
-$ atkins -f with-env.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+$ atkins -f with-env.yml --final
 
 Step Environment
 └─ build ✓ (2/2)

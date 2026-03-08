@@ -1,4 +1,4 @@
-$ atkins -f task-invoke.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+$ atkins -f task-invoke.yml --final
 
 Task Invocation
 └─ default ✓ (3/3)

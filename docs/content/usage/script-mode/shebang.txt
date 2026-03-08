@@ -1,4 +1,4 @@
-$ atkins -f shebang.yml -w /root/github/workspace/atkins/docs/content/usage/script-mode --final
+$ atkins -f shebang.yml --final
 
 Executable Script
 └─ default - Run as executable ✓ (2/2)

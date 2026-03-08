@@ -1,4 +1,4 @@
-$ atkins -f with-vars.yml -w /root/github/workspace/atkins/docs/content/reference/pipeline --final
+$ atkins -f with-vars.yml --final
 
 Pipeline with Variables
 └─ greet ✓

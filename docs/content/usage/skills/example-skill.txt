@@ -1,4 +1,4 @@
-$ atkins -f example-skill.yml -w /root/github/workspace/atkins/docs/content/usage/skills --final
+$ atkins -f example-skill.yml --final
 
 Example Skill
 ├─ fmt - Format code ✓

@@ -1,4 +1,4 @@
-$ atkins -f step-if.yml -w /root/github/workspace/atkins/docs/content/usage/conditionals --final
+$ atkins -f step-if.yml --final
 
 Step Conditionals Example
 └─ deploy ✓ (2/3)

@@ -1,4 +1,4 @@
-$ atkins -f atkins-after.yml -w /root/github/workspace/atkins/docs/content/migrating/migration-from-task --final
+$ atkins -f atkins-after.yml --final
 
 atkins-after.yml
 └─ default - Run all build tasks ✓ (3/3)
@@ -8,8 +8,8 @@ atkins-after.yml
    │     └─ rm -rf dist/ ✓
    ├─ task: build ✓
    │  └─ build - Build the project ✓ (2/2)
-   │     ├─ Building my-app at commit 78f9c39 ✓
-   │     └─ go build -ldflags '-X main.Version=78f9c39' ./... ✓
+   │     ├─ Building my-app at commit 7457487 ✓
+   │     └─ go build -ldflags '-X main.Version=7457487' ./... ✓
    └─ task: package ✓
       └─ package - Package for distribution ✓
-         └─ Packaging my-app-20260307.tar.gz ✓
+         └─ Packaging my-app-20260308.tar.gz ✓

@@ -1,4 +1,4 @@
-$ atkins -f with-dir.yml -w /root/github/workspace/atkins/docs/content/reference/pipeline --final
+$ atkins -f with-dir.yml --final
 
 Pipeline with Directory
 └─ show-dir ✓

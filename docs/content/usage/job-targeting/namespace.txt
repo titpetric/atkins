@@ -1,4 +1,4 @@
-$ atkins -f namespace.yml -w /root/github/workspace/atkins/docs/content/usage/job-targeting --final
+$ atkins -f namespace.yml --final
 
 Job Namespace Example
 └─ build - Main build job ✓

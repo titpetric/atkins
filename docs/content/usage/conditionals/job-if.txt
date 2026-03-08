@@ -1,4 +1,4 @@
-$ atkins -f job-if.yml -w /root/github/workspace/atkins/docs/content/usage/conditionals --final
+$ atkins -f job-if.yml --final
 
 Job Conditionals Example
 └─ deploy - Deploy to production ✓

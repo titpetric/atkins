@@ -1,10 +1,10 @@
-$ atkins -f features.yml -w /root/github/workspace/atkins/docs/content/getting-started/introduction --final
+$ atkins -f features.yml --final
 
 Feature Demo
 ├─ variables - Variable interpolation ✓ (3/3)
 │  ├─ Project - my-app ✓
 │  ├─ Version - 1.0.0 ✓
-│  └─ Shell substitution - 2026-03-07 ✓
+│  └─ Shell substitution - 2026-03-08 ✓
 ├─ parallel - Parallel execution demo ✓ (3/3)
 │  ├─ Running task A ✓
 │  ├─ Running task B ✓

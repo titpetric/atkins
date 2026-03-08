@@ -1,4 +1,4 @@
-$ atkins -f deferred.yml -w /root/github/workspace/atkins/docs/content/usage/steps --final
+$ atkins -f deferred.yml --final
 
 Deferred Steps Example
 └─ test ✓ (4/4)

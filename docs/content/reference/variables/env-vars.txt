@@ -1,4 +1,4 @@
-$ atkins -f env-vars.yml -w /root/github/workspace/atkins/docs/content/reference/variables --final
+$ atkins -f env-vars.yml --final
 
 Environment Variables
 └─ show ✓ (2/2)

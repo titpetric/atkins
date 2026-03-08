@@ -1,3 +1,0 @@
-$ atkins -f theme.yml -w /root/github/workspace/atkins/docs/content --final
-
-theme.yml

@@ -1,4 +1,4 @@
-$ atkins -f shorthand.yml -w /root/github/workspace/atkins/docs/content/reference/jobs --final
+$ atkins -f shorthand.yml --final
 
 String Shorthand
 └─ up ✓

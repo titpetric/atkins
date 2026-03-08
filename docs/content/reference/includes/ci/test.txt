@@ -1,4 +1,4 @@
-$ atkins -f test.yml -w /root/github/workspace/atkins/docs/content/reference/includes/ci --final
+$ atkins -f test.yml --final
 
 test.yml
 └─ test - Run tests ✓

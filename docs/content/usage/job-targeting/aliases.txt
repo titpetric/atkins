@@ -1,4 +1,4 @@
-$ atkins -f aliases.yml -w /root/github/workspace/atkins/docs/content/usage/job-targeting --final
+$ atkins -f aliases.yml --final
 
 Job Aliases Example
 ├─ docker_build - Build Docker image ✓

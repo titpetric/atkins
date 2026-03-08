@@ -1,4 +1,4 @@
-$ atkins -f nested.yml -w /root/github/workspace/atkins/docs/content/reference/variables --final
+$ atkins -f nested.yml --final
 
 Nested Variables
 └─ show ✓ (2/2)

@@ -1,4 +1,4 @@
-$ atkins -f gha-style.yml -w /root/github/workspace/atkins/docs/content/usage/configuration --final
+$ atkins -f gha-style.yml --final
 
 GHA-Style Example
 ├─ lint ✓

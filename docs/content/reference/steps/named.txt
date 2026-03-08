@@ -1,4 +1,4 @@
-$ atkins -f named.yml -w /root/github/workspace/atkins/docs/content/reference/steps --final
+$ atkins -f named.yml --final
 
 Named Steps
 └─ deploy ✓ (3/3)

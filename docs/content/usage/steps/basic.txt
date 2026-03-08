@@ -1,4 +1,4 @@
-$ atkins -f basic.yml -w /root/github/workspace/atkins/docs/content/usage/steps --final
+$ atkins -f basic.yml --final
 
 Basic Steps Example
 └─ default ✓ (3/3)
