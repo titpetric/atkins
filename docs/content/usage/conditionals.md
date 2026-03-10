@@ -97,7 +97,7 @@ jobs:
 
 When a job or step is skipped due to a condition, the tree output shows the condition:
 
-```
+```text
 [ok] build
 [skip] deploy (if: environment == "production")
 ```

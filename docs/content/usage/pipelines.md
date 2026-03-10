@@ -6,7 +6,7 @@ layout: page
 
 The pipeline is the top-level structure defined in your `atkins.yml` file. It sets the context for all jobs: name, working directory, variables, and environment.
 
-```
+```text
 Pipeline (atkins.yml)
 ├─ Job: build
 │  ├─ Step: run tests

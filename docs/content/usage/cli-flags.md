@@ -79,7 +79,7 @@ atkins -l -j
 
 Example output with `-l`:
 
-```
+```text
 My Project
 
 * default:     Run all checks (depends_on: lint, test)

@@ -26,7 +26,7 @@ Use `for:` in steps to invoke tasks repeatedly with different loop variables.
 
 If a required variable is missing, execution fails with a clear error:
 
-```
+```text
 job 'deploy_service' requires variables [env service_version] but missing: [env]
 ```
 

@@ -97,7 +97,7 @@ tasks:
 
 If a task has `requires: [var1, var2]` but one of those variables is missing from the loop context:
 
-```
+```text
 job 'deploy_service' requires variables [env service_version] but missing: [env]
 ```
 

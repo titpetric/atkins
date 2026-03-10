@@ -46,7 +46,7 @@ jobs:
 
 If no default is found, Atkins shows available jobs:
 
-```
+```text
 atkins: Available jobs for this project:
 * build:       Build the application
 * test:        Run tests

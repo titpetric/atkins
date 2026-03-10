@@ -17,7 +17,7 @@ Each skill file becomes a namespace. For example, `go.yml` creates jobs like `go
 
 ### Project Skills
 
-```
+```text
 myproject/
 ├── .atkins/
 │   └── skills/
@@ -29,7 +29,7 @@ myproject/
 
 ### Global Skills
 
-```
+```text
 $HOME/
 └── .atkins/
     └── skills/
