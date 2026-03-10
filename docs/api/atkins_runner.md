@@ -150,7 +150,7 @@ type Pipeline struct {
 ```go
 // PipelineOptions contains options for running a pipeline.
 type PipelineOptions struct {
-	Job          string
+	Jobs         []string // Jobs to run (in order)
 	LogFile      string
 	PipelineFile string
 	Debug        bool

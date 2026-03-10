@@ -28,7 +28,7 @@ type FuzzyMatchError struct {
 // Options holds pipeline command-line arguments
 type Options struct {
 	File             string
-	Job              string
+	Jobs             []string
 	List             bool
 	Lint             bool
 	Debug            bool
