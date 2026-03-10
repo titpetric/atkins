@@ -8,8 +8,8 @@ atkins-after.yml
    │     └─ rm -rf dist/ ✓
    ├─ task: build ✓
    │  └─ build - Build the project ✓ (2/2)
-   │     ├─ Building my-app at commit 7457487 ✓
-   │     └─ go build -ldflags '-X main.Version=7457487' ./... ✓
+   │     ├─ Building my-app at commit b92579e ✓
+   │     └─ go build -ldflags '-X main.Version=b92579e' ./... ✓
    └─ task: package ✓
       └─ package - Package for distribution ✓
-         └─ Packaging my-app-20260308.tar.gz ✓
+         └─ Packaging my-app-lab.tar.gz ✓

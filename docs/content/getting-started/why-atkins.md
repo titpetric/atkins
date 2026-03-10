@@ -4,27 +4,19 @@ subtitle: When and why to choose Atkins
 layout: page
 ---
 
-Atkins fills a specific niche: a command runner that works the same way on your laptop and in CI, with an emphasis on simplicity and YAML-friendly syntax. It's not trying to replace GitHub Actions or be a full CI platform. It's a tool for running tasks locally and in automation.
-
-This page explains when Atkins is a good fit and compares it with related tools.
+Atkins is a command runner that works the same way on your laptop and in CI. It emphasizes simplicity and YAML-friendly syntax. Atkins runs tasks locally and in automation; it does not replace GitHub Actions or other CI platforms.
 
 ## When to Choose Atkins
 
-Atkins is a good fit when:
+Atkins suits projects where:
 
-- **You want environment inheritance without boilerplate.** Commands inherit the full shell environment automatically. Variables set in one step are available in the next without extra configuration.
-
-- **You don't need secrets management built into the runner.** Atkins keeps things simple. Secrets are handled by your environment or an external tool, not baked into the runner itself.
-
-- **You want YAML-friendly interpolation.** The `${{ }}` syntax doesn't require quoting in YAML and won't collide with bash `${var}` constructs.
-
-- **You want a minimal, fast binary.** Atkins ships as a single ~10MB binary with no runtime dependencies.
-
-- **You need local and CI parity.** Write your pipeline once and run it the same way on your machine and in CI.
-
-- **You want parallel execution with visual progress.** Detach jobs or steps to run concurrently, with a tree-view output that shows what's happening.
-
-- **You want modular, reusable pipelines.** Skills let you compose and conditionally activate groups of jobs across projects.
+- Commands should inherit the full shell environment automatically. Variables set in one step are available in the next without extra configuration.
+- Secrets are handled externally. Atkins has no built-in secrets management; use your environment or a dedicated tool.
+- YAML files shouldn't need excessive quoting. The `${{ }}` syntax works naturally in YAML and won't collide with bash `${var}` constructs.
+- A small, standalone binary matters. Atkins ships as a single ~10MB binary with no runtime dependencies.
+- Local and CI runs should behave identically. Write a pipeline once and run it the same way everywhere.
+- Jobs run in parallel with visible progress. Use `detach: true` to run jobs concurrently; the tree view shows what's happening.
+- Pipelines should be modular and reusable. Skills let you compose and conditionally activate groups of jobs across projects.
 
 ## Examples
 
@@ -73,7 +65,7 @@ Run jobs concurrently with `detach: true` and see progress in the tree view:
 | Output formats           | Tree, JSON, YAML            | Logs                             | Text                           | Text                       |
 | Binary size              | ~10MB                       | N/A (cloud)                      | ~15MB                          | ~5MB                       |
 | Shebang support          | Yes                         | No                               | No                             | No                         |
-| Stdin pipeline           | Yes                         | No                               | No                             | No                         |
+| Stdin pipeline           | Yes                         | No                               | Yes                            | No                         |
 
 [^1]: Atkins runs locally on a single machine
 [^2]: [Using jobs in a workflow](https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow)

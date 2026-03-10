@@ -77,7 +77,7 @@ Variables cascade from pipeline to job to step:
 
 ## Coexistence with Shell
 
-Atkins `${{ }}` and shell `${}` can coexist without escaping:
+Atkins `${{ }}` and shell `$VAR`/`${VAR}` can coexist without escaping:
 
 ```yaml
 vars:
@@ -85,10 +85,12 @@ vars:
 jobs:
   build:
     steps:
-      # ${{ binary }} resolved by Atkins
-      # ${GIT_TAG} resolved by shell at runtime
-      - run: echo "Building ${{ binary }} at ${GIT_TAG}"
+      # ${{ binary }} resolved by Atkins before execution
+      # $USER and ${GIT_TAG} resolved by shell at runtime
+      - run: echo "Building ${{ binary }} as $USER at ${GIT_TAG}"
 ```
+
+Atkins resolves `${{ }}` interpolations first, then passes the resulting command to the shell which handles `$VAR` and `${VAR}` references.
 
 ## See Also
 

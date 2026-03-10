@@ -4,17 +4,15 @@ subtitle: Using Atkins with GHA-style syntax
 layout: page
 ---
 
-Atkins supports a GitHub Actions-inspired syntax with `jobs:` and `steps:`, making it familiar for teams that use GHA workflows. While Atkins isn't a replacement for GitHub Actions as a CI platform, it lets you run similar job definitions locally and in any CI environment.
-
-This guide covers the syntax mappings and key differences between the two.
+Atkins supports a GitHub Actions-inspired syntax with `jobs:` and `steps:`, familiar for teams that use GHA workflows. Atkins runs similar job definitions locally and in any CI environment, but does not replace GitHub Actions as a CI platform.
 
 ## Full Example
 
 Here's a complete CI pipeline comparison showing jobs, dependencies, matrix builds, and conditional execution:
 
 @tabs
-@file "GitHub Actions" migration-from-github-actions/workflow-before.yml
 @file "Atkins" migration-from-github-actions/atkins-after.yml
+@file "GitHub Actions" migration-from-github-actions/workflow-before.yml
 
 ![](./migration-from-github-actions/atkins-after.png)
 
@@ -56,24 +54,38 @@ Atkins doesn't handle CI triggers (`on:`) or runner selection (`runs-on:`). It's
 
 ### No `uses:` Actions
 
-Atkins doesn't support GitHub's action ecosystem. Replace `uses:` steps with equivalent shell commands:
-
-**GHA:**
+Atkins has no equivalent to GitHub's action marketplace. Actions like `actions/checkout` or `actions/setup-go` must be replaced with shell commands or handled by your CI environment:
 
 ```yaml
-- uses: actions/checkout@v4
-- uses: actions/setup-go@v5
-  with:
-    go-version: '1.22'
+# GHA actions have no Atkins equivalent
+# Checkout: handled by CI before invoking Atkins
+# Setup: use your environment's package manager or pre-installed tools
 ```
+
+### Inline Job Invocation
+
+Atkins supports `task:` to invoke another job inline within a step. GitHub Actions has no equivalent; GHA jobs form a DAG via `needs:` and cannot call each other mid-execution.
 
 **Atkins:**
 
 ```yaml
-# Checkout is typically already done by CI
-# Go setup depends on your environment
-- run: go version
+jobs:
+  build:
+    steps:
+      - task: lint      # invoke lint job here
+      - task: test      # then test job
+      - run: go build ./...
+
+  lint:
+    steps:
+      - run: golangci-lint run
+
+  test:
+    steps:
+      - run: go test ./...
 ```
+
+In GHA, this requires expressing the full dependency graph upfront with `needs:`.
 
 ### Field Name Differences
 
@@ -142,8 +154,42 @@ jobs:
       vars:
         BUILD_VAR: ${{ my_var }}
     steps:
-      - run: echo $BUILD_VAR
+      - run: echo "$BUILD_VAR"
 ```
+
+## Secrets
+
+GitHub Actions provides encrypted secrets via the `secrets` context. Atkins has no built-in secrets management.
+
+**GitHub Actions:**
+
+```yaml
+jobs:
+  deploy:
+    steps:
+      - run: ./deploy.sh
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+```
+
+**Atkins:**
+
+```yaml
+jobs:
+  deploy:
+    steps:
+      # Secrets must come from the environment
+      - run: ./deploy.sh
+```
+
+Pass secrets via environment variables when invoking Atkins:
+
+```bash
+API_KEY=xxx DB_PASSWORD=yyy atkins deploy
+```
+
+Or use a secrets manager that populates the environment (Vault, AWS Secrets Manager, `direnv`, etc.).
 
 ## Matrix Builds
 
@@ -190,18 +236,24 @@ jobs:
 ```yaml
 - name: Deploy
   if: github.ref == 'refs/heads/main'
-  run: ./deploy.sh
+  run: echo "Deploying..."
 ```
 
 **Atkins:**
 
 ```yaml
-- name: Deploy
-  if: branch == "main"
-  run: ./deploy.sh
+vars:
+  branch: $(git rev-parse --abbrev-ref HEAD)
+
+jobs:
+  deploy:
+    steps:
+      - name: Deploy
+        if: branch == "main"
+        run: echo "Deploying to production..."
 ```
 
-Atkins uses [expr-lang](https://expr-lang.org/) for condition evaluation.
+Atkins uses [expr-lang](https://expr-lang.org/) for condition evaluation. The `branch` variable is not built-in; define it explicitly in `vars:` (here using a dynamic shell command).
 
 ## Parallel Execution
 
@@ -227,17 +279,19 @@ jobs:
 
 ## Summary
 
-| Concept          | GitHub Actions              | Atkins                          |
-|------------------|-----------------------------|---------------------------------|
-| Triggers         | `on: [push]`                | Not supported (use CI)          |
-| Runner selection | `runs-on:`                  | Not supported (local execution) |
-| Actions          | `uses: actions/checkout@v4` | `run:` commands                 |
-| Dependencies     | `needs:`                    | `depends_on:`                   |
-| Matrix           | `strategy.matrix`           | `for:` loops                    |
-| Parallel         | Default                     | `detach: true`                  |
+| Concept             | GitHub Actions              | Atkins                          |
+|---------------------|-----------------------------|---------------------------------|
+| Triggers            | `on: [push]`                | Not supported (use CI)          |
+| Runner selection    | `runs-on:`                  | Not supported (local execution) |
+| Marketplace actions | `uses: actions/checkout@v4` | No equivalent                   |
+| Job dependencies    | `needs:`                    | `depends_on:`                   |
+| Inline job calls    | Not supported               | `task:` in steps                |
+| Secrets             | `${{ secrets.X }}`          | Environment variables           |
+| Matrix              | `strategy.matrix`           | `for:` loops                    |
+| Parallel            | Default                     | `detach: true`                  |
 
 ## Best Practices
 
-1. **Keep it simple** - Atkins is for running commands, not replacing CI
-2. **Use for local dev** - Run the same tasks locally that CI runs
-3. **Combine with CI** - Call `atkins` from your GHA workflow for consistency
+1. Atkins runs commands; use your CI platform for triggers, runners, and secrets
+2. Run the same tasks locally that CI runs
+3. Call `atkins` from your GHA workflow for consistency

@@ -57,7 +57,7 @@ jobs:
   deploy:
     if: environment in allowed_envs
     steps:
-      - run: ./deploy.sh
+      - run: echo "Deploying..."
 ```
 
 **Pattern matching:**
@@ -90,7 +90,7 @@ jobs:
   optional:
     if: maybe_defined
     steps:
-      - run: ./optional.sh
+      - run: echo "Running optional job..."
 ```
 
 ## Skipped Output

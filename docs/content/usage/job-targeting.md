@@ -6,8 +6,6 @@ layout: page
 
 When you have multiple jobs and skills, Atkins provides flexible syntax for targeting exactly which job to run. You can target jobs by name, by skill namespace, or by alias. Understanding the resolution order helps when job names overlap.
 
-This page covers targeting syntax and how Atkins resolves job names.
-
 ## Basic Targeting
 
 ### Run by Name
@@ -93,7 +91,7 @@ jobs:
     steps:
       # Call 'build' from main pipeline
       - task: :build
-      - run: ./deploy.sh
+      - run: echo "Deploying..."
 ```
 
 ### Reference Other Skills

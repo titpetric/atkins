@@ -4,25 +4,25 @@ subtitle: Why and how to migrate from other tools
 layout: page
 ---
 
-If you're currently using Taskfile, GitHub Actions workflows for local tasks, or another task runner, Atkins offers a familiar syntax with some key improvements. This page explains why you might migrate and provides links to detailed guides for specific tools.
+If you're using Taskfile, GitHub Actions workflows for local tasks, or another task runner, Atkins offers a familiar syntax.
 
 Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspired) so migration often involves only minor changes to your existing configuration.
 
 ## Quick Comparison
 
 @tabs
-@file "Taskfile" migrating/taskfile-before.yml
 @file "Atkins" migrating/atkins-after.yml
+@file "Taskfile" migrating/taskfile-before.yml
 
 ![](./migrating/atkins-after.png)
 
 ## Why Migrate?
 
-- **Cleaner interpolation syntax** - Atkins uses `${{ var }}` for variable interpolation and `$(command)` for shell substitution, which don't require YAML quoting or conflict with bash syntax
-- **Full environment inheritance** - Commands inherit the shell environment automatically, reducing configuration boilerplate
-- **Local and CI parity** - The same configuration works for local development and CI environments
-- **Smaller binary** - Single ~10MB binary with minimal dependencies
-- **Skills system** - Modular, reusable pipelines that can be shared across projects and activated conditionally
+- Cleaner interpolation syntax: Atkins uses `${{ var }}` for variable interpolation and `$(command)` for shell substitution, which don't require YAML quoting or conflict with bash syntax
+- Full environment inheritance: Commands inherit the shell environment automatically, reducing configuration boilerplate
+- Local and CI parity: The same configuration works for local development and CI environments
+- Smaller binary: Single ~10MB binary with minimal dependencies
+- Skills system: Modular, reusable pipelines that can be shared across projects and activated conditionally
 
 ## Migration Guides
 

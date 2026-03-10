@@ -29,30 +29,30 @@ All pipeline and job variables are available in expressions:
 
 ### Comparison
 
-| Operator | Description |
-|----------|-------------|
-| `==` | Equal |
-| `!=` | Not equal |
-| `>` | Greater than |
-| `<` | Less than |
-| `>=` | Greater or equal |
-| `<=` | Less or equal |
+| Operator | Description      |
+|----------|------------------|
+| `==`     | Equal            |
+| `!=`     | Not equal        |
+| `>`      | Greater than     |
+| `<`      | Less than        |
+| `>=`     | Greater or equal |
+| `<=`     | Less or equal    |
 
 ### Logical
 
 | Operator | Description |
 |----------|-------------|
-| `&&` | Logical AND |
-| `\|\|` | Logical OR |
-| `!` | Logical NOT |
+| `&&`     | Logical AND |
+| `        |             |
+| `!`      | Logical NOT |
 
 ### String
 
-| Operator | Description |
-|----------|-------------|
-| `s contains substr` | Check substring |
-| `s startsWith prefix` | Check prefix |
-| `s endsWith suffix` | Check suffix |
+| Operator              | Description     |
+|-----------------------|-----------------|
+| `s contains substr`   | Check substring |
+| `s startsWith prefix` | Check prefix    |
+| `s endsWith suffix`   | Check suffix    |
 
 ## Examples
 

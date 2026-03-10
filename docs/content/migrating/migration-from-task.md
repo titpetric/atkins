@@ -4,17 +4,15 @@ subtitle: Moving from Taskfile to Atkins
 layout: page
 ---
 
-Atkins supports a Taskfile-compatible structure, making migration straightforward for most pipelines. The main differences are in interpolation syntax and shell substitution. Simple Taskfiles without interpolation often work without any changes.
-
-This guide covers the syntax mappings and common patterns you'll encounter when migrating.
+Atkins supports a Taskfile-compatible structure. The main differences are in interpolation syntax and shell substitution. Simple Taskfiles without interpolation often work without any changes.
 
 ## Full Example
 
 Here's a complete side-by-side comparison showing variable interpolation, shell substitution, and task dependencies:
 
 @tabs
-@file "Taskfile" migration-from-task/taskfile-before.yml
 @file "Atkins" migration-from-task/atkins-after.yml
+@file "Taskfile" migration-from-task/taskfile-before.yml
 
 ![](./migration-from-task/atkins-after.png)
 
@@ -49,6 +47,8 @@ tasks:
       - cmd: echo hello
       - task: other
 ```
+
+The `task: <name>` syntax for invoking other tasks works identically in both tools.
 
 ## Shell Substitution
 
@@ -160,25 +160,21 @@ tasks:
   down: docker compose down --remove-orphans
 ```
 
-## What Needs Changes
+## Summary
 
-| Taskfile                    | Atkins                  |
-|-----------------------------|-------------------------|
-| `sh: command`               | `$(command)`            |
-| `{{.var}}`                  | `${{ var }}`            |
-| Quoted interpolation values | Often can remove quotes |
-
-## Binary Size
-
-Atkins is smaller than Task. The most notable dependency is `expr-lang` for evaluating `if` conditions. Task has heavier dependencies like syntax highlighting that contribute to package size.
-
-## Example Migration
-
-See the full example at the top of this page for a complete before/after comparison. The key changes are:
-
-| Taskfile                    | Atkins                  |
-|-----------------------------|-------------------------|
-| `version: '3'`              | Not required            |
-| `sh: command`               | `$(command)`            |
-| `{{.var}}`                  | `${{ var }}`            |
-| Quoted interpolation values | Often can remove quotes |
+| Feature                | Taskfile                    | Atkins                              |
+|------------------------|-----------------------------|-------------------------------------|
+| Version field          | `version: '3'` (required)   | Not required                        |
+| Variable interpolation | `{{.var}}`                  | `${{ var }}`                        |
+| Shell substitution     | `sh: command`               | `$(command)`                        |
+| Task invocation        | `task: name`                | `task: name`                        |
+| Dependencies           | `deps:`                     | `depends_on:`                       |
+| Conditionals           | `preconditions:`, `status:` | `if:` (expr-lang)                   |
+| Deferred commands      | `defer:`                    | `deferred: true` or `defer:`        |
+| Loops                  | `for:`                      | `for:`                              |
+| Includes               | `includes:`                 | `include:`                          |
+| Environment loading    | `dotenv:`                   | `env: include:` or `vars: include:` |
+| Hidden tasks           | `internal: true`            | `show: false`                       |
+| File caching           | `sources:`, `generates:`    | Not supported                       |
+| Watch mode             | `--watch`                   | Not supported                       |
+| Binary size            | ~15MB                       | ~10MB                               |

@@ -4,7 +4,7 @@ subtitle: Command-line options reference
 layout: page
 ---
 
-Atkins provides command-line flags to control which pipeline file to use, which jobs to run, and how output is formatted. This page covers all available flags and common usage patterns.
+Atkins provides command-line flags to control which pipeline file to use, which jobs to run, and how output is formatted.
 
 ## Usage
 

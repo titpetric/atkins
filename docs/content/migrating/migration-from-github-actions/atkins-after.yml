@@ -1,8 +1,9 @@
-# Atkins syntax - runnable with: atkins -f atkins-after.yml build
+# Atkins syntax - runnable with: atkins -f atkins-after.yml
 name: CI Pipeline
 
 vars:
   app_name: my-app
+  branch: $(git rev-parse --abbrev-ref HEAD)
   go_versions:
     - '1.21'
     - '1.22'

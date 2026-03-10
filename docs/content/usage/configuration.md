@@ -6,8 +6,6 @@ layout: page
 
 Atkins pipelines are defined in YAML files, typically named `atkins.yml` or `.atkins.yml`. A pipeline contains jobs (or tasks), each with a sequence of steps to execute. Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspired) which can be mixed in the same file.
 
-This page covers the configuration format, variable interpolation, and key configuration concepts.
-
 ## Basic Structure
 
 A minimal pipeline file:
@@ -34,7 +32,7 @@ Atkins supports two syntax styles. Both can be used interchangeably within the s
 
 ## Variable Interpolation
 
-Atkins uses `${{ expr }}` for variable interpolation. This syntax was chosen to avoid conflicts with bash `${var}`. Both can coexist in the same command without escaping. Shell command output can fill variable values using `$(command)` syntax in `vars:`, `env:`, and inline values.
+Atkins uses `${{ expr }}` for variable interpolation. This syntax avoids conflicts with bash `$VAR` and `${var}`. Atkins resolves `${{ }}` first, then passes the command to the shell which handles `$VAR` and `${VAR}`. Both can coexist without escaping. Shell command output can fill variable values using `$(command)` syntax in `vars:`, `env:`, and inline values.
 
 @tabs
 @file "Interpolation" configuration/interpolation.yml

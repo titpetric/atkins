@@ -8,15 +8,22 @@ The pipeline is the root configuration object in an Atkins file.
 
 ## Properties
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | string | - | Pipeline name for display |
-| `dir` | string | `.` | Working directory for all jobs |
-| `vars` | map | `{}` | Pipeline-level variables |
-| `env` | object | `{}` | Environment variables |
-| `jobs` | map | - | Job definitions (or `tasks:`) |
-| `include` | string/list | - | External file inclusion |
-| `when` | object | - | Skill activation conditions |
+| Field     | Type        | Default | Description                    |
+|-----------|-------------|---------|--------------------------------|
+| `name`    | string      | -       | Pipeline name for display      |
+| `dir`     | string      | `.`     | Working directory for all jobs |
+| `vars`    | map         | `{}`    | Pipeline-level variables       |
+| `env`     | object      | `{}`    | Environment variables          |
+| `jobs`    | map         | -       | Job definitions                |
+| `tasks`   | map         | -       | Alias for `jobs`               |
+| `include` | string/list | -       | External file inclusion        |
+| `when`    | object      | -       | Skill activation conditions    |
+
+### `when` Object
+
+| Field   | Type | Description                                      |
+|---------|------|--------------------------------------------------|
+| `files` | list | Files that must exist for pipeline to be enabled |
 
 ## Basic Pipeline
 

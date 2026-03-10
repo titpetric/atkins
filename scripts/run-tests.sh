@@ -19,7 +19,7 @@ DOCS_DIR="$ROOT_DIR/docs/content"
 TIMEOUT=30
 
 # Files to skip (not valid atkins pipelines)
-SKIP_PATTERNS="taskfile-before.yml workflow-before.yml"
+SKIP_PATTERNS="taskfile-before.yml workflow-before.yml theme.yml"
 
 # Colors
 RED='\033[0;31m'

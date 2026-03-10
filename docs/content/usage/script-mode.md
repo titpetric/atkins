@@ -6,8 +6,6 @@ layout: page
 
 Atkins pipelines can be run as executable scripts or piped via stdin. This lets you treat pipeline files like shell scripts: make them executable, pass arguments, and integrate them into larger toolchains.
 
-This page covers shebang execution, stdin input, and combining script mode with CLI flags.
-
 ## Shebang Execution
 
 On Linux and macOS, pipeline files can be made directly executable with a shebang line:

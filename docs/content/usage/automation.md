@@ -6,8 +6,6 @@ layout: page
 
 Atkins provides machine-readable output formats for integration with scripts, tools, and LLMs. The `--json` and `--yaml` flags suppress interactive output and produce structured data that can be parsed programmatically.
 
-This page covers the output formats, schemas, and practical integration patterns.
-
 ## Output Formats
 
 ### List Jobs as YAML
@@ -130,10 +128,7 @@ Provide job listings to LLMs for intelligent task selection:
 atkins -l -y > /tmp/commands.yml
 ```
 
-The YAML format is particularly LLM-friendly:
-- Clear structure
-- Includes executable commands
-- Human-readable descriptions
+The YAML format works well for LLMs: clear structure, includes executable commands, and human-readable descriptions.
 
 ### CI/CD Pipeline Discovery
 

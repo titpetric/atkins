@@ -48,7 +48,7 @@ jobs:
   deploy:
     if: branch == "main"
     steps:
-      - run: ./deploy.sh
+      - run: echo "Deploying..."
 ```
 
 See [Conditionals](./conditionals) for full expression syntax and examples.

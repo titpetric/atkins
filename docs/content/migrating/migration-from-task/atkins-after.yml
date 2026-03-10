@@ -2,7 +2,7 @@
 vars:
   project_name: my-app
   commit: $(git rev-parse --short HEAD 2>/dev/null || echo "dev")
-  timestamp: $(date +%Y%m%d)
+  timestamp: $(uname -n)
 
 tasks:
   default:

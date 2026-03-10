@@ -13,4 +13,4 @@ tasks:
       - name: Mix with bash variables
         run: echo "Env - ${{ env }}, User - $USER"
       - name: Shell substitution
-        run: echo "Built at $(date)"
+        run: echo "Built at $(uname -n)"

@@ -14,7 +14,7 @@ tasks:
     steps:
       - run: echo "Project - ${{ project }}"
       - run: echo "Version - ${{ version }}"
-      - run: echo "Shell substitution - $(date +%Y-%m-%d)"
+      - run: echo "Shell substitution - $(uname -n)"
 
   parallel:
     desc: Parallel execution demo

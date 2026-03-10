@@ -4,4 +4,4 @@ Syntax Comparison
 └─ default - Show YAML-friendly syntax ✓ (3/3)
    ├─ App - myapp ✓
    ├─ Env - production, User - root ✓
-   └─ Built at Sun Mar  8 17:09:05 CET 2026 ✓
+   └─ Built at lab ✓

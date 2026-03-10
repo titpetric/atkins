@@ -6,27 +6,44 @@ layout: page
 
 Steps are the individual commands or actions within a job.
 
+Steps can be defined using either `steps:` (GitHub Actions style) or `cmds:` (Taskfile style). Both are interchangeable.
+
+## String Shorthand
+
+Steps can be written as bare strings without `run:` or `cmd:` prefix:
+
+```yaml
+steps:
+  - echo "hello"          # bare string
+  - run: echo "hello"     # equivalent explicit form
+  - cmd: echo "hello"     # also equivalent
+```
+
 ## Properties
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | string | - | Step name for display |
-| `run` | string | - | Command to execute |
-| `cmd` | string | - | Alias for `run` |
-| `cmds` | list | - | Multiple commands |
-| `task` | string | - | Task/job to invoke |
-| `if` | string | - | Conditional execution |
-| `for` | string | - | Loop iteration |
-| `requires` | list | - | Required loop variables |
-| `dir` | string | - | Working directory |
-| `env` | object | - | Step environment |
-| `timeout` | string | - | Execution timeout |
-| `deferred` | bool | `false` | Run on cleanup |
-| `detach` | bool | `false` | Run in background |
-| `tty` | bool | `false` | Allocate PTY |
-| `interactive` | bool | `false` | Live streaming |
-| `verbose` | bool | `false` | Show output |
-| `quiet` | bool | `false` | Suppress output |
+| Field         | Type        | Default | Description                          |
+|---------------|-------------|---------|--------------------------------------|
+| `name`        | string      | -       | Step name for display                |
+| `desc`        | string      | -       | Step description (shown in output)   |
+| `run`         | string      | -       | Command to execute                   |
+| `cmd`         | string      | -       | Alias for `run`                      |
+| `cmds`        | list        | -       | Multiple commands to run in sequence |
+| `task`        | string      | -       | Task/job to invoke                   |
+| `if`          | string      | -       | Conditional execution                |
+| `for`         | string      | -       | Loop iteration                       |
+| `vars`        | map         | `{}`    | Step-level variables                 |
+| `env`         | object      | -       | Step environment                     |
+| `include`     | string/list | -       | Include external files               |
+| `dir`         | string      | -       | Working directory                    |
+| `deferred`    | bool        | `false` | Run on cleanup (like Go defer)       |
+| `defer`       | string/obj  | -       | Deferred step (shorthand or object)  |
+| `detach`      | bool        | `false` | Run in background                    |
+| `tty`         | bool        | `false` | Allocate PTY (enables colors)        |
+| `interactive` | bool        | `false` | Stream output live, connect stdin    |
+| `verbose`     | bool        | `false` | Show output                          |
+| `summarize`   | bool        | `false` | Summarize output                     |
+| `quiet`       | bool        | `false` | Suppress output                      |
+| `passthru`    | bool        | `false` | Print output with tree indentation   |
 
 ## Basic Steps
 
@@ -53,7 +70,22 @@ Call other jobs using `task:`:
 
 ## Deferred Steps
 
-Steps with `deferred: true` run after the job completes (like `defer` in Go):
+Steps run after the job completes (like `defer` in Go). Two syntax options:
+
+**Using `deferred: true`:**
+
+```yaml
+steps:
+  - run: cleanup.sh
+    deferred: true
+```
+
+**Using `defer:` wrapper:**
+
+```yaml
+steps:
+  - defer: cleanup.sh
+```
 
 @tabs
 @file "Pipeline" steps/deferred.yml

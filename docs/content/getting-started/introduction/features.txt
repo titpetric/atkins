@@ -4,7 +4,7 @@ Feature Demo
 ├─ variables - Variable interpolation ✓ (3/3)
 │  ├─ Project - my-app ✓
 │  ├─ Version - 1.0.0 ✓
-│  └─ Shell substitution - 2026-03-08 ✓
+│  └─ Shell substitution - lab ✓
 ├─ parallel - Parallel execution demo ✓ (3/3)
 │  ├─ Running task A ✓
 │  ├─ Running task B ✓

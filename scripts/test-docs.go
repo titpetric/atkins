@@ -30,6 +30,7 @@ var fileDirectivePattern = regexp.MustCompile(`@file\s+"[^"]+"\s+(\S+\.ya?ml)`)
 var beforeFilePatterns = []string{
 	"taskfile-before.yml",
 	"workflow-before.yml",
+	"theme.yml",
 }
 
 type result struct {

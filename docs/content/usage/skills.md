@@ -6,8 +6,6 @@ layout: page
 
 Skills are modular pipeline files that automatically activate based on project context. A Go skill can provide `go:build`, `go:test`, and `go:lint` jobs that appear only when `go.mod` exists in your project. Skills let you build a library of reusable workflows that work across projects without copying configuration.
 
-This page covers skill creation, conditional activation, namespacing, and how skills interact with the main pipeline.
-
 ## Skill Locations
 
 Skills are YAML pipeline files stored in special directories:
