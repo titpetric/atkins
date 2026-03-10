@@ -94,7 +94,7 @@ func TestResolveJobTarget(t *testing.T) {
 		return &model.Pipeline{ID: id, Jobs: jobs}
 	}
 
-	t.Run("explicit_root_reference_main_pipeline", func(t *testing.T) {
+	t.Run("invoked_pipeline_main", func(t *testing.T) {
 		pipelines := []*model.Pipeline{
 			makePipeline("", map[string]*model.Job{"up": {}}),
 			makePipeline("docker", map[string]*model.Job{"up": {}}),
@@ -105,7 +105,7 @@ func TestResolveJobTarget(t *testing.T) {
 		assert.Equal(t, "up", jobName)
 	})
 
-	t.Run("explicit_root_reference_skill", func(t *testing.T) {
+	t.Run("invoked_pipeline_skill", func(t *testing.T) {
 		pipelines := []*model.Pipeline{
 			makePipeline("", map[string]*model.Job{"up": {}}),
 			makePipeline("docker", map[string]*model.Job{"build": {}}),
@@ -169,29 +169,14 @@ func TestResolveJobTarget(t *testing.T) {
 		assert.Equal(t, "start", jobName)
 	})
 
-	t.Run("skill_id_with_default_job", func(t *testing.T) {
-		pipelines := []*model.Pipeline{
-			makePipeline("", map[string]*model.Job{"build": {}}),
-			makePipeline("docker", map[string]*model.Job{
-				"default": {},
-				"build":   {},
-			}),
-		}
-		result, jobName, err := resolveJobTarget(pipelines, "docker")
-		require.NoError(t, err)
-		assert.Equal(t, "docker", result[0].ID)
-		assert.Equal(t, "default", jobName)
-	})
-
-	t.Run("skill_id_without_default_returns_empty_job", func(t *testing.T) {
+	t.Run("skill_name_without_job_errors", func(t *testing.T) {
 		pipelines := []*model.Pipeline{
 			makePipeline("", map[string]*model.Job{"build": {}}),
 			makePipeline("docker", map[string]*model.Job{"build": {}}),
 		}
-		result, jobName, err := resolveJobTarget(pipelines, "docker")
-		require.NoError(t, err)
-		assert.Equal(t, "docker", result[0].ID)
-		assert.Equal(t, "", jobName, "should return empty job name for listing")
+		_, _, err := resolveJobTarget(pipelines, "docker")
+		require.Error(t, err, "skill name alone should error, use docker:job syntax")
+		assert.Contains(t, err.Error(), "not found")
 	})
 
 	t.Run("fuzzy_match_single_result", func(t *testing.T) {
@@ -207,27 +192,41 @@ func TestResolveJobTarget(t *testing.T) {
 		assert.Equal(t, "test:mergecov", jobName)
 	})
 
-	t.Run("fuzzy_match_multiple_results_error", func(t *testing.T) {
+	t.Run("exact_match_in_skill_pipelines", func(t *testing.T) {
+		// When "test" exists as exact match in multiple skills, first skill wins
 		pipelines := []*model.Pipeline{
 			makePipeline("go", map[string]*model.Job{"test": {}}),
 			makePipeline("python", map[string]*model.Job{"test": {}}),
 		}
-		_, _, err := resolveJobTarget(pipelines, "test")
+		result, jobName, err := resolveJobTarget(pipelines, "test")
+		require.NoError(t, err)
+		assert.Equal(t, "go", result[0].ID, "first skill with exact match wins")
+		assert.Equal(t, "test", jobName)
+	})
+
+	t.Run("fuzzy_match_multiple_results_error", func(t *testing.T) {
+		// Fuzzy match with substring - "build" matches "go-build" and "docker-build"
+		pipelines := []*model.Pipeline{
+			makePipeline("tools", map[string]*model.Job{
+				"go-build":     {},
+				"docker-build": {},
+			}),
+		}
+		_, _, err := resolveJobTarget(pipelines, "build")
 		require.Error(t, err)
 		var fuzzyErr *FuzzyMatchError
 		assert.ErrorAs(t, err, &fuzzyErr)
 		assert.Len(t, fuzzyErr.Matches, 2)
 	})
 
-	t.Run("fallback_to_main_pipeline", func(t *testing.T) {
+	t.Run("error_on_not_found", func(t *testing.T) {
 		pipelines := []*model.Pipeline{
 			makePipeline("", map[string]*model.Job{"build": {}}),
 			makePipeline("docker", map[string]*model.Job{"push": {}}),
 		}
-		result, jobName, err := resolveJobTarget(pipelines, "nonexistent")
-		require.NoError(t, err)
-		assert.Equal(t, "", result[0].ID)
-		assert.Equal(t, "nonexistent", jobName, "should fall back and pass job name as-is")
+		_, _, err := resolveJobTarget(pipelines, "nonexistent")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
 	})
 
 	t.Run("colon_job_name_not_treated_as_skill_prefix", func(t *testing.T) {
@@ -259,13 +258,12 @@ func TestResolveJobTarget(t *testing.T) {
 		assert.Equal(t, "go:test", jobName)
 	})
 
-	t.Run("error_skill_not_found", func(t *testing.T) {
+	t.Run("error_job_not_found_with_colon", func(t *testing.T) {
 		pipelines := []*model.Pipeline{
 			makePipeline("", map[string]*model.Job{"build": {}}),
 		}
 		_, _, err := resolveJobTarget(pipelines, "nonexistent:job")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "skill")
 		assert.Contains(t, err.Error(), "not found")
 	})
 
@@ -295,5 +293,21 @@ func TestResolveJobTarget(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "", result[0].ID, "main pipeline exact match should work regardless of order")
 		assert.Equal(t, "up", jobName)
+	})
+}
+
+func TestMultipleJobsArguments(t *testing.T) {
+	t.Run("jobs_collected_from_positional_args", func(t *testing.T) {
+		opts := NewOptions()
+		fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		opts.Bind(fs)
+
+		// Simulate positional args: "lint test build"
+		args := []string{"lint", "test", "build"}
+		for _, arg := range args {
+			opts.Jobs = append(opts.Jobs, arg)
+		}
+
+		assert.Equal(t, []string{"lint", "test", "build"}, opts.Jobs)
 	})
 }

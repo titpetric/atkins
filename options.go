@@ -5,7 +5,7 @@ import "github.com/titpetric/cli"
 // Options holds pipeline command-line arguments
 type Options struct {
 	File             string
-	Job              string
+	Jobs             []string
 	List             bool
 	Lint             bool
 	Debug            bool
@@ -26,7 +26,6 @@ func NewOptions() *Options {
 
 func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.StringVarP(&o.File, "file", "f", "", "Path to pipeline file (auto-discovers .atkins.yml)")
-	fs.StringVar(&o.Job, "job", "", "Specific job to run")
 	fs.BoolVarP(&o.List, "list", "l", false, "List pipeline jobs and dependencies")
 	fs.BoolVar(&o.Lint, "lint", false, "Lint pipeline for errors")
 	fs.BoolVar(&o.Debug, "debug", false, "Print debug data")

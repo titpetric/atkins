@@ -77,18 +77,16 @@ func Pipeline() *cli.Command {
 
 // resolveJobTarget determines which pipeline and job to run based on the job name.
 // Resolution order:
-// 0. Explicit root reference (e.g., ":build" or ":go:build") - bypass alias resolution
-// 1. Exact main pipeline match - job name exactly matches a job in main pipeline (handles colons in job names)
-// 2. Prefixed job (e.g., "go:test") - explicit skill:job reference
-// 3. Alias match - job with matching alias in any skill pipeline
-// 4. Skill ID with default - skill name that has a "default" job
-// 5. Skill ID (for listing) - skill name without requiring default job
-// 6. Fuzzy match - suffix/substring match in job names (if exactly one match)
-// 7. Main pipeline - fallback to first pipeline (no skill ID)
+// 1. Invoked pipeline (`:` prefix) - directly invoke job, bypassing aliases
+// 2. Exact match - job name exactly matches in any pipeline (main first, then skills)
+// 3. Prefixed job (e.g., "go:test") - explicit skill:job reference
+// 4. Alias match - job with matching alias in any pipeline
+// 5. Fuzzy match - suffix/substring match in job names (if exactly one match)
+// If no match found, returns error.
 func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pipeline, string, error) {
-	// 0. Check for explicit root reference (leading colon)
+	// 1. Invoked pipeline (`:` prefix) - directly invoke job, bypassing aliases
 	// :build → main pipeline job "build"
-	// :go:build → skill "go" job "build" (explicit, bypasses aliases)
+	// :go:build → skill "go" job "build"
 	if strings.HasPrefix(jobName, ":") {
 		explicitName := jobName[1:] // Remove leading colon
 
@@ -113,22 +111,26 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		return nil, "", fmt.Errorf("%s main pipeline not found", colors.BrightRed("ERROR:"))
 	}
 
-	// 1. Check if jobName exactly matches a job in any pipeline (main first).
-	// This handles job names containing colons (e.g., "test:mergecov") that
-	// should not be split as skill:job references.
+	// 2. Exact match - check all pipelines (main first, then skills)
+	// This handles job names containing colons (e.g., "test:mergecov")
 	for _, p := range pipelines {
 		if p.ID == "" {
-			jobs := p.Jobs
-			if len(jobs) == 0 {
-				jobs = p.Tasks
+			jobs := getJobs(p)
+			if _, exists := jobs[jobName]; exists {
+				return []*model.Pipeline{p}, jobName, nil
 			}
+		}
+	}
+	for _, p := range pipelines {
+		if p.ID != "" {
+			jobs := getJobs(p)
 			if _, exists := jobs[jobName]; exists {
 				return []*model.Pipeline{p}, jobName, nil
 			}
 		}
 	}
 
-	// 2. Check if job has a skill prefix (e.g., "go:test")
+	// 3. Check if job has a skill prefix (e.g., "go:test")
 	if parts := strings.SplitN(jobName, ":", 2); len(parts) == 2 {
 		skillID, skillJob := parts[0], parts[1]
 		for _, p := range pipelines {
@@ -136,15 +138,12 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 				return []*model.Pipeline{p}, skillJob, nil
 			}
 		}
-		return nil, "", fmt.Errorf("%s skill %q not found", colors.BrightRed("ERROR:"), skillID)
+		// Don't error yet - might be a typo, try aliases and fuzzy match
 	}
 
-	// 3. Check if jobName matches an alias in any pipeline
+	// 4. Check if jobName matches an alias in any pipeline
 	for _, p := range pipelines {
-		jobs := p.Jobs
-		if len(jobs) == 0 {
-			jobs = p.Tasks
-		}
+		jobs := getJobs(p)
 		for jn, job := range jobs {
 			for _, alias := range job.Aliases {
 				if alias == jobName {
@@ -154,27 +153,7 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		}
 	}
 
-	// 4. Check if jobName matches a skill ID with a "default" job
-	for _, p := range pipelines {
-		if p.ID == jobName {
-			jobs := p.Jobs
-			if len(jobs) == 0 {
-				jobs = p.Tasks
-			}
-			if _, hasDefault := jobs["default"]; hasDefault {
-				return []*model.Pipeline{p}, "default", nil
-			}
-		}
-	}
-
-	// 5. Check if jobName matches a skill ID (for listing without default)
-	for _, p := range pipelines {
-		if p.ID == jobName {
-			return []*model.Pipeline{p}, "", nil
-		}
-	}
-
-	// 6. Fuzzy match - check for suffix/substring matches in job names
+	// 5. Fuzzy match - check for suffix/substring matches in job names
 	matches := findFuzzyMatches(pipelines, jobName)
 	if len(matches) == 1 {
 		// Exactly one match found, use it
@@ -185,8 +164,16 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		return []*model.Pipeline{matches[0].Pipeline}, "", &FuzzyMatchError{Matches: matches}
 	}
 
-	// 7. Fallback to main pipeline (first one, no skill ID)
-	return []*model.Pipeline{pipelines[0]}, jobName, nil
+	// No match found - return error
+	return nil, "", fmt.Errorf("%s job %q not found", colors.BrightRed("ERROR:"), jobName)
+}
+
+// getJobs returns jobs from a pipeline, falling back to tasks if empty.
+func getJobs(p *model.Pipeline) map[string]*model.Job {
+	if len(p.Jobs) > 0 {
+		return p.Jobs
+	}
+	return p.Tasks
 }
 
 func runPipeline(ctx context.Context, opts *Options, args []string) error {
@@ -217,10 +204,8 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			continue
 		}
 
-		if opts.Job == "" {
-			// Treat as job name if not already set
-			opts.Job = arg
-		}
+		// Collect all job names from positional arguments
+		opts.Jobs = append(opts.Jobs, arg)
 	}
 
 	// Save original working directory for global skill when.files checks,
@@ -367,27 +352,18 @@ pipelineReady:
 	// Save all pipelines for cross-pipeline task references
 	allPipelines := pipelines
 
-	// Determine which pipeline(s) to target based on job specification
-	jobName := opts.Job
-	if jobName != "" {
-		var err error
-		pipelines, jobName, err = resolveJobTarget(pipelines, jobName)
-		if err != nil {
-			// Check if it's a fuzzy match error with multiple matches
-			var fuzzyErr *FuzzyMatchError
-			if errors.As(err, &fuzzyErr) {
-				fmt.Fprintf(os.Stderr, "%s found %d matching jobs:\n\n", colors.BrightYellow("INFO:"), len(fuzzyErr.Matches))
-				for _, match := range fuzzyErr.Matches {
-					fmt.Fprintf(os.Stderr, "  - %s\n", colors.BrightOrange(match.FullName))
-				}
-				os.Exit(1)
-			}
-			return err
-		}
-	}
-
 	// Handle list mode
 	if opts.List {
+		// If a job/skill name is specified, filter to that pipeline
+		if len(opts.Jobs) > 0 {
+			for _, p := range pipelines {
+				if p.ID == opts.Jobs[0] {
+					pipelines = []*model.Pipeline{p}
+					break
+				}
+			}
+		}
+
 		if opts.JSON {
 			return runner.ListPipelinesJSON(pipelines)
 		}
@@ -407,28 +383,48 @@ pipelineReady:
 		return nil
 	}
 
-	// When no job is specified, only run the main pipeline (no ID)
-	// Skills (pipelines with IDs) are never run automatically
-	if jobName == "" {
-		var main *model.Pipeline
-		for _, p := range pipelines {
-			if p.ID == "" {
-				main = p
-				break
+	// When no jobs specified, run the default job from main pipeline
+	if len(opts.Jobs) == 0 {
+		opts.Jobs = []string{"default"}
+	}
+
+	// Resolve all jobs and group by pipeline
+	type pipelineJobs struct {
+		pipeline *model.Pipeline
+		jobs     []string
+	}
+	pipelineJobsMap := make(map[*model.Pipeline]*pipelineJobs)
+	var pipelineOrder []*model.Pipeline
+
+	for _, jobName := range opts.Jobs {
+		targetPipelines, resolvedJob, err := resolveJobTarget(pipelines, jobName)
+		if err != nil {
+			// Check if it's a fuzzy match error with multiple matches
+			var fuzzyErr *FuzzyMatchError
+			if errors.As(err, &fuzzyErr) {
+				fmt.Fprintf(os.Stderr, "%s found %d matching jobs:\n\n", colors.BrightYellow("INFO:"), len(fuzzyErr.Matches))
+				for _, match := range fuzzyErr.Matches {
+					fmt.Fprintf(os.Stderr, "  - %s\n", colors.BrightOrange(match.FullName))
+				}
+				os.Exit(1)
 			}
+			return err
 		}
-		if main != nil {
-			pipelines = []*model.Pipeline{main}
+
+		for _, pipeline := range targetPipelines {
+			if pipelineJobsMap[pipeline] == nil {
+				pipelineJobsMap[pipeline] = &pipelineJobs{pipeline: pipeline}
+				pipelineOrder = append(pipelineOrder, pipeline)
+			}
+			pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, resolvedJob)
 		}
 	}
 
-	// Run pipeline(s)
-	var exitCode int
-	var failedPipeline string
-
-	for _, pipeline := range pipelines {
+	// Run each pipeline with its collected jobs
+	for _, pipeline := range pipelineOrder {
+		pj := pipelineJobsMap[pipeline]
 		err := runner.RunPipeline(ctx, pipeline, runner.PipelineOptions{
-			Job:          jobName,
+			Jobs:         pj.jobs,
 			LogFile:      opts.LogFile,
 			PipelineFile: opts.File,
 			Debug:        opts.Debug,
@@ -438,8 +434,8 @@ pipelineReady:
 			AllPipelines: allPipelines,
 		})
 		if err != nil {
-			exitCode = 1
-			failedPipeline = pipeline.Name
+			exitCode := 1
+			failedPipeline := pipeline.Name
 
 			var errorLog runner.ExecError
 			if errors.As(err, &errorLog) {

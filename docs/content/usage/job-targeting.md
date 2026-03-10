@@ -14,8 +14,8 @@ When you have multiple jobs and skills, Atkins provides flexible syntax for targ
 # Run a job by its name
 atkins build
 
-# Equivalent to
-atkins --job build
+# Run multiple jobs in sequence
+atkins lint test build
 ```
 
 ### Namespaced Jobs
@@ -53,28 +53,28 @@ atkins: Available jobs for this project:
 atkins: Job "default" does not exist
 ```
 
-## Root Job Targeting (`:` Prefix)
+## Invoked Pipeline (`:` Prefix)
 
-The `:` prefix bypasses alias resolution and targets jobs directly.
+The `:` prefix directly invokes a job, bypassing alias resolution.
 
-### Target Main Pipeline
+### Invoke Main Pipeline Job
 
 ```bash
-# Target 'build' in main pipeline (bypasses aliases)
+# Invoke 'build' in main pipeline (bypasses aliases)
 atkins :build
 ```
 
 Use this when:
 - A skill has aliased `build` but you want the main pipeline's `build`
-- You want explicit, unambiguous job targeting
+- You want to skip alias resolution entirely
 
-### Target Skill Pipeline
+### Invoke Skill Pipeline Job
 
 ```bash
-# Target 'build' job in 'go' skill explicitly
+# Invoke 'build' job in 'go' skill
 atkins :go:build
 
-# Target 'test' job in 'docker' skill
+# Invoke 'test' job in 'docker' skill
 atkins :docker:test
 ```
 
@@ -175,16 +175,15 @@ atkins db            # Another alias
 
 When you invoke `atkins <name>`, resolution follows this precedence:
 
-1. **Explicit root reference** (`:` prefix) - bypasses all other rules
-2. **Prefixed job reference** (`skill:job` syntax) - explicit skill targeting
-3. **Exact main pipeline match** - job name matches exactly in main pipeline
+1. **Invoked pipeline** (`:` prefix) - directly invoke job, bypassing aliases
+2. **Exact match** - job name matches exactly in any pipeline (main first, then skills)
+3. **Prefixed job** (`skill:job` syntax) - explicit skill targeting
 4. **Alias match** - job alias in any pipeline
-5. **Skill ID with default** - name matches skill with `default` job
-6. **Skill ID** (listing only) - name matches skill name
-7. **Fuzzy match** - substring/suffix match (single match only)
-8. **Fallback** - main pipeline with name as-is
+5. **Fuzzy match** - substring/suffix match (single match only)
 
-Main pipeline jobs take precedence over aliases. If your main pipeline has a job named `up`, running `atkins up` will invoke it even if a skill has an alias `up` pointing elsewhere.
+If no match is found, Atkins returns an error.
+
+Main pipeline jobs take precedence over skill jobs with the same name. If your main pipeline has a job named `up`, running `atkins up` will invoke it even if a skill also has a job named `up`.
 
 ## Fuzzy Matching
 
@@ -248,14 +247,14 @@ atkins go:lint
 atkins docker:build
 ```
 
-### Root Reference (`:` prefix)
+### Invoked Pipeline (`:` prefix)
 
 ```bash
-# Force main pipeline job (bypasses aliases)
+# Invoke main pipeline job (bypasses aliases)
 atkins :up
 atkins :build
 
-# Force skill job (explicit targeting)
+# Invoke skill job directly
 atkins :go:build
 atkins :docker:push
 ```
@@ -263,15 +262,14 @@ atkins :docker:push
 ### When to Use `:` Prefix
 
 Use the `:` prefix when:
-- You want to ensure the main pipeline job runs (not an alias)
-- You need explicit, unambiguous targeting
-- A skill has aliased a common name you want to bypass
+- You want to bypass alias resolution
+- A skill has aliased a common name you want to skip
 
 ```bash
-# Main pipeline has 'up' job, skill has 'up' alias → runs main pipeline
+# Main pipeline has 'up' job → runs via exact match
 atkins up
 
-# Force main pipeline 'up' even if you're unsure about aliases
+# Bypass aliases and invoke main pipeline 'up' directly
 atkins :up
 ```
 

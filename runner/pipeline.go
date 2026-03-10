@@ -21,7 +21,7 @@ import (
 
 // PipelineOptions contains options for running a pipeline.
 type PipelineOptions struct {
-	Job          string
+	Jobs         []string // Jobs to run (in order)
 	LogFile      string
 	PipelineFile string
 	Debug        bool
@@ -76,7 +76,7 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, opts PipelineOpt
 func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) error {
 	var (
 		pipeline     = p.data
-		job          = p.opts.Job
+		jobs         = p.opts.Jobs
 		finalOnly    = p.opts.FinalOnly
 		outputJSON   = p.opts.JSON
 		outputYAML   = p.opts.YAML
@@ -141,18 +141,30 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		allJobs = pipeline.Tasks
 	}
 
-	jobOrder, err := ResolveJobDependencies(allJobs, job)
-	if err != nil {
-		var noDefaultErr *NoDefaultJobError
-		if errors.As(err, &noDefaultErr) {
-			// Print available jobs and error message similar to task
-			fmt.Fprintf(os.Stderr, "%s Available jobs for this project:\n", colors.BrightYellow("atkins:"))
-			printAvailableJobs(noDefaultErr.Jobs, pipeline.ID)
-			fmt.Fprintf(os.Stderr, "%s Job %q does not exist\n", colors.BrightRed("atkins:"), "default")
+	// Resolve dependencies for all requested jobs, collecting into unified order
+	var jobOrder []string
+	seenJobs := make(map[string]bool)
+	for _, job := range jobs {
+		order, err := ResolveJobDependencies(allJobs, job)
+		if err != nil {
+			var noDefaultErr *NoDefaultJobError
+			if errors.As(err, &noDefaultErr) {
+				// Print available jobs and error message similar to task
+				fmt.Fprintf(os.Stderr, "%s Available jobs for this project:\n", colors.BrightYellow("atkins:"))
+				printAvailableJobs(noDefaultErr.Jobs, pipeline.ID)
+				fmt.Fprintf(os.Stderr, "%s Job %q does not exist\n", colors.BrightRed("atkins:"), "default")
+				os.Exit(1)
+			}
+			fmt.Printf("%s %s\n", colors.BrightRed("ERROR:"), err)
 			os.Exit(1)
 		}
-		fmt.Printf("%s %s\n", colors.BrightRed("ERROR:"), err)
-		os.Exit(1)
+		// Add jobs to unified order, skipping duplicates
+		for _, name := range order {
+			if !seenJobs[name] {
+				seenJobs[name] = true
+				jobOrder = append(jobOrder, name)
+			}
+		}
 	}
 
 	// Pre-populate all jobs as pending - include all jobs that might be invoked

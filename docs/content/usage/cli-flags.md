@@ -9,7 +9,7 @@ Atkins provides command-line flags to control which pipeline file to use, which 
 ## Usage
 
 ```bash
-atkins [flags] [job-name]
+atkins [flags] [job-names...]
 ```
 
 ## Flag Reference
@@ -17,7 +17,6 @@ atkins [flags] [job-name]
 | Flag                  | Short | Description                            |
 |-----------------------|-------|----------------------------------------|
 | `--file`              | `-f`  | Path to pipeline file                  |
-| `--job`               |       | Specific job to run                    |
 | `--list`              | `-l`  | List available jobs                    |
 | `--lint`              |       | Validate pipeline syntax               |
 | `--json`              | `-j`  | Output in JSON format                  |
@@ -57,8 +56,8 @@ atkins
 # Run specific job
 atkins build
 
-# Run job with --job flag
-atkins --job build
+# Run multiple jobs in sequence
+atkins lint test build
 
 # Run namespaced job
 atkins go:test

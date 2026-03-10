@@ -251,7 +251,7 @@ func TestErrorHandling(t *testing.T) {
 			require.NotEmpty(t, pipelines)
 
 			err = runner.RunPipeline(t.Context(), pipelines[0], runner.PipelineOptions{
-				Job:          "default",
+				Jobs:         []string{"default"},
 				JSON:         true,
 				AllPipelines: pipelines,
 			})
