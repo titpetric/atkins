@@ -30,28 +30,28 @@ The pipeline is the root configuration object in an Atkins file.
 @tabs
 @file "Pipeline" pipeline/basic.yml
 
-![](./pipeline/basic.png)
+![Basic Pipeline](./pipeline/basic.png)
 
 ## With Variables
 
 @tabs
 @file "Pipeline" pipeline/with-vars.yml
 
-![](./pipeline/with-vars.png)
+![With Variables](./pipeline/with-vars.png)
 
 ## With Environment
 
 @tabs
 @file "Pipeline" pipeline/with-env.yml
 
-![](./pipeline/with-env.png)
+![With Environment](./pipeline/with-env.png)
 
 ## With Working Directory
 
 @tabs
 @file "Pipeline" pipeline/with-dir.yml
 
-![](./pipeline/with-dir.png)
+![With Working Directory](./pipeline/with-dir.png)
 
 ## Environment Inheritance
 

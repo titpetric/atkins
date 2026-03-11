@@ -14,7 +14,10 @@ Use `for:` in steps to invoke tasks or run commands repeatedly with different lo
 @file "Matrix Loop" loops/matrix.yml
 @file "Matrix (Multi-Iterator)" loops/matrix-simple.yml
 
-![](./loops/list.png)
+![List Loop](./loops/list.png)
+![Nested Loop](./loops/nested.png)
+![Matrix Loop](./loops/matrix.png)
+![Matrix (Multi-Iterator)](./loops/matrix-simple.png)
 
 ## How It Works
 

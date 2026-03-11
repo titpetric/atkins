@@ -28,7 +28,7 @@ Atkins supports two syntax styles. Both can be used interchangeably within the s
 @file "Taskfile-Style" configuration/taskfile-style.yml
 @file "GHA-Style" configuration/gha-style.yml
 
-![](./configuration/taskfile-style.png)
+![Taskfile-Style](./configuration/taskfile-style.png)
 
 ## Variable Interpolation
 
@@ -37,7 +37,7 @@ Atkins uses `${{ expr }}` for variable interpolation. This syntax avoids conflic
 @tabs
 @file "Interpolation" configuration/interpolation.yml
 
-![](./configuration/interpolation.png)
+![Interpolation](./configuration/interpolation.png)
 
 ## Environment (`env:`)
 

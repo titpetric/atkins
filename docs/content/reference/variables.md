@@ -39,14 +39,14 @@ jobs:
 @tabs
 @file "Pipeline" variables/static.yml
 
-![](./variables/static.png)
+![Static Variables](./variables/static.png)
 
 ## Dynamic Shell Variables
 
 @tabs
 @file "Pipeline" variables/dynamic.yml
 
-![](./variables/dynamic.png)
+![Dynamic Shell Variables](./variables/dynamic.png)
 
 ## Nested Variables
 
@@ -55,7 +55,7 @@ Access nested values with dot notation:
 @tabs
 @file "Pipeline" variables/nested.yml
 
-![](./variables/nested.png)
+![Nested Variables](./variables/nested.png)
 
 ## Environment Variables
 
@@ -64,7 +64,7 @@ Set environment variables with `env:`:
 @tabs
 @file "Pipeline" variables/env-vars.yml
 
-![](./variables/env-vars.png)
+![Environment Variables](./variables/env-vars.png)
 
 ## Variable Scope
 
@@ -73,7 +73,7 @@ Variables cascade from pipeline to job to step:
 @tabs
 @file "Pipeline" variables/scope.yml
 
-![](./variables/scope.png)
+![Variable Scope](./variables/scope.png)
 
 ## Coexistence with Shell
 

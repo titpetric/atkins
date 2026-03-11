@@ -3,7 +3,7 @@ name: CI Pipeline
 
 vars:
   app_name: my-app
-  branch: $(git rev-parse --abbrev-ref HEAD)
+  branch: main
   go_versions:
     - '1.21'
     - '1.22'

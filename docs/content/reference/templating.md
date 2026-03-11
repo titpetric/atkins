@@ -23,7 +23,7 @@ All pipeline and job variables are available in expressions:
 @tabs
 @file "Pipeline" templating/expr-vars.yml
 
-![](./templating/expr-vars.png)
+![Expression Variables](./templating/expr-vars.png)
 
 ## Operators
 
@@ -59,14 +59,14 @@ All pipeline and job variables are available in expressions:
 @tabs
 @file "Pipeline" templating/operators.yml
 
-![](./templating/operators.png)
+![Operators](./templating/operators.png)
 
 ## Complex Expressions
 
 @tabs
 @file "Pipeline" templating/complex.yml
 
-![](./templating/complex.png)
+![Complex Expressions](./templating/complex.png)
 
 ## Truthiness
 

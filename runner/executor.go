@@ -453,12 +453,7 @@ func (e *Executor) logStepSkipped(execCtx *ExecutionContext, step *model.Step, s
 	// Mark step as skipped in the tree
 	stepNode.SetStatus(treeview.StatusSkipped)
 	if !step.If.IsEmpty() {
-		// Join multiple conditions with " && " for display
-		conditions := make([]string, len(step.If))
-		for i, c := range step.If {
-			conditions[i] = string(c)
-		}
-		stepNode.SetIf(strings.Join(conditions, " && "))
+		stepNode.SetIf(step.If.String())
 	}
 
 	// Get step name for logging

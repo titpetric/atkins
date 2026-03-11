@@ -76,6 +76,22 @@ type Executor struct {
 ```
 
 ```go
+// FuzzyMatch represents a fuzzy match result.
+type FuzzyMatch struct {
+	Pipeline *model.Pipeline
+	JobName  string
+	FullName string // e.g., "skill:job" or just "job"
+}
+```
+
+```go
+// FuzzyMatchError is returned when multiple fuzzy matches are found.
+type FuzzyMatchError struct {
+	Matches []FuzzyMatch
+}
+```
+
+```go
 // IterationContext holds the variables for a single iteration of a for loop.
 type IterationContext struct {
 	Variables map[string]any
@@ -158,6 +174,14 @@ type PipelineOptions struct {
 	JSON         bool
 	YAML         bool
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
+}
+```
+
+```go
+// ResolvedJobTarget is the result of resolving a job target from the command line.
+type ResolvedJobTarget struct {
+	Pipeline *model.Pipeline
+	JobName  string
 }
 ```
 
@@ -271,6 +295,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*ExecutionContext) NextStepIndex () int`
 - `func (*ExecutionContext) Render ()`
 - `func (*Executor) ExecuteJob (parentCtx context.Context, execCtx *ExecutionContext) error`
+- `func (*FuzzyMatchError) Error () string`
 - `func (*LineCapturingWriter) GetLines () []string`
 - `func (*LineCapturingWriter) String () string`
 - `func (*LineCapturingWriter) Write (p []byte) (int, error)`
@@ -281,6 +306,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)`
 - `func (*SkillsLoader) Load () ([]*model.Pipeline, error)`
 - `func (*TaskResolver) Resolve (taskName string) (*ResolvedTask, error)`
+- `func (*TaskResolver) ResolveJobTarget (jobName string) (*ResolvedJobTarget, error)`
 - `func (*TaskResolver) Validate (taskName string) error`
 - `func (Env) Environ () []string`
 - `func (ExecError) Error () string`
@@ -345,6 +371,7 @@ func EvaluateIf(ctx *ExecutionContext) (bool, error)
 
 EvaluateJobIf evaluates the If condition on a job using expr-lang.
 Returns true if the condition is met or no condition is set.
+When multiple conditions are provided, all must be true (AND logic).
 Returns error only for invalid expressions.
 
 ```go
@@ -654,6 +681,14 @@ ExecuteJob runs a single job.
 func (*Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionContext) error
 ```
 
+### Error
+
+Error returns the error as a user message.
+
+```go
+func (*FuzzyMatchError) Error() string
+```
+
 ### GetLines
 
 GetLines returns all captured output as lines.
@@ -741,6 +776,23 @@ Returns an error if the task cannot be found.
 
 ```go
 func (*TaskResolver) Resolve(taskName string) (*ResolvedTask, error)
+```
+
+### ResolveJobTarget
+
+ResolveJobTarget determines which pipeline and job to run based on the job name.
+Resolution order:
+1. Invoked pipeline (`:` prefix) - directly invoke job, bypassing aliases
+2. Main pipeline exact match - job name exactly matches in main pipeline
+3. Main pipeline alias - alias matches in main pipeline
+4. Skills exact match - job name matches in a skill pipeline
+5. Prefixed job (e.g., "go:test") - explicit skill:job reference
+6. Skills alias - alias matches in a skill pipeline
+7. Fuzzy match - suffix/substring match in job names (if exactly one match)
+   If no match found, returns error.
+
+```go
+func (*TaskResolver) ResolveJobTarget(jobName string) (*ResolvedJobTarget, error)
 ```
 
 ### Validate

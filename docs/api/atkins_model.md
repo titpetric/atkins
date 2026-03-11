@@ -73,7 +73,7 @@ type Job struct {
 
 	Desc        string       `yaml:"desc,omitempty"`
 	Dir         string       `yaml:"dir,omitempty"`
-	If          string       `yaml:"if,omitempty"`
+	If          Conditionals `yaml:"if,omitempty"`
 	Cmd         string       `yaml:"cmd,omitempty"`
 	Cmds        []*Step      `yaml:"cmds,omitempty"`
 	Run         string       `yaml:"run,omitempty"`
@@ -180,6 +180,7 @@ type Step struct {
 - `func (*Step) String () string`
 - `func (*Step) UnmarshalYAML (node *yaml.Node) error`
 - `func (Conditionals) IsEmpty () bool`
+- `func (Conditionals) String () string`
 - `func (Iterators) IsEmpty () bool`
 
 ### NewLabel
@@ -370,6 +371,16 @@ IsEmpty returns true if there are no conditions.
 
 ```go
 func (Conditionals) IsEmpty() bool
+```
+
+### String
+
+String returns a display representation of the conditions.
+Single condition returns the expression as-is.
+Multiple conditions are parenthesized and joined with " && ".
+
+```go
+func (Conditionals) String() string
 ```
 
 ### IsEmpty

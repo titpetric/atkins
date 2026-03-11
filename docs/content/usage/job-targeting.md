@@ -160,7 +160,7 @@ Jobs can have alternative names:
 @file "Namespace" job-targeting/namespace.yml
 @file "Aliases" job-targeting/aliases.yml
 
-![](./job-targeting/namespace.png)
+![Namespace](./job-targeting/namespace.png)
 
 Now all of these work:
 

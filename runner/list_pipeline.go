@@ -78,13 +78,6 @@ func hasJobs(p *model.Pipeline) bool {
 }
 
 // getJobs returns jobs from a pipeline, falling back to tasks if empty.
-func getJobs(p *model.Pipeline) map[string]*model.Job {
-	if len(p.Jobs) > 0 {
-		return p.Jobs
-	}
-	return p.Tasks
-}
-
 // aliasEntry represents a single alias mapping.
 type aliasEntry struct {
 	alias  string

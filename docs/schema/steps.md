@@ -20,24 +20,24 @@ jobs:
 
 ## Fields
 
-| Field         | Type   | Description                       |
-|---------------|--------|-----------------------------------|
-| `name`        | string | Display name for the step         |
-| `run`         | string | Shell command to execute          |
-| `cmd`         | string | Alternative to `run`              |
-| `cmds`        | list   | Multiple commands in one step     |
-| `task`        | string | Invoke another job/task           |
-| `dir`         | string | Working directory                 |
-| `if`          | string | Condition for execution           |
-| `for`         | string | Loop expression                   |
-| `vars`        | map    | Step-scoped variables             |
-| `env`         | object | Step-scoped environment           |
-| `detach`      | bool   | Run in background                 |
-| `deferred`    | bool   | Run at end (cleanup)              |
-| `passthru`    | bool   | Show output with tree indentation |
-| `tty`         | bool   | Allocate PTY (enables colors)     |
-| `interactive` | bool   | Enable stdin                      |
-| `summarize`   | bool   | Collapse output after completion  |
+| Field         | Type        | Description                                |
+|---------------|-------------|--------------------------------------------|
+| `name`        | string      | Display name for the step                  |
+| `run`         | string      | Shell command to execute                   |
+| `cmd`         | string      | Alternative to `run`                       |
+| `cmds`        | list        | Multiple commands in one step              |
+| `task`        | string      | Invoke another job/task                    |
+| `dir`         | string      | Working directory                          |
+| `if`          | string/list | Condition for execution (list items ANDed) |
+| `for`         | string      | Loop expression                            |
+| `vars`        | map         | Step-scoped variables                      |
+| `env`         | object      | Step-scoped environment                    |
+| `detach`      | bool        | Run in background                          |
+| `deferred`    | bool        | Run at end (cleanup)                       |
+| `passthru`    | bool        | Show output with tree indentation          |
+| `tty`         | bool        | Allocate PTY (enables colors)              |
+| `interactive` | bool        | Enable stdin                               |
+| `summarize`   | bool        | Collapse output after completion           |
 
 ## Command Formats
 

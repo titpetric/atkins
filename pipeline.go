@@ -75,126 +75,6 @@ func Pipeline() *cli.Command {
 	}
 }
 
-// resolveJobTarget determines which pipeline and job to run based on the job name.
-// Resolution order:
-// 1. Invoked pipeline (`:` prefix) - directly invoke job, bypassing aliases
-// 2. Exact match - job name exactly matches in any pipeline (main first, then skills)
-// 3. Prefixed job (e.g., "go:test") - explicit skill:job reference
-// 4. Alias match - job with matching alias in any pipeline
-// 5. Fuzzy match - suffix/substring match in job names (if exactly one match)
-// If no match found, returns error.
-func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pipeline, string, error) {
-	// 1. Invoked pipeline (`:` prefix) - directly invoke job, bypassing aliases
-	// :build → main pipeline job "build"
-	// :go:build → skill "go" job "build"
-	if strings.HasPrefix(jobName, ":") {
-		explicitName := jobName[1:] // Remove leading colon
-
-		// Check if it's :skillID:jobName or just :jobName
-		if parts := strings.SplitN(explicitName, ":", 2); len(parts) == 2 {
-			// :go:build → skill "go", job "build"
-			skillID, skillJob := parts[0], parts[1]
-			for _, p := range pipelines {
-				if p.ID == skillID {
-					return []*model.Pipeline{p}, skillJob, nil
-				}
-			}
-			return nil, "", fmt.Errorf("%s skill %q not found", colors.BrightRed("ERROR:"), skillID)
-		}
-
-		// :build → main pipeline (ID="") job "build"
-		for _, p := range pipelines {
-			if p.ID == "" {
-				return []*model.Pipeline{p}, explicitName, nil
-			}
-		}
-		return nil, "", fmt.Errorf("%s main pipeline not found", colors.BrightRed("ERROR:"))
-	}
-
-	// 2. Exact match in main pipeline first
-	// This handles job names containing colons (e.g., "test:mergecov")
-	for _, p := range pipelines {
-		if p.ID == "" {
-			jobs := getJobs(p)
-			if _, exists := jobs[jobName]; exists {
-				return []*model.Pipeline{p}, jobName, nil
-			}
-		}
-	}
-
-	// 3. Check main pipeline aliases before skills
-	// Main pipeline aliases take precedence over skill job names
-	for _, p := range pipelines {
-		if p.ID == "" {
-			jobs := getJobs(p)
-			for jn, job := range jobs {
-				for _, alias := range job.Aliases {
-					if alias == jobName {
-						return []*model.Pipeline{p}, jn, nil
-					}
-				}
-			}
-		}
-	}
-
-	// 4. Exact match in skills
-	for _, p := range pipelines {
-		if p.ID != "" {
-			jobs := getJobs(p)
-			if _, exists := jobs[jobName]; exists {
-				return []*model.Pipeline{p}, jobName, nil
-			}
-		}
-	}
-
-	// 5. Check if job has a skill prefix (e.g., "go:test")
-	if parts := strings.SplitN(jobName, ":", 2); len(parts) == 2 {
-		skillID, skillJob := parts[0], parts[1]
-		for _, p := range pipelines {
-			if p.ID == skillID {
-				return []*model.Pipeline{p}, skillJob, nil
-			}
-		}
-		// Don't error yet - might be a typo, try aliases and fuzzy match
-	}
-
-	// 6. Check skill aliases
-	for _, p := range pipelines {
-		if p.ID != "" {
-			jobs := getJobs(p)
-			for jn, job := range jobs {
-				for _, alias := range job.Aliases {
-					if alias == jobName {
-						return []*model.Pipeline{p}, jn, nil
-					}
-				}
-			}
-		}
-	}
-
-	// 7. Fuzzy match - check for suffix/substring matches in job names
-	matches := findFuzzyMatches(pipelines, jobName)
-	if len(matches) == 1 {
-		// Exactly one match found, use it
-		match := matches[0]
-		return []*model.Pipeline{match.Pipeline}, match.JobName, nil
-	} else if len(matches) > 1 {
-		// Multiple matches found, list them and exit
-		return []*model.Pipeline{matches[0].Pipeline}, "", &FuzzyMatchError{Matches: matches}
-	}
-
-	// No match found - return error
-	return nil, "", fmt.Errorf("%s job %q not found", colors.BrightRed("ERROR:"), jobName)
-}
-
-// getJobs returns jobs from a pipeline, falling back to tasks if empty.
-func getJobs(p *model.Pipeline) map[string]*model.Job {
-	if len(p.Jobs) > 0 {
-		return p.Jobs
-	}
-	return p.Tasks
-}
-
 func runPipeline(ctx context.Context, opts *Options, args []string) error {
 	// Handle version flag early, before any file discovery
 	if opts.Version {
@@ -414,12 +294,13 @@ pipelineReady:
 	}
 	pipelineJobsMap := make(map[*model.Pipeline]*pipelineJobs)
 	var pipelineOrder []*model.Pipeline
+	resolver := &runner.TaskResolver{AllPipelines: pipelines}
 
 	for _, jobName := range opts.Jobs {
-		targetPipelines, resolvedJob, err := resolveJobTarget(pipelines, jobName)
+		target, err := resolver.ResolveJobTarget(jobName)
 		if err != nil {
 			// Check if it's a fuzzy match error with multiple matches
-			var fuzzyErr *FuzzyMatchError
+			var fuzzyErr *runner.FuzzyMatchError
 			if errors.As(err, &fuzzyErr) {
 				fmt.Fprintf(os.Stderr, "%s found %d matching jobs:\n\n", colors.BrightYellow("INFO:"), len(fuzzyErr.Matches))
 				for _, match := range fuzzyErr.Matches {
@@ -430,13 +311,12 @@ pipelineReady:
 			return err
 		}
 
-		for _, pipeline := range targetPipelines {
-			if pipelineJobsMap[pipeline] == nil {
-				pipelineJobsMap[pipeline] = &pipelineJobs{pipeline: pipeline}
-				pipelineOrder = append(pipelineOrder, pipeline)
-			}
-			pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, resolvedJob)
+		pipeline := target.Pipeline
+		if pipelineJobsMap[pipeline] == nil {
+			pipelineJobsMap[pipeline] = &pipelineJobs{pipeline: pipeline}
+			pipelineOrder = append(pipelineOrder, pipeline)
 		}
+		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, target.JobName)
 	}
 
 	// Run each pipeline with its collected jobs

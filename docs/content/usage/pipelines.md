@@ -35,7 +35,7 @@ Pipeline (atkins.yml)
 @file "Basic" pipelines/basic.yml
 @file "Complete" pipelines/complete.yml
 
-![](./pipelines/basic.png)
+![Basic Pipeline](./pipelines/basic.png)
 
 ## See Also
 
