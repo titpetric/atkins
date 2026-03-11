@@ -43,10 +43,10 @@ func (p *Pipeline) GetJobs() map[string]*Job {
 	return p.Tasks
 }
 
-// Keys will return the available targets in the pipeline. It uses the
+// GetKeys will return the available targets in the pipeline. It uses the
 // pipeline ID to optionally prefix job/tasks map keys. The default
 // job is ordered first in the result.
-func (p *Pipeline) Keys() []string {
+func (p *Pipeline) GetKeys() []string {
 	var hasDefault bool
 	jobs := p.GetJobs()
 	result := make([]string, 0, len(jobs))
@@ -66,6 +66,33 @@ func (p *Pipeline) Keys() []string {
 		result = append([]string{"default"}, result...)
 	}
 
+	if p.ID != "" {
+		for k, v := range result {
+			result[k] = p.ID + ":" + v
+		}
+	}
+
+	return result
+}
+
+// GetAliases will give key => value mapping for commands in a pipeline.
+func (p *Pipeline) GetAliases() map[string]string {
+	result := map[string]string{}
+	jobs := p.GetJobs()
+
+	for key, job := range jobs {
+		// Alias skills default targets to skill ID.
+		if p.ID != "" && key == "default" {
+			result[p.ID] = "default"
+		}
+
+		// Add any other known aliases for the jobs.
+		for _, alias := range job.GetAliases() {
+			result[alias] = key
+		}
+	}
+
+	// Prefix targets with skill ID.
 	if p.ID != "" {
 		for k, v := range result {
 			result[k] = p.ID + ":" + v

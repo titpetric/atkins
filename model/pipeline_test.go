@@ -12,9 +12,10 @@ import (
 
 func TestPipeline_Keys(t *testing.T) {
 	type testcase struct {
-		id   string
-		jobs map[string]*model.Job
-		want []string
+		id      string
+		jobs    map[string]*model.Job
+		want    []string
+		aliases map[string]string
 	}
 
 	testcases := []testcase{
@@ -26,7 +27,8 @@ func TestPipeline_Keys(t *testing.T) {
 				"lint":    nil,
 				"fmt":     nil,
 			},
-			want: []string{"default", "build", "fmt", "lint", "test"},
+			want:    []string{"default", "build", "fmt", "lint", "test"},
+			aliases: map[string]string{},
 		},
 		{
 			id: "go",
@@ -38,6 +40,9 @@ func TestPipeline_Keys(t *testing.T) {
 				"fmt":     nil,
 			},
 			want: []string{"go:default", "go:build", "go:fmt", "go:lint", "go:test"},
+			aliases: map[string]string{
+				"go": "go:default",
+			},
 		},
 	}
 
@@ -47,8 +52,15 @@ func TestPipeline_Keys(t *testing.T) {
 			Jobs: tc.jobs,
 		}
 
-		got := pipeline.Keys()
-		assert.Equal(t, tc.want, got)
+		{
+			got := pipeline.GetKeys()
+			assert.Equal(t, tc.want, got)
+		}
+
+		{
+			got := pipeline.GetAliases()
+			assert.Equal(t, tc.aliases, got)
+		}
 	}
 }
 
