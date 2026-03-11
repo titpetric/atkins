@@ -27,6 +27,13 @@ func NewTaskResolver(pipelines []*model.Pipeline) *TaskResolver {
 	}
 }
 
+// NewSkillResolver will provide a task resolver for a skill pipeline.
+func NewSkillResolver(pipeline *model.Pipeline) *TaskResolver {
+	return &TaskResolver{
+		pipelines: []*model.Pipeline{pipeline},
+	}
+}
+
 // Resolve resolves a task name to its pipeline and job.
 func (r *TaskResolver) Resolve(taskName string) (*ResolvedTask, error) {
 	var strict bool
@@ -34,10 +41,13 @@ func (r *TaskResolver) Resolve(taskName string) (*ResolvedTask, error) {
 		strict = true
 		taskName = taskName[1:]
 	}
-	return r.resolve(taskName, strict)
+	return r.ResolveName(taskName, strict)
 }
 
-func (r *TaskResolver) resolve(name string, strict bool) (*ResolvedTask, error) {
+// ResolveName resolves a name to the pipeline and job.
+// It tries explicit matching, then checks aliases, then fuzzy matches jobs.
+// If no job is matched, an error is returned.
+func (r *TaskResolver) ResolveName(name string, strict bool) (*ResolvedTask, error) {
 	if target, found := r.resolveExplicitTarget(name); found {
 		return target, nil
 	}
@@ -59,11 +69,22 @@ func (r *TaskResolver) resolveExplicitTarget(name string) (*ResolvedTask, bool) 
 	for _, pipeline := range r.pipelines {
 		keys := pipeline.GetKeys()
 		if slices.Contains(keys, name) {
-			return &ResolvedTask{Pipeline: pipeline, Name: name}, true
+			return &ResolvedTask{Pipeline: pipeline, Name: name, Job: lookupJob(pipeline, name)}, true
 		}
 	}
 
 	return nil, false
+}
+
+// lookupJob finds a job in the pipeline by its canonical name, stripping
+// the pipeline ID prefix if present.
+func lookupJob(pipeline *model.Pipeline, name string) *model.Job {
+	jobs := pipeline.GetJobs()
+	// Strip pipeline ID prefix if present (e.g., "go:build" -> "build")
+	if pipeline.ID != "" {
+		name = strings.TrimPrefix(name, pipeline.ID+":")
+	}
+	return jobs[name]
 }
 
 // resolveAlias checks if alias matches any job alias.
@@ -71,7 +92,7 @@ func (r *TaskResolver) resolveAlias(alias string) (*ResolvedTask, bool) {
 	for _, pipeline := range r.pipelines {
 		aliases := pipeline.GetAliases()
 		if target, ok := aliases[alias]; ok {
-			return &ResolvedTask{Pipeline: pipeline, Name: target}, true
+			return &ResolvedTask{Pipeline: pipeline, Name: target, Job: lookupJob(pipeline, target)}, true
 		}
 	}
 	return nil, false

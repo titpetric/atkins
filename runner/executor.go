@@ -739,28 +739,26 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 	return err
 }
 
-// resolveTaskReference resolves a task name using the shared TaskResolver.
-// Returns the resolved task name, the target pipeline, and the job.
-func resolveTaskReference(taskName string, execCtx *ExecutionContext) (string, *model.Pipeline, *model.Job, error) {
-	resolver := NewTaskResolver(execCtx.AllPipelines)
-	resolved, err := resolver.Resolve(taskName)
-	if err != nil {
-		return "", nil, nil, err
-	}
-	return resolved.Name, resolved.Pipeline, resolved.Job, nil
-}
-
 // executeTaskStep executes a task/job from within a step
 // Supports both simple task invocation and for loop task invocation with loop variables
 func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
 	defer execCtx.Render()
 
-	// Resolve task reference (handles cross-pipeline : prefix)
-	taskName, targetPipeline, taskJob, err := resolveTaskReference(step.Task, execCtx)
+	// Try skill-local resolution first, then fall back to cross-pipeline
+	resolved, err := execCtx.SkillResolver().Resolve(step.Task)
+	if err != nil {
+		resolved, err = execCtx.Resolver().Resolve(step.Task)
+	}
 	if err != nil {
 		stepNode.SetStatus(treeview.StatusFailed)
 		return err
 	}
+
+	var (
+		taskName       = resolved.Name
+		targetPipeline = resolved.Pipeline
+		taskJob        = resolved.Job
+	)
 
 	// Get jobs from the target pipeline for dependency resolution
 	allJobs := targetPipeline.Jobs
