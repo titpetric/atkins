@@ -11,8 +11,17 @@ import (
 // ResolvedTask contains the result of resolving a task reference.
 type ResolvedTask struct {
 	Name     string          // Canonical name (e.g., "go:build" or "build")
-	Pipeline *model.Pipeline // The pipeline containing the task
 	Job      *model.Job      // The resolved job
+	Pipeline *model.Pipeline // The pipeline containing the task
+}
+
+// NewResolvedTask creates a ResolvedTask with all required fields.
+func NewResolvedTask(pipeline *model.Pipeline, job *model.Job, name string) *ResolvedTask {
+	return &ResolvedTask{
+		Name:     name,
+		Job:      job,
+		Pipeline: pipeline,
+	}
 }
 
 // TaskResolver resolves task references, handling cross-pipeline : prefix syntax.
@@ -69,7 +78,7 @@ func (r *TaskResolver) resolveExplicitTarget(name string) (*ResolvedTask, bool) 
 	for _, pipeline := range r.pipelines {
 		keys := pipeline.GetKeys()
 		if slices.Contains(keys, name) {
-			return &ResolvedTask{Pipeline: pipeline, Name: name, Job: lookupJob(pipeline, name)}, true
+			return NewResolvedTask(pipeline, lookupJob(pipeline, name), name), true
 		}
 	}
 
@@ -92,7 +101,7 @@ func (r *TaskResolver) resolveAlias(alias string) (*ResolvedTask, bool) {
 	for _, pipeline := range r.pipelines {
 		aliases := pipeline.GetAliases()
 		if target, ok := aliases[alias]; ok {
-			return &ResolvedTask{Pipeline: pipeline, Name: target, Job: lookupJob(pipeline, target)}, true
+			return NewResolvedTask(pipeline, lookupJob(pipeline, target), target), true
 		}
 	}
 	return nil, false
@@ -103,7 +112,7 @@ func (r *TaskResolver) resolveFuzzy(name string) (*ResolvedTask, error) {
 	matches := findFuzzyMatches(r.pipelines, name)
 	if len(matches) == 1 {
 		match := matches[0]
-		return &ResolvedTask{Pipeline: match.Pipeline, Name: match.Name}, nil
+		return NewResolvedTask(match.Pipeline, match.Job, match.Name), nil
 	}
 	if len(matches) > 1 {
 		return nil, &FuzzyMatchError{Matches: matches}

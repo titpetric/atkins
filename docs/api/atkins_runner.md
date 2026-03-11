@@ -78,7 +78,7 @@ type Executor struct {
 ```go
 // FuzzyMatchError is returned when multiple fuzzy matches are found.
 type FuzzyMatchError struct {
-	Matches []ResolvedTask
+	Matches []*ResolvedTask
 }
 ```
 
@@ -172,8 +172,8 @@ type PipelineOptions struct {
 // ResolvedTask contains the result of resolving a task reference.
 type ResolvedTask struct {
 	Name     string          // Canonical name (e.g., "go:build" or "build")
-	Pipeline *model.Pipeline // The pipeline containing the task
 	Job      *model.Job      // The resolved job
+	Pipeline *model.Pipeline // The pipeline containing the task
 }
 ```
 
@@ -258,6 +258,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
+- `func NewResolvedTask (pipeline *model.Pipeline, job *model.Job, name string) *ResolvedTask`
 - `func NewSkillResolver (pipeline *model.Pipeline) *TaskResolver`
 - `func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader`
 - `func NewTaskResolver (pipelines []*model.Pipeline) *TaskResolver`
@@ -530,6 +531,14 @@ NewPipeline allocates a new *Pipeline with dependencies.
 
 ```go
 func NewPipeline(data *model.Pipeline, opts PipelineOptions) *Pipeline
+```
+
+### NewResolvedTask
+
+NewResolvedTask creates a ResolvedTask with all required fields.
+
+```go
+func NewResolvedTask(pipeline *model.Pipeline, job *model.Job, name string) *ResolvedTask
 ```
 
 ### NewSkillResolver

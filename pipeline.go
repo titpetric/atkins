@@ -296,6 +296,17 @@ pipelineReady:
 	var pipelineOrder []*model.Pipeline
 	resolver := runner.NewTaskResolver(pipelines)
 
+	// For implicit "default", resolve against the primary pipeline only
+	// to avoid matching skill defaults when the main pipeline has none.
+	if len(pipelines) > 0 {
+		primaryResolver := runner.NewTaskResolver(pipelines[:1])
+		if target, err := primaryResolver.Resolve("default"); err == nil {
+			_ = target // primary has default, resolver will find it
+		} else if len(opts.Jobs) == 1 && opts.Jobs[0] == "default" {
+			resolver = primaryResolver
+		}
+	}
+
 	for _, jobName := range opts.Jobs {
 		target, err := resolver.Resolve(jobName)
 		if err != nil {
@@ -308,7 +319,9 @@ pipelineReady:
 				}
 				os.Exit(1)
 			}
-			return err
+			fmt.Fprintf(os.Stderr, "%s %v\n", colors.BrightRed("ERROR:"), err)
+			fmt.Fprintf(os.Stderr, "\nUsage: atkins [flags] [job-names...]\n")
+			os.Exit(1)
 		}
 
 		pipeline := target.Pipeline
@@ -316,7 +329,12 @@ pipelineReady:
 			pipelineJobsMap[pipeline] = &pipelineJobs{pipeline: pipeline}
 			pipelineOrder = append(pipelineOrder, pipeline)
 		}
-		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, target.Name)
+		// Strip pipeline ID prefix since RunPipeline uses raw job map keys
+		resolvedName := target.Name
+		if pipeline.ID != "" {
+			resolvedName = strings.TrimPrefix(resolvedName, pipeline.ID+":")
+		}
+		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, resolvedName)
 	}
 
 	// Run each pipeline with its collected jobs

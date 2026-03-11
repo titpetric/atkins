@@ -2,7 +2,7 @@ name: Generate Example Screenshots
 
 when:
   files:
-    - $(which termos)
+    - examples/
 
 vars:
   semver: $(git tag | tail -n 1)

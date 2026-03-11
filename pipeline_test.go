@@ -86,6 +86,39 @@ func TestWorkingDirectory_EmptyIsNoOp(t *testing.T) {
 	assert.Equal(t, tmpDir, currentDir)
 }
 
+func TestSkillJobInvocation(t *testing.T) {
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, os.Chdir(originalDir))
+	})
+
+	tmpDir := t.TempDir()
+
+	// Create .atkins/skills directory with a simple skill
+	skillsDir := filepath.Join(tmpDir, ".atkins", "skills")
+	require.NoError(t, os.MkdirAll(skillsDir, 0o755))
+
+	skillContent := `name: greet
+jobs:
+  default:
+    steps:
+      - echo hello
+`
+	require.NoError(t, os.WriteFile(filepath.Join(skillsDir, "greet.yml"), []byte(skillContent), 0o644))
+
+	require.NoError(t, os.Chdir(tmpDir))
+
+	// Invoke the skill by its ID (like "atkins greet")
+	cmd := Pipeline()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	cmd.Bind(fs)
+
+	require.NoError(t, fs.Parse([]string{"--final", "--jail"}))
+	err = cmd.Run(t.Context(), []string{"greet"})
+	require.NoError(t, err)
+}
+
 func TestMultipleJobsArguments(t *testing.T) {
 	t.Run("jobs_collected_from_positional_args", func(t *testing.T) {
 		opts := NewOptions()

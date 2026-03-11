@@ -1,14 +1,21 @@
-# Atkins - portable command runner / CI tooling
+# Atkins - CLI workflows runner
 
-Atkins is a minimal runner focused on usage in local testing and
-CI/CD environments. It features a nice CLI status tree, where you can
-see which jobs are running, and run jobs and steps in parallel.
+Atkins is a minimal runner focused on usage in development, testing and
+enables portability between CI/CD environments. It features a nice CLI
+status tree, where you can see which jobs are running, and run jobs and
+steps in parallel.
+
+![](https://github.com/titpetric/atkins/blob/main/examples/atkins.list.png)
 
 With atkins you can:
 
 - define pipelines, jobs and steps and run them
 - provide project or system skills via `.atkins/skills`
 - run individual pipelines as executables
+
+It's driven by yaml syntax, and supports shell interpolation with `$(...)`, and
+yaml friendly variable interpolation: `name: ${{app.name}}`.
+
 
 ## Documentation
 
