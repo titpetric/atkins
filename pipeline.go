@@ -316,7 +316,7 @@ pipelineReady:
 			pipelineJobsMap[pipeline] = &pipelineJobs{pipeline: pipeline}
 			pipelineOrder = append(pipelineOrder, pipeline)
 		}
-		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, jobName)
+		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, target.Name)
 	}
 
 	// Run each pipeline with its collected jobs
