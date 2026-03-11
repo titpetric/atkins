@@ -76,18 +76,9 @@ type Executor struct {
 ```
 
 ```go
-// FuzzyMatch represents a fuzzy match result.
-type FuzzyMatch struct {
-	Pipeline *model.Pipeline
-	JobName  string
-	FullName string // e.g., "skill:job" or just "job"
-}
-```
-
-```go
 // FuzzyMatchError is returned when multiple fuzzy matches are found.
 type FuzzyMatchError struct {
-	Matches []FuzzyMatch
+	Matches []ResolvedTask
 }
 ```
 
@@ -178,14 +169,6 @@ type PipelineOptions struct {
 ```
 
 ```go
-// ResolvedJobTarget is the result of resolving a job target from the command line.
-type ResolvedJobTarget struct {
-	Pipeline *model.Pipeline
-	JobName  string
-}
-```
-
-```go
 // ResolvedTask contains the result of resolving a task reference.
 type ResolvedTask struct {
 	Name     string          // Canonical name (e.g., "go:build" or "build")
@@ -229,14 +212,8 @@ type SkillsLoader struct {
 
 ```go
 // TaskResolver resolves task references, handling cross-pipeline : prefix syntax.
-// Supports:
-//   - ":build" → main pipeline (ID="") job "build".
-//   - ":go:build" → skill "go" job "build".
-//   - "build" → current pipeline job "build".
-//   - "go:build" → skill "go" job "build" (fallback when not found locally).
 type TaskResolver struct {
-	CurrentPipeline *model.Pipeline
-	AllPipelines    []*model.Pipeline
+	pipelines []*model.Pipeline
 }
 ```
 
@@ -281,7 +258,9 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
+- `func NewSkillResolver (pipeline *model.Pipeline) *TaskResolver`
 - `func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader`
+- `func NewTaskResolver (pipelines []*model.Pipeline) *TaskResolver`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
@@ -294,6 +273,8 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*ExecutionContext) MarkJobCompleted (jobName string)`
 - `func (*ExecutionContext) NextStepIndex () int`
 - `func (*ExecutionContext) Render ()`
+- `func (*ExecutionContext) Resolver () *TaskResolver`
+- `func (*ExecutionContext) SkillResolver () *TaskResolver`
 - `func (*Executor) ExecuteJob (parentCtx context.Context, execCtx *ExecutionContext) error`
 - `func (*FuzzyMatchError) Error () string`
 - `func (*LineCapturingWriter) GetLines () []string`
@@ -306,8 +287,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)`
 - `func (*SkillsLoader) Load () ([]*model.Pipeline, error)`
 - `func (*TaskResolver) Resolve (taskName string) (*ResolvedTask, error)`
-- `func (*TaskResolver) ResolveJobTarget (jobName string) (*ResolvedJobTarget, error)`
-- `func (*TaskResolver) Validate (taskName string) error`
+- `func (*TaskResolver) ResolveName (name string, strict bool) (*ResolvedTask, error)`
 - `func (Env) Environ () []string`
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
@@ -552,6 +532,14 @@ NewPipeline allocates a new *Pipeline with dependencies.
 func NewPipeline(data *model.Pipeline, opts PipelineOptions) *Pipeline
 ```
 
+### NewSkillResolver
+
+NewSkillResolver will provide a task resolver for a skill pipeline.
+
+```go
+func NewSkillResolver(pipeline *model.Pipeline) *TaskResolver
+```
+
 ### NewSkillsLoader
 
 NewSkillsLoader creates a loader for the given workspace.
@@ -560,6 +548,14 @@ startDir is where to start searching for when: files (typically user's cwd).
 
 ```go
 func NewSkillsLoader(workspaceDir, startDir string) *SkillsLoader
+```
+
+### NewTaskResolver
+
+NewTaskResolver will provide a task resolver for a set of pipelines.
+
+```go
+func NewTaskResolver(pipelines []*model.Pipeline) *TaskResolver
 ```
 
 ### ProcessDecl
@@ -673,6 +669,22 @@ Render refreshes the treeview.
 func (*ExecutionContext) Render()
 ```
 
+### Resolver
+
+Resolver provides task resolution in the execution context.
+
+```go
+func (*ExecutionContext) Resolver() *TaskResolver
+```
+
+### SkillResolver
+
+SkillResolver provides task resolution in skill context.
+
+```go
+func (*ExecutionContext) SkillResolver() *TaskResolver
+```
+
 ### ExecuteJob
 
 ExecuteJob runs a single job.
@@ -772,36 +784,19 @@ func (*SkillsLoader) Load() ([]*model.Pipeline, error)
 ### Resolve
 
 Resolve resolves a task name to its pipeline and job.
-Returns an error if the task cannot be found.
 
 ```go
 func (*TaskResolver) Resolve(taskName string) (*ResolvedTask, error)
 ```
 
-### ResolveJobTarget
+### ResolveName
 
-ResolveJobTarget determines which pipeline and job to run based on the job name.
-Resolution order:
-1. Invoked pipeline (`:` prefix) - directly invoke job, bypassing aliases
-2. Main pipeline exact match - job name exactly matches in main pipeline
-3. Main pipeline alias - alias matches in main pipeline
-4. Skills exact match - job name matches in a skill pipeline
-5. Prefixed job (e.g., "go:test") - explicit skill:job reference
-6. Skills alias - alias matches in a skill pipeline
-7. Fuzzy match - suffix/substring match in job names (if exactly one match)
-   If no match found, returns error.
+ResolveName resolves a name to the pipeline and job.
+It tries explicit matching, then checks aliases, then fuzzy matches jobs.
+If no job is matched, an error is returned.
 
 ```go
-func (*TaskResolver) ResolveJobTarget(jobName string) (*ResolvedJobTarget, error)
-```
-
-### Validate
-
-Validate checks if a task reference is valid without returning the full result.
-This is useful for linting where you only need to know if the reference is valid.
-
-```go
-func (*TaskResolver) Validate(taskName string) error
+func (*TaskResolver) ResolveName(name string, strict bool) (*ResolvedTask, error)
 ```
 
 ### Environ

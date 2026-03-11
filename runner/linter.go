@@ -106,7 +106,16 @@ func (l *Linter) validateTaskInvocations() {
 }
 
 // validateTaskReference validates a task reference using the shared TaskResolver.
+// It first tries resolving within the current pipeline (skill-local), then falls
+// back to all pipelines for cross-pipeline references.
 func (l *Linter) validateTaskReference(taskName string) error {
+	// Try skill-local resolution first
+	localResolver := NewSkillResolver(l.pipeline)
+	if _, err := localResolver.Resolve(taskName); err == nil {
+		return nil
+	}
+
+	// Fall back to cross-pipeline resolution
 	resolver := NewTaskResolver(l.allPipelines)
 	if _, err := resolver.Resolve(taskName); err != nil {
 		return fmt.Errorf("step references task '%s', but %s", taskName, err)

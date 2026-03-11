@@ -164,6 +164,7 @@ type Step struct {
 - `func (*IncludeDecl) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Iterators) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Job) Children () []*Step`
+- `func (*Job) GetAliases () []string`
 - `func (*Job) IsRootLevel () bool`
 - `func (*Job) ShouldShow () bool`
 - `func (*Job) UnmarshalYAML (node *yaml.Node) error`
@@ -172,6 +173,9 @@ type Step struct {
 - `func (*Label) WithColor (colorFn func(string) string) *Label`
 - `func (*Label) WithPrefix (show bool) *Label`
 - `func (*Label) WithStatus (status string) *Label`
+- `func (*Pipeline) GetAliases () map[string]string`
+- `func (*Pipeline) GetJobs () map[string]*Job`
+- `func (*Pipeline) GetKeys () []string`
 - `func (*Pipeline) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Step) Commands () []string`
 - `func (*Step) DisplayLabel () string`
@@ -233,6 +237,14 @@ Children returns job steps for execution.
 
 ```go
 func (*Job) Children() []*Step
+```
+
+### GetAliases
+
+GetAliases returns the job aliases or nil.
+
+```go
+func (*Job) GetAliases() []string
 ```
 
 ### IsRootLevel
@@ -301,6 +313,32 @@ WithStatus sets the status indicator to display.
 
 ```go
 func (*Label) WithStatus(status string) *Label
+```
+
+### GetAliases
+
+GetAliases will give key => value mapping for commands in a pipeline.
+
+```go
+func (*Pipeline) GetAliases() map[string]string
+```
+
+### GetJobs
+
+GetJobs will returned the defined jobs in the pipeline.
+
+```go
+func (*Pipeline) GetJobs() map[string]*Job
+```
+
+### GetKeys
+
+GetKeys will return the available targets in the pipeline. It uses the
+pipeline ID to optionally prefix job/tasks map keys. The default
+job is ordered first in the result.
+
+```go
+func (*Pipeline) GetKeys() []string
 ```
 
 ### UnmarshalYAML

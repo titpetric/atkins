@@ -46,6 +46,16 @@ type ExecutionContext struct {
 	jobCompMu    sync.Mutex
 }
 
+// Resolver provides task resolution in the execution context.
+func (e *ExecutionContext) Resolver() *TaskResolver {
+	return NewTaskResolver(e.AllPipelines)
+}
+
+// SkillResolver provides task resolution in skill context.
+func (e *ExecutionContext) SkillResolver() *TaskResolver {
+	return NewSkillResolver(e.Pipeline)
+}
+
 // Copy copies everything except Context. Variables are shallow-copied.
 // JobCompleted is shared (not copied) to maintain consistent dependency tracking.
 func (e *ExecutionContext) Copy() *ExecutionContext {
