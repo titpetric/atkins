@@ -33,6 +33,14 @@ type Job struct {
 	Nested bool   `yaml:"-"`
 }
 
+// GetAliases returns the job aliases or nil.
+func (j *Job) GetAliases() []string {
+	if j != nil {
+		return j.Aliases
+	}
+	return nil
+}
+
 // Children returns job steps for execution.
 func (j *Job) Children() []*Step {
 	if j.Steps != nil {
