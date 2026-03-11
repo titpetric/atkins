@@ -14,7 +14,7 @@ Here's a complete CI pipeline comparison showing jobs, dependencies, matrix buil
 @file "Atkins" migration-from-github-actions/atkins-after.yml
 @file "GitHub Actions" migration-from-github-actions/workflow-before.yml
 
-![](./migration-from-github-actions/atkins-after.png)
+![CI Pipeline migration from GitHub Actions](./migration-from-github-actions/atkins-after.png)
 
 ## Syntax Comparison
 

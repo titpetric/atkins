@@ -22,7 +22,7 @@ Create an `atkins.yml` file:
 @tabs
 @file "hello-world.yml" introduction/hello-world.yml
 
-![](./introduction/hello-world.png)
+![Hello World](./introduction/hello-world.png)
 
 Run it:
 
@@ -53,7 +53,7 @@ This example demonstrates several key features including variable interpolation,
 @tabs
 @file "features.yml" introduction/features.yml
 
-![](./introduction/features.png)
+![Key Features](./introduction/features.png)
 
 ## Output Formats
 
@@ -62,7 +62,7 @@ Atkins supports multiple output formats for different use cases. Use the followi
 @tabs
 @file "output-formats.yml" introduction/output-formats.yml
 
-![](./introduction/output-formats.png)
+![Output Formats](./introduction/output-formats.png)
 
 ```bash
 # Interactive tree (default)

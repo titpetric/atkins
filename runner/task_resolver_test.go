@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/titpetric/atkins/model"
@@ -323,6 +324,350 @@ func TestTaskResolver_ResolveSkillShorthandLocalPreferred(t *testing.T) {
 	}
 }
 
+func TestResolveJobTarget(t *testing.T) {
+	// Helper to create a pipeline with jobs
+	makePipeline := func(id string, jobs map[string]*model.Job) *model.Pipeline {
+		return &model.Pipeline{ID: id, Jobs: jobs}
+	}
+
+	t.Run("invoked_pipeline_main", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"up": {}}),
+			makePipeline("docker", map[string]*model.Job{"up": {}}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget(":up")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "" {
+			t.Errorf("expected main pipeline (ID=''), got: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "up" {
+			t.Errorf("expected job 'up', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("invoked_pipeline_skill", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"up": {}}),
+			makePipeline("docker", map[string]*model.Job{"build": {}}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget(":docker:build")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "docker" {
+			t.Errorf("expected pipeline 'docker', got: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "build" {
+			t.Errorf("expected job 'build', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("prefixed_job_reference", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"test": {}}),
+			makePipeline("go", map[string]*model.Job{"test": {}}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("go:test")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "go" {
+			t.Errorf("expected pipeline 'go', got: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "test" {
+			t.Errorf("expected job 'test', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("main_pipeline_exact_match_over_alias", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"up": {}}),
+			makePipeline("docker", map[string]*model.Job{
+				"start": {Aliases: []string{"up"}},
+			}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("up")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "" {
+			t.Errorf("main pipeline should take precedence over alias, got pipeline: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "up" {
+			t.Errorf("expected job 'up', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("main_pipeline_exact_match_over_skill_alias", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"build": {}}),
+			makePipeline("go", map[string]*model.Job{
+				"compile": {Aliases: []string{"build"}},
+			}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("build")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "" {
+			t.Errorf("main pipeline exact match should precede alias, got pipeline: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "build" {
+			t.Errorf("expected job 'build', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("alias_match_when_no_main_pipeline_job", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"build": {}}),
+			makePipeline("docker", map[string]*model.Job{
+				"start": {Aliases: []string{"up"}},
+			}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("up")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "docker" {
+			t.Errorf("alias should match when no main pipeline job exists, got pipeline: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "start" {
+			t.Errorf("expected job 'start', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("main_pipeline_alias_over_skill_exact_match", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{
+				"build": {Aliases: []string{"default"}},
+			}),
+			makePipeline("go", map[string]*model.Job{
+				"default": {},
+			}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("default")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "" {
+			t.Errorf("main pipeline alias should take precedence over skill job name, got pipeline: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "build" {
+			t.Errorf("expected job 'build', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("skill_name_without_job_errors", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"build": {}}),
+			makePipeline("docker", map[string]*model.Job{"build": {}}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		_, err := resolver.ResolveJobTarget("docker")
+		if err == nil {
+			t.Fatal("skill name alone should error, use docker:job syntax")
+		}
+		if !contains(err.Error(), "not found") {
+			t.Errorf("expected error containing 'not found', got: %q", err.Error())
+		}
+	})
+
+	t.Run("fuzzy_match_single_result", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{
+				"test:mergecov": {},
+				"test:simple":   {},
+			}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("mergecov")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "" {
+			t.Errorf("expected main pipeline, got: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "test:mergecov" {
+			t.Errorf("expected job 'test:mergecov', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("exact_match_in_skill_pipelines", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("go", map[string]*model.Job{"test": {}}),
+			makePipeline("python", map[string]*model.Job{"test": {}}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("test")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "go" {
+			t.Errorf("first skill with exact match wins, got: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "test" {
+			t.Errorf("expected job 'test', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("fuzzy_match_multiple_results_error", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("tools", map[string]*model.Job{
+				"go-build":     {},
+				"docker-build": {},
+			}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		_, err := resolver.ResolveJobTarget("build")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		var fuzzyErr *FuzzyMatchError
+		if !errAs(err, &fuzzyErr) {
+			t.Fatalf("expected FuzzyMatchError, got: %T", err)
+		}
+		if len(fuzzyErr.Matches) != 2 {
+			t.Errorf("expected 2 matches, got: %d", len(fuzzyErr.Matches))
+		}
+	})
+
+	t.Run("error_on_not_found", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"build": {}}),
+			makePipeline("docker", map[string]*model.Job{"push": {}}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		_, err := resolver.ResolveJobTarget("nonexistent")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !contains(err.Error(), "not found") {
+			t.Errorf("expected error containing 'not found', got: %q", err.Error())
+		}
+	})
+
+	t.Run("colon_job_name_not_treated_as_skill_prefix", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{
+				"test:mergecov": {},
+				"test:simple":   {},
+				"default":       {},
+			}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("test:mergecov")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "" {
+			t.Errorf("should match main pipeline, not look for skill 'test', got: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "test:mergecov" {
+			t.Errorf("expected job 'test:mergecov', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("colon_job_prefers_exact_over_skill", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"go:test": {}}),
+			makePipeline("go", map[string]*model.Job{"test": {}}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("go:test")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "" {
+			t.Errorf("exact main pipeline match should win over skill prefix, got: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "go:test" {
+			t.Errorf("expected job 'go:test', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("error_job_not_found_with_colon", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{"build": {}}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		_, err := resolver.ResolveJobTarget("nonexistent:job")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !contains(err.Error(), "not found") {
+			t.Errorf("expected error containing 'not found', got: %q", err.Error())
+		}
+	})
+
+	t.Run("tasks_field_supported", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			{ID: "", Tasks: map[string]*model.Job{"up": {}}},
+			{ID: "docker", Tasks: map[string]*model.Job{
+				"start": {Aliases: []string{"up"}},
+			}},
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("up")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "" {
+			t.Errorf("main pipeline Tasks should take precedence, got pipeline: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "up" {
+			t.Errorf("expected job 'up', got: %q", target.JobName)
+		}
+	})
+
+	t.Run("main_pipeline_order_independent", func(t *testing.T) {
+		pipelines := []*model.Pipeline{
+			makePipeline("docker", map[string]*model.Job{
+				"start": {Aliases: []string{"up"}},
+			}),
+			makePipeline("", map[string]*model.Job{"up": {}}),
+		}
+		resolver := &TaskResolver{AllPipelines: pipelines}
+		target, err := resolver.ResolveJobTarget("up")
+		if err != nil {
+			t.Fatalf("expected no error, got: %v", err)
+		}
+		if target.Pipeline.ID != "" {
+			t.Errorf("main pipeline exact match should work regardless of order, got pipeline: %q", target.Pipeline.ID)
+		}
+		if target.JobName != "up" {
+			t.Errorf("expected job 'up', got: %q", target.JobName)
+		}
+	})
+}
+
+// contains is a helper for checking substrings in test assertions.
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStr(s, substr))
+}
+
+func containsStr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// errAs is a helper wrapping errors.As for test use.
+func errAs(err error, target **FuzzyMatchError) bool {
+	return errors.As(err, target)
+}
+
 func TestGetJobsFromPipeline(t *testing.T) {
 	t.Run("returns Jobs when present", func(t *testing.T) {
 		p := &model.Pipeline{
@@ -333,7 +678,7 @@ func TestGetJobsFromPipeline(t *testing.T) {
 				"test": {},
 			},
 		}
-		jobs := getJobsFromPipeline(p)
+		jobs := getJobs(p)
 		if _, ok := jobs["build"]; !ok {
 			t.Error("expected 'build' job")
 		}
@@ -349,7 +694,7 @@ func TestGetJobsFromPipeline(t *testing.T) {
 				"test": {},
 			},
 		}
-		jobs := getJobsFromPipeline(p)
+		jobs := getJobs(p)
 		if _, ok := jobs["test"]; !ok {
 			t.Error("expected 'test' task")
 		}

@@ -1,8 +1,8 @@
 # Atkins syntax - runnable with: atkins -f atkins-after.yml
 vars:
   project_name: my-app
-  commit: $(git rev-parse --short HEAD 2>/dev/null || echo "dev")
-  timestamp: $(uname -n)
+  commit: dev
+  timestamp: latest
 
 tasks:
   default:

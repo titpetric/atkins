@@ -33,14 +33,25 @@ func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 
 // EvaluateJobIf evaluates the If condition on a job using expr-lang.
 // Returns true if the condition is met or no condition is set.
+// When multiple conditions are provided, all must be true (AND logic).
 // Returns error only for invalid expressions.
 func EvaluateJobIf(ctx *ExecutionContext) (bool, error) {
 	job := ctx.Job
-	if job == nil || job.If == "" {
+	if job == nil || job.If.IsEmpty() {
 		return true, nil // No condition means always execute
 	}
 
-	return evaluateIfExpression(job.If, ctx)
+	// Evaluate all conditions - all must be true (AND logic)
+	for _, cond := range job.If {
+		result, err := evaluateIfExpression(string(cond), ctx)
+		if err != nil {
+			return false, err
+		}
+		if !result {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // evaluateIfExpression compiles and evaluates an if expression string against the context.

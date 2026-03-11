@@ -15,7 +15,7 @@ Include jobs from external files:
 @file "build.yml" includes/ci/build.yml
 @file "test.yml" includes/ci/test.yml
 
-![](./includes/main.png)
+![Includes](./includes/main.png)
 
 ## Glob Patterns
 

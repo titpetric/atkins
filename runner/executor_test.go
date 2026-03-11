@@ -610,29 +610,43 @@ func TestEvaluateJobIf(t *testing.T) {
 		},
 		{
 			name:     "true condition",
-			job:      &model.Job{Name: "test", If: "true"},
+			job:      &model.Job{Name: "test", If: model.Conditionals{"true"}},
 			vars:     map[string]any{},
 			env:      make(map[string]string),
 			wantBool: true,
 		},
 		{
 			name:     "false condition",
-			job:      &model.Job{Name: "test", If: "false"},
+			job:      &model.Job{Name: "test", If: model.Conditionals{"false"}},
 			vars:     map[string]any{},
 			env:      make(map[string]string),
 			wantBool: false,
 		},
 		{
 			name:     "variable comparison true",
-			job:      &model.Job{Name: "test", If: "last_sent_match < last_inbox_match"},
+			job:      &model.Job{Name: "test", If: model.Conditionals{"last_sent_match < last_inbox_match"}},
 			vars:     map[string]any{"last_sent_match": "2026-02-20T00:00:00Z", "last_inbox_match": "2026-02-23T12:23:36Z"},
 			env:      make(map[string]string),
 			wantBool: true,
 		},
 		{
 			name:     "variable comparison false",
-			job:      &model.Job{Name: "test", If: "last_sent_match < last_inbox_match"},
+			job:      &model.Job{Name: "test", If: model.Conditionals{"last_sent_match < last_inbox_match"}},
 			vars:     map[string]any{"last_sent_match": "2026-03-02T20:12:59Z", "last_inbox_match": "2026-02-23T12:23:36Z"},
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "multiple conditions all true",
+			job:      &model.Job{Name: "test", If: model.Conditionals{"enabled == true", "num_items > 0"}},
+			vars:     map[string]any{"enabled": true, "num_items": 1},
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "multiple conditions one false",
+			job:      &model.Job{Name: "test", If: model.Conditionals{"enabled == true", "num_items > 0"}},
+			vars:     map[string]any{"enabled": true, "num_items": 0},
 			env:      make(map[string]string),
 			wantBool: false,
 		},
@@ -661,7 +675,7 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 	t.Run("job with false if condition returns ErrJobSkipped", func(t *testing.T) {
 		job := &model.Job{
 			Name: "conditional_job",
-			If:   "false",
+			If:   model.Conditionals{"false"},
 			Steps: []*model.Step{
 				{Run: "echo should not run"},
 			},
@@ -681,7 +695,7 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 	t.Run("job with true if condition runs normally", func(t *testing.T) {
 		job := &model.Job{
 			Name: "conditional_job",
-			If:   "true",
+			If:   model.Conditionals{"true"},
 			Steps: []*model.Step{
 				{Run: "echo hello"},
 			},
@@ -708,7 +722,7 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 	t.Run("job with variable-based if condition skipped", func(t *testing.T) {
 		job := &model.Job{
 			Name: "notification",
-			If:   "last_sent_match < last_inbox_match",
+			If:   model.Conditionals{"last_sent_match < last_inbox_match"},
 			Decl: &model.Decl{
 				Vars: map[string]any{
 					"last_inbox_match": "2026-02-23T12:23:36Z",

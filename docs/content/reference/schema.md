@@ -11,14 +11,14 @@ Atkins pipelines are YAML files defining jobs and steps. Unlike Taskfile, Atkins
 @tabs
 @file "Pipeline" schema/minimal.yml
 
-![](./schema/minimal.png)
+![Minimal Pipeline](./schema/minimal.png)
 
 ## Full Structure
 
 @tabs
 @file "Pipeline" schema/full.yml
 
-![](./schema/full.png)
+![Full Structure](./schema/full.png)
 
 ## Root Properties
 

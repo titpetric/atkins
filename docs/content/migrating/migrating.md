@@ -14,7 +14,7 @@ Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspir
 @file "Atkins" migrating/atkins-after.yml
 @file "Taskfile" migrating/taskfile-before.yml
 
-![](./migrating/atkins-after.png)
+![Quick Comparison](./migrating/atkins-after.png)
 
 ## Why Migrate?
 

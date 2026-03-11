@@ -4,7 +4,7 @@ subtitle: Conditional execution with if expressions
 layout: page
 ---
 
-Jobs and steps can be conditionally executed using the `if:` field. Conditions are evaluated using [expr-lang](https://expr-lang.org/), a simple expression language.
+Jobs and steps can be conditionally executed using the `if:` field. Conditions are evaluated using [expr-lang](https://expr-lang.org/), a simple expression language. The `if:` field accepts a single expression or a list of expressions. When a list is provided, all conditions must be true (AND logic).
 
 ## Examples
 
@@ -12,7 +12,7 @@ Jobs and steps can be conditionally executed using the `if:` field. Conditions a
 @file "Job Conditionals" conditionals/job-if.yml
 @file "Step Conditionals" conditionals/step-if.yml
 
-![](./conditionals/job-if.png)
+![Job Conditionals](./conditionals/job-if.png)
 
 ## Available Variables
 
@@ -39,11 +39,21 @@ Expr-lang supports common operators and comparisons:
 
 ## Examples
 
-**Combining conditions:**
+**Combining conditions (inline):**
 
 ```yaml
 if: environment == "production" && branch == "main"
 ```
+
+**Combining conditions (list form):**
+
+```yaml
+if:
+  - branch == "main"
+  - environment == "production"
+```
+
+Both forms are equivalent. The list form is useful when conditions are long or numerous.
 
 **Checking for values in lists:**
 

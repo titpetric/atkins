@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strings"
 
 	yaml "gopkg.in/yaml.v3"
 )
@@ -83,4 +84,21 @@ func (cs *Conditionals) UnmarshalYAML(node *yaml.Node) error {
 // IsEmpty returns true if there are no conditions.
 func (cs Conditionals) IsEmpty() bool {
 	return len(cs) == 0
+}
+
+// String returns a display representation of the conditions.
+// Single condition returns the expression as-is.
+// Multiple conditions are parenthesized and joined with " && ".
+func (cs Conditionals) String() string {
+	if len(cs) == 0 {
+		return ""
+	}
+	if len(cs) == 1 {
+		return strings.TrimSpace(string(cs[0]))
+	}
+	parts := make([]string, len(cs))
+	for i, c := range cs {
+		parts[i] = "(" + strings.TrimSpace(string(c)) + ")"
+	}
+	return strings.Join(parts, " && ")
 }

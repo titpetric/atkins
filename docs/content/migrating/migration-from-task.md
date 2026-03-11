@@ -14,7 +14,7 @@ Here's a complete side-by-side comparison showing variable interpolation, shell 
 @file "Atkins" migration-from-task/atkins-after.yml
 @file "Taskfile" migration-from-task/taskfile-before.yml
 
-![](./migration-from-task/atkins-after.png)
+![Migration from Taskfile](./migration-from-task/atkins-after.png)
 
 ## Structure Comparison
 

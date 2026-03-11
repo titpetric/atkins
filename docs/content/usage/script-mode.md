@@ -13,7 +13,7 @@ On Linux and macOS, pipeline files can be made directly executable with a sheban
 @tabs
 @file "Shebang" script-mode/shebang.yml
 
-![](./script-mode/shebang.png)
+![Shebang](./script-mode/shebang.png)
 
 ```bash
 chmod +x script.yml

@@ -47,7 +47,7 @@ Skills are YAML pipeline files with a `when:` block for conditional activation:
 @file "Example Skill" skills/example-skill.yml
 @file "When Activation" skills/when-activation.yml
 
-![](./skills/example-skill.png)
+![Example Skill](./skills/example-skill.png)
 
 The `when:` block controls when a skill is available. Multiple files use OR logic - any match activates the skill. File patterns search upward from the current directory.
 

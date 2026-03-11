@@ -405,8 +405,8 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		// Handle job-level if condition skip
 		if errors.Is(execErr, ErrJobSkipped) {
 			jobNode.SetStatus(treeview.StatusSkipped)
-			if job.If != "" {
-				jobNode.SetIf(job.If)
+			if !job.If.IsEmpty() {
+				jobNode.SetIf(job.If.String())
 			}
 			// Mark child steps as skipped too
 			for _, child := range jobNode.GetChildren() {
