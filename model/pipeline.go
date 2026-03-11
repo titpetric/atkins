@@ -1,6 +1,8 @@
 package model
 
 import (
+	"sort"
+
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -31,4 +33,44 @@ func (p *Pipeline) UnmarshalYAML(node *yaml.Node) error {
 	}
 
 	return nil
+}
+
+// GetJobs will returned the defined jobs in the pipeline.
+func (p *Pipeline) GetJobs() map[string]*Job {
+	if len(p.Jobs) > 0 {
+		return p.Jobs
+	}
+	return p.Tasks
+}
+
+// Keys will return the available targets in the pipeline. It uses the
+// pipeline ID to optionally prefix job/tasks map keys. The default
+// job is ordered first in the result.
+func (p *Pipeline) Keys() []string {
+	var hasDefault bool
+	jobs := p.GetJobs()
+	result := make([]string, 0, len(jobs))
+
+	for key := range jobs {
+		if key == "default" {
+			hasDefault = true
+			continue
+		}
+
+		result = append(result, key)
+	}
+
+	sort.Strings(result)
+
+	if hasDefault {
+		result = append([]string{"default"}, result...)
+	}
+
+	if p.ID != "" {
+		for k, v := range result {
+			result[k] = p.ID + ":" + v
+		}
+	}
+
+	return result
 }

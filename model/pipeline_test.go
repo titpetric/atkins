@@ -10,6 +10,48 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
+func TestPipeline_Keys(t *testing.T) {
+	type testcase struct {
+		id   string
+		jobs map[string]*model.Job
+		want []string
+	}
+
+	testcases := []testcase{
+		{
+			jobs: map[string]*model.Job{
+				"default": nil,
+				"build":   nil,
+				"test":    nil,
+				"lint":    nil,
+				"fmt":     nil,
+			},
+			want: []string{"default", "build", "fmt", "lint", "test"},
+		},
+		{
+			id: "go",
+			jobs: map[string]*model.Job{
+				"default": nil,
+				"build":   nil,
+				"test":    nil,
+				"lint":    nil,
+				"fmt":     nil,
+			},
+			want: []string{"go:default", "go:build", "go:fmt", "go:lint", "go:test"},
+		},
+	}
+
+	for _, tc := range testcases {
+		pipeline := &model.Pipeline{
+			ID:   tc.id,
+			Jobs: tc.jobs,
+		}
+
+		got := pipeline.Keys()
+		assert.Equal(t, tc.want, got)
+	}
+}
+
 // TestJobUnmarshalYAML_WithVars tests that Job.Decl.Vars are properly decoded.
 func TestJobUnmarshalYAML_WithVars(t *testing.T) {
 	yamlContent := `
