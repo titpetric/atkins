@@ -1,0 +1,20 @@
+name: Multi-iterator test
+vars:
+  goarch: ["amd64", "arm64"]
+  goos: ["linux", "darwin"]
+
+tasks:
+  default:
+    steps:
+      - for:
+          - goos in goos
+          - goarch in goarch
+        run: echo "Building for ${{ goos }}-${{ goarch }}"
+
+  single:
+    desc: Single iterator backward compat
+    vars:
+      items: ["one", "two", "three"]
+    steps:
+      - for: item in items
+        run: 'echo "Item: ${{ item }}"'

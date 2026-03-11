@@ -169,6 +169,24 @@ func TestResolveJobTarget(t *testing.T) {
 		assert.Equal(t, "start", jobName)
 	})
 
+	t.Run("main_pipeline_alias_over_skill_exact_match", func(t *testing.T) {
+		// Main pipeline has job "build" with alias "default"
+		// Skill has job literally named "default"
+		// Main pipeline alias should take precedence
+		pipelines := []*model.Pipeline{
+			makePipeline("", map[string]*model.Job{
+				"build": {Aliases: []string{"default"}},
+			}),
+			makePipeline("go", map[string]*model.Job{
+				"default": {}, // skill has job named "default"
+			}),
+		}
+		result, jobName, err := resolveJobTarget(pipelines, "default")
+		require.NoError(t, err)
+		assert.Equal(t, "", result[0].ID, "main pipeline alias should take precedence over skill job name")
+		assert.Equal(t, "build", jobName)
+	})
+
 	t.Run("skill_name_without_job_errors", func(t *testing.T) {
 		pipelines := []*model.Pipeline{
 			makePipeline("", map[string]*model.Job{"build": {}}),

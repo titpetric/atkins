@@ -329,7 +329,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		}
 		stepChildren := jobNode.Node.GetChildren()
 		for i, step := range job.Children() {
-			if step.Task == "" || step.For != "" || i >= len(stepChildren) {
+			if step.Task == "" || !step.For.IsEmpty() || i >= len(stepChildren) {
 				continue
 			}
 			taskJob := allJobs[step.Task]

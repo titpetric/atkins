@@ -193,40 +193,58 @@ Or use a secrets manager that populates the environment (Vault, AWS Secrets Mana
 
 ## Matrix Builds
 
-GHA's matrix strategy maps to Atkins' `for:` loops:
+GHA's matrix strategy maps to Atkins' `for:` loops. Atkins supports multi-iterator syntax for cartesian products (all combinations), which is a direct equivalent to GHA's multi-dimensional matrix:
 
 **GitHub Actions:**
 
 ```yaml
 jobs:
-  test:
+  build:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        go: ['1.21', '1.22']
-    runs-on: ${{ matrix.os }}
+        os: [linux, darwin]
+        arch: [amd64, arm64]
+    runs-on: ubuntu-latest
     steps:
-      - run: go test ./...
+      - run: echo "Building for ${{ matrix.os }}-${{ matrix.arch }}"
 ```
 
-**Atkins:**
+**Atkins (multi-iterator):**
 
 ```yaml
 vars:
-  go_versions:
-    - '1.21'
-    - '1.22'
+  os: [linux, darwin]
+  arch: [amd64, arm64]
+
+jobs:
+  build:
+    steps:
+      - for:
+          - os in os
+          - arch in arch
+        run: echo "Building for ${{ os }}-${{ arch }}"
+```
+
+Both produce 4 iterations: `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`.
+
+**Key advantages of Atkins' approach:**
+
+- No separate `strategy` block - iterators are defined inline
+- Variables can come from `vars:`, inline arrays, or shell commands
+- Works with any step type (`run:`, `task:`, `cmd:`)
+- Nested tasks can add additional iteration dimensions
+
+For single-dimension iteration:
+
+```yaml
+vars:
+  go_versions: ['1.21', '1.22']
 
 jobs:
   test:
     steps:
       - for: version in go_versions
-        task: test_version
-
-  test_version:
-    requires: [version]
-    steps:
-      - run: echo "Testing with Go ${{ version }}"
+        run: echo "Testing with Go ${{ version }}"
 ```
 
 ## Conditional Execution
@@ -287,7 +305,7 @@ jobs:
 | Job dependencies    | `needs:`                    | `depends_on:`                   |
 | Inline job calls    | Not supported               | `task:` in steps                |
 | Secrets             | `${{ secrets.X }}`          | Environment variables           |
-| Matrix              | `strategy.matrix`           | `for:` loops                    |
+| Matrix              | `strategy.matrix`           | `for:` with multi-iterator      |
 | Parallel            | Default                     | `detach: true`                  |
 
 ## Best Practices

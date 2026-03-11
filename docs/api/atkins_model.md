@@ -9,6 +9,17 @@ import (
 ## Types
 
 ```go
+// Condition represents a single if-condition expression.
+type Condition string
+```
+
+```go
+// Conditionals is a slice of Condition with custom YAML unmarshalling
+// to support both single string and list of strings.
+type Conditionals []Condition
+```
+
+```go
 // Decl represents a common variables signature {vars, env, include}.
 // It's a base type for pipelines, jobs/tasks and steps/cmds.
 type Decl struct {
@@ -41,6 +52,18 @@ type EnvDecl Decl
 type IncludeDecl struct {
 	Files []string
 }
+```
+
+```go
+// Iterator represents a single for-loop iteration specification,
+// using format "item in items" or "(idx, item) in items".
+type Iterator string
+```
+
+```go
+// Iterators is a slice of Iterator with custom YAML unmarshalling
+// to support both single string and list of strings.
+type Iterators []Iterator
 ```
 
 ```go
@@ -112,32 +135,34 @@ type PipelineWhen struct {
 type Step struct {
 	*Decl
 
-	Name        string   `yaml:"name,omitempty"`
-	Desc        string   `yaml:"desc,omitempty"`
-	Dir         string   `yaml:"dir,omitempty"`
-	Run         string   `yaml:"run,omitempty"`
-	Cmd         string   `yaml:"cmd,omitempty"`
-	Cmds        []string `yaml:"cmds,omitempty"`
-	Task        string   `yaml:"task,omitempty"` // Task/job name to invoke
-	If          string   `yaml:"if,omitempty"`
-	For         string   `yaml:"for,omitempty"`
-	Detach      bool     `yaml:"detach,omitempty"`
-	Deferred    bool     `yaml:"deferred,omitempty"`
-	Verbose     bool     `yaml:"verbose,omitempty"`
-	Summarize   bool     `yaml:"summarize,omitempty"`
-	Quiet       bool     `yaml:"quiet,omitempty"`
-	Passthru    bool     `yaml:"passthru,omitempty"`    // If true, output is printed with tree indentation
-	TTY         bool     `yaml:"tty,omitempty"`         // If true, allocate a PTY for the command (enables color output)
-	Interactive bool     `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
-	HidePrefix  bool     `yaml:"-"`                     // If true, don't show "run:" prefix in display
+	Name        string       `yaml:"name,omitempty"`
+	Desc        string       `yaml:"desc,omitempty"`
+	Dir         string       `yaml:"dir,omitempty"`
+	Run         string       `yaml:"run,omitempty"`
+	Cmd         string       `yaml:"cmd,omitempty"`
+	Cmds        []string     `yaml:"cmds,omitempty"`
+	Task        string       `yaml:"task,omitempty"` // Task/job name to invoke
+	If          Conditionals `yaml:"if,omitempty"`
+	For         Iterators    `yaml:"for,omitempty"`
+	Detach      bool         `yaml:"detach,omitempty"`
+	Deferred    bool         `yaml:"deferred,omitempty"`
+	Verbose     bool         `yaml:"verbose,omitempty"`
+	Summarize   bool         `yaml:"summarize,omitempty"`
+	Quiet       bool         `yaml:"quiet,omitempty"`
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, output is printed with tree indentation
+	TTY         bool         `yaml:"tty,omitempty"`         // If true, allocate a PTY for the command (enables color output)
+	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
+	HidePrefix  bool         `yaml:"-"`                     // If true, don't show "run:" prefix in display
 }
 ```
 
 ## Function symbols
 
 - `func NewLabel (text,labelType string) *Label`
+- `func (*Conditionals) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Dependencies) UnmarshalYAML (node *yaml.Node) error`
 - `func (*IncludeDecl) UnmarshalYAML (node *yaml.Node) error`
+- `func (*Iterators) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Job) Children () []*Step`
 - `func (*Job) IsRootLevel () bool`
 - `func (*Job) ShouldShow () bool`
@@ -154,6 +179,8 @@ type Step struct {
 - `func (*Step) Label (showPrefix bool) *Label`
 - `func (*Step) String () string`
 - `func (*Step) UnmarshalYAML (node *yaml.Node) error`
+- `func (Conditionals) IsEmpty () bool`
+- `func (Iterators) IsEmpty () bool`
 
 ### NewLabel
 
@@ -162,6 +189,15 @@ Use builder methods like WithPrefix(), WithStatus(), and WithColor() to customiz
 
 ```go
 func NewLabel(text, labelType string) *Label
+```
+
+### UnmarshalYAML
+
+UnmarshalYAML implements custom unmarshalling for Conditionals,
+supporting single string ("enabled == true") or list of strings.
+
+```go
+func (*Conditionals) UnmarshalYAML(node *yaml.Node) error
 ```
 
 ### UnmarshalYAML
@@ -179,6 +215,15 @@ UnmarshalYAML implements custom unmarshalling for IncludeDecl to support string 
 
 ```go
 func (*IncludeDecl) UnmarshalYAML(node *yaml.Node) error
+```
+
+### UnmarshalYAML
+
+UnmarshalYAML implements custom unmarshalling for Iterators,
+supporting single string ("item in items") or list of strings.
+
+```go
+func (*Iterators) UnmarshalYAML(node *yaml.Node) error
 ```
 
 ### Children
@@ -317,4 +362,20 @@ UnmarshalYAML implements custom unmarshalling for Step to support various format
 
 ```go
 func (*Step) UnmarshalYAML(node *yaml.Node) error
+```
+
+### IsEmpty
+
+IsEmpty returns true if there are no conditions.
+
+```go
+func (Conditionals) IsEmpty() bool
+```
+
+### IsEmpty
+
+IsEmpty returns true if there are no iterators.
+
+```go
+func (Iterators) IsEmpty() bool
 ```

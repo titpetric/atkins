@@ -108,7 +108,7 @@ jobs:
 	assert.NotNil(t, testJob)
 
 	// Test the new Step.ExpandFor() method with index pattern
-	step := &model.Step{For: "(idx, item) in items"}
+	step := &model.Step{For: model.Iterators{"(idx, item) in items"}}
 	ctx := &runner.ExecutionContext{
 		Variables: map[string]any{
 			"items": []any{"alpha", "beta", "gamma"},
@@ -335,7 +335,7 @@ func TestEvaluateIfInContext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			step := &model.Step{If: tt.ifCond}
+			step := &model.Step{If: model.Conditionals{model.Condition(tt.ifCond)}}
 			ctx := &runner.ExecutionContext{
 				Variables: tt.vars,
 				Env:       tt.env,
@@ -416,7 +416,7 @@ func TestExpandForWithVariables(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			step := &model.Step{For: tt.forSpec}
+			step := &model.Step{For: model.Iterators{model.Iterator(tt.forSpec)}}
 			ctx := &runner.ExecutionContext{
 				Variables: tt.vars,
 				Env:       make(map[string]string),
@@ -454,7 +454,7 @@ func createTempYaml(t *testing.T, content string) string {
 
 // BenchmarkEvaluateIfExpression benchmarks if condition evaluation
 func BenchmarkEvaluateIfExpression(b *testing.B) {
-	step := &model.Step{If: "matrix_os == 'linux' && GOARCH == 'amd64'"}
+	step := &model.Step{If: model.Conditionals{"matrix_os == 'linux' && GOARCH == 'amd64'"}}
 	ctx := &runner.ExecutionContext{
 		Variables: map[string]any{"matrix_os": "linux"},
 		Env:       map[string]string{"GOARCH": "amd64"},
@@ -472,7 +472,7 @@ func BenchmarkEvaluateIfExpression(b *testing.B) {
 
 // BenchmarkExpandForLoop benchmarks for loop expansion
 func BenchmarkExpandForLoop(b *testing.B) {
-	step := &model.Step{For: "(i, item) in items"}
+	step := &model.Step{For: model.Iterators{"(i, item) in items"}}
 	ctx := &runner.ExecutionContext{
 		Variables: map[string]any{
 			"items": []any{"a", "b", "c", "d", "e"},

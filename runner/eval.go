@@ -10,14 +10,25 @@ import (
 
 // EvaluateIf evaluates the If condition using expr-lang.
 // Returns true if the condition is met, false if no condition or condition is false.
+// When multiple conditions are provided, all must be true (AND logic).
 // Returns error only for invalid expressions.
 func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 	s := ctx.Step
-	if s.If == "" {
+	if s.If.IsEmpty() {
 		return true, nil // No condition means always execute
 	}
 
-	return evaluateIfExpression(s.If, ctx)
+	// Evaluate all conditions - all must be true (AND logic)
+	for _, cond := range s.If {
+		result, err := evaluateIfExpression(string(cond), ctx)
+		if err != nil {
+			return false, err
+		}
+		if !result {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // EvaluateJobIf evaluates the If condition on a job using expr-lang.
@@ -79,75 +90,100 @@ func evaluateIfExpression(ifExpr string, ctx *ExecutionContext) (bool, error) {
 // Supports patterns: "item in items" (items is a variable name),
 // "(index, item) in items", "(key, value) in items",
 // or any of the above with bash expansion: "item in $(ls ./bin/*.test)".
+// When multiple iterators are provided, computes the cartesian product.
 func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error) {
 	s := ctx.Step
-	if s.For == "" {
+	if s.For.IsEmpty() {
 		return nil, nil
 	}
 
+	// Start with a single context containing the parent variables
+	result := []IterationContext{{Variables: copyMap(ctx.Variables)}}
+
+	// Process each iterator, computing cartesian product
+	for _, iterator := range s.For {
+		expanded, err := expandSingleIterator(ctx, result, string(iterator), executeCommand)
+		if err != nil {
+			return nil, err
+		}
+		if len(expanded) == 0 {
+			return []IterationContext{}, nil
+		}
+		result = expanded
+	}
+
+	return result, nil
+}
+
+// expandSingleIterator expands a single iterator against existing contexts,
+// producing a cartesian product.
+func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, forSpec string, executeCommand func(string) (string, error)) ([]IterationContext, error) {
 	// Parse the for loop pattern
-	itemsVar, loopVar, indexVar, keyVar, err := parseForPattern(s.For)
+	itemsVar, loopVar, indexVar, keyVar, err := parseForPattern(forSpec)
 	if err != nil {
 		return nil, fmt.Errorf("invalid for loop syntax: %w", err)
 	}
 
-	// Get the items list
-	items, err := getForItems(ctx, itemsVar, executeCommand)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get items for 'for: %s': %w", s.For, err)
-	}
-
-	if len(items) == 0 {
-		return []IterationContext{}, nil
-	}
-
-	// Build iteration contexts based on the pattern
 	var result []IterationContext
 
-	if indexVar != "" || keyVar != "" {
-		// (index, item) or (key, value) pattern
-		for i, item := range items {
-			vars := make(map[string]any)
-			for k, v := range ctx.Variables {
-				vars[k] = v
-			}
-
-			// Check if this is a map for (key, value) iteration
-			if mapItem, ok := item.(map[string]any); ok && indexVar != "" && keyVar != "" {
-				// Could be either (index, item) with a map item, or (key, value) iteration
-				// If items contains only one map, treat as (key, value)
-				if len(items) == 1 {
-					for k, v := range mapItem {
-						vars[indexVar] = k // First var is the key
-						vars[keyVar] = v   // Second var is the value
-						// Process each key-value pair as a separate iteration
-						result = append(result, IterationContext{Variables: copyMap(vars)})
-					}
-					continue
-				}
-			}
-
-			if indexVar != "" && keyVar != "" {
-				// (index, item) pattern
-				vars[indexVar] = i
-				vars[keyVar] = item
-			} else if keyVar != "" {
-				// Fallback for single var with key case
-				vars[indexVar] = i
-				vars[keyVar] = item
-			}
-			result = append(result, IterationContext{Variables: vars})
+	// For each existing context, expand with this iterator's items
+	for _, parentCtx := range contexts {
+		// Create a temporary execution context with the parent's variables
+		// so that item resolution can reference previously bound loop variables
+		tempCtx := &ExecutionContext{
+			Variables: parentCtx.Variables,
+			Env:       ctx.Env,
 		}
-	} else {
-		// Simple "item in items" or "name in names" pattern
-		// Use the actual loop variable name (loopVar)
-		for _, item := range items {
-			vars := make(map[string]any)
-			for k, v := range ctx.Variables {
-				vars[k] = v
+
+		// Get the items list using the parent context
+		items, err := getForItems(tempCtx, itemsVar, executeCommand)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get items for 'for: %s': %w", forSpec, err)
+		}
+
+		if len(items) == 0 {
+			continue
+		}
+
+		// Build iteration contexts based on the pattern
+		if indexVar != "" || keyVar != "" {
+			// (index, item) or (key, value) pattern
+			for i, item := range items {
+				vars := copyMap(parentCtx.Variables)
+
+				// Check if this is a map for (key, value) iteration
+				if mapItem, ok := item.(map[string]any); ok && indexVar != "" && keyVar != "" {
+					// Could be either (index, item) with a map item, or (key, value) iteration
+					// If items contains only one map, treat as (key, value)
+					if len(items) == 1 {
+						for k, v := range mapItem {
+							iterVars := copyMap(vars)
+							iterVars[indexVar] = k // First var is the key
+							iterVars[keyVar] = v   // Second var is the value
+							result = append(result, IterationContext{Variables: iterVars})
+						}
+						continue
+					}
+				}
+
+				if indexVar != "" && keyVar != "" {
+					// (index, item) pattern
+					vars[indexVar] = i
+					vars[keyVar] = item
+				} else if keyVar != "" {
+					// Fallback for single var with key case
+					vars[indexVar] = i
+					vars[keyVar] = item
+				}
+				result = append(result, IterationContext{Variables: vars})
 			}
-			vars[loopVar] = item
-			result = append(result, IterationContext{Variables: vars})
+		} else {
+			// Simple "item in items" or "name in names" pattern
+			for _, item := range items {
+				vars := copyMap(parentCtx.Variables)
+				vars[loopVar] = item
+				result = append(result, IterationContext{Variables: vars})
+			}
 		}
 	}
 
