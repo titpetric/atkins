@@ -742,10 +742,7 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 // resolveTaskReference resolves a task name using the shared TaskResolver.
 // Returns the resolved task name, the target pipeline, and the job.
 func resolveTaskReference(taskName string, execCtx *ExecutionContext) (string, *model.Pipeline, *model.Job, error) {
-	resolver := &TaskResolver{
-		CurrentPipeline: execCtx.Pipeline,
-		AllPipelines:    execCtx.AllPipelines,
-	}
+	resolver := NewTaskResolver(execCtx.AllPipelines)
 	resolved, err := resolver.Resolve(taskName)
 	if err != nil {
 		return "", nil, nil, err

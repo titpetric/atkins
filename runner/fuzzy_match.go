@@ -6,16 +6,9 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// FuzzyMatch represents a fuzzy match result.
-type FuzzyMatch struct {
-	Pipeline *model.Pipeline
-	JobName  string
-	FullName string // e.g., "skill:job" or just "job"
-}
-
 // FuzzyMatchError is returned when multiple fuzzy matches are found.
 type FuzzyMatchError struct {
-	Matches []FuzzyMatch
+	Matches []ResolvedTask
 }
 
 // Error returns the error as a user message.
@@ -27,39 +20,30 @@ func (e *FuzzyMatchError) Error() string {
 // 1. Exact match in main pipeline (no namespace) - highest priority
 // 2. Exact matches in namespaced pipelines
 // 3. Fuzzy/substring matches
-func findFuzzyMatches(pipelines []*model.Pipeline, pattern string) []FuzzyMatch {
-	var mainExactMatches []FuzzyMatch       // Exact match in main pipeline (no ID)
-	var namespacedExactMatches []FuzzyMatch // Exact match in namespaced pipelines
-	var fuzzyMatches []FuzzyMatch
+func findFuzzyMatches(pipelines []*model.Pipeline, pattern string) []ResolvedTask {
+	var mainExactMatches []ResolvedTask       // Exact match in main pipeline (no ID)
+	var namespacedExactMatches []ResolvedTask // Exact match in namespaced pipelines
+	var found []ResolvedTask
 	lowerPattern := strings.ToLower(pattern)
 
 	for _, p := range pipelines {
-		jobs := getJobs(p)
+		jobs := p.GetJobs()
 
-		for jobName := range jobs {
+		for jobName, job := range jobs {
 			lowerJobName := strings.ToLower(jobName)
-			fullName := jobName
-			if p.ID != "" {
-				fullName = p.ID + ":" + jobName
-			}
+			target := jobName
 
-			match := FuzzyMatch{
+			match := ResolvedTask{
 				Pipeline: p,
-				JobName:  jobName,
-				FullName: fullName,
+				Job:      job,
+				Name:     target,
 			}
 
 			// Check for exact match (case-insensitive)
 			if lowerJobName == lowerPattern {
-				if p.ID == "" {
-					// Main pipeline exact match - highest priority
-					mainExactMatches = append(mainExactMatches, match)
-				} else {
-					// Namespaced pipeline exact match
-					namespacedExactMatches = append(namespacedExactMatches, match)
-				}
+				found = append(found, match)
 			} else if strings.Contains(lowerJobName, lowerPattern) {
-				fuzzyMatches = append(fuzzyMatches, match)
+				found = append(found, match)
 			}
 		}
 	}
@@ -71,5 +55,5 @@ func findFuzzyMatches(pipelines []*model.Pipeline, pattern string) []FuzzyMatch 
 	if len(namespacedExactMatches) > 0 {
 		return namespacedExactMatches
 	}
-	return fuzzyMatches
+	return found
 }

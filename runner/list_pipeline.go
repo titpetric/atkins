@@ -106,7 +106,7 @@ func collectAliases(skills []*model.Pipeline) []aliasEntry {
 	var aliases []aliasEntry
 
 	for _, p := range skills {
-		jobs := getJobs(p)
+		jobs := p.GetJobs()
 
 		// Skill ID alone is an alias to skill:default if default job exists
 		if _, hasDefault := jobs["default"]; hasDefault {
@@ -173,7 +173,7 @@ func calculateMaxAliasLength(aliases []aliasEntry) int {
 // printPipelineSection prints a pipeline with its jobs.
 func printPipelineSection(p *model.Pipeline) {
 	isMain := p.ID == ""
-	jobs := getJobs(p)
+	jobs := p.GetJobs()
 
 	fmt.Printf("%s\n\n", colors.BrightWhite(p.Name))
 	printJobList(jobs, p.ID, isMain)
@@ -183,7 +183,7 @@ func printPipelineSection(p *model.Pipeline) {
 func printSkillSection(p *model.Pipeline) {
 	fmt.Println()
 	fmt.Printf("%s\n\n", colors.BrightWhite(p.Name))
-	printJobList(getJobs(p), p.ID, false)
+	printJobList(p.GetJobs(), p.ID, false)
 }
 
 // printJobList outputs a formatted list of jobs with descriptions and dependencies.
