@@ -124,7 +124,7 @@ jobs:
 
 ## Skill Variables
 
-Skills have their own variable scope:
+Skills can define `vars:` at the pipeline level or job level. These variables are available to all jobs within the skill:
 
 ```yaml
 name: Docker Skill
@@ -137,6 +137,30 @@ jobs:
   build:
     steps:
       - run: docker build -t ${{ registry }}/${{ image }} .
+```
+
+### Skill Variable Evaluation
+
+When a skill is invoked from another pipeline (e.g., `task: docker:build`), the caller's variable stack carries to the skill. As the execution context already contains `name`, the skill's definition for it is ignored. This allows parameters to come from the execution context, without needing to handle default values when such parameters are omitted in other execution paths.
+
+```yaml
+# Caller pipeline (atkins.yml)
+vars:
+  name: myapp
+  semver: v2.0.0
+
+jobs:
+  deploy:
+    steps:
+      - task: docker:build
+```
+
+```yaml
+# Skill (~/.atkins/skills/docker.yml)
+vars:
+  name: $(basename $(realpath -s .))    # ignored, caller provides "name"
+  semver: $(git tag ... | tail -n 1)    # ignored, caller provides "semver"
+  image: titpetric/${{ name }}           # added, resolves to "titpetric/myapp"
 ```
 
 ## Example Skills

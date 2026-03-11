@@ -248,6 +248,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func ListPipelinesYAML (pipelines []*model.Pipeline) error`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
 - `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
+- `func MergeSkillVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func NewExecError (result psexec.Result) ExecError`
 - `func NewExecutor () *Executor`
@@ -442,6 +443,17 @@ Returns the parsed pipeline(s) and any error.
 
 ```go
 func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error)
+```
+
+### MergeSkillVariables
+
+MergeSkillVariables works like MergeVariables but treats vars as defaults:
+any key already present in ctx.Variables is preserved (not overwritten).
+This is used for cross-pipeline task invocations where the caller's stack
+should take precedence over the target skill's vars.
+
+```go
+func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error
 ```
 
 ### MergeVariables

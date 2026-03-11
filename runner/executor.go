@@ -804,7 +804,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	if step.For != "" {
 		// Handle task invocation with for loop
 		// Don't add task node as child here - iteration nodes will be added instead
-		return e.executeTaskStepWithLoop(ctx, execCtx, step, stepNode, taskJob, taskJobNode)
+		return e.executeTaskStepWithLoop(ctx, execCtx, step, stepNode, taskJob, taskJobNode, targetPipeline)
 	}
 
 	// Add task node as child of step node so it appears expanded in the tree
@@ -846,8 +846,10 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	taskCtx.StepSequence = 0 // Reset step counter for new job
 
 	err = func() error {
-		// Merge task defaults first
-		if err := MergeVariables(taskCtx, taskJob.Decl); err != nil {
+		if err := MergeSkillVariables(taskCtx, targetPipeline.Decl); err != nil {
+			return err
+		}
+		if err := MergeSkillVariables(taskCtx, taskJob.Decl); err != nil {
 			return err
 		}
 		// Evaluate task job-level working directory
@@ -898,7 +900,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 }
 
 // executeTaskStepWithLoop executes a task multiple times via a for loop with loop variables
-func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, taskJob *model.Job, taskJobNode *treeview.TreeNode) error {
+func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, taskJob *model.Job, taskJobNode *treeview.TreeNode, targetPipeline *model.Pipeline) error {
 	defer execCtx.Render()
 
 	// Expand the for loop to get iteration contexts
@@ -992,8 +994,12 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 		iterTreeNode.SetStatus(treeview.StatusRunning)
 		execCtx.Render()
 
-		// Merge task defaults first
-		if err := MergeVariables(iterCtx, taskJob.Decl); err != nil {
+		if err := MergeSkillVariables(iterCtx, targetPipeline.Decl); err != nil {
+			iterTreeNode.SetStatus(treeview.StatusFailed)
+			lastErr = err
+			continue
+		}
+		if err := MergeSkillVariables(iterCtx, taskJob.Decl); err != nil {
 			iterTreeNode.SetStatus(treeview.StatusFailed)
 			lastErr = err
 			continue

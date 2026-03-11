@@ -49,6 +49,33 @@ func loadVarsFile(filename string, vars map[string]any) error {
 	return yaml.Unmarshal(data, &vars)
 }
 
+// MergeSkillVariables merges variables from a skill's Decl into the context.
+// When depth > 1, variables are already on the stack from a parent pipeline,
+// so new vars are treated as defaults (existing keys are preserved).
+// At depth <= 1 it behaves identically to MergeVariables.
+func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error {
+	if decl == nil {
+		return nil
+	}
+	if ctx.Depth <= 1 {
+		return MergeVariables(ctx, decl)
+	}
+	// Snapshot existing variable values
+	existing := make(map[string]any)
+	for k, v := range ctx.Variables {
+		existing[k] = v
+	}
+	// Merge normally (may overwrite)
+	if err := MergeVariables(ctx, decl); err != nil {
+		return err
+	}
+	// Restore: existing values take precedence over newly merged ones
+	for k, v := range existing {
+		ctx.Variables[k] = v
+	}
+	return nil
+}
+
 // MergeVariables merges variables from Decl into the execution context.
 // When both vars and env.vars are present, they are resolved together using
 // a unified dependency graph so that cross-references work correctly
