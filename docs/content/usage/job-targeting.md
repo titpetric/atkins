@@ -176,14 +176,16 @@ atkins db            # Another alias
 When you invoke `atkins <name>`, resolution follows this precedence:
 
 1. **Invoked pipeline** (`:` prefix) - directly invoke job, bypassing aliases
-2. **Exact match** - job name matches exactly in any pipeline (main first, then skills)
-3. **Prefixed job** (`skill:job` syntax) - explicit skill targeting
-4. **Alias match** - job alias in any pipeline
-5. **Fuzzy match** - substring/suffix match (single match only)
+2. **Main pipeline exact match** - job name matches exactly in main pipeline
+3. **Main pipeline alias** - alias matches in main pipeline
+4. **Skills exact match** - job name matches in a skill pipeline
+5. **Prefixed job** (`skill:job` syntax) - explicit skill targeting
+6. **Skills alias** - alias matches in a skill pipeline
+7. **Fuzzy match** - substring/suffix match (single match only)
 
 If no match is found, Atkins returns an error.
 
-Main pipeline jobs take precedence over skill jobs with the same name. If your main pipeline has a job named `up`, running `atkins up` will invoke it even if a skill also has a job named `up`.
+Main pipeline jobs and aliases take precedence over skills. If your main pipeline has a job with `aliases: [default]`, running `atkins default` will invoke it even if a skill has a job literally named `default`.
 
 ## Fuzzy Matching
 

@@ -334,6 +334,7 @@ func DiscoverEnvironmentFromCwd() (*Environment, error)
 
 EvaluateIf evaluates the If condition using expr-lang.
 Returns true if the condition is met, false if no condition or condition is false.
+When multiple conditions are provided, all must be true (AND logic).
 Returns error only for invalid expressions.
 
 ```go
@@ -356,6 +357,7 @@ ExpandFor expands a for loop into multiple iteration contexts.
 Supports patterns: "item in items" (items is a variable name),
 "(index, item) in items", "(key, value) in items",
 or any of the above with bash expansion: "item in $(ls ./bin/*.test)".
+When multiple iterators are provided, computes the cartesian product.
 
 ```go
 func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)
@@ -447,10 +449,10 @@ func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error)
 
 ### MergeSkillVariables
 
-MergeSkillVariables works like MergeVariables but treats vars as defaults:
-any key already present in ctx.Variables is preserved (not overwritten).
-This is used for cross-pipeline task invocations where the caller's stack
-should take precedence over the target skill's vars.
+MergeSkillVariables merges variables from a skill's Decl into the context.
+When depth > 1, variables are already on the stack from a parent pipeline,
+so new vars are treated as defaults (existing keys are preserved).
+At depth <= 1 it behaves identically to MergeVariables.
 
 ```go
 func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error

@@ -242,9 +242,9 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 	}
 
 	// Merge step-level vars with interpolation - but skip if step has a for loop
-	// When step.For != "", vars may depend on loop variables (e.g., ${{item}})
+	// When !step.For.IsEmpty(), vars may depend on loop variables (e.g., ${{item}})
 	// and should be merged inside the iteration context instead
-	if step.For == "" {
+	if step.For.IsEmpty() {
 		if err := MergeVariables(stepCtx, step.Decl); err != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
 			return fmt.Errorf("failed to process step env: %w", err)
@@ -268,7 +268,7 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 	}
 
 	// Handle for loop expansion
-	if step.For != "" {
+	if !step.For.IsEmpty() {
 		return e.executeStepWithForLoop(ctx, stepCtx, step, stepNode, 0)
 	} else {
 		// Handle task invocation
@@ -311,9 +311,9 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	}
 
 	// Merge step-level vars with interpolation - but skip if step has a for loop
-	// When step.For != "", vars may depend on loop variables (e.g., ${{item}})
+	// When !step.For.IsEmpty(), vars may depend on loop variables (e.g., ${{item}})
 	// and should be merged inside the iteration context instead
-	if step.For == "" {
+	if step.For.IsEmpty() {
 		if err := MergeVariables(stepCtx, step.Decl); err != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
 			return fmt.Errorf("failed to process step env: %w", err)
@@ -347,7 +347,7 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	}
 
 	// Handle for loop expansion
-	if step.For != "" {
+	if !step.For.IsEmpty() {
 		stepNode.SetSummarize(step.Summarize)
 		stepNode.SetStatus(treeview.StatusRunning)
 		if err := e.executeStepWithForLoop(ctx, stepCtx, step, stepNode, stepIndex); err != nil {
@@ -405,7 +405,7 @@ func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.C
 
 	// Evaluate step-level working directory (overrides job dir)
 	// Skip for steps with for loops - dir will be evaluated per iteration
-	if step.For == "" {
+	if step.For.IsEmpty() {
 		if err := evaluateStepDir(stepCtx); err != nil {
 			return nil, err
 		}
@@ -452,8 +452,13 @@ func createIterationNode(id, name string, summarize bool) *treeview.Node {
 func (e *Executor) logStepSkipped(execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, seqIndex int) {
 	// Mark step as skipped in the tree
 	stepNode.SetStatus(treeview.StatusSkipped)
-	if step.If != "" {
-		stepNode.SetIf(step.If)
+	if !step.If.IsEmpty() {
+		// Join multiple conditions with " && " for display
+		conditions := make([]string, len(step.If))
+		for i, c := range step.If {
+			conditions[i] = string(c)
+		}
+		stepNode.SetIf(strings.Join(conditions, " && "))
 	}
 
 	// Get step name for logging
@@ -801,7 +806,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	stepNode.SetSummarize(step.Summarize)
 
 	// Check if this step has a for loop
-	if step.For != "" {
+	if !step.For.IsEmpty() {
 		// Handle task invocation with for loop
 		// Don't add task node as child here - iteration nodes will be added instead
 		return e.executeTaskStepWithLoop(ctx, execCtx, step, stepNode, taskJob, taskJobNode, targetPipeline)

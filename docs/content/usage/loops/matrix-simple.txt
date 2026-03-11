@@ -1,0 +1,9 @@
+$ atkins -f matrix-simple.yml --final
+
+Matrix Loop (Multi-Iterator)
+└─ default - Cross-compile for all platform/arch combinations ✓
+   └─ run: echo "Building for darwin/arm64..." ✓ (4/4)
+      ├─ Building for linux/amd64... ✓
+      ├─ Building for linux/arm64... ✓
+      ├─ Building for darwin/amd64... ✓
+      └─ Building for darwin/arm64... ✓

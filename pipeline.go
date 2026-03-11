@@ -111,7 +111,7 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		return nil, "", fmt.Errorf("%s main pipeline not found", colors.BrightRed("ERROR:"))
 	}
 
-	// 2. Exact match - check all pipelines (main first, then skills)
+	// 2. Exact match in main pipeline first
 	// This handles job names containing colons (e.g., "test:mergecov")
 	for _, p := range pipelines {
 		if p.ID == "" {
@@ -121,6 +121,23 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 			}
 		}
 	}
+
+	// 3. Check main pipeline aliases before skills
+	// Main pipeline aliases take precedence over skill job names
+	for _, p := range pipelines {
+		if p.ID == "" {
+			jobs := getJobs(p)
+			for jn, job := range jobs {
+				for _, alias := range job.Aliases {
+					if alias == jobName {
+						return []*model.Pipeline{p}, jn, nil
+					}
+				}
+			}
+		}
+	}
+
+	// 4. Exact match in skills
 	for _, p := range pipelines {
 		if p.ID != "" {
 			jobs := getJobs(p)
@@ -130,7 +147,7 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		}
 	}
 
-	// 3. Check if job has a skill prefix (e.g., "go:test")
+	// 5. Check if job has a skill prefix (e.g., "go:test")
 	if parts := strings.SplitN(jobName, ":", 2); len(parts) == 2 {
 		skillID, skillJob := parts[0], parts[1]
 		for _, p := range pipelines {
@@ -141,19 +158,21 @@ func resolveJobTarget(pipelines []*model.Pipeline, jobName string) ([]*model.Pip
 		// Don't error yet - might be a typo, try aliases and fuzzy match
 	}
 
-	// 4. Check if jobName matches an alias in any pipeline
+	// 6. Check skill aliases
 	for _, p := range pipelines {
-		jobs := getJobs(p)
-		for jn, job := range jobs {
-			for _, alias := range job.Aliases {
-				if alias == jobName {
-					return []*model.Pipeline{p}, jn, nil
+		if p.ID != "" {
+			jobs := getJobs(p)
+			for jn, job := range jobs {
+				for _, alias := range job.Aliases {
+					if alias == jobName {
+						return []*model.Pipeline{p}, jn, nil
+					}
 				}
 			}
 		}
 	}
 
-	// 5. Fuzzy match - check for suffix/substring matches in job names
+	// 7. Fuzzy match - check for suffix/substring matches in job names
 	matches := findFuzzyMatches(pipelines, jobName)
 	if len(matches) == 1 {
 		// Exactly one match found, use it

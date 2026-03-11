@@ -92,7 +92,7 @@ func (b *Builder) buildStepNode(step *model.Step) *Node {
 	// Build the name with annotations
 	// Note: (deferred) is added by the renderer if node.Deferred is true
 	stepName := cmd
-	if step.If != "" {
+	if !step.If.IsEmpty() {
 		stepName = stepName + " (conditional)"
 	}
 

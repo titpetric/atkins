@@ -23,7 +23,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 			step: &model.Step{
 				Name: "test step",
 				Run:  "echo ${{ item }}",
-				For:  "item in fruits",
+				For:  model.Iterators{"item in fruits"},
 			},
 			variables: map[string]any{
 				"fruits": []any{"apple", "banana", "orange"},
@@ -36,7 +36,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 			step: &model.Step{
 				Name: "test step",
 				Run:  "echo ${{ pkg }}",
-				For:  "pkg in packages",
+				For:  model.Iterators{"pkg in packages"},
 			},
 			variables: map[string]any{
 				"packages": []any{"pkg1", "pkg2"},
@@ -49,7 +49,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 			step: &model.Step{
 				Name: "test step",
 				Run:  "echo ${{ item }}",
-				For:  "item in empty",
+				For:  model.Iterators{"item in empty"},
 			},
 			variables: map[string]any{
 				"empty": []any{},
@@ -83,13 +83,15 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 				assert.NotNil(t, iter.Variables, "Iteration %d has nil variables", i)
 
 				// For simple pattern, check if the loop variable is set
-				switch tt.step.For {
-				case "item in fruits":
-					_, ok := iter.Variables["item"]
-					assert.True(t, ok, "Iteration %d missing 'item' variable", i)
-				case "pkg in packages":
-					_, ok := iter.Variables["pkg"]
-					assert.True(t, ok, "Iteration %d missing 'pkg' variable", i)
+				if len(tt.step.For) > 0 {
+					switch string(tt.step.For[0]) {
+					case "item in fruits":
+						_, ok := iter.Variables["item"]
+						assert.True(t, ok, "Iteration %d missing 'item' variable", i)
+					case "pkg in packages":
+						_, ok := iter.Variables["pkg"]
+						assert.True(t, ok, "Iteration %d missing 'pkg' variable", i)
+					}
 				}
 			}
 		})
@@ -155,7 +157,7 @@ func TestForLoopStepExecution(t *testing.T) {
 		step := &model.Step{
 			Name: "process items",
 			Run:  "echo ${{ item }} >> /tmp/test-for-exec.log",
-			For:  "item in items",
+			For:  model.Iterators{"item in items"},
 		}
 
 		// Create execution context with iteration items
@@ -348,7 +350,7 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 		step := &model.Step{
 			Name: "build all components",
 			Task: "build_component",
-			For:  "component in components",
+			For:  model.Iterators{"component in components"},
 		}
 
 		// Create execution context
@@ -422,7 +424,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 		step := &model.Step{
 			Name: "process test binaries",
 			Task: "test:detail",
-			For:  "item in testBinaries",
+			For:  model.Iterators{"item in testBinaries"},
 		}
 
 		// Job variables are merged into context BEFORE step execution
@@ -491,7 +493,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 				{
 					Name: "process items",
 					Task: "test:detail",
-					For:  "item in testBinaries",
+					For:  model.Iterators{"item in testBinaries"},
 				},
 			},
 		}
@@ -533,7 +535,7 @@ func TestStepVarsWithLoopVariable(t *testing.T) {
 		step := &model.Step{
 			Name: "test step",
 			Task: "project:ps",
-			For:  "item in projects",
+			For:  model.Iterators{"item in projects"},
 			Decl: &model.Decl{
 				Vars: map[string]any{
 					"path": "${{item}}/subdir",
