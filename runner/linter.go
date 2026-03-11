@@ -107,11 +107,8 @@ func (l *Linter) validateTaskInvocations() {
 
 // validateTaskReference validates a task reference using the shared TaskResolver.
 func (l *Linter) validateTaskReference(taskName string) error {
-	resolver := &TaskResolver{
-		CurrentPipeline: l.pipeline,
-		AllPipelines:    l.allPipelines,
-	}
-	if err := resolver.Validate(taskName); err != nil {
+	resolver := NewTaskResolver(l.allPipelines)
+	if _, err := resolver.Resolve(taskName); err != nil {
 		return fmt.Errorf("step references task '%s', but %s", taskName, err)
 	}
 	return nil

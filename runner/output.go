@@ -77,7 +77,7 @@ func buildListOutput(pipelines []*model.Pipeline) []ListOutputSection {
 
 // buildPipelineSection builds a section for a pipeline.
 func buildPipelineSection(p *model.Pipeline, prefix string) ListOutputSection {
-	jobs := getJobs(p)
+	jobs := p.GetJobs()
 	names := treeview.SortJobsByDepth(jobNames(jobs))
 
 	// Move "default" to front
@@ -115,7 +115,7 @@ func buildAliasesSection(skills []*model.Pipeline) ListOutputSection {
 	var cmds []ListOutputItem
 
 	for _, p := range skills {
-		jobs := getJobs(p)
+		jobs := p.GetJobs()
 
 		// Skill ID alone is an alias to skill:default if default job exists
 		if _, hasDefault := jobs["default"]; hasDefault {

@@ -136,10 +136,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	}
 
 	// Resolve jobs to run
-	allJobs := pipeline.Jobs
-	if len(allJobs) == 0 {
-		allJobs = pipeline.Tasks
-	}
+	allJobs := pipeline.GetJobs()
 
 	// Resolve dependencies for all requested jobs, collecting into unified order
 	var jobOrder []string
@@ -175,10 +172,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	crossPipelineJobs := make(map[string]*model.Job)
 
 	// Task resolver for looking up task references
-	taskResolver := &TaskResolver{
-		CurrentPipeline: pipeline,
-		AllPipelines:    p.opts.AllPipelines,
-	}
+	taskResolver := NewTaskResolver(p.opts.AllPipelines)
 
 	// Helper to resolve a task name to its job and canonical name
 	resolveTaskName := func(taskName string) (string, *model.Job, error) {

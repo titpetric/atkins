@@ -294,17 +294,17 @@ pipelineReady:
 	}
 	pipelineJobsMap := make(map[*model.Pipeline]*pipelineJobs)
 	var pipelineOrder []*model.Pipeline
-	resolver := &runner.TaskResolver{AllPipelines: pipelines}
+	resolver := runner.NewTaskResolver(pipelines)
 
 	for _, jobName := range opts.Jobs {
-		target, err := resolver.ResolveJobTarget(jobName)
+		target, err := resolver.Resolve(jobName)
 		if err != nil {
 			// Check if it's a fuzzy match error with multiple matches
 			var fuzzyErr *runner.FuzzyMatchError
 			if errors.As(err, &fuzzyErr) {
 				fmt.Fprintf(os.Stderr, "%s found %d matching jobs:\n\n", colors.BrightYellow("INFO:"), len(fuzzyErr.Matches))
 				for _, match := range fuzzyErr.Matches {
-					fmt.Fprintf(os.Stderr, "  - %s\n", colors.BrightOrange(match.FullName))
+					fmt.Fprintf(os.Stderr, "  - %s\n", colors.BrightOrange(match.Name))
 				}
 				os.Exit(1)
 			}
@@ -316,7 +316,7 @@ pipelineReady:
 			pipelineJobsMap[pipeline] = &pipelineJobs{pipeline: pipeline}
 			pipelineOrder = append(pipelineOrder, pipeline)
 		}
-		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, target.JobName)
+		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, jobName)
 	}
 
 	// Run each pipeline with its collected jobs
