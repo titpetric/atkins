@@ -56,6 +56,13 @@ func EvaluateJobIf(ctx *ExecutionContext) (bool, error) {
 
 // evaluateIfExpression compiles and evaluates an if expression string against the context.
 func evaluateIfExpression(ifExpr string, ctx *ExecutionContext) (bool, error) {
+	// Interpolate the expression to resolve $() subshells and ${{ }} variables
+	interpolated, err := InterpolateString(ifExpr, ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to interpolate if expression %q: %w", ifExpr, err)
+	}
+	ifExpr = interpolated
+
 	prog, err := expr.Compile(ifExpr, expr.AllowUndefinedVariables())
 	if err != nil {
 		return false, fmt.Errorf("failed to compile if expression %q: %w", ifExpr, err)

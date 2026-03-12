@@ -172,12 +172,24 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	// Track cross-pipeline jobs separately (key is "skillID:jobName")
 	crossPipelineJobs := make(map[string]*model.Job)
 
-	// Task resolver for looking up task references
-	taskResolver := NewTaskResolver(p.opts.AllPipelines)
+	// Task resolvers: skill-local and global
+	globalResolver := NewTaskResolver(p.opts.AllPipelines)
+	skillResolver := NewSkillResolver(pipeline)
 
-	// Helper to resolve a task name to its job and canonical name
+	// Helper to resolve a task name to its job and canonical name.
+	// If the task has a : prefix, resolve in global scope (strict).
+	// Otherwise, try skill-local first, then fall back to global.
 	resolveTaskName := func(taskName string) (string, *model.Job, error) {
-		resolved, err := taskResolver.Resolve(taskName)
+		var resolved *model.ResolvedTask
+		var err error
+		if strings.HasPrefix(taskName, ":") {
+			resolved, err = globalResolver.Resolve(taskName)
+		} else {
+			resolved, err = skillResolver.Resolve(taskName)
+			if err != nil {
+				resolved, err = globalResolver.Resolve(taskName)
+			}
+		}
 		if err != nil {
 			return "", nil, err
 		}
