@@ -177,19 +177,8 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	skillResolver := NewSkillResolver(pipeline)
 
 	// Helper to resolve a task name to its job and canonical name.
-	// If the task has a : prefix, resolve in global scope (strict).
-	// Otherwise, try skill-local first, then fall back to global.
 	resolveTaskName := func(taskName string) (string, *model.Job, error) {
-		var resolved *model.ResolvedTask
-		var err error
-		if strings.HasPrefix(taskName, ":") {
-			resolved, err = globalResolver.Resolve(taskName)
-		} else {
-			resolved, err = skillResolver.Resolve(taskName)
-			if err != nil {
-				resolved, err = globalResolver.Resolve(taskName)
-			}
-		}
+		resolved, err := skillResolver.ResolveWithFallback(taskName, globalResolver)
 		if err != nil {
 			return "", nil, err
 		}

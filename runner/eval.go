@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"strings"
 
@@ -116,7 +117,7 @@ func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error
 	}
 
 	// Start with a single context containing the parent variables
-	result := []IterationContext{{Variables: copyMap(ctx.Variables)}}
+	result := []IterationContext{{Variables: maps.Clone(ctx.Variables)}}
 
 	// Process each iterator, computing cartesian product
 	for _, iterator := range s.For {
@@ -167,7 +168,7 @@ func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, fo
 		if indexVar != "" || keyVar != "" {
 			// (index, item) or (key, value) pattern
 			for i, item := range items {
-				vars := copyMap(parentCtx.Variables)
+				vars := maps.Clone(parentCtx.Variables)
 
 				// Check if this is a map for (key, value) iteration
 				if mapItem, ok := item.(map[string]any); ok && indexVar != "" && keyVar != "" {
@@ -175,7 +176,7 @@ func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, fo
 					// If items contains only one map, treat as (key, value)
 					if len(items) == 1 {
 						for k, v := range mapItem {
-							iterVars := copyMap(vars)
+							iterVars := maps.Clone(vars)
 							iterVars[indexVar] = k // First var is the key
 							iterVars[keyVar] = v   // Second var is the value
 							result = append(result, IterationContext{Variables: iterVars})
@@ -198,7 +199,7 @@ func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, fo
 		} else {
 			// Simple "item in items" or "name in names" pattern
 			for _, item := range items {
-				vars := copyMap(parentCtx.Variables)
+				vars := maps.Clone(parentCtx.Variables)
 				vars[loopVar] = item
 				result = append(result, IterationContext{Variables: vars})
 			}
@@ -329,13 +330,4 @@ func convertToAnySlice(val any) ([]any, error) {
 	default:
 		return []any{v}, nil
 	}
-}
-
-// copyMap creates a shallow copy of a map
-func copyMap(m map[string]any) map[string]any {
-	copy := make(map[string]any)
-	for k, v := range m {
-		copy[k] = v
-	}
-	return copy
 }

@@ -744,18 +744,7 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
 	defer execCtx.Render()
 
-	// If task has : prefix, resolve in global scope (strict).
-	// Otherwise, try skill-local first, then fall back to global.
-	var resolved *model.ResolvedTask
-	var err error
-	if strings.HasPrefix(step.Task, ":") {
-		resolved, err = execCtx.Resolver().Resolve(step.Task)
-	} else {
-		resolved, err = execCtx.SkillResolver().Resolve(step.Task)
-		if err != nil {
-			resolved, err = execCtx.Resolver().Resolve(step.Task)
-		}
-	}
+	resolved, err := execCtx.Resolve(step.Task)
 	if err != nil {
 		stepNode.SetStatus(treeview.StatusFailed)
 		return err

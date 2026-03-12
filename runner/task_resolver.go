@@ -37,6 +37,20 @@ func (r *TaskResolver) Resolve(taskName string) (*model.ResolvedTask, error) {
 	return r.ResolveName(taskName, strict)
 }
 
+// ResolveWithFallback tries resolving with r first, then falls back to the
+// fallback resolver. If the task has a ":" prefix, only the fallback (global)
+// resolver is used.
+func (r *TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver) (*model.ResolvedTask, error) {
+	if strings.HasPrefix(taskName, ":") {
+		return fallback.Resolve(taskName)
+	}
+	resolved, err := r.Resolve(taskName)
+	if err != nil {
+		resolved, err = fallback.Resolve(taskName)
+	}
+	return resolved, err
+}
+
 // ResolveName resolves a name to the pipeline and job.
 // It tries explicit matching, then checks aliases, then fuzzy matches jobs.
 // If no job is matched, an error is returned.

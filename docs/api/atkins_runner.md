@@ -257,6 +257,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*ExecutionContext) MarkJobCompleted (jobName string)`
 - `func (*ExecutionContext) NextStepIndex () int`
 - `func (*ExecutionContext) Render ()`
+- `func (*ExecutionContext) Resolve (taskName string) (*model.ResolvedTask, error)`
 - `func (*ExecutionContext) Resolver () *TaskResolver`
 - `func (*ExecutionContext) SkillResolver () *TaskResolver`
 - `func (*Executor) ExecuteJob (parentCtx context.Context, execCtx *ExecutionContext) error`
@@ -271,6 +272,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*SkillsLoader) Load () ([]*model.Pipeline, error)`
 - `func (*TaskResolver) Resolve (taskName string) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveName (name string, strict bool) (*model.ResolvedTask, error)`
+- `func (*TaskResolver) ResolveWithFallback (taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)`
 - `func (Env) Environ () []string`
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
@@ -652,6 +654,15 @@ Render refreshes the treeview.
 func (*ExecutionContext) Render()
 ```
 
+### Resolve
+
+Resolve resolves a task name using skill-local scope first, then global.
+If the task has a ":" prefix, it resolves in global scope only (strict).
+
+```go
+func (*ExecutionContext) Resolve(taskName string) (*model.ResolvedTask, error)
+```
+
 ### Resolver
 
 Resolver provides task resolution in the execution context.
@@ -772,6 +783,16 @@ If no job is matched, an error is returned.
 
 ```go
 func (*TaskResolver) ResolveName(name string, strict bool) (*model.ResolvedTask, error)
+```
+
+### ResolveWithFallback
+
+ResolveWithFallback tries resolving with r first, then falls back to the
+fallback resolver. If the task has a ":" prefix, only the fallback (global)
+resolver is used.
+
+```go
+func (*TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)
 ```
 
 ### Environ

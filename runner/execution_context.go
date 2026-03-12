@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"maps"
 	"sync"
 
 	"github.com/titpetric/atkins/eventlog"
@@ -59,22 +60,15 @@ func (e *ExecutionContext) SkillResolver() *TaskResolver {
 // Resolve resolves a task name using skill-local scope first, then global.
 // If the task has a ":" prefix, it resolves in global scope only (strict).
 func (e *ExecutionContext) Resolve(taskName string) (*model.ResolvedTask, error) {
-	if strings.HasPrefix(taskName, ":") {
-		return e.Resolver().Resolve(taskName)
-	}
-	resolved, err := e.SkillResolver().Resolve(taskName)
-	if err != nil {
-		resolved, err = e.Resolver().Resolve(taskName)
-	}
-	return resolved, err
+	return e.SkillResolver().ResolveWithFallback(taskName, e.Resolver())
 }
 
 // Copy copies everything except Context. Variables are shallow-copied.
 // JobCompleted is shared (not copied) to maintain consistent dependency tracking.
 func (e *ExecutionContext) Copy() *ExecutionContext {
 	return &ExecutionContext{
-		Variables:    copyVariables(e.Variables),
-		Env:          copyEnv(e.Env),
+		Variables:    maps.Clone(e.Variables),
+		Env:          maps.Clone(e.Env),
 		Results:      e.Results,
 		Verbose:      e.Verbose,
 		Dir:          e.Dir,
