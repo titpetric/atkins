@@ -78,7 +78,7 @@ type Executor struct {
 ```go
 // FuzzyMatchError is returned when multiple fuzzy matches are found.
 type FuzzyMatchError struct {
-	Matches []*ResolvedTask
+	Matches []*model.ResolvedTask
 }
 ```
 
@@ -116,8 +116,15 @@ type Linter struct {
 ```
 
 ```go
-// ListOutputItem represents a single command in the list output.
-type ListOutputItem struct {
+// Options provides configuration for the executor.
+type Options struct {
+	DefaultTimeout time.Duration
+}
+```
+
+```go
+// OutputItem represents a single command in the list output.
+type OutputItem struct {
 	ID   string `json:"id" yaml:"id"`
 	Desc string `json:"desc,omitempty" yaml:"desc,omitempty"`
 	Cmd  string `json:"cmd" yaml:"cmd"`
@@ -125,24 +132,10 @@ type ListOutputItem struct {
 ```
 
 ```go
-// ListOutputSection represents a pipeline section in the list output.
-type ListOutputSection struct {
-	Desc string           `json:"desc" yaml:"desc"`
-	Cmds []ListOutputItem `json:"cmds" yaml:"cmds"`
-}
-```
-
-```go
-// NoDefaultJobError is returned when no default job is found.
-type NoDefaultJobError struct {
-	Jobs map[string]*model.Job
-}
-```
-
-```go
-// Options provides configuration for the executor.
-type Options struct {
-	DefaultTimeout time.Duration
+// OutputSection represents a pipeline section in the list output.
+type OutputSection struct {
+	Desc string       `json:"desc" yaml:"desc"`
+	Cmds []OutputItem `json:"cmds" yaml:"cmds"`
 }
 ```
 
@@ -165,15 +158,6 @@ type PipelineOptions struct {
 	JSON         bool
 	YAML         bool
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
-}
-```
-
-```go
-// ResolvedTask contains the result of resolving a task reference.
-type ResolvedTask struct {
-	Name     string          // Canonical name (e.g., "go:build" or "build")
-	Job      *model.Job      // The resolved job
-	Pipeline *model.Pipeline // The pipeline containing the task
 }
 ```
 
@@ -258,7 +242,6 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
-- `func NewResolvedTask (pipeline *model.Pipeline, job *model.Job, name string) *ResolvedTask`
 - `func NewSkillResolver (pipeline *model.Pipeline) *TaskResolver`
 - `func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader`
 - `func NewTaskResolver (pipelines []*model.Pipeline) *TaskResolver`
@@ -282,13 +265,12 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*LineCapturingWriter) String () string`
 - `func (*LineCapturingWriter) Write (p []byte) (int, error)`
 - `func (*Linter) Lint () []LintError`
-- `func (*NoDefaultJobError) Error () string`
 - `func (*SkillsLoader) AddSkillsDir (dir string)`
 - `func (*SkillsLoader) FindFile (patterns []string, startDir string) (string, bool)`
 - `func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)`
 - `func (*SkillsLoader) Load () ([]*model.Pipeline, error)`
-- `func (*TaskResolver) Resolve (taskName string) (*ResolvedTask, error)`
-- `func (*TaskResolver) ResolveName (name string, strict bool) (*ResolvedTask, error)`
+- `func (*TaskResolver) Resolve (taskName string) (*model.ResolvedTask, error)`
+- `func (*TaskResolver) ResolveName (name string, strict bool) (*model.ResolvedTask, error)`
 - `func (Env) Environ () []string`
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
@@ -533,14 +515,6 @@ NewPipeline allocates a new *Pipeline with dependencies.
 func NewPipeline(data *model.Pipeline, opts PipelineOptions) *Pipeline
 ```
 
-### NewResolvedTask
-
-NewResolvedTask creates a ResolvedTask with all required fields.
-
-```go
-func NewResolvedTask(pipeline *model.Pipeline, job *model.Job, name string) *ResolvedTask
-```
-
 ### NewSkillResolver
 
 NewSkillResolver will provide a task resolver for a skill pipeline.
@@ -742,14 +716,6 @@ Lint validates the pipeline and returns any errors.
 func (*Linter) Lint() []LintError
 ```
 
-### Error
-
-Error returns the error hinting a default job should be defined.
-
-```go
-func (*NoDefaultJobError) Error() string
-```
-
 ### AddSkillsDir
 
 AddSkillsDir adds an additional skills directory to search.
@@ -795,7 +761,7 @@ func (*SkillsLoader) Load() ([]*model.Pipeline, error)
 Resolve resolves a task name to its pipeline and job.
 
 ```go
-func (*TaskResolver) Resolve(taskName string) (*ResolvedTask, error)
+func (*TaskResolver) Resolve(taskName string) (*model.ResolvedTask, error)
 ```
 
 ### ResolveName
@@ -805,7 +771,7 @@ It tries explicit matching, then checks aliases, then fuzzy matches jobs.
 If no job is matched, an error is returned.
 
 ```go
-func (*TaskResolver) ResolveName(name string, strict bool) (*ResolvedTask, error)
+func (*TaskResolver) ResolveName(name string, strict bool) (*model.ResolvedTask, error)
 ```
 
 ### Environ

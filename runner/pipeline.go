@@ -16,6 +16,7 @@ import (
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/eventlog"
 	"github.com/titpetric/atkins/model"
+	runnererrors "github.com/titpetric/atkins/runner/errors"
 	"github.com/titpetric/atkins/treeview"
 )
 
@@ -144,7 +145,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	for _, job := range jobs {
 		order, err := ResolveJobDependencies(allJobs, job)
 		if err != nil {
-			var noDefaultErr *NoDefaultJobError
+			var noDefaultErr *runnererrors.NoDefaultJobError
 			if errors.As(err, &noDefaultErr) {
 				// Print available jobs and error message similar to task
 				fmt.Fprintf(os.Stderr, "%s Available jobs for this project:\n", colors.BrightYellow("atkins:"))
@@ -180,11 +181,20 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		if err != nil {
 			return "", nil, err
 		}
+
+		canonicalName := resolved.Name
+
 		// Track cross-pipeline jobs for later lookup
 		if resolved.Pipeline != pipeline {
-			crossPipelineJobs[resolved.Name] = resolved.Job
+			crossPipelineJobs[canonicalName] = resolved.Job
+		} else if pipeline.ID != "" {
+			// For same-pipeline jobs, strip the prefix to match allJobs keys.
+			// This ensures consistent naming: allJobs has non-prefixed keys,
+			// and jobNodes should use the same keys for lookup during execution.
+			canonicalName = strings.TrimPrefix(canonicalName, pipeline.ID+":")
 		}
-		return resolved.Name, resolved.Job, nil
+
+		return canonicalName, resolved.Job, nil
 	}
 
 	// Recursively find all jobs that might be invoked

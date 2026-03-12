@@ -83,7 +83,9 @@ Now `atkins build` invokes `go:build`.
 
 ### Alias Conflicts
 
-If multiple skills define the same alias, the first-loaded wins (project before global).
+Explicit job aliases take precedence over auto-generated aliases. For example, if a job has `aliases: [go]`, it overrides the automatic `go` → `go:default` mapping.
+
+When multiple skills define the same explicit alias, project skills win over global skills.
 
 To target explicitly:
 

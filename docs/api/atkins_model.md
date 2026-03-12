@@ -131,6 +131,15 @@ type PipelineWhen struct {
 ```
 
 ```go
+// ResolvedTask contains the result of resolving a task reference.
+type ResolvedTask struct {
+	Name     string    // Canonical name (e.g., "go:build" or "build")
+	Job      *Job      // The resolved job
+	Pipeline *Pipeline // The pipeline containing the task
+}
+```
+
+```go
 // Step represents a step within a job.
 type Step struct {
 	*Decl
@@ -159,6 +168,7 @@ type Step struct {
 ## Function symbols
 
 - `func NewLabel (text,labelType string) *Label`
+- `func NewResolvedTask (pipeline *Pipeline, job *Job, name string) *ResolvedTask`
 - `func (*Conditionals) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Dependencies) UnmarshalYAML (node *yaml.Node) error`
 - `func (*IncludeDecl) UnmarshalYAML (node *yaml.Node) error`
@@ -194,6 +204,14 @@ Use builder methods like WithPrefix(), WithStatus(), and WithColor() to customiz
 
 ```go
 func NewLabel(text, labelType string) *Label
+```
+
+### NewResolvedTask
+
+NewResolvedTask creates a ResolvedTask with all required fields.
+
+```go
+func NewResolvedTask(pipeline *Pipeline, job *Job, name string) *ResolvedTask
 ```
 
 ### UnmarshalYAML
@@ -318,6 +336,7 @@ func (*Label) WithStatus(status string) *Label
 ### GetAliases
 
 GetAliases will give key => value mapping for commands in a pipeline.
+Explicit job aliases take precedence over auto-generated aliases (like skill ID -> default).
 
 ```go
 func (*Pipeline) GetAliases() map[string]string

@@ -8,22 +8,6 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// ResolvedTask contains the result of resolving a task reference.
-type ResolvedTask struct {
-	Name     string          // Canonical name (e.g., "go:build" or "build")
-	Job      *model.Job      // The resolved job
-	Pipeline *model.Pipeline // The pipeline containing the task
-}
-
-// NewResolvedTask creates a ResolvedTask with all required fields.
-func NewResolvedTask(pipeline *model.Pipeline, job *model.Job, name string) *ResolvedTask {
-	return &ResolvedTask{
-		Name:     name,
-		Job:      job,
-		Pipeline: pipeline,
-	}
-}
-
 // TaskResolver resolves task references, handling cross-pipeline : prefix syntax.
 type TaskResolver struct {
 	pipelines []*model.Pipeline
@@ -44,7 +28,7 @@ func NewSkillResolver(pipeline *model.Pipeline) *TaskResolver {
 }
 
 // Resolve resolves a task name to its pipeline and job.
-func (r *TaskResolver) Resolve(taskName string) (*ResolvedTask, error) {
+func (r *TaskResolver) Resolve(taskName string) (*model.ResolvedTask, error) {
 	var strict bool
 	if strings.HasPrefix(taskName, ":") {
 		strict = true
@@ -56,7 +40,7 @@ func (r *TaskResolver) Resolve(taskName string) (*ResolvedTask, error) {
 // ResolveName resolves a name to the pipeline and job.
 // It tries explicit matching, then checks aliases, then fuzzy matches jobs.
 // If no job is matched, an error is returned.
-func (r *TaskResolver) ResolveName(name string, strict bool) (*ResolvedTask, error) {
+func (r *TaskResolver) ResolveName(name string, strict bool) (*model.ResolvedTask, error) {
 	if target, found := r.resolveExplicitTarget(name); found {
 		return target, nil
 	}
@@ -73,12 +57,12 @@ func (r *TaskResolver) ResolveName(name string, strict bool) (*ResolvedTask, err
 
 // resolveExplicitTarget should iterate each pipelines available targets for
 // an exact match. If no match is found, a nil, false is returned.
-func (r *TaskResolver) resolveExplicitTarget(name string) (*ResolvedTask, bool) {
+func (r *TaskResolver) resolveExplicitTarget(name string) (*model.ResolvedTask, bool) {
 	// exact name match across all pipelines.
 	for _, pipeline := range r.pipelines {
 		keys := pipeline.GetKeys()
 		if slices.Contains(keys, name) {
-			return NewResolvedTask(pipeline, lookupJob(pipeline, name), name), true
+			return model.NewResolvedTask(pipeline, lookupJob(pipeline, name), name), true
 		}
 	}
 
@@ -97,22 +81,22 @@ func lookupJob(pipeline *model.Pipeline, name string) *model.Job {
 }
 
 // resolveAlias checks if alias matches any job alias.
-func (r *TaskResolver) resolveAlias(alias string) (*ResolvedTask, bool) {
+func (r *TaskResolver) resolveAlias(alias string) (*model.ResolvedTask, bool) {
 	for _, pipeline := range r.pipelines {
 		aliases := pipeline.GetAliases()
 		if target, ok := aliases[alias]; ok {
-			return NewResolvedTask(pipeline, lookupJob(pipeline, target), target), true
+			return model.NewResolvedTask(pipeline, lookupJob(pipeline, target), target), true
 		}
 	}
 	return nil, false
 }
 
 // resolveFuzzyTarget handles fuzzy/substring matching across all pipelines.
-func (r *TaskResolver) resolveFuzzy(name string) (*ResolvedTask, error) {
+func (r *TaskResolver) resolveFuzzy(name string) (*model.ResolvedTask, error) {
 	matches := findFuzzyMatches(r.pipelines, name)
 	if len(matches) == 1 {
 		match := matches[0]
-		return NewResolvedTask(match.Pipeline, match.Job, match.Name), nil
+		return model.NewResolvedTask(match.Pipeline, match.Job, match.Name), nil
 	}
 	if len(matches) > 1 {
 		return nil, &FuzzyMatchError{Matches: matches}

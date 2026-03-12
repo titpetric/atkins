@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/titpetric/atkins/model"
+	runnererrors "github.com/titpetric/atkins/runner/errors"
 )
 
 // LintError represents a linting error.
@@ -149,16 +150,6 @@ func GetDependencies(dependsOn any) []string {
 	}
 }
 
-// NoDefaultJobError is returned when no default job is found.
-type NoDefaultJobError struct {
-	Jobs map[string]*model.Job
-}
-
-// Error returns the error hinting a default job should be defined.
-func (e *NoDefaultJobError) Error() string {
-	return "task \"default\" does not exist"
-}
-
 // findDefaultJob finds the "default" job, either directly or via alias.
 // Returns the job name to use (which may differ from "default" if found via alias).
 func findDefaultJob(jobs map[string]*model.Job) (string, bool) {
@@ -211,7 +202,7 @@ func ResolveJobDependencies(jobs map[string]*model.Job, startingJob string) ([]s
 	}
 
 	// No default job found - return error with available jobs
-	return nil, &NoDefaultJobError{Jobs: jobs}
+	return nil, &runnererrors.NoDefaultJobError{Jobs: jobs}
 }
 
 // resolveDependencyChain returns a job and all its dependencies in execution order

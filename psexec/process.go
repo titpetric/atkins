@@ -1,8 +1,6 @@
 package psexec
 
 import (
-	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -26,30 +24,6 @@ type Process struct {
 	mu     sync.Mutex
 	done   chan struct{}
 	closed bool
-}
-
-// Start begins execution of a command and returns a Process handle.
-// The process can be used for bidirectional I/O, particularly useful
-// for websocket transport.
-func (e *Executor) Start(ctx context.Context, cmd *Command) (*Process, error) {
-	execCmd := e.prepareCmd(ctx, cmd)
-
-	ptmx, err := e.startPTY(execCmd)
-	if err != nil {
-		return nil, err
-	}
-
-	proc := &Process{
-		cmd:       execCmd,
-		ptmx:      ptmx,
-		result:    &processResult{stdout: new(bytes.Buffer), stderr: new(bytes.Buffer)},
-		startTime: time.Now(),
-		done:      make(chan struct{}),
-	}
-
-	go proc.wait()
-
-	return proc, nil
 }
 
 // wait waits for the process to complete and captures the result.

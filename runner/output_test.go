@@ -183,7 +183,7 @@ func TestListPipelinesJSON(t *testing.T) {
 	output := buf.String()
 
 	// Verify it's valid JSON
-	var parsed []ListOutputSection
+	var parsed []OutputSection
 	require.NoError(t, json.Unmarshal([]byte(output), &parsed), "output: %s", output)
 
 	require.Len(t, parsed, 1)
@@ -218,7 +218,7 @@ func TestListPipelinesYAML(t *testing.T) {
 	output := buf.String()
 
 	// Verify it's valid YAML
-	var parsed []ListOutputSection
+	var parsed []OutputSection
 	require.NoError(t, yaml.Unmarshal([]byte(output), &parsed), "output: %s", output)
 
 	require.Len(t, parsed, 1)

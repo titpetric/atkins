@@ -76,19 +76,27 @@ func (p *Pipeline) GetKeys() []string {
 }
 
 // GetAliases will give key => value mapping for commands in a pipeline.
+// Explicit job aliases take precedence over auto-generated aliases (like skill ID -> default).
 func (p *Pipeline) GetAliases() map[string]string {
 	result := map[string]string{}
+	explicit := make(map[string]bool)
 	jobs := p.GetJobs()
 
+	// First pass: collect explicit aliases (these take priority).
 	for key, job := range jobs {
-		// Alias skills default targets to skill ID.
-		if p.ID != "" && key == "default" {
-			result[p.ID] = "default"
-		}
-
-		// Add any other known aliases for the jobs.
 		for _, alias := range job.GetAliases() {
 			result[alias] = key
+			explicit[alias] = true
+		}
+	}
+
+	// Second pass: add auto-aliases only if not already set by explicit alias.
+	for key := range jobs {
+		// Alias skills default targets to skill ID.
+		if p.ID != "" && key == "default" {
+			if !explicit[p.ID] {
+				result[p.ID] = "default"
+			}
 		}
 	}
 

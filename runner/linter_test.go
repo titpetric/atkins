@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/titpetric/atkins/model"
+	runnererrors "github.com/titpetric/atkins/runner/errors"
 )
 
 // TestLinter_StepsAndCmdsEquivalence verifies that steps and cmds are treated equivalently
@@ -209,7 +210,7 @@ func TestFindDefaultJob(t *testing.T) {
 
 // TestNoDefaultJobError verifies error message
 func TestNoDefaultJobError(t *testing.T) {
-	err := &NoDefaultJobError{
+	err := &runnererrors.NoDefaultJobError{
 		Jobs: map[string]*model.Job{
 			"build": {},
 			"test":  {},
@@ -226,7 +227,7 @@ func TestResolveJobDependencies_NoDefault(t *testing.T) {
 	}
 	_, err := ResolveJobDependencies(jobs, "")
 	assert.Error(t, err)
-	var noDefaultErr *NoDefaultJobError
+	var noDefaultErr *runnererrors.NoDefaultJobError
 	assert.ErrorAs(t, err, &noDefaultErr)
 }
 

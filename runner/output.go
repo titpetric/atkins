@@ -11,17 +11,17 @@ import (
 	"github.com/titpetric/atkins/treeview"
 )
 
-// ListOutputItem represents a single command in the list output.
-type ListOutputItem struct {
+// OutputItem represents a single command in the list output.
+type OutputItem struct {
 	ID   string `json:"id" yaml:"id"`
 	Desc string `json:"desc,omitempty" yaml:"desc,omitempty"`
 	Cmd  string `json:"cmd" yaml:"cmd"`
 }
 
-// ListOutputSection represents a pipeline section in the list output.
-type ListOutputSection struct {
-	Desc string           `json:"desc" yaml:"desc"`
-	Cmds []ListOutputItem `json:"cmds" yaml:"cmds"`
+// OutputSection represents a pipeline section in the list output.
+type OutputSection struct {
+	Desc string       `json:"desc" yaml:"desc"`
+	Cmds []OutputItem `json:"cmds" yaml:"cmds"`
 }
 
 // ListPipelinesJSON outputs pipelines in JSON format.
@@ -47,13 +47,13 @@ func ListPipelinesYAML(pipelines []*model.Pipeline) error {
 }
 
 // buildListOutput builds the structured list output from pipelines.
-func buildListOutput(pipelines []*model.Pipeline) []ListOutputSection {
+func buildListOutput(pipelines []*model.Pipeline) []OutputSection {
 	if len(pipelines) == 0 {
 		return nil
 	}
 
 	main, skills := separatePipelines(pipelines)
-	var sections []ListOutputSection
+	var sections []OutputSection
 
 	// Main pipeline section
 	if main != nil && hasJobs(main) {
@@ -76,7 +76,7 @@ func buildListOutput(pipelines []*model.Pipeline) []ListOutputSection {
 }
 
 // buildPipelineSection builds a section for a pipeline.
-func buildPipelineSection(p *model.Pipeline, prefix string) ListOutputSection {
+func buildPipelineSection(p *model.Pipeline, prefix string) OutputSection {
 	jobs := p.GetJobs()
 	names := treeview.SortJobsByDepth(jobNames(jobs))
 
@@ -88,7 +88,7 @@ func buildPipelineSection(p *model.Pipeline, prefix string) ListOutputSection {
 		}
 	}
 
-	var cmds []ListOutputItem
+	var cmds []OutputItem
 	for _, name := range names {
 		job := jobs[name]
 
@@ -97,29 +97,29 @@ func buildPipelineSection(p *model.Pipeline, prefix string) ListOutputSection {
 			id = prefix + ":" + name
 		}
 
-		cmds = append(cmds, ListOutputItem{
+		cmds = append(cmds, OutputItem{
 			ID:   id,
 			Desc: job.Desc,
 			Cmd:  "atkins " + id,
 		})
 	}
 
-	return ListOutputSection{
+	return OutputSection{
 		Desc: p.Name,
 		Cmds: cmds,
 	}
 }
 
 // buildAliasesSection builds the aliases section.
-func buildAliasesSection(skills []*model.Pipeline) ListOutputSection {
-	var cmds []ListOutputItem
+func buildAliasesSection(skills []*model.Pipeline) OutputSection {
+	var cmds []OutputItem
 
 	for _, p := range skills {
 		jobs := p.GetJobs()
 
 		// Skill ID alone is an alias to skill:default if default job exists
 		if _, hasDefault := jobs["default"]; hasDefault {
-			cmds = append(cmds, ListOutputItem{
+			cmds = append(cmds, OutputItem{
 				ID:  p.ID,
 				Cmd: "atkins " + p.ID,
 			})
@@ -132,7 +132,7 @@ func buildAliasesSection(skills []*model.Pipeline) ListOutputSection {
 				if jobName == "default" {
 					target = p.ID
 				}
-				cmds = append(cmds, ListOutputItem{
+				cmds = append(cmds, OutputItem{
 					ID:   alias,
 					Desc: fmt.Sprintf("invokes %s", target),
 					Cmd:  "atkins " + alias,
@@ -146,7 +146,7 @@ func buildAliasesSection(skills []*model.Pipeline) ListOutputSection {
 		return cmds[i].ID < cmds[j].ID
 	})
 
-	return ListOutputSection{
+	return OutputSection{
 		Desc: "Aliases",
 		Cmds: cmds,
 	}

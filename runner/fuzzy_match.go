@@ -8,7 +8,7 @@ import (
 
 // FuzzyMatchError is returned when multiple fuzzy matches are found.
 type FuzzyMatchError struct {
-	Matches []*ResolvedTask
+	Matches []*model.ResolvedTask
 }
 
 // Error returns the error as a user message.
@@ -21,10 +21,10 @@ func (e *FuzzyMatchError) Error() string {
 // 1. Exact match in main pipeline (no namespace) - highest priority
 // 2. Exact matches in namespaced pipelines
 // 3. Suffix matches
-func findFuzzyMatches(pipelines []*model.Pipeline, pattern string) []*ResolvedTask {
-	var mainExactMatches []*ResolvedTask
-	var namespacedExactMatches []*ResolvedTask
-	var suffixMatches []*ResolvedTask
+func findFuzzyMatches(pipelines []*model.Pipeline, pattern string) []*model.ResolvedTask {
+	var mainExactMatches []*model.ResolvedTask
+	var namespacedExactMatches []*model.ResolvedTask
+	var suffixMatches []*model.ResolvedTask
 	lowerPattern := strings.ToLower(pattern)
 
 	for _, p := range pipelines {
@@ -32,7 +32,7 @@ func findFuzzyMatches(pipelines []*model.Pipeline, pattern string) []*ResolvedTa
 
 		for jobName, job := range jobs {
 			lowerJobName := strings.ToLower(jobName)
-			match := NewResolvedTask(p, job, jobName)
+			match := model.NewResolvedTask(p, job, jobName)
 
 			if lowerJobName == lowerPattern {
 				if p.ID == "" {

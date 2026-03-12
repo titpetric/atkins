@@ -44,6 +44,19 @@ func TestPipeline_Keys(t *testing.T) {
 				"go": "go:default",
 			},
 		},
+		{
+			// Test that explicit alias takes precedence over auto-alias for skill ID
+			id: "release",
+			jobs: map[string]*model.Job{
+				"default": nil,
+				"publish": {Aliases: []string{"release"}}, // explicit alias matches skill ID
+			},
+			want: []string{"release:default", "release:publish"},
+			aliases: map[string]string{
+				// "release" should point to publish (explicit), not default (auto-alias)
+				"release": "release:publish",
+			},
+		},
 	}
 
 	for _, tc := range testcases {

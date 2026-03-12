@@ -380,3 +380,27 @@ func (e *Executor) terminalSize() *pty.Winsize {
 		Cols: uint16(width),
 	}
 }
+
+// Start begins execution of a command and returns a Process handle.
+// The process can be used for bidirectional I/O, particularly useful
+// for websocket transport.
+func (e *Executor) Start(ctx context.Context, cmd *Command) (*Process, error) {
+	execCmd := e.prepareCmd(ctx, cmd)
+
+	ptmx, err := e.startPTY(execCmd)
+	if err != nil {
+		return nil, err
+	}
+
+	proc := &Process{
+		cmd:       execCmd,
+		ptmx:      ptmx,
+		result:    &processResult{stdout: new(bytes.Buffer), stderr: new(bytes.Buffer)},
+		startTime: time.Now(),
+		done:      make(chan struct{}),
+	}
+
+	go proc.wait()
+
+	return proc, nil
+}
