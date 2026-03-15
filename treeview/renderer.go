@@ -150,6 +150,9 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 	label := node.Label()
 	status := node.StatusColor()
 
+	// Build the suffix parts (status, conditions, progress) that should not be truncated
+	var suffix string
+
 	// Build the node label with dependencies and deferred info
 	deps := node.GetDependencies()
 	if len(deps) > 0 {
@@ -158,13 +161,13 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 			depItems[j] = colors.BrightOrange(dep)
 		}
 		depsStr := strings.Join(depItems, ", ")
-		label = label + fmt.Sprintf(" (depends_on: %s)", depsStr)
+		suffix += fmt.Sprintf(" (depends_on: %s)", depsStr)
 	}
 
 	// Add if condition for skipped nodes
 	if node.GetStatus() == StatusSkipped {
 		if ifCond := node.GetIf(); ifCond != "" {
-			label = label + " " + colors.BrightYellow(fmt.Sprintf("(if: %s)", ifCond))
+			suffix += " " + colors.BrightYellow(fmt.Sprintf("(if: %s)", ifCond))
 		}
 	}
 
@@ -172,7 +175,7 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 	if status != "" && !strings.HasSuffix(strings.TrimSpace(label), "●") &&
 		!strings.HasSuffix(strings.TrimSpace(label), "✓") &&
 		!strings.HasSuffix(strings.TrimSpace(label), "✗") {
-		label = label + " " + status
+		suffix += " " + status
 	}
 
 	// Get children once for consistent progress counter and rendering
@@ -191,12 +194,14 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 		if total == passing {
 			progress = colors.Green(fmt.Sprintf("%d/%d", passing, total))
 		}
-		label = label + " (" + progress + ")"
+		suffix += " (" + progress + ")"
 	}
 
-	// Trim label to fit viewport (prefix + branch = indentation)
+	// Trim label to fit viewport, reserving space for suffix
 	prefixLen := colors.VisualLength(prefix + branch)
-	label = r.trimLabel(label, prefixLen)
+	suffixLen := colors.VisualLength(suffix)
+	label = r.trimLabel(label, prefixLen+suffixLen)
+	label += suffix
 
 	// Render this node
 	output += prefix + branch + label
@@ -295,6 +300,9 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 	label := node.Label()
 	status := node.StatusColor()
 
+	// Build the suffix parts (status, conditions) that should not be truncated
+	var suffix string
+
 	// Build the node label with dependencies and deferred info
 	deps := node.GetDependencies()
 	if len(deps) > 0 {
@@ -303,13 +311,13 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 			depItems[j] = colors.BrightOrange(dep)
 		}
 		depsStr := strings.Join(depItems, ", ")
-		label = label + fmt.Sprintf(" (depends_on: %s)", depsStr)
+		suffix += fmt.Sprintf(" (depends_on: %s)", depsStr)
 	}
 
 	// Add if condition for skipped nodes
 	if node.GetStatus() == StatusSkipped {
 		if ifCond := node.GetIf(); ifCond != "" {
-			label = label + " " + colors.BrightYellow(fmt.Sprintf("(if: %s)", ifCond))
+			suffix += " " + colors.BrightYellow(fmt.Sprintf("(if: %s)", ifCond))
 		}
 	}
 
@@ -318,12 +326,14 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 	isStep := strings.Contains(nodeName, "task:") || strings.Contains(nodeName, "run:") ||
 		strings.Contains(nodeName, "cmd:") || strings.Contains(nodeName, "cmds:")
 	if status != "" && !isStep {
-		label = label + " " + status
+		suffix += " " + status
 	}
 
-	// Trim label to fit viewport (prefix + branch = indentation)
+	// Trim label to fit viewport, reserving space for suffix
 	prefixLen := colors.VisualLength(prefix + branch)
-	label = r.trimLabel(label, prefixLen)
+	suffixLen := colors.VisualLength(suffix)
+	label = r.trimLabel(label, prefixLen+suffixLen)
+	label += suffix
 
 	// Render this node
 	output += prefix + branch + label

@@ -315,7 +315,11 @@ pipelineReady:
 			if errors.As(err, &fuzzyErr) {
 				fmt.Fprintf(os.Stderr, "%s found %d matching jobs:\n\n", colors.BrightYellow("INFO:"), len(fuzzyErr.Matches))
 				for _, match := range fuzzyErr.Matches {
-					fmt.Fprintf(os.Stderr, "  - %s\n", colors.BrightOrange(match.Name))
+					displayName := match.Name
+					if match.Pipeline.ID != "" {
+						displayName = match.Pipeline.ID + ":" + match.Name
+					}
+					fmt.Fprintf(os.Stderr, "  - %s\n", colors.BrightOrange(displayName))
 				}
 				os.Exit(1)
 			}

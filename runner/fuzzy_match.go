@@ -17,6 +17,10 @@ func (e *FuzzyMatchError) Error() string {
 }
 
 // findFuzzyMatches finds all jobs matching the fuzzy pattern (suffix match).
+// The returned ResolvedTask.Name is the raw job map key (e.g., "build"),
+// not the qualified name (e.g., "release:build"). Use Pipeline.ID to
+// construct qualified names for display purposes.
+//
 // Priority order:
 // 1. Exact match in main pipeline (no namespace) - highest priority
 // 2. Exact matches in namespaced pipelines

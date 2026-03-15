@@ -20,5 +20,7 @@ RUN chmod 755 /usr/local/bin/atkins
 # Configure container to run as nobody
 USER nobody
 
+RUN /usr/local/bin/atkins -v
+
 # Default command
 ENTRYPOINT ["/usr/local/bin/atkins"]

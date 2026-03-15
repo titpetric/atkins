@@ -32,7 +32,7 @@ func (t *Trimmer) detectViewport() {
 
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {
-		t.viewportWidth = 0 // No trimming if we can't detect
+		t.viewportWidth = 80 // Default to 80 columns if no terminal detected
 		return
 	}
 	t.viewportWidth = width
@@ -165,8 +165,49 @@ func (t *Trimmer) TrimLabel(label string, maxArgLen, prefixLen int) string {
 	// First, compact arguments
 	compacted := CompactArgs(label, maxArgLen)
 
+	// Then compact the argument list if it exceeds viewport
+	t.mu.RLock()
+	width := t.viewportWidth
+	t.mu.RUnlock()
+	if width > 0 {
+		availableWidth := width - prefixLen
+		if colors.VisualLength(compacted) > availableWidth {
+			args := strings.Fields(compacted)
+			compacted = CompactArgList(args, availableWidth)
+		}
+	}
+
 	// Then trim to viewport
 	return t.TrimToViewport(compacted, prefixLen)
+}
+
+// CompactArgList truncates a space-separated argument list to fit within
+// maxWidth characters, replacing trailing arguments with <...N more>.
+func CompactArgList(args []string, maxWidth int) string {
+	if len(args) <= 2 {
+		return strings.Join(args, " ")
+	}
+
+	// Find how many args fit within maxWidth, reserving space for the suffix.
+	kept := 1
+	length := len(args[0])
+	for i := 1; i < len(args); i++ {
+		remaining := len(args) - i
+		suffix := " <..." + strconv.Itoa(remaining) + " more>"
+		next := length + 1 + len(args[i])
+		if next+len(suffix) > maxWidth {
+			break
+		}
+		length = next
+		kept++
+	}
+
+	remaining := len(args) - kept
+	if remaining == 0 {
+		return strings.Join(args, " ")
+	}
+
+	return strings.Join(args[:kept], " ") + " <..." + strconv.Itoa(remaining) + " more>"
 }
 
 // TrimMultilineLabel trims a multi-line string to its first line,

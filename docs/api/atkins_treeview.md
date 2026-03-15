@@ -106,6 +106,7 @@ const (
 ## Function symbols
 
 - `func BuildFromPipeline (pipeline *model.Pipeline, resolveDeps func(map[string]*model.Job, string) ([]string, error)) (*Node, error)`
+- `func CompactArgList (args []string, maxWidth int) string`
 - `func CompactArgs (cmd string, maxArgLen int) string`
 - `func CountLines (root *Node) int`
 - `func NewBuilder (pipelineName string) *Builder`
@@ -183,6 +184,15 @@ Returns the root node ready to be rendered.
 
 ```go
 func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*model.Job, string) ([]string, error)) (*Node, error)
+```
+
+### CompactArgList
+
+CompactArgList truncates a space-separated argument list to fit within
+maxWidth characters, replacing trailing arguments with <...N more>.
+
+```go
+func CompactArgList(args []string, maxWidth int) string
 ```
 
 ### CompactArgs
