@@ -110,9 +110,9 @@ jobs:
 	// Test the new Step.ExpandFor() method with index pattern
 	step := &model.Step{For: model.Iterators{"(idx, item) in items"}}
 	ctx := &runner.ExecutionContext{
-		Variables: map[string]any{
+		Variables: runner.NewContextVariables(map[string]any{
 			"items": []any{"alpha", "beta", "gamma"},
-		},
+		}),
 		Step: step,
 		Env:  make(map[string]string),
 	}
@@ -337,7 +337,7 @@ func TestEvaluateIfInContext(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			step := &model.Step{If: model.Conditionals{model.Condition(tt.ifCond)}}
 			ctx := &runner.ExecutionContext{
-				Variables: tt.vars,
+				Variables: runner.NewContextVariables(tt.vars),
 				Env:       tt.env,
 				Step:      step,
 			}
@@ -418,7 +418,7 @@ func TestExpandForWithVariables(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			step := &model.Step{For: model.Iterators{model.Iterator(tt.forSpec)}}
 			ctx := &runner.ExecutionContext{
-				Variables: tt.vars,
+				Variables: runner.NewContextVariables(tt.vars),
 				Env:       make(map[string]string),
 				Step:      step,
 			}
@@ -429,8 +429,8 @@ func TestExpandForWithVariables(t *testing.T) {
 
 			for i, expectedVars := range tt.wantVars {
 				for key, expectedVal := range expectedVars {
-					gotVal, ok := iterations[i].Variables[key]
-					assert.True(t, ok, "iteration[%d] missing variable %q", i, key)
+					gotVal := iterations[i].Variables.Get(key)
+					assert.NotNil(t, gotVal, "iteration[%d] missing variable %q", i, key)
 					assert.Equal(t, expectedVal, gotVal, "iteration[%d].%s", i, key)
 				}
 			}
@@ -456,7 +456,7 @@ func createTempYaml(t *testing.T, content string) string {
 func BenchmarkEvaluateIfExpression(b *testing.B) {
 	step := &model.Step{If: model.Conditionals{"matrix_os == 'linux' && GOARCH == 'amd64'"}}
 	ctx := &runner.ExecutionContext{
-		Variables: map[string]any{"matrix_os": "linux"},
+		Variables: runner.NewContextVariables(map[string]any{"matrix_os": "linux"}),
 		Env:       map[string]string{"GOARCH": "amd64"},
 		Step:      step,
 	}
@@ -474,9 +474,9 @@ func BenchmarkEvaluateIfExpression(b *testing.B) {
 func BenchmarkExpandForLoop(b *testing.B) {
 	step := &model.Step{For: model.Iterators{"(i, item) in items"}}
 	ctx := &runner.ExecutionContext{
-		Variables: map[string]any{
+		Variables: runner.NewContextVariables(map[string]any{
 			"items": []any{"a", "b", "c", "d", "e"},
-		},
+		}),
 		Step: step,
 		Env:  make(map[string]string),
 	}
@@ -526,13 +526,13 @@ jobs:
 
 	// Now test that MergeVariables properly merges these into the ExecutionContext
 	ctx := &runner.ExecutionContext{
-		Variables: make(map[string]any),
+		Variables: runner.NewContextVariables(nil),
 		Env:       make(map[string]string),
 		Job:       testJob,
 	}
 
 	err = runner.MergeVariables(ctx, testJob.Decl)
 	assert.NoError(t, err)
-	assert.NotNil(t, ctx.Variables["testBinaries"], "testBinaries should be in context after MergeVariables")
-	assert.Equal(t, "file1.test\nfile2.test", ctx.Variables["testBinaries"])
+	assert.NotNil(t, ctx.Variables.Get("testBinaries"), "testBinaries should be in context after MergeVariables")
+	assert.Equal(t, "file1.test\nfile2.test", ctx.Variables.Get("testBinaries"))
 }

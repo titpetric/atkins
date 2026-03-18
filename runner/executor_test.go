@@ -1,6 +1,8 @@
 package runner_test
 
 import (
+	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -62,7 +64,7 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &runner.ExecutionContext{
-				Variables: tt.variables,
+				Variables: runner.NewContextVariables(tt.variables),
 				Step:      tt.step,
 				Env:       make(map[string]string),
 			}
@@ -86,11 +88,11 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 				if len(tt.step.For) > 0 {
 					switch string(tt.step.For[0]) {
 					case "item in fruits":
-						_, ok := iter.Variables["item"]
-						assert.True(t, ok, "Iteration %d missing 'item' variable", i)
+						val := iter.Variables.Get("item")
+						assert.NotNil(t, val, "Iteration %d missing 'item' variable", i)
 					case "pkg in packages":
-						_, ok := iter.Variables["pkg"]
-						assert.True(t, ok, "Iteration %d missing 'pkg' variable", i)
+						val := iter.Variables.Get("pkg")
+						assert.NotNil(t, val, "Iteration %d missing 'pkg' variable", i)
 					}
 				}
 			}
@@ -132,7 +134,7 @@ func TestInterpolationInForLoop(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &runner.ExecutionContext{
-				Variables: tt.variables,
+				Variables: runner.NewContextVariables(tt.variables),
 				Env:       make(map[string]string),
 			}
 
@@ -162,9 +164,9 @@ func TestForLoopStepExecution(t *testing.T) {
 
 		// Create execution context with iteration items
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]any{
+			Variables: runner.NewContextVariables(map[string]any{
 				"items": []any{"one", "two", "three"},
-			},
+			}),
 			Step:    step,
 			Env:     make(map[string]string),
 			Results: make(map[string]any),
@@ -186,7 +188,7 @@ func TestForLoopStepExecution(t *testing.T) {
 		// Verify each iteration has the correct variable
 		expectedItems := []string{"one", "two", "three"}
 		for i, iter := range iterations {
-			assert.Equal(t, expectedItems[i], iter.Variables["item"], "Iteration %d item mismatch", i)
+			assert.Equal(t, expectedItems[i], iter.Variables.Get("item"), "Iteration %d item mismatch", i)
 		}
 	})
 }
@@ -260,7 +262,7 @@ func TestValidateJobRequirements(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &runner.ExecutionContext{
-				Variables: tt.variables,
+				Variables: runner.NewContextVariables(tt.variables),
 			}
 			// Ensure job name is set (already set by test case)
 
@@ -355,9 +357,9 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 
 		// Create execution context
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]any{
+			Variables: runner.NewContextVariables(map[string]any{
 				"components": []any{"src/main", "src/utils", "tests/"},
-			},
+			}),
 			Step: step,
 			Env:  make(map[string]string),
 		}
@@ -373,7 +375,7 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 		// Verify each iteration has the component variable
 		expectedComponents := []string{"src/main", "src/utils", "tests/"}
 		for i, iter := range iterations {
-			assert.Equal(t, expectedComponents[i], iter.Variables["component"], "Iteration %d component mismatch", i)
+			assert.Equal(t, expectedComponents[i], iter.Variables.Get("component"), "Iteration %d component mismatch", i)
 		}
 	})
 
@@ -386,9 +388,9 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 
 		// Simulate iteration context with loop variable
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]any{
+			Variables: runner.NewContextVariables(map[string]any{
 				"component": "src/main",
-			},
+			}),
 		}
 
 		// Should pass validation
@@ -405,7 +407,7 @@ func TestTaskInvocationWithForLoop(t *testing.T) {
 
 		// Iteration context without the required variable
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]any{},
+			Variables: runner.NewContextVariables(nil),
 		}
 
 		// Should fail validation
@@ -429,9 +431,9 @@ func TestJobVariablesInForLoop(t *testing.T) {
 
 		// Job variables are merged into context BEFORE step execution
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]any{
+			Variables: runner.NewContextVariables(map[string]any{
 				"testBinaries": "runner.test\nmodel.test\ntreeview.test",
-			},
+			}),
 			Step: step,
 			Env:  make(map[string]string),
 		}
@@ -445,7 +447,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 
 		expectedBinaries := []string{"runner.test", "model.test", "treeview.test"}
 		for i, iter := range iterations {
-			assert.Equal(t, expectedBinaries[i], iter.Variables["item"], "Iteration %d item mismatch", i)
+			assert.Equal(t, expectedBinaries[i], iter.Variables.Get("item"), "Iteration %d item mismatch", i)
 		}
 	})
 
@@ -461,7 +463,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 		}
 
 		ctx := &runner.ExecutionContext{
-			Variables: make(map[string]any),
+			Variables: runner.NewContextVariables(nil),
 			Env:       make(map[string]string),
 		}
 
@@ -470,8 +472,8 @@ func TestJobVariablesInForLoop(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Check that testBinaries is in Variables
-		assert.NotNil(t, ctx.Variables["testBinaries"], "testBinaries should be in context variables")
-		assert.Equal(t, "file1.test\nfile2.test", ctx.Variables["testBinaries"])
+		assert.NotNil(t, ctx.Variables.Get("testBinaries"), "testBinaries should be in context variables")
+		assert.Equal(t, "file1.test\nfile2.test", ctx.Variables.Get("testBinaries"))
 	})
 
 	t.Run("actual pipeline with for loop accessing job variable", func(t *testing.T) {
@@ -500,7 +502,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 
 		// Simulate ExecuteJob flow
 		ctx := &runner.ExecutionContext{
-			Variables: make(map[string]any),
+			Variables: runner.NewContextVariables(nil),
 			Env:       make(map[string]string),
 			Job:       job,
 		}
@@ -508,7 +510,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 		// Step 1: Merge job variables (from ExecuteJob line 119)
 		err := runner.MergeVariables(ctx, job.Decl)
 		assert.NoError(t, err)
-		assert.Equal(t, testBinariesValue, ctx.Variables["testBinaries"], "testBinaries should be merged")
+		assert.Equal(t, testBinariesValue, ctx.Variables.Get("testBinaries"), "testBinaries should be merged")
 
 		// Step 2: Simulate executeStep which calls Copy() then calls executeStepWithForLoop
 		stepCtx := ctx.Copy() // This should copy variables
@@ -516,7 +518,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 		stepCtx.Env = make(map[string]string)
 
 		// Verify variables are copied correctly
-		assert.Equal(t, testBinariesValue, stepCtx.Variables["testBinaries"], "stepCtx should have testBinaries after Copy()")
+		assert.Equal(t, testBinariesValue, stepCtx.Variables.Get("testBinaries"), "stepCtx should have testBinaries after Copy()")
 
 		// Step 3: Call ExpandFor - it should find testBinaries
 		iterations, err := runner.ExpandFor(stepCtx, func(cmd string) (string, error) {
@@ -544,9 +546,9 @@ func TestStepVarsWithLoopVariable(t *testing.T) {
 		}
 
 		ctx := &runner.ExecutionContext{
-			Variables: map[string]any{
+			Variables: runner.NewContextVariables(map[string]any{
 				"projects": []any{"proj1", "proj2", "proj3"},
-			},
+			}),
 			Step: step,
 			Env:  make(map[string]string),
 		}
@@ -561,16 +563,13 @@ func TestStepVarsWithLoopVariable(t *testing.T) {
 		// Verify each iteration has the correct item
 		for i, iter := range iterations {
 			expectedItems := []string{"proj1", "proj2", "proj3"}
-			assert.Equal(t, expectedItems[i], iter.Variables["item"])
+			assert.Equal(t, expectedItems[i], iter.Variables.Get("item"))
 
 			// Now simulate what happens in executeTaskStepWithLoop:
 			// Create iteration context and merge step vars
 			iterCtx := &runner.ExecutionContext{
-				Variables: make(map[string]any),
+				Variables: iter.Variables.Clone(),
 				Env:       make(map[string]string),
-			}
-			for k, v := range iter.Variables {
-				iterCtx.Variables[k] = v
 			}
 
 			// Merge step-level vars (this is the fix)
@@ -579,7 +578,7 @@ func TestStepVarsWithLoopVariable(t *testing.T) {
 
 			// The path should now be interpolated with the item value
 			expectedPath := expectedItems[i] + "/subdir"
-			assert.Equal(t, expectedPath, iterCtx.Variables["path"],
+			assert.Equal(t, expectedPath, iterCtx.Variables.Get("path"),
 				"path should be interpolated with item=%s", expectedItems[i])
 		}
 	})
@@ -655,7 +654,7 @@ func TestEvaluateJobIf(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &runner.ExecutionContext{
-				Variables: tt.vars,
+				Variables: runner.NewContextVariables(tt.vars),
 				Env:       tt.env,
 				Job:       tt.job,
 			}
@@ -682,7 +681,7 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 		}
 
 		ctx := &runner.ExecutionContext{
-			Variables: make(map[string]any),
+			Variables: runner.NewContextVariables(nil),
 			Env:       make(map[string]string),
 			Job:       job,
 		}
@@ -706,7 +705,7 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 		jobNode := builder.AddJob(job, nil, "conditional_job")
 
 		ctx := &runner.ExecutionContext{
-			Variables:  make(map[string]any),
+			Variables:  runner.NewContextVariables(nil),
 			Env:        make(map[string]string),
 			Job:        job,
 			CurrentJob: jobNode,
@@ -735,7 +734,7 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 		}
 
 		ctx := &runner.ExecutionContext{
-			Variables: make(map[string]any),
+			Variables: runner.NewContextVariables(nil),
 			Env:       make(map[string]string),
 			Job:       job,
 		}
@@ -758,7 +757,7 @@ func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
 
 		execCtx := &runner.ExecutionContext{
 			CurrentStep: parentNode,
-			Variables:   make(map[string]any),
+			Variables:   runner.NewContextVariables(nil),
 			Env:         make(map[string]string),
 		}
 
@@ -791,4 +790,295 @@ func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
 		// After second iteration, should be restored to parent
 		assert.Equal(t, parentNode, execCtx.CurrentStep)
 	})
+}
+
+// TestExecuteJob_DirBeforeVars verifies that ExecuteJob evaluates job.Dir
+// BEFORE merging variables, so $(cmd) in vars runs in the correct directory.
+func TestExecuteJob_DirBeforeVars(t *testing.T) {
+	t.Run("subshell pwd uses job dir", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "test-workdir-*")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tmpDir)
+
+		job := &model.Job{
+			Name: "test_job",
+			Dir:  tmpDir,
+			Decl: &model.Decl{
+				Vars: map[string]any{
+					"current_dir": "$(pwd)",
+				},
+			},
+			Steps: []*model.Step{
+				{Run: "true"},
+			},
+		}
+
+		display := treeview.NewSilentDisplay()
+		builder := treeview.NewBuilder("test")
+		jobNode := builder.AddJob(job, nil, "test_job")
+
+		ctx := &runner.ExecutionContext{
+			Variables:  runner.NewContextVariables(nil),
+			Env:        make(map[string]string),
+			Job:        job,
+			CurrentJob: jobNode,
+			Display:    display,
+			Builder:    builder,
+		}
+
+		executor := runner.NewExecutor()
+		err = executor.ExecuteJob(t.Context(), ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, tmpDir, ctx.Variables.Get("current_dir"))
+	})
+
+	t.Run("subshell ls lists files from job dir", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "test-workdir-*")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tmpDir)
+
+		testFile := tmpDir + "/marker.txt"
+		assert.NoError(t, os.WriteFile(testFile, []byte("x"), 0o644))
+
+		job := &model.Job{
+			Name: "test_job",
+			Dir:  tmpDir,
+			Decl: &model.Decl{
+				Vars: map[string]any{
+					"files": "$(ls)",
+				},
+			},
+			Steps: []*model.Step{
+				{Run: "true"},
+			},
+		}
+
+		display := treeview.NewSilentDisplay()
+		builder := treeview.NewBuilder("test")
+		jobNode := builder.AddJob(job, nil, "test_job")
+
+		ctx := &runner.ExecutionContext{
+			Variables:  runner.NewContextVariables(nil),
+			Env:        make(map[string]string),
+			Job:        job,
+			CurrentJob: jobNode,
+			Display:    display,
+			Builder:    builder,
+		}
+
+		executor := runner.NewExecutor()
+		err = executor.ExecuteJob(t.Context(), ctx)
+		assert.NoError(t, err)
+		assert.Contains(t, ctx.Variables.Get("files"), "marker.txt")
+	})
+
+	t.Run("dir from interpolated var with subshell", func(t *testing.T) {
+		// Tests the case where dir depends on a var that comes from a subshell:
+		// - dir: ${{workdir}}
+		// - vars: { workdir: "$(echo /tmp)", files_in_wd: "$(ls)" }
+		// The evaluation order should be:
+		// 1. Evaluate workdir (dir depends on it)
+		// 2. Evaluate dir with workdir available
+		// 3. Evaluate files_in_wd with dir set as cwd
+		tmpDir, err := os.MkdirTemp("", "test-workdir-*")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tmpDir)
+
+		assert.NoError(t, os.WriteFile(tmpDir+"/subshell_marker.txt", []byte("x"), 0o644))
+
+		job := &model.Job{
+			Name: "test_job",
+			Dir:  "${{ workdir }}",
+			Decl: &model.Decl{
+				Vars: map[string]any{
+					"workdir":     "$(echo " + tmpDir + ")",
+					"files_in_wd": "$(ls)",
+				},
+			},
+			Steps: []*model.Step{
+				{Run: "true"},
+			},
+		}
+
+		display := treeview.NewSilentDisplay()
+		builder := treeview.NewBuilder("test")
+		jobNode := builder.AddJob(job, nil, "test_job")
+
+		ctx := &runner.ExecutionContext{
+			Variables:  runner.NewContextVariables(nil),
+			Env:        make(map[string]string),
+			Job:        job,
+			CurrentJob: jobNode,
+			Display:    display,
+			Builder:    builder,
+		}
+
+		executor := runner.NewExecutor()
+		err = executor.ExecuteJob(t.Context(), ctx)
+
+		assert.NoError(t, err)
+		assert.Equal(t, tmpDir, ctx.Variables.Get("workdir"))
+		assert.Contains(t, ctx.Variables.Get("files_in_wd"), "subshell_marker.txt")
+	})
+}
+
+// TestExecuteStepWithForLoop_SequentialBreaksOnError verifies that sequential
+// iteration (without detach) stops on the first error.
+func TestExecuteStepWithForLoop_SequentialBreaksOnError(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	job := &model.Job{
+		Name: "test_job",
+		Steps: []*model.Step{
+			{
+				Run: `if [ "${{ item }}" = "fail" ]; then exit 1; fi; touch "` + tmpDir + `/${{ item }}.done"`,
+				For: model.Iterators{"item in items"},
+			},
+		},
+	}
+
+	display := treeview.NewSilentDisplay()
+	builder := treeview.NewBuilder("test")
+	jobNode := builder.AddJob(job, nil, "test_job")
+
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(map[string]any{
+			"items": []any{"first", "fail", "third"},
+		}),
+		Env:        make(map[string]string),
+		Job:        job,
+		CurrentJob: jobNode,
+		Display:    display,
+		Builder:    builder,
+	}
+
+	executor := runner.NewExecutor()
+	err := executor.ExecuteJob(t.Context(), ctx)
+	assert.Error(t, err)
+
+	// First ran, third should NOT have run
+	_, err1 := os.Stat(tmpDir + "/first.done")
+	_, err3 := os.Stat(tmpDir + "/third.done")
+	assert.NoError(t, err1, "first iteration should complete")
+	assert.True(t, os.IsNotExist(err3), "third iteration should not run")
+}
+
+// TestExecuteStepWithForLoop_DetachParallel verifies that for loop with
+// detach runs iterations in parallel by completing all iterations.
+func TestExecuteStepWithForLoop_DetachParallel(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	job := &model.Job{
+		Name: "test_job",
+		Steps: []*model.Step{
+			{
+				Run:    `touch "` + tmpDir + `/${{ item }}.done"`,
+				For:    model.Iterators{"item in items"},
+				Detach: true,
+			},
+		},
+	}
+
+	display := treeview.NewSilentDisplay()
+	builder := treeview.NewBuilder("test")
+	jobNode := builder.AddJob(job, nil, "test_job")
+
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(map[string]any{
+			"items": []any{"a", "b", "c", "d"},
+		}),
+		Env:        make(map[string]string),
+		Job:        job,
+		CurrentJob: jobNode,
+		Display:    display,
+		Builder:    builder,
+	}
+
+	executor := runner.NewExecutor()
+	err := executor.ExecuteJob(t.Context(), ctx)
+	assert.NoError(t, err)
+
+	// All files should be created when detach completes
+	for _, item := range []string{"a", "b", "c", "d"} {
+		_, err := os.Stat(tmpDir + "/" + item + ".done")
+		assert.NoError(t, err, "iteration %s should complete", item)
+	}
+}
+
+// TestExecuteStepWithForLoop_DetachContinuesOnError verifies that parallel
+// iterations continue even when one fails.
+func TestExecuteStepWithForLoop_DetachContinuesOnError(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	job := &model.Job{
+		Name: "test_job",
+		Steps: []*model.Step{
+			{
+				Run:    `if [ "${{ item }}" = "fail" ]; then exit 1; fi; touch "` + tmpDir + `/${{ item }}.done"`,
+				For:    model.Iterators{"item in items"},
+				Detach: true,
+			},
+		},
+	}
+
+	display := treeview.NewSilentDisplay()
+	builder := treeview.NewBuilder("test")
+	jobNode := builder.AddJob(job, nil, "test_job")
+
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(map[string]any{
+			"items": []any{"first", "fail", "third"},
+		}),
+		Env:        make(map[string]string),
+		Job:        job,
+		CurrentJob: jobNode,
+		Display:    display,
+		Builder:    builder,
+	}
+
+	executor := runner.NewExecutor()
+	err := executor.ExecuteJob(t.Context(), ctx)
+	assert.Error(t, err)
+
+	// Both first and third should have run (detach waits for all to complete)
+	_, err1 := os.Stat(tmpDir + "/first.done")
+	_, err3 := os.Stat(tmpDir + "/third.done")
+	assert.NoError(t, err1, "first iteration should complete")
+	assert.NoError(t, err3, "third iteration should complete with detach")
+}
+
+// TestExecuteStepWithForLoop_ContextCancellation verifies that iterations
+// respect context timeout/cancellation.
+func TestExecuteStepWithForLoop_ContextCancellation(t *testing.T) {
+	job := &model.Job{
+		Name:    "test_job",
+		Timeout: "1ms", // Very short timeout to trigger cancellation
+		Steps: []*model.Step{
+			{
+				// Command that would take too long
+				Run: `for i in $(seq 1 1000); do echo $i > /dev/null; done`,
+				For: model.Iterators{"item in items"},
+			},
+		},
+	}
+
+	display := treeview.NewSilentDisplay()
+	builder := treeview.NewBuilder("test")
+	jobNode := builder.AddJob(job, nil, "test_job")
+
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(map[string]any{
+			"items": []any{"first", "second", "third"},
+		}),
+		Env:        make(map[string]string),
+		Job:        job,
+		CurrentJob: jobNode,
+		Display:    display,
+		Builder:    builder,
+	}
+
+	executor := runner.NewExecutor()
+	err := executor.ExecuteJob(context.Background(), ctx)
+	// Should have an error due to timeout
+	assert.Error(t, err)
 }

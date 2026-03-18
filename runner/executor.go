@@ -112,8 +112,11 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 	// Store context in execution context for use in steps
 	execCtx.Context = ctx
 
-	// Merge job variables into context with interpolation
-	if err := MergeVariables(execCtx, job.Decl); err != nil {
+	// Evaluate job-level working directory and merge variables.
+	// The order depends on whether dir references variables:
+	// - Static dir (e.g., "/path"): evaluate dir first, then vars use that cwd
+	// - Dynamic dir (e.g., "${{workdir}}"): evaluate vars first, then interpolate dir
+	if err := evaluateDirAndVars(execCtx, job, true); err != nil {
 		return err
 	}
 
@@ -126,23 +129,73 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 		return ErrJobSkipped
 	}
 
-	// Evaluate job-level working directory
-	if job.Dir != "" {
-		dir, err := InterpolateString(job.Dir, execCtx)
-		if err != nil {
-			return fmt.Errorf("failed to interpolate job dir %q: %w", job.Dir, err)
-		}
-		if info, statErr := os.Stat(dir); statErr != nil {
-			return fmt.Errorf("job dir %q: %w", dir, statErr)
-		} else if !info.IsDir() {
-			return fmt.Errorf("job dir %q is not a directory", dir)
-		}
-		execCtx.Dir = dir
-	}
-
 	// Execute steps
 	steps := job.Children()
 	return e.executeSteps(ctx, execCtx, steps)
+}
+
+// evaluateDirAndVars uses lazy evaluation for job/task vars and dir.
+// Vars are set as pending, dir is interpolated (resolving needed vars on-demand),
+// then remaining vars are resolved for step execution.
+// The label (e.g. "job", "task") is used in error messages.
+// When checkDir is true, the resolved directory is validated to exist.
+func evaluateDirAndVars(ctx *ExecutionContext, job *model.Job, checkDir bool, label ...string) error {
+	prefix := "job"
+	if len(label) > 0 {
+		prefix = label[0]
+	}
+	// Set up lazy evaluation for vars
+	if job.Decl != nil && job.Decl.Vars != nil {
+		lazyVars := NewContextVariablesWithResolver(job.Decl.Vars, func(s string) (string, error) {
+			return InterpolateString(s, ctx)
+		})
+		// Copy existing variables into the lazy storage
+		ctx.Variables.Walk(func(k string, v any) {
+			lazyVars.Set(k, v)
+		})
+		ctx.Variables = lazyVars
+	}
+
+	// Evaluate dir - this will lazily resolve any vars it references via Get
+	if job.Dir != "" {
+		dir, err := InterpolateString(job.Dir, ctx)
+		if err != nil {
+			return fmt.Errorf("failed to interpolate %s dir %q: %w", prefix, job.Dir, err)
+		}
+		if checkDir {
+			if err := validateDir(dir); err != nil {
+				return fmt.Errorf("%s dir %q: %w", prefix, dir, err)
+			}
+		}
+		ctx.Dir = dir
+	}
+
+	// Process env vars (these need eager evaluation for shell access)
+	if job.Decl != nil && job.Decl.Env != nil {
+		if err := mergeEnv(ctx, job.Decl.Env); err != nil {
+			return fmt.Errorf("error processing environment: %w", err)
+		}
+	}
+
+	// Resolve any remaining pending vars now (ensures all vars are available for steps)
+	if cv, ok := ctx.Variables.(*ContextVariables); ok {
+		if err := cv.ResolveAll(); err != nil {
+			return fmt.Errorf("failed to resolve variables: %w", err)
+		}
+	}
+	return nil
+}
+
+// validateDir checks that a directory exists and is a directory.
+func validateDir(dir string) error {
+	info, err := os.Stat(dir)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("not a directory")
+	}
+	return nil
 }
 
 // executeSteps runs a sequence of steps (deferred steps are already at the end of the list)
@@ -175,8 +228,14 @@ func (e *Executor) executeSteps(ctx context.Context, execCtx *ExecutionContext, 
 
 		if step.Detach {
 			detached++
+			step := steps[idx]
+			idx := idx
 			eg.Go(func() error {
-				return e.executeStep(ctx, execCtx, steps[idx], idx)
+				// Each detached task tree gets its own cancellable context
+				// so that if an error occurs, only this tree is cancelled
+				treeCtx, cancel := context.WithCancel(ctx)
+				defer cancel()
+				return e.executeStep(treeCtx, execCtx, step, idx)
 			})
 			continue
 		}
@@ -415,21 +474,21 @@ func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.C
 }
 
 // prepareIterationContext creates a new execution context for a loop iteration, overlaying iteration variables
-func (e *Executor) prepareIterationContext(parentCtx *ExecutionContext, iteration map[string]any) *ExecutionContext {
+func (e *Executor) prepareIterationContext(parentCtx *ExecutionContext, iteration model.VariableStorage) *ExecutionContext {
 	iterCtx := parentCtx.Copy()
-	for k, v := range iteration {
-		iterCtx.Variables[k] = v
-	}
+	iteration.Walk(func(k string, v any) {
+		iterCtx.Variables.Set(k, v)
+	})
 	return iterCtx
 }
 
 // prepareIterationContextWithContext creates a new execution context for a loop iteration with context replacement
-func (e *Executor) prepareIterationContextWithContext(parentCtx *ExecutionContext, ctx context.Context, iteration map[string]any) (*ExecutionContext, error) {
+func (e *Executor) prepareIterationContextWithContext(parentCtx *ExecutionContext, ctx context.Context, iteration model.VariableStorage) (*ExecutionContext, error) {
 	iterCtx := parentCtx.Copy()
 	iterCtx.Context = ctx
-	for k, v := range iteration {
-		iterCtx.Variables[k] = v
-	}
+	iteration.Walk(func(k string, v any) {
+		iterCtx.Variables.Set(k, v)
+	})
 
 	// Evaluate step-level dir with iteration variables
 	if err := evaluateStepDir(iterCtx); err != nil {
@@ -590,25 +649,32 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 	var errMu sync.Mutex
 
 	for idx, iteration := range iterations {
+		// Check if context was cancelled before starting next iteration
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		idx := idx
 		iteration := iteration
 
-		executeIteration := func() error {
+		executeIteration := func(iterCtx context.Context) error {
 			// Create iteration context by overlaying iteration variables on parent context
-			iterCtx, err := e.prepareIterationContextWithContext(execCtx, ctx, iteration.Variables)
+			stepIterCtx, err := e.prepareIterationContextWithContext(execCtx, iterCtx, iteration.Variables)
 			if err != nil {
 				return fmt.Errorf("failed to prepare iteration context %d: %w", idx, err)
 			}
 
 			// Merge step-level env with interpolation
 			// This needs to happen before building the command so env vars can be interpolated
-			if err := MergeVariables(iterCtx, step.Decl); err != nil {
+			if err := MergeVariables(stepIterCtx, step.Decl); err != nil {
 				return fmt.Errorf("failed to process step env for iteration %d: %w", idx, err)
 			}
 
 			// Update step node label with interpolated display label for this iteration
 			if label := step.DisplayLabel(); label != "" {
-				if interpolated, err := InterpolateCommand(label, iterCtx); err == nil {
+				if interpolated, err := InterpolateCommand(label, stepIterCtx); err == nil {
 					stepNode.SetName(interpolated)
 				}
 			}
@@ -622,12 +688,12 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 			// Handle task invocation or command execution
 			if step.Task != "" {
 				// Task invocation with loop variables
-				if err := e.executeTaskStep(ctx, iterCtx, step, iterNode); err != nil {
+				if err := e.executeTaskStep(iterCtx, stepIterCtx, step, iterNode); err != nil {
 					return err
 				}
 			} else {
 				// Execute all commands for this iteration
-				if err := e.executeCommands(ctx, iterCtx, step, iterNode, step.Commands(), stepIndex); err != nil {
+				if err := e.executeCommands(iterCtx, stepIterCtx, step, iterNode, step.Commands(), stepIndex); err != nil {
 					return err
 				}
 			}
@@ -635,21 +701,24 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 		}
 
 		if step.Detach {
-			// Run iterations in parallel
+			// Run iterations in parallel - each gets its own cancellable context
 			eg.Go(func() error {
-				if err := executeIteration(); err != nil {
+				iterCtx, cancel := context.WithCancel(ctx)
+				defer cancel()
+				if err := executeIteration(iterCtx); err != nil {
 					errMu.Lock()
-					lastErr = err
+					if lastErr == nil {
+						lastErr = err
+					}
 					errMu.Unlock()
-					// Don't return error - continue collecting all failures
 				}
 				return nil
 			})
 		} else {
-			// Run iterations sequentially
-			if err := executeIteration(); err != nil {
+			// Run iterations sequentially - break on error
+			if err := executeIteration(ctx); err != nil {
 				lastErr = err
-				// Continue to next iteration even on error (collect all failures)
+				break
 			}
 		}
 	}
@@ -840,16 +909,9 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		if err := MergeSkillVariables(taskCtx, targetPipeline.Decl); err != nil {
 			return err
 		}
-		if err := MergeSkillVariables(taskCtx, taskJob.Decl); err != nil {
+		// Evaluate task job dir and vars with proper ordering
+		if err := evaluateDirAndVars(taskCtx, taskJob, false, "task"); err != nil {
 			return err
-		}
-		// Evaluate task job-level working directory
-		if taskJob.Dir != "" {
-			dir, err := InterpolateString(taskJob.Dir, taskCtx)
-			if err != nil {
-				return fmt.Errorf("failed to interpolate task dir %q: %w", taskJob.Dir, err)
-			}
-			taskCtx.Dir = dir
 		}
 		// Merge step-level vars (call-site overrides)
 		// This allows step vars to be interpolated and override task defaults
@@ -939,9 +1001,9 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 
 		// Create a descriptive name showing the task and key variable values
 		iterName := step.Task
-		if item, ok := iterCtx.Variables["item"]; ok {
+		if item := iterCtx.Variables.Get("item"); item != nil {
 			iterName = fmt.Sprintf("%s (item: %v)", step.Task, item)
-		} else if path, ok := iterCtx.Variables["path"]; ok {
+		} else if path := iterCtx.Variables.Get("path"); path != nil {
 			iterName = fmt.Sprintf("%s (path: %v)", step.Task, path)
 		}
 
@@ -966,72 +1028,105 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 	// Render tree with expanded iterations
 	execCtx.Render()
 
-	// Execute task for each iteration
+	// Execute task for each iteration - use errgroup for detached (parallel) execution
+	var eg *errgroup.Group
+	if step.Detach {
+		eg = new(errgroup.Group)
+		eg.SetLimit(runtime.NumCPU())
+	}
+
 	var lastErr error
+	var errMu sync.Mutex
+
 	for idx, iter := range iterations {
-		iterTreeNode := iterationNodes[idx]
-
-		// Create execution context for this iteration with loop variables
-		iterCtx := execCtx.Copy()
-		for k, v := range iter.Variables {
-			iterCtx.Variables[k] = v
-		}
-		iterCtx.Job = taskJob
-		iterCtx.CurrentJob = iterTreeNode // Use iteration-specific node
-		iterCtx.Context = ctx
-		iterCtx.StepSequence = 0 // Reset step counter for each iteration
-
-		// Mark iteration as running
-		iterTreeNode.SetStatus(treeview.StatusRunning)
-		execCtx.Render()
-
-		if err := MergeSkillVariables(iterCtx, targetPipeline.Decl); err != nil {
-			iterTreeNode.SetStatus(treeview.StatusFailed)
-			lastErr = err
-			continue
-		}
-		if err := MergeSkillVariables(iterCtx, taskJob.Decl); err != nil {
-			iterTreeNode.SetStatus(treeview.StatusFailed)
-			lastErr = err
-			continue
+		// Check if context was cancelled before starting next iteration
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
 
-		// Evaluate task job-level working directory
-		if taskJob.Dir != "" {
-			dir, err := InterpolateString(taskJob.Dir, iterCtx)
-			if err != nil {
+		idx := idx
+		iter := iter
+
+		executeIteration := func(iterRunCtx context.Context) error {
+			iterTreeNode := iterationNodes[idx]
+
+			// Create execution context for this iteration with loop variables
+			iterCtx := execCtx.Copy()
+			iter.Variables.Walk(func(k string, v any) {
+				iterCtx.Variables.Set(k, v)
+			})
+			iterCtx.Job = taskJob
+			iterCtx.CurrentJob = iterTreeNode // Use iteration-specific node
+			iterCtx.Context = iterRunCtx
+			iterCtx.StepSequence = 0 // Reset step counter for each iteration
+
+			// Mark iteration as running
+			iterTreeNode.SetStatus(treeview.StatusRunning)
+			execCtx.Render()
+
+			if err := MergeSkillVariables(iterCtx, targetPipeline.Decl); err != nil {
 				iterTreeNode.SetStatus(treeview.StatusFailed)
-				lastErr = err
-				continue
+				return err
 			}
-			iterCtx.Dir = dir
+
+			// Evaluate task job dir and vars with proper ordering
+			if err := evaluateDirAndVars(iterCtx, taskJob, false, "task"); err != nil {
+				iterTreeNode.SetStatus(treeview.StatusFailed)
+				return err
+			}
+
+			// Merge step-level vars (call-site overrides) with iteration context
+			// This allows step vars like `path: $(dirname "${{item}}")` to be interpolated
+			if err := MergeVariables(iterCtx, step.Decl); err != nil {
+				iterTreeNode.SetStatus(treeview.StatusFailed)
+				return err
+			}
+
+			// Validate job requirements (loop variables should satisfy requires)
+			if err := ValidateJobRequirements(iterCtx, taskJob); err != nil {
+				iterTreeNode.SetStatus(treeview.StatusFailed)
+				return err
+			}
+
+			// Execute the task job steps with the iteration's own context
+			if err := e.executeSteps(iterRunCtx, iterCtx, taskJob.Children()); err != nil {
+				iterTreeNode.SetStatus(treeview.StatusFailed)
+				return err
+			}
+
+			// Mark iteration as passed
+			iterTreeNode.SetStatus(treeview.StatusPassed)
+			return nil
 		}
 
-		// Merge step-level vars (call-site overrides) with iteration context
-		// This allows step vars like `path: $(dirname "${{item}}")` to be interpolated
-		if err := MergeVariables(iterCtx, step.Decl); err != nil {
-			iterTreeNode.SetStatus(treeview.StatusFailed)
-			lastErr = err
-			continue
+		if step.Detach {
+			// Run iterations in parallel - each gets its own cancellable context
+			eg.Go(func() error {
+				iterCtx, cancel := context.WithCancel(ctx)
+				defer cancel()
+				if err := executeIteration(iterCtx); err != nil {
+					errMu.Lock()
+					if lastErr == nil {
+						lastErr = err
+					}
+					errMu.Unlock()
+				}
+				return nil
+			})
+		} else {
+			// Run iterations sequentially - break on error
+			if err := executeIteration(ctx); err != nil {
+				lastErr = err
+				break
+			}
 		}
+	}
 
-		// Validate job requirements (loop variables should satisfy requires)
-		if err := ValidateJobRequirements(iterCtx, taskJob); err != nil {
-			iterTreeNode.SetStatus(treeview.StatusFailed)
-			lastErr = err
-			continue
-		}
-
-		// Execute the task job steps with iteration context
-		if err := e.executeSteps(ctx, iterCtx, taskJob.Children()); err != nil {
-			iterTreeNode.SetStatus(treeview.StatusFailed)
-			lastErr = err
-			// Continue to next iteration even on error (collect all failures)
-			continue
-		}
-
-		// Mark iteration as passed
-		iterTreeNode.SetStatus(treeview.StatusPassed)
+	// Wait for all parallel iterations to complete
+	if eg != nil {
+		_ = eg.Wait()
 	}
 
 	// Update parent node statuses based on results
@@ -1079,12 +1174,9 @@ func interpolateVariables(ctx *ExecutionContext, vars map[string]any) (map[strin
 
 	// Create a working context that accumulates resolved variables
 	workCtx := &ExecutionContext{
-		Variables: make(map[string]any),
+		Variables: ctx.Variables.Clone(),
 		Env:       ctx.Env,
 		Dir:       ctx.Dir,
-	}
-	for k, v := range ctx.Variables {
-		workCtx.Variables[k] = v
 	}
 
 	result := make(map[string]any)
@@ -1096,10 +1188,10 @@ func interpolateVariables(ctx *ExecutionContext, vars map[string]any) (map[strin
 				return nil, fmt.Errorf("failed to interpolate variable %q: %w", k, err)
 			}
 			result[k] = interpolated
-			workCtx.Variables[k] = interpolated
+			workCtx.Variables.Set(k, interpolated)
 		} else {
 			result[k] = v
-			workCtx.Variables[k] = v
+			workCtx.Variables.Set(k, v)
 		}
 	}
 	return result, nil
@@ -1219,23 +1311,23 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		return NewExecError(result)
 	}
 
-	// For echo commands, update the step node label with the output
-	if IsEchoCommand(interpolated) && execCtx.CurrentStep != nil {
-		echoOutput, echoErr := evaluateEchoCommand(ctx, execCtx.Env, execCtx.Dir, interpolated)
-		if echoErr == nil && echoOutput != "" {
-			execCtx.CurrentStep.Name = echoOutput
-		}
-	}
-
 	// Set output on node only after command completes successfully
-	if writer != nil && execCtx.CurrentStep != nil {
-		rawOutput := writer.String()
-		lines, sanitizeErr := Sanitize(rawOutput)
-		if sanitizeErr != nil {
-			return fmt.Errorf("failed to sanitize output: %w", sanitizeErr)
-		}
-		if len(lines) > 0 {
-			execCtx.CurrentStep.SetOutput(lines)
+	if execCtx.CurrentStep != nil {
+		// For echo commands, update the step node label with the output
+		if IsEchoCommand(interpolated) {
+			echoOutput, echoErr := evaluateEchoCommand(ctx, execCtx.Env, execCtx.Dir, interpolated)
+			if echoErr == nil && echoOutput != "" {
+				execCtx.CurrentStep.Name = echoOutput
+			}
+		} else if writer != nil {
+			rawOutput := writer.String()
+			lines, sanitizeErr := Sanitize(rawOutput)
+			if sanitizeErr != nil {
+				return fmt.Errorf("failed to sanitize output: %w", sanitizeErr)
+			}
+			if len(lines) > 0 {
+				execCtx.CurrentStep.SetOutput(lines)
+			}
 		}
 	}
 

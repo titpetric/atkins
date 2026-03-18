@@ -19,7 +19,7 @@ type ExecutionContext struct {
 	Verbose bool
 	Dir     string
 
-	Variables map[string]any
+	Variables model.VariableStorage
 
 	Pipeline     *model.Pipeline
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
@@ -63,11 +63,15 @@ func (e *ExecutionContext) Resolve(taskName string) (*model.ResolvedTask, error)
 	return e.SkillResolver().ResolveWithFallback(taskName, e.Resolver())
 }
 
-// Copy copies everything except Context. Variables are shallow-copied.
+// Copy copies everything except Context. Variables are cloned.
 // JobCompleted is shared (not copied) to maintain consistent dependency tracking.
 func (e *ExecutionContext) Copy() *ExecutionContext {
+	var vars model.VariableStorage
+	if e.Variables != nil {
+		vars = e.Variables.Clone()
+	}
 	return &ExecutionContext{
-		Variables:    maps.Clone(e.Variables),
+		Variables:    vars,
 		Env:          maps.Clone(e.Env),
 		Results:      e.Results,
 		Verbose:      e.Verbose,

@@ -60,17 +60,15 @@ func (r *Resolver) loadIncludes(decl *model.Decl) error {
 
 // seedContext creates the working ExecutionContext from existing state and base includes.
 func (r *Resolver) seedContext(ctx *ExecutionContext) {
+	workVars := ctx.Variables.Clone()
+	for k, v := range r.baseVars {
+		workVars.Set(k, v)
+	}
 	r.workCtx = &ExecutionContext{
-		Variables:   make(map[string]any),
+		Variables:   workVars,
 		Env:         make(map[string]string),
 		Dir:         ctx.Dir,
 		EventLogger: ctx.EventLogger,
-	}
-	for k, v := range ctx.Variables {
-		r.workCtx.Variables[k] = v
-	}
-	for k, v := range r.baseVars {
-		r.workCtx.Variables[k] = v
 	}
 	for k, v := range ctx.Env {
 		r.workCtx.Env[k] = v
@@ -116,7 +114,7 @@ func (r *Resolver) resolve(order []string) (map[string]any, map[string]string, e
 				return nil, nil, fmt.Errorf("error processing variables: failed to interpolate variable %q: %w", k, err)
 			}
 			resolvedVars[k] = v
-			r.workCtx.Variables[k] = v
+			r.workCtx.Variables.Set(k, v)
 
 		case strings.HasPrefix(nodeID, nodePrefixEnv):
 			k := strings.TrimPrefix(nodeID, nodePrefixEnv)
@@ -155,10 +153,10 @@ func (r *Resolver) mergeInto(ctx *ExecutionContext) error {
 	}
 
 	for k, v := range r.baseVars {
-		ctx.Variables[k] = v
+		ctx.Variables.Set(k, v)
 	}
 	for k, v := range resolvedVars {
-		ctx.Variables[k] = v
+		ctx.Variables.Set(k, v)
 	}
 	for k, v := range r.baseEnv {
 		ctx.Env[k] = v

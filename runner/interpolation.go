@@ -264,11 +264,25 @@ func InterpolateCommand(cmd string, ctx *ExecutionContext) (string, error) {
 // Note: The ?? (null coalescing) operator is the preferred pattern for defaults
 // since it explicitly handles nil/missing values without side effects on falsy values.
 func evaluateExpression(exprStr string, ctx *ExecutionContext) (any, error) {
-	// Merge variables and environment into a single map for expr evaluation
+	// Build environment from variables (via Get for lazy evaluation) and env
 	env := make(map[string]any)
-	for k, v := range ctx.Variables {
+
+	// Walk evaluated variables
+	ctx.Variables.Walk(func(k string, v any) {
 		env[k] = v
+	})
+
+	// Also check if expr references vars that haven't been walked yet (pending)
+	// by calling Get which triggers lazy evaluation
+	for _, name := range extractVarNames(exprStr) {
+		if _, exists := env[name]; !exists {
+			if val := ctx.Variables.Get(name); val != nil {
+				env[name] = val
+			}
+		}
 	}
+
+	// Add environment variables
 	for k, v := range ctx.Env {
 		env[k] = v
 	}
@@ -285,4 +299,22 @@ func evaluateExpression(exprStr string, ctx *ExecutionContext) (any, error) {
 	}
 
 	return result, nil
+}
+
+// extractVarNames extracts potential variable names from an expression.
+// This is a simple extraction that looks for identifiers.
+func extractVarNames(exprStr string) []string {
+	// Match word characters that could be variable names
+	re := regexp.MustCompile(`\b([a-zA-Z_][a-zA-Z0-9_]*)\b`)
+	matches := re.FindAllStringSubmatch(exprStr, -1)
+	seen := make(map[string]bool)
+	var names []string
+	for _, m := range matches {
+		name := m[1]
+		if !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	return names
 }

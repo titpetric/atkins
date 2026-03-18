@@ -227,7 +227,7 @@ func TestInterpolation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &runner.ExecutionContext{
-				Variables: tt.variables,
+				Variables: runner.NewContextVariables(tt.variables),
 				Env:       tt.env,
 			}
 
@@ -315,7 +315,7 @@ func TestNullCoalescingOperator(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := &runner.ExecutionContext{
-				Variables: tt.variables,
+				Variables: runner.NewContextVariables(tt.variables),
 				Env:       make(map[string]string),
 			}
 
@@ -329,9 +329,9 @@ func TestNullCoalescingOperator(t *testing.T) {
 // evaluateExpr is a helper for testing expression evaluation directly
 func evaluateExpr(exprStr string, ctx *runner.ExecutionContext) (any, error) {
 	env := make(map[string]any)
-	for k, v := range ctx.Variables {
+	ctx.Variables.Walk(func(k string, v any) {
 		env[k] = v
-	}
+	})
 	for k, v := range ctx.Env {
 		env[k] = v
 	}

@@ -2,7 +2,6 @@ package runner
 
 import (
 	"fmt"
-	"maps"
 	"regexp"
 	"strings"
 
@@ -73,8 +72,10 @@ func evaluateIfExpression(ifExpr string, ctx *ExecutionContext) (bool, error) {
 	env := make(map[string]any)
 
 	// Add all context variables
-	for k, v := range ctx.Variables {
-		env[k] = v
+	if ctx.Variables != nil {
+		ctx.Variables.Walk(func(k string, v any) {
+			env[k] = v
+		})
 	}
 
 	// Add environment variables
@@ -117,7 +118,7 @@ func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error
 	}
 
 	// Start with a single context containing the parent variables
-	result := []IterationContext{{Variables: maps.Clone(ctx.Variables)}}
+	result := []IterationContext{{Variables: ctx.Variables.Clone()}}
 
 	// Process each iterator, computing cartesian product
 	for _, iterator := range s.For {
@@ -168,7 +169,7 @@ func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, fo
 		if indexVar != "" || keyVar != "" {
 			// (index, item) or (key, value) pattern
 			for i, item := range items {
-				vars := maps.Clone(parentCtx.Variables)
+				vars := parentCtx.Variables.Clone()
 
 				// Check if this is a map for (key, value) iteration
 				if mapItem, ok := item.(map[string]any); ok && indexVar != "" && keyVar != "" {
@@ -176,9 +177,9 @@ func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, fo
 					// If items contains only one map, treat as (key, value)
 					if len(items) == 1 {
 						for k, v := range mapItem {
-							iterVars := maps.Clone(vars)
-							iterVars[indexVar] = k // First var is the key
-							iterVars[keyVar] = v   // Second var is the value
+							iterVars := vars.Clone()
+							iterVars.Set(indexVar, k) // First var is the key
+							iterVars.Set(keyVar, v)   // Second var is the value
 							result = append(result, IterationContext{Variables: iterVars})
 						}
 						continue
@@ -187,20 +188,20 @@ func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, fo
 
 				if indexVar != "" && keyVar != "" {
 					// (index, item) pattern
-					vars[indexVar] = i
-					vars[keyVar] = item
+					vars.Set(indexVar, i)
+					vars.Set(keyVar, item)
 				} else if keyVar != "" {
 					// Fallback for single var with key case
-					vars[indexVar] = i
-					vars[keyVar] = item
+					vars.Set(indexVar, i)
+					vars.Set(keyVar, item)
 				}
 				result = append(result, IterationContext{Variables: vars})
 			}
 		} else {
 			// Simple "item in items" or "name in names" pattern
 			for _, item := range items {
-				vars := maps.Clone(parentCtx.Variables)
-				vars[loopVar] = item
+				vars := parentCtx.Variables.Clone()
+				vars.Set(loopVar, item)
 				result = append(result, IterationContext{Variables: vars})
 			}
 		}
@@ -290,7 +291,7 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 	}
 
 	// Look up in variables
-	if val, ok := ctx.Variables[itemsSpec]; ok {
+	if val := ctx.Variables.Get(itemsSpec); val != nil {
 		return convertToAnySlice(val)
 	}
 

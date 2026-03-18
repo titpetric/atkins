@@ -62,8 +62,10 @@ func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error {
 	}
 	// Snapshot existing variable values
 	existing := make(map[string]any)
-	for k, v := range ctx.Variables {
-		existing[k] = v
+	if ctx.Variables != nil {
+		ctx.Variables.Walk(func(k string, v any) {
+			existing[k] = v
+		})
 	}
 	// Merge normally (may overwrite)
 	if err := MergeVariables(ctx, decl); err != nil {
@@ -71,7 +73,7 @@ func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error {
 	}
 	// Restore: existing values take precedence over newly merged ones
 	for k, v := range existing {
-		ctx.Variables[k] = v
+		ctx.Variables.Set(k, v)
 	}
 	return nil
 }
@@ -105,7 +107,7 @@ func MergeVariables(ctx *ExecutionContext, decl *model.Decl) error {
 	}
 
 	for k, v := range processed {
-		ctx.Variables[k] = v
+		ctx.Variables.Set(k, v)
 	}
 
 	if decl.Env != nil {

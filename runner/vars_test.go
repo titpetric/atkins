@@ -12,7 +12,7 @@ import (
 
 func TestVariableEvaluation_DependencyOrdering(t *testing.T) {
 	ctx := &runner.ExecutionContext{
-		Variables: make(map[string]any),
+		Variables: runner.NewContextVariables(nil),
 		Env: map[string]string{
 			"CI": "true",
 		},
@@ -83,13 +83,13 @@ func TestVariableEvaluation_DependencyOrdering(t *testing.T) {
 	}
 
 	for k, expectedVal := range expected {
-		assert.Equal(t, expectedVal, ctx.Variables[k], "variable %q mismatch", k)
+		assert.Equal(t, expectedVal, ctx.Variables.Get(k), "variable %q mismatch", k)
 	}
 }
 
 func TestVariableEvaluation_ShellWithEnvDependency(t *testing.T) {
 	ctx := &runner.ExecutionContext{
-		Variables: make(map[string]any),
+		Variables: runner.NewContextVariables(nil),
 		Env:       make(map[string]string),
 	}
 
@@ -107,13 +107,13 @@ func TestVariableEvaluation_ShellWithEnvDependency(t *testing.T) {
 	err := runner.MergeVariables(ctx, decl)
 	require.NoError(t, err)
 
-	assert.Equal(t, "titpetric", ctx.Variables["username"], "vars should resolve env vars set in env section")
+	assert.Equal(t, "titpetric", ctx.Variables.Get("username"), "vars should resolve env vars set in env section")
 	assert.Equal(t, "titpetric", ctx.Env["AUTH_USERNAME"], "env should be set in context")
 }
 
 func TestVariableEvaluation_EnvDependsOnVar(t *testing.T) {
 	ctx := &runner.ExecutionContext{
-		Variables: make(map[string]any),
+		Variables: runner.NewContextVariables(nil),
 		Env:       make(map[string]string),
 	}
 
@@ -131,13 +131,13 @@ func TestVariableEvaluation_EnvDependsOnVar(t *testing.T) {
 	err := runner.MergeVariables(ctx, decl)
 	require.NoError(t, err)
 
-	assert.Equal(t, "/opt/app", ctx.Variables["base_path"])
+	assert.Equal(t, "/opt/app", ctx.Variables.Get("base_path"))
 	assert.Equal(t, "/opt/app/bin", ctx.Env["APP_PATH"], "env should resolve ${{ }} refs to vars")
 }
 
 func TestVariableEvaluation_EnvShellWithPartialEnv(t *testing.T) {
 	ctx := &runner.ExecutionContext{
-		Variables: make(map[string]any),
+		Variables: runner.NewContextVariables(nil),
 		Env:       make(map[string]string),
 	}
 
@@ -162,7 +162,7 @@ func TestVariableEvaluation_EnvShellWithPartialEnv(t *testing.T) {
 
 func TestVariableEvaluation_CrossDepChain(t *testing.T) {
 	ctx := &runner.ExecutionContext{
-		Variables: make(map[string]any),
+		Variables: runner.NewContextVariables(nil),
 		Env:       make(map[string]string),
 	}
 
@@ -183,13 +183,13 @@ func TestVariableEvaluation_CrossDepChain(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "titpetric", ctx.Env["AUTH_USERNAME"])
-	assert.Equal(t, "titpetric", ctx.Variables["username"])
+	assert.Equal(t, "titpetric", ctx.Variables.Get("username"))
 	assert.Equal(t, "titpetric", ctx.Env["GREETING"], "env should resolve var that itself depends on env")
 }
 
 func TestVariableEvaluation_CyclicDependency(t *testing.T) {
 	ctx := &runner.ExecutionContext{
-		Variables: make(map[string]any),
+		Variables: runner.NewContextVariables(nil),
 		Env:       make(map[string]string),
 	}
 

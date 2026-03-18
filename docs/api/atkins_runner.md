@@ -9,6 +9,15 @@ import (
 ## Types
 
 ```go
+// ContextVariables provides thread-safe variable storage with Promise-based lazy evaluation.
+type ContextVariables struct {
+	promises map[string]*VarPromise
+	resolver func(string) (string, error)
+	mu       sync.Mutex
+}
+```
+
+```go
 // Env is a map of environment variables.
 type Env map[string]string
 ```
@@ -39,7 +48,7 @@ type ExecutionContext struct {
 	Verbose bool
 	Dir     string
 
-	Variables map[string]any
+	Variables model.VariableStorage
 
 	Pipeline     *model.Pipeline
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
@@ -85,7 +94,7 @@ type FuzzyMatchError struct {
 ```go
 // IterationContext holds the variables for a single iteration of a for loop.
 type IterationContext struct {
-	Variables map[string]any
+	Variables model.VariableStorage
 }
 ```
 
@@ -201,6 +210,17 @@ type TaskResolver struct {
 }
 ```
 
+```go
+// VarPromise represents a lazy variable that is evaluated on first access.
+type VarPromise struct {
+	value any
+	raw   any
+	err   error
+	state promiseState
+	mu    sync.Mutex
+}
+```
+
 ## Vars
 
 ```go
@@ -235,6 +255,8 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
 - `func MergeSkillVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
+- `func NewContextVariables (values map[string]any) *ContextVariables`
+- `func NewContextVariablesWithResolver (pending map[string]any, resolver func(string) (string, error)) *ContextVariables`
 - `func NewExecError (result psexec.Result) ExecError`
 - `func NewExecutor () *Executor`
 - `func NewExecutorWithOptions (opts *Options) *Executor`
@@ -252,6 +274,12 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func StripANSI (in string) string`
 - `func ValidateJobRequirements (ctx *ExecutionContext, job *model.Job) error`
 - `func VisualLength (s string) int`
+- `func (*ContextVariables) Clone () model.VariableStorage`
+- `func (*ContextVariables) Get (key string) any`
+- `func (*ContextVariables) ResolveAll () error`
+- `func (*ContextVariables) Set (key string, value any)`
+- `func (*ContextVariables) SetResolver (resolver func(string) (string, error))`
+- `func (*ContextVariables) Walk (fn func(key string, value any))`
 - `func (*ExecutionContext) Copy () *ExecutionContext`
 - `func (*ExecutionContext) IsJobCompleted (jobName string) bool`
 - `func (*ExecutionContext) MarkJobCompleted (jobName string)`
@@ -461,6 +489,23 @@ a unified dependency graph so that cross-references work correctly
 func MergeVariables(ctx *ExecutionContext, decl *model.Decl) error
 ```
 
+### NewContextVariables
+
+NewContextVariables creates a ContextVariables from a map of evaluated values.
+
+```go
+func NewContextVariables(values map[string]any) *ContextVariables
+```
+
+### NewContextVariablesWithResolver
+
+NewContextVariablesWithResolver creates a ContextVariables with pending values
+that are evaluated lazily on first access via Get().
+
+```go
+func NewContextVariablesWithResolver(pending map[string]any, resolver func(string) (string, error)) *ContextVariables
+```
+
 ### NewExecError
 
 NewExecError creates an ExecError from a psexec.Result.
@@ -612,9 +657,58 @@ VisualLength returns the visual length of a string (excluding ANSI sequences).
 func VisualLength(s string) int
 ```
 
+### Clone
+
+Clone creates a copy with the same resolver.
+
+```go
+func (*ContextVariables) Clone() model.VariableStorage
+```
+
+### Get
+
+Get returns a variable value, evaluating lazily if pending.
+
+```go
+func (*ContextVariables) Get(key string) any
+```
+
+### ResolveAll
+
+ResolveAll evaluates all pending promises and returns the first error encountered.
+
+```go
+func (*ContextVariables) ResolveAll() error
+```
+
+### Set
+
+Set stores a value directly (already resolved).
+
+```go
+func (*ContextVariables) Set(key string, value any)
+```
+
+### SetResolver
+
+SetResolver updates the resolver function. Used when the resolver
+needs a reference to the ContextVariables itself (circular setup).
+
+```go
+func (*ContextVariables) SetResolver(resolver func(string) (string, error))
+```
+
+### Walk
+
+Walk iterates over all resolved values.
+
+```go
+func (*ContextVariables) Walk(fn func(key string, value any))
+```
+
 ### Copy
 
-Copy copies everything except Context. Variables are shallow-copied.
+Copy copies everything except Context. Variables are cloned.
 JobCompleted is shared (not copied) to maintain consistent dependency tracking.
 
 ```go

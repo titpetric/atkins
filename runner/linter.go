@@ -258,7 +258,7 @@ func ValidateJobRequirements(ctx *ExecutionContext, job *model.Job) error {
 
 	var missing []string
 	for _, varName := range job.Requires {
-		if _, exists := ctx.Variables[varName]; !exists {
+		if ctx.Variables.Get(varName) == nil {
 			missing = append(missing, varName)
 		}
 	}

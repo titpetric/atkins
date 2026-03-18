@@ -13,7 +13,7 @@ import (
 func TestProcessEnv_VarsOnly(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]any),
+		Variables: NewContextVariables(nil),
 	}
 
 	envDecl := &model.EnvDecl{
@@ -32,9 +32,9 @@ func TestProcessEnv_VarsOnly(t *testing.T) {
 func TestProcessEnv_WithInterpolation(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env: make(map[string]string),
-		Variables: map[string]any{
+		Variables: NewContextVariables(map[string]any{
 			"BASE_PATH": "/app",
-		},
+		}),
 	}
 
 	envDecl := &model.EnvDecl{
@@ -51,7 +51,7 @@ func TestProcessEnv_WithInterpolation(t *testing.T) {
 func TestProcessEnv_WithCommandExecution(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]any),
+		Variables: NewContextVariables(nil),
 	}
 
 	envDecl := &model.EnvDecl{
@@ -102,7 +102,7 @@ KEY4=final
 func TestMergeEnv(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       map[string]string{"EXISTING": "value"},
-		Variables: make(map[string]any),
+		Variables: NewContextVariables(nil),
 	}
 
 	envDecl := &model.EnvDecl{
@@ -124,7 +124,7 @@ func TestEnvDeclPrecedence(t *testing.T) {
 
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]any),
+		Variables: NewContextVariables(nil),
 	}
 
 	envDecl := &model.EnvDecl{
@@ -169,7 +169,7 @@ func TestIncludeDecl_UnmarshalList(t *testing.T) {
 func TestProcessEnv_NoInterpolationWithoutContext(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]any),
+		Variables: NewContextVariables(nil),
 	}
 
 	envDecl := &model.EnvDecl{
@@ -186,7 +186,7 @@ func TestProcessEnv_NoInterpolationWithoutContext(t *testing.T) {
 func TestProcessEnv_IntegerValue(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),
-		Variables: make(map[string]any),
+		Variables: NewContextVariables(nil),
 	}
 
 	envDecl := &model.EnvDecl{

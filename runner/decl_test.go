@@ -12,10 +12,10 @@ import (
 
 func TestMergeSkillVariables_PreservesExistingKeys(t *testing.T) {
 	ctx := &runner.ExecutionContext{
-		Variables: map[string]any{
+		Variables: runner.NewContextVariables(map[string]any{
 			"name":   "from-caller",
 			"semver": "v1.0.0",
-		},
+		}),
 		Env:   make(map[string]string),
 		Depth: 2, // simulate nested (cross-pipeline) context
 	}
@@ -32,23 +32,23 @@ func TestMergeSkillVariables_PreservesExistingKeys(t *testing.T) {
 	require.NoError(t, err)
 
 	// Existing keys must be preserved
-	assert.Equal(t, "from-caller", ctx.Variables["name"])
-	assert.Equal(t, "v1.0.0", ctx.Variables["semver"])
+	assert.Equal(t, "from-caller", ctx.Variables.Get("name"))
+	assert.Equal(t, "v1.0.0", ctx.Variables.Get("semver"))
 	// New keys from skill should be added
-	assert.Equal(t, "new-value", ctx.Variables["extra"])
+	assert.Equal(t, "new-value", ctx.Variables.Get("extra"))
 	// Interpolated new key uses the skill's own value (not caller's) during resolution,
 	// but since "name" existed on stack, the skill's "name" resolved to "from-skill" internally;
 	// the final "image" is a new key so it gets set.
-	assert.Contains(t, ctx.Variables, "image")
+	assert.NotNil(t, ctx.Variables.Get("image"))
 }
 
 func TestMergeSkillVariables_NilDecl(t *testing.T) {
 	ctx := &runner.ExecutionContext{
-		Variables: map[string]any{"existing": "value"},
+		Variables: runner.NewContextVariables(map[string]any{"existing": "value"}),
 		Env:       make(map[string]string),
 	}
 
 	err := runner.MergeSkillVariables(ctx, nil)
 	require.NoError(t, err)
-	assert.Equal(t, "value", ctx.Variables["existing"])
+	assert.Equal(t, "value", ctx.Variables.Get("existing"))
 }

@@ -95,7 +95,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	}
 
 	pipelineCtx := &ExecutionContext{
-		Variables:    make(map[string]any),
+		Variables:    NewContextVariables(nil),
 		Env:          make(map[string]string),
 		Results:      make(map[string]any),
 		Pipeline:     pipeline,
