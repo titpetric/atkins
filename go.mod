@@ -8,7 +8,7 @@ require (
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	github.com/titpetric/cli v0.4.2
+	github.com/titpetric/cli v0.4.3
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.41.0
 	gopkg.in/yaml.v3 v3.0.1
