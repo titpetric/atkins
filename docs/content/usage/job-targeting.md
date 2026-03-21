@@ -268,7 +268,7 @@ Use the `:` prefix when:
 - A skill has aliased a common name you want to skip
 
 ```bash
-# Main pipeline has 'up' job → runs via exact match
+# Main pipeline has 'up' job, runs via exact match
 atkins up
 
 # Bypass aliases and invoke main pipeline 'up' directly

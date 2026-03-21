@@ -21,9 +21,9 @@ Each skill file becomes a namespace. For example, `go.yml` creates jobs like `go
 myproject/
 ├── .atkins/
 │   └── skills/
-│       ├── go.yml        → go:*
-│       ├── docker.yml    → docker:*
-│       └── deploy.yml    → deploy:*
+│       ├── go.yml        (go:*)
+│       ├── docker.yml    (docker:*)
+│       └── deploy.yml    (deploy:*)
 └── atkins.yml
 ```
 
@@ -33,8 +33,8 @@ myproject/
 $HOME/
 └── .atkins/
     └── skills/
-        ├── go.yml        → Available in all projects
-        └── node.yml      → Available in all projects
+        ├── go.yml        (available in all projects)
+        └── node.yml      (available in all projects)
 ```
 
 Project skills take precedence over global skills with the same name.
@@ -83,7 +83,7 @@ Now `atkins build` invokes `go:build`.
 
 ### Alias Conflicts
 
-Explicit job aliases take precedence over auto-generated aliases. For example, if a job has `aliases: [go]`, it overrides the automatic `go` → `go:default` mapping.
+Explicit job aliases take precedence over auto-generated aliases. For example, if a job has `aliases: [go]`, it overrides the automatic `go` to `go:default` mapping.
 
 When multiple skills define the same explicit alias, project skills win over global skills.
 
