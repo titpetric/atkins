@@ -1,4 +1,4 @@
-# Atkins - CLI workflows runner
+# atkins - A pipeline runner with skills for CI/CD and development
 
 Atkins is a minimal runner focused on usage in development, testing and
 enables portability between CI/CD environments. It features a nice CLI

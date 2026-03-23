@@ -24,7 +24,7 @@ Pipeline (atkins.yml)
 | `dir:`   | Working directory for the pipeline             |
 | `vars:`  | Pipeline-level variables available to all jobs |
 | `env:`   | Pipeline-level environment variables           |
-| `jobs:`  | Job definitions (map of name → job)            |
+| `jobs:`  | Job definitions (map of name to job)           |
 | `tasks:` | Alias for `jobs:` (Taskfile-style)             |
 
 `jobs:` and `tasks:` are interchangeable. Use whichever style you prefer.
