@@ -10,6 +10,28 @@ import (
 	"github.com/titpetric/atkins/treeview"
 )
 
+// jobTracker provides thread-safe job completion tracking shared across ExecutionContext copies.
+type jobTracker struct {
+	mu   sync.Mutex
+	done map[string]bool
+}
+
+func newJobTracker() *jobTracker {
+	return &jobTracker{done: make(map[string]bool)}
+}
+
+func (jt *jobTracker) Mark(jobName string) {
+	jt.mu.Lock()
+	defer jt.mu.Unlock()
+	jt.done[jobName] = true
+}
+
+func (jt *jobTracker) IsCompleted(jobName string) bool {
+	jt.mu.Lock()
+	defer jt.mu.Unlock()
+	return jt.done[jobName]
+}
+
 // ExecutionContext holds runtime state during pipeline Exec.
 type ExecutionContext struct {
 	Context context.Context
@@ -42,9 +64,9 @@ type ExecutionContext struct {
 	StepSequence int
 	stepSeqMu    sync.Mutex
 
-	// JobCompleted tracks which jobs have finished execution (for dependency resolution)
-	JobCompleted map[string]bool
-	jobCompMu    sync.Mutex
+	// jobTracker tracks which jobs have finished execution (for dependency resolution).
+	// Shared across copies so the mutex protects the map consistently.
+	jobTracker *jobTracker
 }
 
 // Resolver provides task resolution in the execution context.
@@ -64,7 +86,7 @@ func (e *ExecutionContext) Resolve(taskName string) (*model.ResolvedTask, error)
 }
 
 // Copy copies everything except Context. Variables are cloned.
-// JobCompleted is shared (not copied) to maintain consistent dependency tracking.
+// jobTracker is shared (not copied) to maintain consistent dependency tracking.
 func (e *ExecutionContext) Copy() *ExecutionContext {
 	var vars model.VariableStorage
 	if e.Variables != nil {
@@ -90,27 +112,23 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 		JobNodes:     e.JobNodes,
 		EventLogger:  e.EventLogger,
 		StepSequence: e.StepSequence,
-		JobCompleted: e.JobCompleted,
+		jobTracker:   e.jobTracker,
 	}
 }
 
 // MarkJobCompleted marks a job as completed.
 func (e *ExecutionContext) MarkJobCompleted(jobName string) {
-	e.jobCompMu.Lock()
-	defer e.jobCompMu.Unlock()
-	if e.JobCompleted != nil {
-		e.JobCompleted[jobName] = true
+	if e.jobTracker != nil {
+		e.jobTracker.Mark(jobName)
 	}
 }
 
 // IsJobCompleted checks if a job has been completed.
 func (e *ExecutionContext) IsJobCompleted(jobName string) bool {
-	e.jobCompMu.Lock()
-	defer e.jobCompMu.Unlock()
-	if e.JobCompleted == nil {
+	if e.jobTracker == nil {
 		return false
 	}
-	return e.JobCompleted[jobName]
+	return e.jobTracker.IsCompleted(jobName)
 }
 
 // Render refreshes the treeview.

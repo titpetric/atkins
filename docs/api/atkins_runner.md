@@ -71,9 +71,9 @@ type ExecutionContext struct {
 	StepSequence int
 	stepSeqMu    sync.Mutex
 
-	// JobCompleted tracks which jobs have finished execution (for dependency resolution)
-	JobCompleted map[string]bool
-	jobCompMu    sync.Mutex
+	// jobTracker tracks which jobs have finished execution (for dependency resolution).
+	// Shared across copies so the mutex protects the map consistently.
+	jobTracker *jobTracker
 }
 ```
 
@@ -709,7 +709,7 @@ func (*ContextVariables) Walk(fn func(key string, value any))
 ### Copy
 
 Copy copies everything except Context. Variables are cloned.
-JobCompleted is shared (not copied) to maintain consistent dependency tracking.
+jobTracker is shared (not copied) to maintain consistent dependency tracking.
 
 ```go
 func (*ExecutionContext) Copy() *ExecutionContext

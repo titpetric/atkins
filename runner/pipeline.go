@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -106,7 +105,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		Context:      ctx,
 		JobNodes:     make(map[string]*treeview.TreeNode),
 		EventLogger:  logger,
-		JobCompleted: make(map[string]bool),
+		jobTracker:   newJobTracker(),
 	}
 
 	// Copy environment variables from OS
@@ -367,10 +366,6 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 
 	executor := NewExecutor()
 
-	// Track job results (completion is tracked via pipelineCtx.JobCompleted)
-	jobResults := make(map[string]*ExecutionContext)
-	var jobMutex sync.Mutex
-
 	// Helper to execute a job (with dependency checking)
 	executeJobWithDeps := func(jobName string, job *model.Job) error {
 		// Wait for dependencies if any
@@ -448,18 +443,13 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		jobNode.SetStatus(treeview.StatusPassed)
 		display.Render(root)
 
-		// Store results
 		pipelineCtx.MarkJobCompleted(jobName)
-		jobMutex.Lock()
-		jobResults[jobName] = jobCtx
-		jobMutex.Unlock()
 
 		return nil
 	}
 
 	eg := new(errgroup.Group)
 	detached := 0
-	count := 0
 
 	for _, name := range jobOrder {
 		job := allJobs[name]
@@ -470,7 +460,6 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 
 		if job.Detach {
 			detached++
-			count++
 			// Capture job and name by value to avoid closure variable capture issues
 			jobCopy := job
 			nameCopy := name
@@ -491,7 +480,6 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 
 			return err
 		}
-		count++
 	}
 
 	// Wait for all detached jobs

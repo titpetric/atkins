@@ -97,6 +97,11 @@ type Job struct {
 ```
 
 ```go
+// JobWalkFunc is called for each step in a job during Walk.
+type JobWalkFunc func(index int, step *Step) error
+```
+
+```go
 // Label represents a display label for a step or command.
 type Label struct {
 	Text       string              // The display text (e.g., "docker compose up" or "run: goimports -w .")
@@ -121,6 +126,11 @@ type Pipeline struct {
 
 	When *PipelineWhen `yaml:"when,omitempty"`
 }
+```
+
+```go
+// PipelineWalkFunc is called for each job in a pipeline during Walk.
+type PipelineWalkFunc func(name string, job *Job) error
 ```
 
 ```go
@@ -167,6 +177,18 @@ type Step struct {
 ```
 
 ```go
+// StepDispatcher handles dispatching step execution without caring
+// about the step type (task vs command). Implementations decide how
+// to execute each type.
+type StepDispatcher interface {
+	// Task is called when the step references another job via task:.
+	Task(step *Step) error
+	// Command is called for each executable command in the step.
+	Command(step *Step, index int, cmd string) error
+}
+```
+
+```go
 // VariableStorage provides access to variables with lazy evaluation support.
 // Implementations may defer evaluation until Get is called.
 type VariableStorage interface {
@@ -200,6 +222,7 @@ type VariableStorage interface {
 - `func (*Job) IsRootLevel () bool`
 - `func (*Job) ShouldShow () bool`
 - `func (*Job) UnmarshalYAML (node *yaml.Node) error`
+- `func (*Job) Walk (fn JobWalkFunc) error`
 - `func (*Label) ForDisplay () string`
 - `func (*Label) String () string`
 - `func (*Label) WithColor (colorFn func(string) string) *Label`
@@ -209,7 +232,9 @@ type VariableStorage interface {
 - `func (*Pipeline) GetJobs () map[string]*Job`
 - `func (*Pipeline) GetKeys () []string`
 - `func (*Pipeline) UnmarshalYAML (node *yaml.Node) error`
+- `func (*Pipeline) Walk (fn PipelineWalkFunc) error`
 - `func (*Step) Commands () []string`
+- `func (*Step) Dispatch (d StepDispatcher) error`
 - `func (*Step) DisplayLabel () string`
 - `func (*Step) IsDeferred () bool`
 - `func (*Step) Label (showPrefix bool) *Label`
@@ -313,6 +338,14 @@ It also supports parsing a job from a simple string (e.g., "up: docker compose u
 func (*Job) UnmarshalYAML(node *yaml.Node) error
 ```
 
+### Walk
+
+Walk iterates over all steps (children) of the job.
+
+```go
+func (*Job) Walk(fn JobWalkFunc) error
+```
+
 ### ForDisplay
 
 ForDisplay returns the formatted label with color and status for rendering.
@@ -390,6 +423,16 @@ UnmarshalYAML implements custom unmarshalling for Pipeline to handle Decl.
 func (*Pipeline) UnmarshalYAML(node *yaml.Node) error
 ```
 
+### Walk
+
+Walk iterates over all jobs in the pipeline in deterministic order.
+The "default" job is visited first, followed by remaining jobs in
+sorted order.
+
+```go
+func (*Pipeline) Walk(fn PipelineWalkFunc) error
+```
+
 ### Commands
 
 Commands returns all executable commands from this step as a slice.
@@ -399,6 +442,16 @@ Returns an empty slice for Task steps.
 
 ```go
 func (*Step) Commands() []string
+```
+
+### Dispatch
+
+Dispatch routes the step to the appropriate StepDispatcher method
+based on the step type. Task steps call d.Task, command steps call
+d.Command for each command.
+
+```go
+func (*Step) Dispatch(d StepDispatcher) error
 ```
 
 ### DisplayLabel
