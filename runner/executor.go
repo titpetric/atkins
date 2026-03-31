@@ -116,8 +116,30 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 	// The order depends on whether dir references variables:
 	// - Static dir (e.g., "/path"): evaluate dir first, then vars use that cwd
 	// - Dynamic dir (e.g., "${{workdir}}"): evaluate vars first, then interpolate dir
-	if err := evaluateDirAndVars(execCtx, job, true); err != nil {
-		return err
+	// When the job has a for loop, skip dir entirely — it may reference
+	// loop variables (e.g., ${{folder}}) and will be evaluated per iteration.
+	if job.For.IsEmpty() {
+		if err := evaluateDirAndVars(execCtx, job, true); err != nil {
+			return err
+		}
+	} else {
+		// Still merge vars/env, but skip dir (deferred to per-iteration)
+		savedDir := job.Dir
+		job.Dir = ""
+		if err := evaluateDirAndVars(execCtx, job, false); err != nil {
+			job.Dir = savedDir
+			return err
+		}
+		job.Dir = savedDir
+	}
+
+	// Execute steps - with optional job-level for loop.
+	// When the job has a for loop, defer if/dir evaluation to each iteration
+	// since they may reference loop variables (e.g., ${{folder}}).
+	steps := job.Children()
+
+	if !job.For.IsEmpty() {
+		return e.executeJobWithForLoop(ctx, execCtx, steps)
 	}
 
 	// Evaluate job-level if condition
@@ -129,9 +151,107 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 		return ErrJobSkipped
 	}
 
-	// Execute steps
-	steps := job.Children()
 	return e.executeSteps(ctx, execCtx, steps)
+}
+
+// executeJobWithForLoop runs all job steps repeatedly for each iteration of the job-level for loop.
+func (e *Executor) executeJobWithForLoop(ctx context.Context, execCtx *ExecutionContext, steps []*model.Step) error {
+	job := execCtx.Job
+	jobNode := execCtx.CurrentJob
+
+	// Create a synthetic step to carry the job's For iterators for ExpandFor
+	syntheticStep := &model.Step{
+		For: job.For,
+	}
+	forCtx := execCtx.Copy()
+	forCtx.Step = syntheticStep
+
+	exec := psexec.NewWithOptions(&psexec.Options{
+		DefaultDir: execCtx.Dir,
+		DefaultEnv: execCtx.Env.Environ(),
+	})
+	iterations, err := ExpandFor(forCtx, func(script string) (string, error) {
+		result := exec.Run(ctx, exec.ShellCommand(script))
+		if !result.Success() {
+			return "", NewExecError(result)
+		}
+		return result.Output(), nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to expand job-level for loop for job %q: %w", job.Name, err)
+	}
+
+	if len(iterations) == 0 {
+		return nil
+	}
+
+	// Replace pre-built step children with iteration sub-nodes
+	jobNode.Node.ClearChildren()
+
+	for idx, iteration := range iterations {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		iterCtx := e.prepareIterationContext(execCtx, iteration.Variables)
+		iterCtx.Context = ctx
+		iterCtx.StepSequence = 0
+
+		// Evaluate job-level if condition per iteration — it may reference loop variables
+		if !job.If.IsEmpty() {
+			shouldRun, err := EvaluateJobIf(iterCtx)
+			if err != nil {
+				return fmt.Errorf("failed to evaluate if condition for job %q: %w", job.Name, err)
+			}
+			if !shouldRun {
+				continue
+			}
+		}
+
+		// Re-evaluate job dir per iteration — it may reference loop variables
+		if job.Dir != "" {
+			dir, err := InterpolateString(job.Dir, iterCtx)
+			if err != nil {
+				return fmt.Errorf("failed to interpolate job dir %q for iteration: %w", job.Dir, err)
+			}
+			if err := validateDir(dir); err != nil {
+				return fmt.Errorf("job dir %q: %w", dir, err)
+			}
+			iterCtx.Dir = dir
+		}
+
+		// Build iteration label from interpolated desc or job name
+		iterLabel := fmt.Sprintf("iteration %d", idx)
+		if job.Desc != "" {
+			if interpolated, err := InterpolateString(job.Desc, iterCtx); err == nil {
+				iterLabel = interpolated
+			}
+		}
+
+		// Create iteration sub-node with its own step children
+		iterNode := createIterationNode(
+			fmt.Sprintf("jobs.%s.iter.%d", job.Name, idx),
+			iterLabel,
+			job.Summarize,
+		)
+		iterNode.SetStatus(treeview.StatusRunning)
+		buildAndAddStepsToJob(&treeview.TreeNode{Node: iterNode}, steps)
+		jobNode.AddChild(iterNode)
+
+		// Point the iteration context at this sub-node so executeSteps finds step nodes
+		iterCtx.CurrentJob = &treeview.TreeNode{Node: iterNode}
+		execCtx.Render()
+
+		if err := e.executeSteps(ctx, iterCtx, steps); err != nil {
+			iterNode.SetStatus(treeview.StatusFailed)
+			return err
+		}
+		iterNode.SetStatus(treeview.StatusPassed)
+	}
+
+	return nil
 }
 
 // evaluateDirAndVars uses lazy evaluation for job/task vars and dir.

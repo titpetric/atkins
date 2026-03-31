@@ -230,6 +230,13 @@ func (n *Node) GetIf() string {
 	return n.If
 }
 
+// ClearChildren removes all child nodes.
+func (n *Node) ClearChildren() {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.Children = make([]*Node, 0)
+}
+
 // AddChild adds a child node.
 func (n *Node) AddChild(child *Node) {
 	n.mu.Lock()

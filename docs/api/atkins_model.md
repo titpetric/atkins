@@ -74,6 +74,7 @@ type Job struct {
 	Desc        string       `yaml:"desc,omitempty"`
 	Dir         string       `yaml:"dir,omitempty"`
 	If          Conditionals `yaml:"if,omitempty"`
+	For         Iterators    `yaml:"for,omitempty"`
 	Cmd         string       `yaml:"cmd,omitempty"`
 	Cmds        []*Step      `yaml:"cmds,omitempty"`
 	Run         string       `yaml:"run,omitempty"`

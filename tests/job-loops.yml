@@ -1,0 +1,16 @@
+name: Job-level for loop test
+
+tasks:
+  default:
+    desc: "Inspect ${{ folder }}"
+    dir: "${{ folder }}"
+    for: folder in $(find . -type d -maxdepth 1 | sort)
+    if: "${{ folder != \"\" }}"
+    passthru: true
+    steps:
+      - cmd: echo "Go files ${{files}}"
+        if: files != "0"
+        vars:
+          files: $(find . -maxdepth 1 -name '*.go' | wc -l)
+      - echo "Markdown files $(find . -maxdepth 1 -name '*.md' | wc -l)"
+      - echo "YAML files $(find . -maxdepth 1 -name '*.yml' | wc -l)"

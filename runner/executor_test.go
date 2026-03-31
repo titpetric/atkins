@@ -1082,3 +1082,154 @@ func TestExecuteStepWithForLoop_ContextCancellation(t *testing.T) {
 	// Should have an error due to timeout
 	assert.Error(t, err)
 }
+
+func TestExecuteJob_ForLoop(t *testing.T) {
+	t.Run("job-level for loop runs steps for each iteration", func(t *testing.T) {
+		job := &model.Job{
+			Name: "loop_job",
+			Desc: "Iteration ${{ item }}",
+			For:  model.Iterators{"item in items"},
+			Steps: []*model.Step{
+				{Run: "echo ${{ item }}"},
+			},
+		}
+
+		display := treeview.NewSilentDisplay()
+		builder := treeview.NewBuilder("test")
+		jobNode := builder.AddJob(job, nil, "loop_job")
+
+		ctx := &runner.ExecutionContext{
+			Variables: runner.NewContextVariables(map[string]any{
+				"items": []any{"alpha", "beta", "gamma"},
+			}),
+			Env:        make(map[string]string),
+			Job:        job,
+			CurrentJob: jobNode,
+			Display:    display,
+			Builder:    builder,
+		}
+
+		executor := runner.NewExecutor()
+		err := executor.ExecuteJob(context.Background(), ctx)
+		assert.NoError(t, err)
+
+		// Job node should have 3 iteration children (pre-built steps replaced)
+		children := jobNode.GetChildren()
+		assert.Len(t, children, 3)
+		assert.Equal(t, "Iteration alpha", children[0].GetName())
+		assert.Equal(t, "Iteration beta", children[1].GetName())
+		assert.Equal(t, "Iteration gamma", children[2].GetName())
+
+		for _, child := range children {
+			assert.Equal(t, treeview.StatusPassed, child.GetStatus())
+		}
+	})
+
+	t.Run("job-level for loop with dir referencing loop variable", func(t *testing.T) {
+		tmpDir, err := os.MkdirTemp("", "test-jobloop-*")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tmpDir)
+
+		// Create subdirectories
+		for _, name := range []string{"aaa", "bbb"} {
+			assert.NoError(t, os.MkdirAll(tmpDir+"/"+name, 0o755))
+		}
+
+		job := &model.Job{
+			Name: "dir_loop",
+			Desc: "${{ folder }}",
+			Dir:  tmpDir + "/${{ folder }}",
+			For:  model.Iterators{"folder in folders"},
+			Steps: []*model.Step{
+				{Run: "echo hello"},
+			},
+		}
+
+		display := treeview.NewSilentDisplay()
+		builder := treeview.NewBuilder("test")
+		jobNode := builder.AddJob(job, nil, "dir_loop")
+
+		ctx := &runner.ExecutionContext{
+			Variables: runner.NewContextVariables(map[string]any{
+				"folders": []any{"aaa", "bbb"},
+			}),
+			Env:        make(map[string]string),
+			Job:        job,
+			CurrentJob: jobNode,
+			Display:    display,
+			Builder:    builder,
+		}
+
+		executor := runner.NewExecutor()
+		err = executor.ExecuteJob(context.Background(), ctx)
+		assert.NoError(t, err)
+
+		children := jobNode.GetChildren()
+		assert.Len(t, children, 2)
+		assert.Equal(t, "aaa", children[0].GetName())
+		assert.Equal(t, "bbb", children[1].GetName())
+	})
+
+	t.Run("job-level for loop with if condition referencing loop variable", func(t *testing.T) {
+		job := &model.Job{
+			Name: "if_loop",
+			For:  model.Iterators{"item in items"},
+			If:   model.Conditionals{`item != "skip"`},
+			Steps: []*model.Step{
+				{Run: "echo ${{ item }}"},
+			},
+		}
+
+		display := treeview.NewSilentDisplay()
+		builder := treeview.NewBuilder("test")
+		jobNode := builder.AddJob(job, nil, "if_loop")
+
+		ctx := &runner.ExecutionContext{
+			Variables: runner.NewContextVariables(map[string]any{
+				"items": []any{"one", "skip", "three"},
+			}),
+			Env:        make(map[string]string),
+			Job:        job,
+			CurrentJob: jobNode,
+			Display:    display,
+			Builder:    builder,
+		}
+
+		executor := runner.NewExecutor()
+		err := executor.ExecuteJob(context.Background(), ctx)
+		assert.NoError(t, err)
+
+		// "skip" iteration should be excluded, leaving 2 iterations
+		children := jobNode.GetChildren()
+		assert.Len(t, children, 2)
+	})
+
+	t.Run("job-level for loop with empty iterations", func(t *testing.T) {
+		job := &model.Job{
+			Name: "empty_loop",
+			For:  model.Iterators{"item in items"},
+			Steps: []*model.Step{
+				{Run: "echo ${{ item }}"},
+			},
+		}
+
+		display := treeview.NewSilentDisplay()
+		builder := treeview.NewBuilder("test")
+		jobNode := builder.AddJob(job, nil, "empty_loop")
+
+		ctx := &runner.ExecutionContext{
+			Variables: runner.NewContextVariables(map[string]any{
+				"items": []any{},
+			}),
+			Env:        make(map[string]string),
+			Job:        job,
+			CurrentJob: jobNode,
+			Display:    display,
+			Builder:    builder,
+		}
+
+		executor := runner.NewExecutor()
+		err := executor.ExecuteJob(context.Background(), ctx)
+		assert.NoError(t, err)
+	})
+}

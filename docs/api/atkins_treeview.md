@@ -141,6 +141,7 @@ const (
 - `func (*ExecutionTree) RenderTree () string`
 - `func (*Node) AddChild (child *Node)`
 - `func (*Node) AddChildren (children ...*Node)`
+- `func (*Node) ClearChildren ()`
 - `func (*Node) GetChildren () []*Node`
 - `func (*Node) GetDependencies () []string`
 - `func (*Node) GetIf () string`
@@ -474,6 +475,14 @@ AddChildren adds multiple child nodes.
 
 ```go
 func (*Node) AddChildren(children ...*Node)
+```
+
+### ClearChildren
+
+ClearChildren removes all child nodes.
+
+```go
+func (*Node) ClearChildren()
 ```
 
 ### GetChildren
