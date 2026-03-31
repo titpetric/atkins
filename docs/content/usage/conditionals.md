@@ -103,6 +103,21 @@ jobs:
       - run: echo "Running optional job..."
 ```
 
+## Jobs with `for:` and `if:`
+
+When a job has both a `for:` loop and an `if:` condition, the `if:` expression is evaluated per iteration. This allows filtering iterations based on loop variables:
+
+```yaml
+jobs:
+  deploy:
+    for: env in environments
+    if: env != "dev"
+    steps:
+      - run: echo "Deploying to ${{ env }}..."
+```
+
+In this example, iterations where `env` is `"dev"` are skipped while all other environments proceed.
+
 ## Skipped Output
 
 When a job or step is skipped due to a condition, the tree output shows the condition:
