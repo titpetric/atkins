@@ -11,10 +11,10 @@ atkins -x "list tasks"           # list available skills
 atkins -x "hello"                # get a greeting
 ```
 
-Aliases can be defined with language:
+Aliases can be defined and invoked with language prompts:
 
 - Teach an alias: `alias weather to curl -s wttr.in | head -n 7`
-- Run an alias: `how's the weather?'
+- Run an alias: `how's the weather?`
 
 The routing flow is defined in `structure.d2`:
 

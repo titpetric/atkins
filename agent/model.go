@@ -537,7 +537,6 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 
 	case RouteSlash:
 		m.appendLog("prompt", "> "+input)
-		m.appendLog("info", "")
 		slashCmd := m.registry.Get(route.Command)
 		if slashCmd != nil {
 			return slashCmd.Handler(&m, route.Args)
@@ -566,13 +565,11 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 	case RouteTask, RouteAlias:
 		if route.Resolved == nil {
 			m.appendLog("prompt", "> "+input)
-			m.appendLog("info", "")
 			m.appendLog("error", "Could not resolve: "+input)
 			m.appendLog("info", "")
 			return m, nil
 		}
 		m.appendLog("prompt", "> "+input)
-		m.appendLog("info", "")
 		m.router.SetLastCommand(input, false)
 		return m, func() tea.Msg {
 			return ExecutionStartMsg{
@@ -584,7 +581,6 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 
 	case RouteHelp:
 		m.appendLog("prompt", "> "+input)
-		m.appendLog("info", "")
 		m.appendLog("info", m.registry.HelpText())
 		m.appendLog("info", "")
 		return m, nil
