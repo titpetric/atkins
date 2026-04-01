@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,24 @@ import (
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
+
+// UsageText returns the usage help text for non-interactive mode.
+func UsageText() string {
+	var b strings.Builder
+	b.WriteString("atkins - task runner and shell assistant\n\n")
+	b.WriteString("Usage:\n")
+	b.WriteString("  atkins              Start interactive REPL\n")
+	b.WriteString("  atkins -x \"<cmd>\"   Execute a single command\n\n")
+	b.WriteString("Examples:\n")
+	b.WriteString("  atkins -x \"go:test\"             Run a skill\n")
+	b.WriteString("  atkins -x \"curl wttr.in\"        Run shell command\n")
+	b.WriteString("  atkins -x \"run the tests\"       Natural language\n")
+	b.WriteString("  atkins -x \"list\"                List available skills\n\n")
+	b.WriteString("Teach aliases:\n")
+	b.WriteString("  alias server name to uname -n\n")
+	b.WriteString("  if i say deploy, run docker:push\n")
+	return b.String()
+}
 
 // State represents the current REPL state.
 type State int
@@ -54,8 +73,8 @@ type Model struct {
 	lastTask   *model.ResolvedTask
 	retryCount int
 
-	// Intent parser and slash commands
-	parser   *Parser
+	// Centralized router and slash commands
+	router   *Router
 	registry *Registry
 
 	// Dimensions
@@ -67,13 +86,15 @@ type Model struct {
 	hostname  string
 	cwd       string
 	gitBranch string
+	gitStats  GitStats
 
-	log          []LogEntry
-	scrollOff    int
-	spinner      spinner.Model
-	runLogIdx    int // index of the current running entry in log
-	shellHistory *ShellHistory
-	greeter      *Greeter
+	log       []LogEntry
+	scrollOff int
+	spinner   spinner.Model
+	runLogIdx int // index of the current running entry in log
+
+	// Confirmation state for fuzzy matching
+	pendingConfirm *Route
 }
 
 // Messages for async operations.
@@ -117,22 +138,22 @@ func NewModel(agent *Agent, version string) Model {
 	cwd := agent.WorkDir()
 	s := spinner.New()
 	s.Spinner = spinner.Dot
+	registry := DefaultRegistry()
 	return Model{
-		agent:        agent,
-		state:        StateIdle,
-		history:      []string{},
-		historyIdx:   -1,
-		breadcrumb:   NewBreadcrumb(),
-		parser:       NewParser(agent.Resolver(), agent.Pipelines()),
-		registry:     DefaultRegistry(),
-		version:      version,
-		hostname:     detectHostname(),
-		cwd:          cwd,
-		gitBranch:    detectGitBranch(cwd),
-		spinner:      s,
-		runLogIdx:    -1,
-		shellHistory: NewShellHistory(),
-		greeter:      NewGreeter(),
+		agent:      agent,
+		state:      StateIdle,
+		history:    []string{},
+		historyIdx: -1,
+		breadcrumb: NewBreadcrumb(),
+		router:     NewRouter(agent.Resolver(), agent.Pipelines(), registry),
+		registry:   registry,
+		version:    version,
+		hostname:   detectHostname(),
+		cwd:        cwd,
+		gitBranch:  detectGitBranch(cwd),
+		gitStats:   detectGitStats(cwd),
+		spinner:    s,
+		runLogIdx:  -1,
 	}
 }
 
@@ -144,11 +165,24 @@ func (m Model) Init() tea.Cmd {
 
 func (m *Model) appendGreeting() {
 	m.appendLog("info", colors.BrightCyan("Welcome to atkins.")+" Type a command to get started.")
-	m.appendLog("info", colors.Dim("Commands:")+
+	m.appendLog("info", "")
+	m.appendLog("info", colors.Dim("Usage:"))
+	m.appendLog("info", "  "+colors.BrightWhite("Natural language:")+
+		"   \"run the tests\", \"build it\", \"list tasks\"")
+	m.appendLog("info", "  "+colors.BrightWhite("Direct skills:")+
+		"       go:test, build, test")
+	m.appendLog("info", "  "+colors.BrightWhite("Shell commands:")+
+		"     curl wttr.in, ls -la, docker ps")
+	m.appendLog("info", "")
+	m.appendLog("info", colors.Dim("Teach aliases:"))
+	m.appendLog("info", "  "+colors.Dim("\"alias server name to uname -n\""))
+	m.appendLog("info", "  "+colors.Dim("\"if i say deploy, run docker:push\""))
+	m.appendLog("info", "")
+	m.appendLog("info", colors.Dim("Slash commands:")+
 		"  /help  /list  /run <task>  /cd <path>  /quit")
 
 	// Show available targets inline
-	skills := m.parser.AvailableSkills()
+	skills := m.router.AvailableSkills()
 	if len(skills) > 0 {
 		sort.Strings(skills)
 		var names []string
@@ -208,7 +242,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.breadcrumb.Push(msg.Task)
 		m.breadcrumb.SetStatus("running...")
 
-		m.appendLog("prompt", "> "+msg.Input)
 		m.runLogIdx = m.appendRunLog(msg.Task)
 
 		return m, tea.Batch(m.spinner.Tick, m.runPipeline(msg.Resolved))
@@ -221,11 +254,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			entry.Failed = msg.Err != nil
 		}
 
+		// Refresh git stats after execution
+		m.gitStats = detectGitStats(m.cwd)
+
 		if msg.Err != nil {
 			m.lastError = msg.Err
 			m.breadcrumb.SetStatus("failed")
+			m.router.SetLastCommand(m.router.LastCommand(), true) // Mark as failed
 
 			m.appendLog("error", colors.BrightRed("Error: ")+msg.Err.Error())
+			m.appendLog("info", colors.Dim("Tip: type 'again' or 'retry' to re-run"))
 			m.appendLog("info", "")
 
 			// Check for auto-fix
@@ -302,8 +340,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err != nil {
 			m.appendLog("error", fmt.Sprintf("%s (exit %d)",
 				colors.BrightRed("failed"), msg.ExitCode))
+			m.router.SetLastCommand(msg.Command, true) // Mark as failed
 		}
-		m.shellHistory.Add(msg.Command, msg.ExitCode, msg.Duration, m.cwd)
+		m.router.ShellHistory().Add(msg.Command, msg.ExitCode, msg.Duration, m.cwd)
+		// Refresh git stats after shell command
+		m.gitStats = detectGitStats(m.cwd)
 		m.appendLog("info", "")
 		m.state = StateIdle
 		return m, nil
@@ -413,163 +454,180 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-// handleSubmit processes the entered command.
+// handleSubmit processes the entered command using the centralized Router.
 func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 	input := strings.TrimSpace(m.input)
 	if input == "" {
 		return m, nil
 	}
 
-	m.history = append(m.history, input)
-	m.historyIdx = len(m.history)
 	m.input = ""
 	m.cursor = 0
 
-	// Parse intent
-	intent, err := m.parser.Parse(input)
-	if err != nil {
-		m.appendLog("error", colors.BrightRed("Error: ")+err.Error())
-		return m, nil
-	}
+	// Handle pending confirmation (fuzzy match)
+	if m.pendingConfirm != nil {
+		confirm := m.pendingConfirm
+		m.pendingConfirm = nil
 
-	switch intent.Type {
-	case IntentQuit:
-		return m, tea.Quit
-
-	case IntentSlash:
-		m.appendLog("prompt", "> "+input)
-		slashCmd := m.registry.Get(intent.Command)
-		if slashCmd != nil {
-			return slashCmd.Handler(&m, intent.Args)
-		}
-		m.appendLog("error", "Unknown command: /"+intent.Command)
-		return m, nil
-
-	case IntentTask:
-		if intent.Resolved == nil {
-			m.appendLog("prompt", "> "+input)
-			m.appendLog("error", "Could not resolve: "+input)
-			return m, nil
-		}
-		return m, func() tea.Msg {
-			return ExecutionStartMsg{
-				Input:    input,
-				Task:     intent.Task,
-				Resolved: intent.Resolved,
-			}
-		}
-
-	case IntentHelp:
-		m.appendLog("prompt", "> "+input)
-		m.appendLog("info", m.registry.HelpText())
-		return m, nil
-
-	default:
-		// Check if input is a correction/alias definition
-		if phrase, task, ok := ParseCorrection(input); ok {
-			m.parser.Aliases().Add(phrase, task)
-			m.appendLog("prompt", "> "+input)
-			m.appendLog("info", "Got it! \""+phrase+"\" will now run "+colors.BrightGreen(task))
-			m.appendLog("info", "")
-			return m, nil
-		}
-
-		// Check if input teaches a new greeting
-		if word, learned := m.greeter.LearnGreeting(input); learned {
-			m.appendLog("prompt", "> "+input)
-			m.appendLog("info", "Learned \""+word+"\" as a greeting! Try it out.")
-			m.appendLog("info", "")
-			return m, nil
-		}
-
-		// Check if input is a greeting
-		if response := m.greeter.Match(input); response != "" {
-			m.appendLog("prompt", "> "+input)
-			m.appendLog("info", response)
-			m.appendLog("info", "")
-			return m, nil
-		}
-
-		// Check if asking for a fortune
-		if MatchFortune(input) {
-			m.appendLog("prompt", "> "+input)
-			m.appendLog("info", Fortune())
-			m.appendLog("info", "")
-			return m, nil
-		}
-
-		// Try shell fallback: check if the first word is an executable
-		fields := strings.Fields(input)
-		m.appendLog("info", fmt.Sprintf("input: %v", fields))
-
-		if len(fields) > 0 && fields[0] == strings.ToLower(fields[0]) && fields[0] != "test" {
-			if _, err := exec.LookPath(fields[0]); err == nil {
+		lower := strings.ToLower(input)
+		if lower == "y" || lower == "yes" {
+			// User confirmed, run the suggested task
+			if resolved, err := m.agent.Resolver().Resolve(confirm.Suggestion); err == nil {
+				m.router.SetLastCommand(confirm.Suggestion, false)
 				return m, func() tea.Msg {
-					return ShellStartMsg{Command: input}
-				}
-			}
-		}
-
-		// Check shell history for a matching command to re-run
-		if histMatches := m.shellHistory.Match(input); len(histMatches) == 1 {
-			cmd := histMatches[0].Command
-			// Verify the binary still exists
-			if hFields := strings.Fields(cmd); len(hFields) > 0 {
-				if _, err := exec.LookPath(hFields[0]); err == nil {
-					return m, func() tea.Msg {
-						return ShellStartMsg{Command: cmd}
+					return ExecutionStartMsg{
+						Input:    confirm.Suggestion,
+						Task:     resolved.Name,
+						Resolved: resolved,
 					}
 				}
 			}
 		}
+		// User declined or invalid response
+		m.appendLog("info", colors.Dim("Cancelled"))
+		m.appendLog("info", "")
+		return m, nil
+	}
 
-		/* Code from Parser.Parse(), needs updating to live here
+	m.history = append(m.history, input)
+	m.historyIdx = len(m.history)
 
-		if strings.Contains(input, " ") {
-			keywords := p.parseNaturalLanguage(input)
-			intent.Keywords = keywords
+	// Route input using centralized router (follows structure.d2 flow)
+	route := m.router.Route(input)
 
-			if resolved := p.matchKeywordsToSkill(keywords); resolved != nil {
-				intent.Type = IntentTask
-				intent.Task = resolved.Name
-				intent.Resolved = resolved
-				return intent, nil
-			}
-		} else {
-			if taskName := p.aliases.Match(input); taskName != "" {
-				if resolved, err := p.resolver.Resolve(taskName); err == nil {
-					intent.Type = IntentTask
-					intent.Task = resolved.Name
-					intent.Resolved = resolved
-					return intent, nil
+	switch route.Type {
+	case RouteQuit:
+		return m, tea.Quit
+
+	case RouteRetry:
+		// Retry the last command
+		lastCmd := m.router.LastCommand()
+		if lastCmd == "" {
+			m.appendLog("prompt", "> "+input)
+			m.appendLog("error", "No previous command to retry")
+			return m, nil
+		}
+		m.appendLog("prompt", "> "+input)
+		m.appendLog("info", colors.Dim("Retrying: ")+lastCmd)
+		// Re-route the last command
+		retryRoute := m.router.Route(lastCmd)
+		if retryRoute.Type == RouteTask || retryRoute.Type == RouteAlias {
+			return m, func() tea.Msg {
+				return ExecutionStartMsg{
+					Input:    lastCmd,
+					Task:     retryRoute.Task,
+					Resolved: retryRoute.Resolved,
 				}
 			}
-
-			if resolved, err := p.resolver.Resolve(input); err == nil {
-				intent.Type = IntentTask
-				intent.Task = resolved.Name
-				intent.Resolved = resolved
-				return intent, nil
+		} else if retryRoute.Type == RouteShell {
+			return m, func() tea.Msg {
+				return ShellStartMsg{Command: retryRoute.ShellCmd}
 			}
 		}
-		*/
+		m.appendLog("error", "Cannot retry: "+lastCmd)
+		return m, nil
 
-		// Show skill suggestions or shell history matches
-		skillMatches := m.parser.FindMatches(intent.Keywords)
-		histMatches := m.shellHistory.Match(input)
+	case RouteConfirm:
+		// Fuzzy match needs confirmation
+		m.appendLog("prompt", "> "+input)
+		m.pendingConfirm = route
+		m.appendLog("info", fmt.Sprintf("Did you mean %s? [y/n]",
+			colors.BrightGreen(route.Suggestion)))
+		return m, nil
 
-		if len(skillMatches) > 0 || len(histMatches) > 0 {
+	case RouteSlash:
+		m.appendLog("prompt", "> "+input)
+		m.appendLog("info", "")
+		slashCmd := m.registry.Get(route.Command)
+		if slashCmd != nil {
+			return slashCmd.Handler(&m, route.Args)
+		}
+		m.appendLog("error", "Unknown command: /"+route.Command)
+		m.appendLog("info", "")
+		return m, nil
+
+	case RouteMultiTask:
+		// Run multiple tasks in sequence
+		if len(route.Tasks) == 0 {
+			m.appendLog("prompt", "> "+input)
+			m.appendLog("error", "No tasks to run")
+			return m, nil
+		}
+		// Start with the first task, chain the rest
+		m.router.SetLastCommand(input, false)
+		return m, func() tea.Msg {
+			return ExecutionStartMsg{
+				Input:    input,
+				Task:     route.Tasks[0].Name,
+				Resolved: route.Tasks[0],
+			}
+		}
+
+	case RouteTask, RouteAlias:
+		if route.Resolved == nil {
+			m.appendLog("prompt", "> "+input)
+			m.appendLog("info", "")
+			m.appendLog("error", "Could not resolve: "+input)
+			m.appendLog("info", "")
+			return m, nil
+		}
+		m.appendLog("prompt", "> "+input)
+		m.appendLog("info", "")
+		m.router.SetLastCommand(input, false)
+		return m, func() tea.Msg {
+			return ExecutionStartMsg{
+				Input:    input,
+				Task:     route.Task,
+				Resolved: route.Resolved,
+			}
+		}
+
+	case RouteHelp:
+		m.appendLog("prompt", "> "+input)
+		m.appendLog("info", "")
+		m.appendLog("info", m.registry.HelpText())
+		m.appendLog("info", "")
+		return m, nil
+
+	case RouteCorrection:
+		m.router.Aliases().Add(route.Phrase, route.AliasTask)
+		m.appendLog("prompt", "> "+input)
+		m.appendLog("info", "Got it! \""+route.Phrase+"\" will now run "+colors.BrightGreen(route.AliasTask))
+		m.appendLog("info", "")
+		return m, nil
+
+	case RouteGreeting:
+		m.appendLog("prompt", "> "+input)
+		m.appendLog("info", route.Greeting)
+		m.appendLog("info", "")
+		return m, nil
+
+	case RouteFortune:
+		m.appendLog("prompt", "> "+input)
+		m.appendLog("info", route.Fortune)
+		m.appendLog("info", "")
+		return m, nil
+
+	case RouteShell:
+		m.router.SetLastCommand(input, false)
+		return m, func() tea.Msg {
+			return ShellStartMsg{Command: route.ShellCmd}
+		}
+
+	default:
+		// RouteUnknown - show suggestions if ambiguous
+		if route.Ambiguous {
 			m.appendLog("prompt", "> "+input)
 			var b strings.Builder
-			if len(skillMatches) > 0 {
+			if len(route.Matches) > 0 {
 				b.WriteString("Matching skills:\n")
-				for _, match := range skillMatches {
+				for _, match := range route.Matches {
 					b.WriteString("  " + colors.BrightGreen(match) + "\n")
 				}
 			}
-			if len(histMatches) > 0 {
+			if len(route.HistMatches) > 0 {
 				b.WriteString("From shell history:\n")
-				for _, h := range histMatches {
+				for _, h := range route.HistMatches {
 					status := colors.BrightGreen("exit 0")
 					if h.ExitCode != 0 {
 						status = colors.BrightRed(fmt.Sprintf("exit %d", h.ExitCode))
@@ -740,24 +798,43 @@ func (m Model) renderRunEntry(entry LogEntry) string {
 }
 
 func (m Model) renderFooter(w int) string {
-	// Build the label: ~/path (branch)
+	// Border color - slate/teal
+	borderColor := "\033[38;5;66m" // slate/teal color
+	reset := "\033[0m"
+
+	// Build the label: ~/path (branch) [+10 -5]
 	label := m.shortenPath(m.cwd)
 	if m.gitBranch != "" {
 		label += " (" + m.gitBranch + ")"
 	}
 
+	// Add git stats if there are changes
+	if m.gitStats.Added > 0 || m.gitStats.Removed > 0 {
+		statsStr := " "
+		if m.gitStats.Added > 0 {
+			statsStr += colors.BrightGreen(fmt.Sprintf("+%d", m.gitStats.Added))
+		}
+		if m.gitStats.Removed > 0 {
+			if m.gitStats.Added > 0 {
+				statsStr += " "
+			}
+			statsStr += colors.BrightRed(fmt.Sprintf("-%d", m.gitStats.Removed))
+		}
+		label += statsStr
+	}
+
 	// Top border with label
-	topLabel := "─── " + label + " "
-	topRemain := w - 2 - colors.VisualLength(topLabel) // 2 for ╭ and ╮
+	topLabel := label
+	topRemain := w - 7 - colors.VisualLength(topLabel)
 	if topRemain < 1 {
 		topRemain = 1
 	}
-	topLine := "╭" + topLabel + strings.Repeat("─", topRemain) + "╮"
+	topLine := borderColor + "╭─── " + reset + topLabel + " " + borderColor + strings.Repeat("─", topRemain) + "╮" + reset
 
 	// Input line
-	prompt := "│ > "
+	prompt := borderColor + "│" + reset + " > "
 	if m.state != StateIdle {
-		prompt = "│   "
+		prompt = borderColor + "│" + reset + "   "
 	}
 	inputText := m.input[:m.cursor]
 	if m.state == StateIdle {
@@ -769,14 +846,14 @@ func (m Model) renderFooter(w int) string {
 	if inputPad < 0 {
 		inputPad = 0
 	}
-	midLine := prompt + inputText + strings.Repeat(" ", inputPad) + "│"
+	midLine := prompt + inputText + strings.Repeat(" ", inputPad) + borderColor + "│" + reset
 
 	// Bottom border
 	bottomRemain := w - 2 // 2 for ╰ and ╯
 	if bottomRemain < 0 {
 		bottomRemain = 0
 	}
-	botLine := "╰" + strings.Repeat("─", bottomRemain) + "╯"
+	botLine := borderColor + "╰" + strings.Repeat("─", bottomRemain) + "╯" + reset
 
 	return topLine + "\n" + midLine + "\n" + botLine
 }
@@ -890,6 +967,50 @@ func detectHostname() string {
 	return strings.TrimSpace(string(out))
 }
 
+// GitStats holds +/- line counts from git diff.
+type GitStats struct {
+	Added   int
+	Removed int
+}
+
+func detectGitStats(dir string) GitStats {
+	cmd := exec.Command("git", "-C", dir, "diff", "--shortstat")
+	out, err := cmd.Output()
+	if err != nil {
+		return GitStats{}
+	}
+
+	// Parse output like: " 3 files changed, 45 insertions(+), 12 deletions(-)"
+	output := string(out)
+	var stats GitStats
+
+	// Extract insertions
+	if idx := strings.Index(output, "insertion"); idx > 0 {
+		// Find the number before "insertion"
+		start := strings.LastIndex(output[:idx], " ")
+		if start >= 0 {
+			numStr := strings.TrimSpace(output[start:idx])
+			if n, err := strconv.Atoi(numStr); err == nil {
+				stats.Added = n
+			}
+		}
+	}
+
+	// Extract deletions
+	if idx := strings.Index(output, "deletion"); idx > 0 {
+		// Find the number before "deletion"
+		start := strings.LastIndex(output[:idx], " ")
+		if start >= 0 {
+			numStr := strings.TrimSpace(output[start:idx])
+			if n, err := strconv.Atoi(numStr); err == nil {
+				stats.Removed = n
+			}
+		}
+	}
+
+	return stats
+}
+
 func detectGitBranch(dir string) string {
 	cmd := exec.Command("git", "-C", dir, "branch", "--show-current")
 	out, err := cmd.Output()
@@ -958,7 +1079,7 @@ func (m *Model) changeDir(dir string) error {
 
 	m.agent.pipelines = pipelines
 	m.agent.resolver = runner.NewTaskResolver(pipelines)
-	m.parser = NewParser(m.agent.Resolver(), m.agent.Pipelines())
+	m.router = NewRouter(m.agent.Resolver(), m.agent.Pipelines(), m.registry)
 
 	return nil
 }

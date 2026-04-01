@@ -66,6 +66,14 @@ type Breadcrumb struct {
 ```
 
 ```go
+// GitStats holds +/- line counts from git diff.
+type GitStats struct {
+	Added   int
+	Removed int
+}
+```
+
+```go
 // Greeter handles greeting detection and responses.
 type Greeter struct {
 	groups []GreetingGroup
@@ -133,8 +141,8 @@ type Model struct {
 	lastTask   *model.ResolvedTask
 	retryCount int
 
-	// Intent parser and slash commands
-	parser   *Parser
+	// Centralized router and slash commands
+	router   *Router
 	registry *Registry
 
 	// Dimensions
@@ -146,13 +154,15 @@ type Model struct {
 	hostname  string
 	cwd       string
 	gitBranch string
+	gitStats  GitStats
 
-	log          []LogEntry
-	scrollOff    int
-	spinner      spinner.Model
-	runLogIdx    int // index of the current running entry in log
-	shellHistory *ShellHistory
-	greeter      *Greeter
+	log       []LogEntry
+	scrollOff int
+	spinner   spinner.Model
+	runLogIdx int // index of the current running entry in log
+
+	// Confirmation state for fuzzy matching
+	pendingConfirm *Route
 }
 ```
 
@@ -179,6 +189,55 @@ type Parser struct {
 type Registry struct {
 	commands map[string]*SlashCommand
 	ordered  []string
+}
+```
+
+```go
+// Route represents a routing decision.
+type Route struct {
+	Type        RouteType
+	Raw         string              // Original input
+	Task        string              // Task name for RouteTask
+	Resolved    *model.ResolvedTask // Resolved task for RouteTask
+	Command     string              // Slash command name for RouteSlash
+	Args        string              // Arguments for RouteSlash
+	ShellCmd    string              // Shell command for RouteShell
+	Greeting    string              // Greeting response for RouteGreeting
+	Fortune     string              // Fortune text for RouteFortune
+	Phrase      string              // Phrase for RouteCorrection
+	AliasTask   string              // Alias target for RouteCorrection
+	Ambiguous   bool                // Multiple matches found
+	Matches     []string            // Matching skills when ambiguous
+	HistMatches []ShellHistoryEntry // Shell history matches
+
+	// Multi-task support (chained commands)
+	Tasks []*model.ResolvedTask // Multiple tasks for RouteMultiTask
+
+	// Fuzzy match confirmation
+	Suggestion string // Suggested correction for RouteConfirm
+	Original   string // Original input that was fuzzy matched
+}
+```
+
+```go
+// RouteType categorizes the routing decision.
+type RouteType int
+```
+
+```go
+// Router implements the centralized routing logic based on structure.d2.
+// Flow: Prompt → Is alias? → Semantic parsing → Match (skills/targets)?
+type Router struct {
+	resolver     *runner.TaskResolver
+	skills       []*model.Pipeline
+	aliases      *AliasStore
+	greeter      *Greeter
+	registry     *Registry
+	shellHistory *ShellHistory
+
+	// Context for retry/again
+	lastInput  string // Last input for retry
+	lastFailed bool   // Whether last command failed
 }
 ```
 
@@ -277,6 +336,25 @@ const (
 )
 ```
 
+```go
+// RouteType constants following structure.d2 flow.
+const (
+	RouteUnknown    RouteType = iota
+	RouteAlias                // Resolved via alias
+	RouteSlash                // Slash command (explicit or natural language)
+	RouteTask                 // Skill/task execution
+	RouteMultiTask            // Multiple tasks (chained with && or "then")
+	RouteShell                // Shell command execution
+	RouteGreeting             // Greeting response
+	RouteCorrection           // Store a correction/alias
+	RouteFortune              // Fortune/motivation request
+	RouteHelp                 // Help request
+	RouteQuit                 // Exit request
+	RouteRetry                // Retry last command (again/retry)
+	RouteConfirm              // Fuzzy match needs confirmation
+)
+```
+
 ## Vars
 
 ```go
@@ -286,6 +364,7 @@ var FillerWords = []string{
 	"i", "want", "need", "get", "show", "run", "execute",
 	"do", "make", "let", "lets", "let's", "my", "some",
 	"what", "is", "are", "how", "about", "whats", "what's",
+	"your", "its", "it's", "tell", "whats",
 }
 ```
 
@@ -303,8 +382,10 @@ var FillerWords = []string{
 - `func NewModel (agent *Agent, version string) Model`
 - `func NewParser (resolver *runner.TaskResolver, skills []*model.Pipeline) *Parser`
 - `func NewRegistry () *Registry`
+- `func NewRouter (resolver *runner.TaskResolver, skills []*model.Pipeline, registry *Registry) *Router`
 - `func NewShellHistory () *ShellHistory`
 - `func ParseCorrection (input string) (string, string, bool)`
+- `func UsageText () string`
 - `func (*Agent) Exec (ctx context.Context, prompt,version string) error`
 - `func (*Agent) Options () *Options`
 - `func (*Agent) Pipelines () []*model.Pipeline`
@@ -331,6 +412,14 @@ var FillerWords = []string{
 - `func (*Registry) Get (name string) *SlashCommand`
 - `func (*Registry) HelpText () string`
 - `func (*Registry) Register (cmd *SlashCommand)`
+- `func (*Router) Aliases () *AliasStore`
+- `func (*Router) AvailableSkills () []string`
+- `func (*Router) FindMatches (keywords []string) []string`
+- `func (*Router) Greeter () *Greeter`
+- `func (*Router) LastCommand () string`
+- `func (*Router) Route (input string) *Route`
+- `func (*Router) SetLastCommand (input string, failed bool)`
+- `func (*Router) ShellHistory () *ShellHistory`
 - `func (*ShellHistory) Add (command string, exitCode int, duration time.Duration, dir string)`
 - `func (*ShellHistory) FindExact (command string) *ShellHistoryEntry`
 - `func (*ShellHistory) Match (input string) []ShellHistoryEntry`
@@ -435,6 +524,14 @@ NewRegistry creates a new slash command registry.
 func NewRegistry() *Registry
 ```
 
+### NewRouter
+
+NewRouter creates a new router with all dependencies.
+
+```go
+func NewRouter(resolver *runner.TaskResolver, skills []*model.Pipeline, registry *Registry) *Router
+```
+
 ### NewShellHistory
 
 NewShellHistory loads or creates a shell history file.
@@ -450,6 +547,14 @@ Returns (phrase, task, true) if matched.
 
 ```go
 func ParseCorrection(input string) (string, string, bool)
+```
+
+### UsageText
+
+UsageText returns the usage help text for non-interactive mode.
+
+```go
+func UsageText() string
 ```
 
 ### Exec
@@ -667,6 +772,79 @@ Register adds a slash command.
 
 ```go
 func (*Registry) Register(cmd *SlashCommand)
+```
+
+### Aliases
+
+Aliases returns the alias store.
+
+```go
+func (*Router) Aliases() *AliasStore
+```
+
+### AvailableSkills
+
+AvailableSkills returns a list of available skill names.
+
+```go
+func (*Router) AvailableSkills() []string
+```
+
+### FindMatches
+
+FindMatches returns all skills matching the input keywords.
+
+```go
+func (*Router) FindMatches(keywords []string) []string
+```
+
+### Greeter
+
+Greeter returns the greeter.
+
+```go
+func (*Router) Greeter() *Greeter
+```
+
+### LastCommand
+
+LastCommand returns the last command input.
+
+```go
+func (*Router) LastCommand() string
+```
+
+### Route
+
+Route processes user input following the structure.d2 flow:
+1. Is alias? → Replace with alias
+2. Semantic parsing
+3. Match prompt (skills & targets)?
+- single match → execute
+- multiple matches → ambiguous
+- shell expression → shell exec
+- greeting → greeting response
+- store correction → save alias
+- none → failure
+
+```go
+func (*Router) Route(input string) *Route
+```
+
+### SetLastCommand
+
+SetLastCommand records the last command for retry functionality.
+
+```go
+func (*Router) SetLastCommand(input string, failed bool)
+```
+
+### ShellHistory
+
+ShellHistory returns the shell history.
+
+```go
+func (*Router) ShellHistory() *ShellHistory
 ```
 
 ### Add

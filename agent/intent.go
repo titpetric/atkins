@@ -14,6 +14,7 @@ var FillerWords = []string{
 	"i", "want", "need", "get", "show", "run", "execute",
 	"do", "make", "let", "lets", "let's", "my", "some",
 	"what", "is", "are", "how", "about", "whats", "what's",
+	"your", "its", "it's", "tell", "whats",
 }
 
 // IntentType categorizes user input.

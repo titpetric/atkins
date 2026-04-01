@@ -49,6 +49,17 @@ func defaultGreetingGroups() []GreetingGroup {
 			},
 		},
 		{
+			Keywords: []string{"thanks", "thank you", "thx", "ty", "cheers"},
+			Responses: []string{
+				"You're welcome! Anything else?",
+				"No problem! Let me know if you need more help.",
+				"Happy to help!",
+				"Anytime! What's next?",
+				"Glad I could help!",
+				"You got it! Need anything else?",
+			},
+		},
+		{
 			Keywords: []string{"hola", "buenas", "qué tal", "que tal"},
 			Responses: []string{
 				"¡Hola! ¿Qué tal? ¿En qué trabajamos hoy?",
@@ -56,6 +67,15 @@ func defaultGreetingGroups() []GreetingGroup {
 				"¡Hola! Escribe /list para ver lo que hay disponible.",
 				"¡Hola! ¿Listo para programar?",
 				"¡Buenas! ¿Qué hacemos?",
+			},
+		},
+		{
+			Keywords: []string{"gracias", "muchas gracias"},
+			Responses: []string{
+				"¡De nada! ¿Algo más?",
+				"¡No hay de qué! ¿Necesitas algo más?",
+				"¡Con gusto! ¿Qué más hacemos?",
+				"¡Para eso estoy! ¿Algo más?",
 			},
 		},
 		{
@@ -68,11 +88,27 @@ func defaultGreetingGroups() []GreetingGroup {
 			},
 		},
 		{
+			Keywords: []string{"merci", "merci beaucoup"},
+			Responses: []string{
+				"De rien ! Autre chose ?",
+				"Avec plaisir ! Quoi d'autre ?",
+				"Je t'en prie ! Besoin d'autre chose ?",
+			},
+		},
+		{
 			Keywords: []string{"ciao", "salve"},
 			Responses: []string{
 				"Ciao! Su cosa lavoriamo oggi?",
 				"Ciao! Scrivi /list per vedere cosa c'è.",
 				"Salve! Pronti a programmare?",
+			},
+		},
+		{
+			Keywords: []string{"grazie", "grazie mille"},
+			Responses: []string{
+				"Prego! Altro?",
+				"Di niente! Serve altro?",
+				"Figurati! Cos'altro facciamo?",
 			},
 		},
 		{
@@ -84,11 +120,27 @@ func defaultGreetingGroups() []GreetingGroup {
 			},
 		},
 		{
+			Keywords: []string{"danke", "danke schön", "vielen dank"},
+			Responses: []string{
+				"Bitte! Noch etwas?",
+				"Gern geschehen! Was noch?",
+				"Kein Problem! Brauchst du noch was?",
+			},
+		},
+		{
 			Keywords: []string{"olá", "oi", "e aí"},
 			Responses: []string{
 				"Olá! No que vamos trabalhar hoje?",
 				"Oi! Digite /list para ver o que está disponível.",
 				"E aí! Bora programar?",
+			},
+		},
+		{
+			Keywords: []string{"obrigado", "obrigada", "valeu"},
+			Responses: []string{
+				"De nada! Mais alguma coisa?",
+				"Por nada! Precisa de mais algo?",
+				"Disponha! O que mais?",
 			},
 		},
 	}
@@ -100,11 +152,13 @@ func (g *Greeter) Match(input string) string {
 	lower := strings.ToLower(strings.TrimSpace(input))
 
 	// Strip trailing punctuation for matching
-	clean := strings.TrimRight(lower, "!?.,; ")
+	clean := strings.TrimRight(lower, "!?.,;:- ")
 
 	for _, group := range g.groups {
 		for _, kw := range group.Keywords {
-			if clean == kw {
+			// Match exact word or prefix with space (e.g., "hi there")
+			// Also handle contractions like "what's" by stripping punctuation from words
+			if clean == kw || strings.HasPrefix(clean, kw+" ") {
 				return group.Responses[rand.IntN(len(group.Responses))]
 			}
 		}

@@ -60,8 +60,16 @@ func (s *AliasStore) Match(input string) string {
 		}
 	}
 
+	// Try with trailing punctuation stripped
+	clean := strings.TrimRight(lower, "!?.,;:-")
+	for _, a := range s.Aliases {
+		if clean == a.Phrase {
+			return a.Task
+		}
+	}
+
 	// Match with filler words stripped
-	cleaned := stripFillerWords(lower)
+	cleaned := stripFillerWords(clean)
 	for _, a := range s.Aliases {
 		if cleaned == a.Phrase {
 			return a.Task

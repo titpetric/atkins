@@ -123,74 +123,123 @@ func (a *Agent) Exec(ctx context.Context, prompt, version string) error {
 		return fmt.Errorf("empty prompt")
 	}
 
-	parser := NewParser(a.resolver, a.pipelines)
-	greeter := NewGreeter()
-	aliases := parser.Aliases()
+	// Use centralized router (follows structure.d2 flow)
+	registry := DefaultRegistry()
+	router := NewRouter(a.resolver, a.pipelines, registry)
+	route := router.Route(prompt)
 
-	// Check alias
-	if taskName := aliases.Match(prompt); taskName != "" {
-		if resolved, err := a.resolver.Resolve(taskName); err == nil {
-			return a.execTask(ctx, resolved)
-		}
-	}
-
-	// Parse intent
-	intent, err := parser.Parse(prompt)
-	if err != nil {
-		return err
-	}
-
-	switch intent.Type {
-	case IntentTask:
-		if intent.Resolved == nil {
+	switch route.Type {
+	case RouteTask, RouteAlias:
+		if route.Resolved == nil {
 			return fmt.Errorf("could not resolve: %s", prompt)
 		}
-		return a.execTask(ctx, intent.Resolved)
+		return a.execTask(ctx, route.Resolved)
 
-	case IntentHelp:
-		fmt.Println("Usage: atkins -x \"<prompt>\"")
-		fmt.Println("  Run a task, shell command, or ask for a greeting/fortune.")
+	case RouteMultiTask:
+		// Run multiple tasks in sequence
+		for _, task := range route.Tasks {
+			if err := a.execTask(ctx, task); err != nil {
+				return err // Stop on first failure
+			}
+		}
 		return nil
 
-	case IntentSlash:
-		return fmt.Errorf("slash commands are only available in interactive mode")
+	case RouteConfirm:
+		// In non-interactive mode, show suggestion and fail
+		fmt.Printf("Did you mean %s?\n", route.Suggestion)
+		fmt.Printf("Run: atkins -x \"%s\"\n", route.Suggestion)
+		return fmt.Errorf("unknown command: %s", route.Original)
 
-	case IntentQuit:
+	case RouteHelp:
+		fmt.Print(UsageText())
 		return nil
+
+	case RouteSlash:
+		// Handle some slash commands in non-interactive mode
+		switch route.Command {
+		case "list", "l", "ls", "skills":
+			a.printSkillList()
+			return nil
+		case "help", "h", "?":
+			fmt.Print(UsageText())
+			return nil
+		case "aliases", "alias":
+			a.printAliases(router.Aliases())
+			return nil
+		default:
+			return fmt.Errorf("slash command /%s is only available in interactive mode", route.Command)
+		}
+
+	case RouteQuit:
+		return nil
+
+	case RouteGreeting:
+		fmt.Println(route.Greeting)
+		return nil
+
+	case RouteFortune:
+		fmt.Println(route.Fortune)
+		return nil
+
+	case RouteCorrection:
+		router.Aliases().Add(route.Phrase, route.AliasTask)
+		fmt.Printf("Got it! \"%s\" will now run %s\n", route.Phrase, route.AliasTask)
+		return nil
+
+	case RouteShell:
+		return a.execShell(ctx, route.ShellCmd)
 
 	default:
-		// Greeting
-		if response := greeter.Match(prompt); response != "" {
-			fmt.Println(response)
+		// RouteUnknown
+		if route.Ambiguous && len(route.Matches) > 0 {
+			fmt.Println("Matching skills:")
+			for _, match := range route.Matches {
+				fmt.Println("  " + match)
+			}
+			fmt.Println("\nBe more specific or use the full skill name")
 			return nil
 		}
-
-		// Fortune
-		if MatchFortune(prompt) {
-			fmt.Println(Fortune())
-			return nil
-		}
-
-		// Shell fallback
-		fields := strings.Fields(prompt)
-		if len(fields) > 0 {
-			if _, err := exec.LookPath(fields[0]); err == nil {
-				return a.execShell(ctx, prompt)
-			}
-		}
-
-		// Shell history single match
-		shellHistory := NewShellHistory()
-		if histMatches := shellHistory.Match(prompt); len(histMatches) == 1 {
-			cmd := histMatches[0].Command
-			if hFields := strings.Fields(cmd); len(hFields) > 0 {
-				if _, err := exec.LookPath(hFields[0]); err == nil {
-					return a.execShell(ctx, cmd)
-				}
-			}
-		}
-
 		return fmt.Errorf("unknown command: %s", prompt)
+	}
+}
+
+// printSkillList prints available skills for non-interactive mode.
+func (a *Agent) printSkillList() {
+	if len(a.pipelines) == 0 {
+		fmt.Println("No skills available")
+		return
+	}
+
+	fmt.Println("Available skills:")
+	for _, p := range a.pipelines {
+		var prefix string
+		if p.ID != "" {
+			prefix = p.ID + ":"
+		}
+
+		for name, job := range p.Jobs {
+			fullName := prefix + name
+			if job.Desc != "" {
+				fmt.Printf("  %s - %s\n", fullName, job.Desc)
+			} else {
+				fmt.Printf("  %s\n", fullName)
+			}
+		}
+	}
+}
+
+// printAliases prints defined aliases for non-interactive mode.
+func (a *Agent) printAliases(aliases *AliasStore) {
+	if len(aliases.Aliases) == 0 {
+		fmt.Println("No aliases defined.")
+		fmt.Println("\nTeach an alias with:")
+		fmt.Println("  alias <phrase> to <command>")
+		return
+	}
+
+	fmt.Println("Defined aliases:")
+	for _, alias := range aliases.Aliases {
+		fmt.Printf("  %s → %s\n", alias.Phrase, alias.Task)
 	}
 }
 

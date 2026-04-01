@@ -86,7 +86,6 @@ func DefaultRegistry() *Registry {
 
 	r.Register(&SlashCommand{
 		Name:        "list",
-		Aliases:     []string{"l", "ls"},
 		Description: "List available skills and jobs",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
 			pipelines := m.agent.Pipelines()
@@ -178,18 +177,6 @@ func DefaultRegistry() *Registry {
 	})
 
 	r.Register(&SlashCommand{
-		Name:        "clear",
-		Aliases:     []string{"cls"},
-		Description: "Clear the message log",
-		Handler: func(m *Model, args string) (Model, tea.Cmd) {
-			m.log = m.log[:0]
-			m.scrollOff = 0
-			m.lastError = nil
-			return *m, nil
-		},
-	})
-
-	r.Register(&SlashCommand{
 		Name:        "history",
 		Description: "Show command history",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
@@ -217,7 +204,6 @@ func DefaultRegistry() *Registry {
 
 	r.Register(&SlashCommand{
 		Name:        "run",
-		Aliases:     []string{"r"},
 		Description: "Run a specific task (e.g., /run go:test)",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
 			args = strings.TrimSpace(args)
@@ -276,6 +262,27 @@ func DefaultRegistry() *Registry {
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
 			// In TUI mode, delegate to /list since treeview prints to stdout
 			return r.Get("list").Handler(m, args)
+		},
+	})
+
+	r.Register(&SlashCommand{
+		Name:        "aliases",
+		Description: "List defined aliases",
+		Handler: func(m *Model, args string) (Model, tea.Cmd) {
+			aliases := m.router.Aliases().Aliases
+			if len(aliases) == 0 {
+				m.appendLog("info", "No aliases defined.\n\nTeach an alias with:\n  alias <phrase> to <command>")
+				return *m, nil
+			}
+
+			var lines []string
+			for _, a := range aliases {
+				lines = append(lines, fmt.Sprintf("  %s → %s",
+					colors.BrightCyan(a.Phrase),
+					colors.BrightGreen(a.Task)))
+			}
+			m.appendLog("info", "Defined aliases:\n\n"+strings.Join(lines, "\n"))
+			return *m, nil
 		},
 	})
 
