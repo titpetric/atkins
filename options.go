@@ -16,6 +16,8 @@ type Options struct {
 	JSON             bool
 	YAML             bool
 	Version          bool
+	Agent            bool
+	Exec             string
 
 	FlagSet *cli.FlagSet
 }
@@ -36,6 +38,8 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.BoolVarP(&o.JSON, "json", "j", false, "Output in JSON format")
 	fs.BoolVarP(&o.YAML, "yaml", "y", false, "Output in YAML format")
 	fs.BoolVarP(&o.Version, "version", "v", false, "Print version and build information")
+	fs.BoolVar(&o.Agent, "agent", false, "Start interactive agent REPL")
+	fs.StringVarP(&o.Exec, "exec", "x", "", "Run a prompt non-interactively and exit")
 
 	o.FlagSet = fs
 }

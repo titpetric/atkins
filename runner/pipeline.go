@@ -26,6 +26,7 @@ type PipelineOptions struct {
 	PipelineFile string
 	Debug        bool
 	FinalOnly    bool
+	Silent       bool
 	JSON         bool
 	YAML         bool
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
@@ -80,7 +81,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		finalOnly    = p.opts.FinalOnly
 		outputJSON   = p.opts.JSON
 		outputYAML   = p.opts.YAML
-		silentOutput = outputJSON || outputYAML
+		silentOutput = p.opts.Silent || outputJSON || outputYAML
 	)
 
 	tree := treeview.NewBuilder(pipeline.Name)
@@ -146,14 +147,17 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		if err != nil {
 			var noDefaultErr *runnererrors.NoDefaultJobError
 			if errors.As(err, &noDefaultErr) {
-				// Print available jobs and error message similar to task
-				fmt.Fprintf(os.Stderr, "%s Available jobs for this project:\n", colors.BrightYellow("atkins:"))
-				printAvailableJobs(noDefaultErr.Jobs, pipeline.ID)
-				fmt.Fprintf(os.Stderr, "%s Job %q does not exist\n", colors.BrightRed("atkins:"), "default")
-				os.Exit(1)
+				if !silentOutput {
+					fmt.Fprintf(os.Stderr, "%s Available jobs for this project:\n", colors.BrightYellow("atkins:"))
+					printAvailableJobs(noDefaultErr.Jobs, pipeline.ID)
+					fmt.Fprintf(os.Stderr, "%s Job %q does not exist\n", colors.BrightRed("atkins:"), "default")
+				}
+				return err
 			}
-			fmt.Printf("%s %s\n", colors.BrightRed("ERROR:"), err)
-			os.Exit(1)
+			if !silentOutput {
+				fmt.Printf("%s %s\n", colors.BrightRed("ERROR:"), err)
+			}
+			return err
 		}
 		// Add jobs to unified order, skipping duplicates
 		for _, name := range order {
@@ -236,8 +240,10 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	// Start with jobs in order
 	for _, jobName := range jobOrder {
 		if err := findInvokedJobs(jobName, ""); err != nil {
-			fmt.Printf("%s %s\n", colors.BrightRed("ERROR:"), err)
-			os.Exit(1)
+			if !silentOutput {
+				fmt.Printf("%s %s\n", colors.BrightRed("ERROR:"), err)
+			}
+			return err
 		}
 	}
 

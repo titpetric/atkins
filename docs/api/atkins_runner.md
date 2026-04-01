@@ -164,6 +164,7 @@ type PipelineOptions struct {
 	PipelineFile string
 	Debug        bool
 	FinalOnly    bool
+	Silent       bool
 	JSON         bool
 	YAML         bool
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references

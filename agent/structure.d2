@@ -1,0 +1,101 @@
+direction: down
+
+# ===== START NODE =====
+main_prompt: "User Prompt"
+main_prompt.style.fill: "#FFF176"  # pastel yellow
+main_prompt.shape: circle
+main_prompt.style.stroke: black
+
+# ===== MAIN PIPELINE =====
+main_is_alias: "Is alias?"
+main_is_alias.shape: diamond
+main_semantic: "Semantic parsing"
+main_match: "Match prompt (skills & targets)?"
+main_match.shape: diamond
+main_no_match: "No match OR ambiguous\n→ Exit code"
+
+main_prompt -> main_is_alias
+
+main_is_alias -> alias_replace: "yes"
+main_is_alias -> main_semantic: "no"
+
+alias_replace: "Replace with alias"
+alias_replace -> main_semantic
+
+main_semantic -> main_match
+
+main_match -> exec_single: "single match"
+main_match -> exec_multi: "multiple matches"
+main_match -> main_no_match: "none/ambiguous"
+main_match -> shell_exec: "shell expression"
+main_match -> greeting: "greeting"
+main_match -> correction: "store correction"
+correction -> main_success
+
+# ===== GREETING FLOW =====
+greet_response: "Respond with greeting"
+greet_response -> main_success
+
+greeting -> greet_response
+
+# ===== EXECUTION FLOW =====
+
+exec_single: "Run single task"
+exec_multi: "Run multiple tasks"
+
+exec_single -> exec_start
+exec_multi -> exec_start
+
+exec_start: "Execute task(s)"
+exec_start -> exec_failed
+
+exec_failed: "Task failed?"
+exec_failed.shape: diamond
+
+exec_failed -> main_success: "no"
+exec_failed -> exec_can_retry: "yes"
+
+exec_can_retry: "Can retry?"
+exec_can_retry.shape: diamond
+
+exec_can_retry -> exec_has_fix: "yes"
+exec_can_retry -> main_failure: "no"
+
+exec_has_fix: "Has fix target?"
+exec_has_fix.shape: diamond
+
+exec_has_fix -> exec_run_fix: "yes"
+exec_has_fix -> main_failure: "no"
+
+exec_run_fix: "Run fix"
+exec_run_fix -> exec_start
+
+# ===== SHELL FLOW =====
+shell_exec: "Execute shell command"
+shell_exec -> shell_result
+
+shell_result: "Shell success?"
+shell_result.shape: diamond
+
+shell_result -> main_success: "yes"
+shell_result -> main_failure: "no"
+
+# ===== NO MATCH =====
+main_no_match -> main_failure
+
+# ===== TERMINAL STATES =====
+main_success: "SUCCESS"
+main_success.style.fill: "#A5D6A7"  # pastel green
+main_success.style.stroke: black
+main_success.shape: circle
+
+main_failure: "FAILURE"
+main_failure.style.fill: "#EF9A9A"  # pastel red
+main_failure.style.stroke: black
+main_failure.shape: circle
+
+# ===== POST-TERMINAL HISTORY =====
+exec_history: "Update command history"
+
+main_success -> exec_history
+main_failure -> exec_history

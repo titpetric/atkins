@@ -23,6 +23,8 @@ type Options struct {
 	JSON             bool
 	YAML             bool
 	Version          bool
+	Agent            bool
+	Exec             string
 
 	FlagSet *cli.FlagSet
 }

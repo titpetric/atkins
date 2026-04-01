@@ -13,6 +13,7 @@ import (
 	"github.com/titpetric/cli"
 	yaml "gopkg.in/yaml.v3"
 
+	"github.com/titpetric/atkins/agent"
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
@@ -84,6 +85,16 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			CommitTime: CommitTime,
 			Branch:     Branch,
 		})
+	}
+
+	// Handle agent mode
+	if opts.Agent {
+		return runAgent(ctx, opts)
+	}
+
+	// Handle exec mode (-x "prompt")
+	if opts.Exec != "" {
+		return runExec(ctx, opts)
 	}
 
 	// Validate mutually exclusive flags
@@ -382,4 +393,46 @@ pipelineReady:
 		}
 	}
 	return nil
+}
+
+// runAgent starts the interactive agent REPL.
+func runAgent(ctx context.Context, opts *Options) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	agentOpts := &agent.Options{
+		Debug:   opts.Debug,
+		Verbose: false,
+		Jail:    opts.Jail,
+	}
+
+	a, err := agent.New(cwd, agentOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize agent: %w", err)
+	}
+
+	return a.Run(ctx, Version)
+}
+
+// runExec handles non-interactive prompt execution (-x flag).
+func runExec(ctx context.Context, opts *Options) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	agentOpts := &agent.Options{
+		Debug:   opts.Debug,
+		Verbose: false,
+		Jail:    opts.Jail,
+	}
+
+	a, err := agent.New(cwd, agentOpts)
+	if err != nil {
+		return fmt.Errorf("failed to initialize agent: %w", err)
+	}
+
+	return a.Exec(ctx, opts.Exec, Version)
 }
