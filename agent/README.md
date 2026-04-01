@@ -2,6 +2,10 @@
 
 The agent is a full-screen interactive REPL for running tasks. Start it with `atkins --agent`.
 
+The agent takes human language inputs, provides shell execution,
+navigation and pipeline job execution. Atkins skills can be used, and
+aliases can be created with the prompt. It requires no LLM.
+
 For non-interactive use, run a single prompt with `-x`:
 
 ```
