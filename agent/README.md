@@ -74,13 +74,12 @@ Type `y` to confirm or `n` to cancel.
 
 | Command | Aliases | Description |
 |---------|---------|-------------|
-| `/list` | `/l`, `/ls` | List available skills and jobs |
-| `/run <task>` | `/r` | Run a specific task |
-| `/aliases` | `/alias` | List defined aliases |
+| `/list` | | List available skills and jobs |
+| `/run <task>` |  | Run a specific task |
+| `/aliases` | | List defined aliases |
 | `/cd <path>` | | Change working directory |
 | `/help` | `/h`, `/?` | Show help |
 | `/history` | | Show command history |
-| `/clear` | `/cls` | Clear the message log |
 | `/debug` | | Toggle debug mode |
 | `/verbose` | `/v` | Toggle verbose output |
 | `/jail` | | Toggle jail mode |
@@ -176,20 +175,6 @@ what's your server name → stripped to "server name" → runs uname -n
 ```
 
 Use `/aliases` to list all defined aliases. Aliases are stored in `~/.atkins/aliases.yaml` and checked before any other matching.
-
-## Keyboard Shortcuts
-
-| Key | Action |
-|-----|--------|
-| `Enter` | Submit input |
-| `Up`/`Down` | Navigate command history |
-| `PgUp`/`PgDn` | Scroll message log |
-| `Ctrl+L` | Clear log |
-| `Ctrl+A`/`Home` | Move cursor to start |
-| `Ctrl+E`/`End` | Move cursor to end |
-| `Ctrl+U` | Delete to start of line |
-| `Ctrl+K` | Delete to end of line |
-| `Ctrl+C` | Quit |
 
 ## Configuration Files
 
