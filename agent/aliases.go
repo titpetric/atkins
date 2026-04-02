@@ -8,13 +8,14 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// AliasEntry maps a natural language phrase to a task name.
+// AliasEntry maps a natural language phrase to a prompt.
+// The prompt can be a shell command, prompt target, or any input.
 type AliasEntry struct {
 	Phrase string `yaml:"phrase"`
-	Task   string `yaml:"task"`
+	Prompt string `yaml:"prompt"`
 }
 
-// AliasStore manages user-defined phrase → task corrections.
+// AliasStore manages user-defined phrase to prompt mappings.
 type AliasStore struct {
 	Aliases []AliasEntry `yaml:"aliases"`
 	path    string
@@ -31,20 +32,20 @@ func NewAliasStore() *AliasStore {
 }
 
 // Add records a new alias mapping.
-func (s *AliasStore) Add(phrase, task string) {
+func (s *AliasStore) Add(phrase, prompt string) {
 	phrase = strings.ToLower(strings.TrimSpace(phrase))
-	task = strings.TrimSpace(task)
+	prompt = strings.TrimSpace(prompt)
 
 	// Update existing alias for the same phrase
 	for i, a := range s.Aliases {
 		if a.Phrase == phrase {
-			s.Aliases[i].Task = task
+			s.Aliases[i].Prompt = prompt
 			s.save()
 			return
 		}
 	}
 
-	s.Aliases = append(s.Aliases, AliasEntry{Phrase: phrase, Task: task})
+	s.Aliases = append(s.Aliases, AliasEntry{Phrase: phrase, Prompt: prompt})
 	s.save()
 }
 
@@ -56,7 +57,7 @@ func (s *AliasStore) Match(input string) string {
 	// Exact match first
 	for _, a := range s.Aliases {
 		if lower == a.Phrase {
-			return a.Task
+			return a.Prompt
 		}
 	}
 
@@ -64,7 +65,7 @@ func (s *AliasStore) Match(input string) string {
 	clean := strings.TrimRight(lower, "!?.,;:-")
 	for _, a := range s.Aliases {
 		if clean == a.Phrase {
-			return a.Task
+			return a.Prompt
 		}
 	}
 
@@ -72,7 +73,7 @@ func (s *AliasStore) Match(input string) string {
 	cleaned := stripFillerWords(clean)
 	for _, a := range s.Aliases {
 		if cleaned == a.Phrase {
-			return a.Task
+			return a.Prompt
 		}
 	}
 

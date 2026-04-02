@@ -239,7 +239,7 @@ func (a *Agent) printAliases(aliases *AliasStore) {
 
 	fmt.Println("Defined aliases:")
 	for _, alias := range aliases.Aliases {
-		fmt.Printf("  %s → %s\n", alias.Phrase, alias.Task)
+		fmt.Printf("  %s as %s\n", alias.Phrase, alias.Prompt)
 	}
 }
 

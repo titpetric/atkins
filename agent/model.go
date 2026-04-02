@@ -1,13 +1,7 @@
 package agent
 
 import (
-	"context"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -16,7 +10,6 @@ import (
 
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
-	"github.com/titpetric/atkins/runner"
 )
 
 // UsageText returns the usage help text for non-interactive mode.
@@ -95,6 +88,9 @@ type Model struct {
 
 	// Confirmation state for fuzzy matching
 	pendingConfirm *Route
+
+	// Prompt mode (language or shell)
+	promptMode PromptMode
 }
 
 // Messages for async operations.
@@ -139,7 +135,7 @@ func NewModel(agent *Agent, version string) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	registry := DefaultRegistry()
-	return Model{
+	m := Model{
 		agent:      agent,
 		state:      StateIdle,
 		history:    []string{},
@@ -155,15 +151,17 @@ func NewModel(agent *Agent, version string) Model {
 		spinner:    s,
 		runLogIdx:  -1,
 	}
+	m.appendGreeting()
+	return m
 }
 
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
-	m.appendGreeting()
 	return m.spinner.Tick
 }
 
 func (m *Model) appendGreeting() {
+	m.appendLog("info", "")
 	m.appendLog("info", colors.BrightCyan("Welcome to atkins.")+" Type a command to get started.")
 	m.appendLog("info", "")
 	m.appendLog("info", colors.Dim("Usage:"))
@@ -174,27 +172,13 @@ func (m *Model) appendGreeting() {
 	m.appendLog("info", "  "+colors.BrightWhite("Shell commands:")+
 		"     curl wttr.in, ls -la, docker ps")
 	m.appendLog("info", "")
-	m.appendLog("info", colors.Dim("Teach aliases:"))
-	m.appendLog("info", "  "+colors.Dim("\"alias server name to uname -n\""))
-	m.appendLog("info", "  "+colors.Dim("\"if i say deploy, run docker:push\""))
+	m.appendLog("info", colors.Dim("Aliasing commands and job targets:"))
+	m.appendLog("info", "  "+colors.BrightWhite("\"alias server name to uname -n\""))
+	m.appendLog("info", "  "+colors.BrightWhite("\"if i say deploy, run docker:push\""))
 	m.appendLog("info", "")
 	m.appendLog("info", colors.Dim("Slash commands:")+
 		"  /help  /list  /run <task>  /cd <path>  /quit")
 
-	// Show available targets inline
-	skills := m.router.AvailableSkills()
-	if len(skills) > 0 {
-		sort.Strings(skills)
-		var names []string
-		for i, s := range skills {
-			if i >= 15 {
-				names = append(names, fmt.Sprintf("... +%d more", len(skills)-i))
-				break
-			}
-			names = append(names, colors.BrightGreen(s))
-		}
-		m.appendLog("info", colors.Dim("Targets:")+"  "+strings.Join(names, ", "))
-	}
 	m.appendLog("info", "")
 }
 
@@ -376,12 +360,15 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(m.input) > 0 && m.cursor > 0 {
 			m.input = m.input[:m.cursor-1] + m.input[m.cursor:]
 			m.cursor--
+			// Update prompt mode when input changes
+			m.promptMode = DetectPromptMode(m.input)
 		}
 		return m, nil
 
 	case "delete":
 		if m.cursor < len(m.input) {
 			m.input = m.input[:m.cursor] + m.input[m.cursor+1:]
+			m.promptMode = DetectPromptMode(m.input)
 		}
 		return m, nil
 
@@ -414,10 +401,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+u":
 		m.input = m.input[m.cursor:]
 		m.cursor = 0
+		m.promptMode = DetectPromptMode(m.input)
 		return m, nil
 
 	case "ctrl+k":
 		m.input = m.input[:m.cursor]
+		m.promptMode = DetectPromptMode(m.input)
 		return m, nil
 
 	case "pgup":
@@ -449,6 +438,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if text := msg.Key().Text; text != "" {
 			m.input = m.input[:m.cursor] + text + m.input[m.cursor:]
 			m.cursor += len(text)
+			// Update prompt mode when input changes
+			m.promptMode = DetectPromptMode(m.input)
 		}
 		return m, nil
 	}
@@ -461,8 +452,23 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Handle shell mode: strip $ prefix and route as shell command
+	shellMode := m.promptMode == PromptModeShell
+	if shellMode && len(input) > 0 && input[0] == '$' {
+		input = strings.TrimSpace(input[1:])
+	}
+
 	m.input = ""
 	m.cursor = 0
+	m.promptMode = PromptModeLanguage
+
+	// If in shell mode, directly execute as shell command
+	if shellMode && input != "" {
+		m.router.SetLastCommand(input, false)
+		return m, func() tea.Msg {
+			return ShellStartMsg{Command: input}
+		}
+	}
 
 	// Handle pending confirmation (fuzzy match)
 	if m.pendingConfirm != nil {
@@ -647,435 +653,4 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 	}
 }
 
-// historyPrev moves to previous history entry.
-func (m Model) historyPrev() Model {
-	if len(m.history) == 0 {
-		return m
-	}
-	if m.historyIdx > 0 {
-		m.historyIdx--
-		m.input = m.history[m.historyIdx]
-		m.cursor = len(m.input)
-	}
-	return m
-}
 
-// historyNext moves to next history entry.
-func (m Model) historyNext() Model {
-	if len(m.history) == 0 {
-		return m
-	}
-	if m.historyIdx < len(m.history)-1 {
-		m.historyIdx++
-		m.input = m.history[m.historyIdx]
-		m.cursor = len(m.input)
-	} else {
-		m.historyIdx = len(m.history)
-		m.input = ""
-		m.cursor = 0
-	}
-	return m
-}
-
-func (m Model) logHeight() int {
-	h := m.height - 4 // 1 header + 3 footer
-	if h < 1 {
-		h = 1
-	}
-	return h
-}
-
-// View implements tea.Model.
-func (m Model) View() tea.View {
-	if m.width == 0 || m.height == 0 {
-		return tea.NewView("")
-	}
-
-	var b strings.Builder
-	w := m.width
-
-	// === Header bar ===
-	header := m.renderHeader(w)
-	b.WriteString(header)
-	b.WriteString("\n")
-
-	// === Message log ===
-	logH := m.logHeight()
-	lines := m.renderLog(w)
-
-	// Apply scroll offset
-	start := len(lines) - logH - m.scrollOff
-	if start < 0 {
-		start = 0
-	}
-	end := start + logH
-	if end > len(lines) {
-		end = len(lines)
-	}
-
-	visible := lines[start:end]
-	for _, line := range visible {
-		b.WriteString(line)
-		b.WriteString("\n")
-	}
-	// Fill remaining space
-	for i := len(visible); i < logH; i++ {
-		b.WriteString("\n")
-	}
-
-	// === Footer (3 lines) ===
-	footer := m.renderFooter(w)
-	b.WriteString(footer)
-
-	v := tea.NewView(b.String())
-	v.AltScreen = true
-	return v
-}
-
-func (m Model) renderHeader(w int) string {
-	left := " 🔧 atkins"
-	if m.version != "" {
-		left += " " + colors.Dim("v"+m.version)
-	}
-	right := ""
-	if m.hostname != "" {
-		right = m.hostname + " "
-	}
-
-	leftLen := colors.VisualLength(left)
-	rightLen := colors.VisualLength(right)
-	padding := w - leftLen - rightLen
-	if padding < 1 {
-		padding = 1
-	}
-
-	return "\033[7m" + left + strings.Repeat(" ", padding) + right + "\033[0m"
-}
-
-func (m Model) renderLog(w int) []string {
-	var lines []string
-	for _, entry := range m.log {
-		switch entry.Kind {
-		case "run":
-			lines = append(lines, m.renderRunEntry(entry))
-		case "prompt":
-			lines = append(lines, " "+colors.BrightCyan(entry.Text))
-		case "output":
-			for _, l := range strings.Split(entry.Text, "\n") {
-				lines = append(lines, " "+colors.Dim("│")+" "+l)
-			}
-		default:
-			for _, l := range strings.Split(entry.Text, "\n") {
-				lines = append(lines, " "+l)
-			}
-		}
-	}
-	return lines
-}
-
-func (m Model) renderRunEntry(entry LogEntry) string {
-	if entry.Running {
-		return fmt.Sprintf(" %s Running %s...",
-			m.spinner.View(),
-			colors.BrightWhite(entry.Task))
-	}
-
-	dur := fmt.Sprintf("%.2fs", entry.Duration.Seconds())
-	if entry.Failed {
-		return fmt.Sprintf(" %s %s %s",
-			colors.BrightRed("✗"),
-			colors.BrightWhite(entry.Task),
-			colors.BrightRed("FAIL")+" "+colors.Dim(dur))
-	}
-	return fmt.Sprintf(" %s %s %s",
-		colors.BrightGreen("✓"),
-		colors.BrightWhite(entry.Task),
-		colors.BrightGreen("OK")+" "+colors.Dim(dur))
-}
-
-func (m Model) renderFooter(w int) string {
-	// Border color - slate/teal
-	borderColor := "\033[38;5;66m" // slate/teal color
-	reset := "\033[0m"
-
-	// Build the label: ~/path (branch) [+10 -5]
-	label := m.shortenPath(m.cwd)
-	if m.gitBranch != "" {
-		label += " (" + m.gitBranch + ")"
-	}
-
-	// Add git stats if there are changes
-	if m.gitStats.Added > 0 || m.gitStats.Removed > 0 {
-		statsStr := " "
-		if m.gitStats.Added > 0 {
-			statsStr += colors.BrightGreen(fmt.Sprintf("+%d", m.gitStats.Added))
-		}
-		if m.gitStats.Removed > 0 {
-			if m.gitStats.Added > 0 {
-				statsStr += " "
-			}
-			statsStr += colors.BrightRed(fmt.Sprintf("-%d", m.gitStats.Removed))
-		}
-		label += statsStr
-	}
-
-	// Top border with label
-	topLabel := label
-	topRemain := w - 7 - colors.VisualLength(topLabel)
-	if topRemain < 1 {
-		topRemain = 1
-	}
-	topLine := borderColor + "╭─── " + reset + topLabel + " " + borderColor + strings.Repeat("─", topRemain) + "╮" + reset
-
-	// Input line
-	prompt := borderColor + "│" + reset + " > "
-	if m.state != StateIdle {
-		prompt = borderColor + "│" + reset + "   "
-	}
-	inputText := m.input[:m.cursor]
-	if m.state == StateIdle {
-		inputText += "█"
-	}
-	inputText += m.input[m.cursor:]
-	inputLen := colors.VisualLength(prompt) + colors.VisualLength(inputText)
-	inputPad := w - inputLen - 1 // 1 for trailing │
-	if inputPad < 0 {
-		inputPad = 0
-	}
-	midLine := prompt + inputText + strings.Repeat(" ", inputPad) + borderColor + "│" + reset
-
-	// Bottom border
-	bottomRemain := w - 2 // 2 for ╰ and ╯
-	if bottomRemain < 0 {
-		bottomRemain = 0
-	}
-	botLine := borderColor + "╰" + strings.Repeat("─", bottomRemain) + "╯" + reset
-
-	return topLine + "\n" + midLine + "\n" + botLine
-}
-
-func (m Model) shortenPath(p string) string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return p
-	}
-	if strings.HasPrefix(p, home) {
-		return "~" + p[len(home):]
-	}
-	return p
-}
-
-// getFixTask returns the fix task for a given task, or nil if none exists.
-func (m Model) getFixTask(task *model.ResolvedTask) *model.ResolvedTask {
-	if task == nil || task.Pipeline == nil || task.Pipeline.ID == "" {
-		return nil
-	}
-	fixName := task.Pipeline.ID + ":fix"
-	fixTask, err := m.agent.Resolver().Resolve(fixName)
-	if err != nil {
-		return nil
-	}
-	return fixTask
-}
-
-// runPipeline executes the task silently and returns the result with duration.
-func (m Model) runPipeline(task *model.ResolvedTask) tea.Cmd {
-	return func() tea.Msg {
-		jobName := task.Job.Name
-		start := time.Now()
-
-		ctx := context.Background()
-		err := runner.RunPipeline(ctx, task.Pipeline, runner.PipelineOptions{
-			Jobs:         []string{jobName},
-			Silent:       true,
-			Debug:        m.agent.Options().Debug,
-			AllPipelines: m.agent.Pipelines(),
-		})
-
-		return ExecutionDoneMsg{
-			Task:     task,
-			Err:      err,
-			Duration: time.Since(start),
-		}
-	}
-}
-
-// runAutofixPipeline runs the fix task and then signals completion.
-func (m Model) runAutofixPipeline(originalTask, fixTask *model.ResolvedTask) tea.Cmd {
-	return func() tea.Msg {
-		jobName := fixTask.Job.Name
-		start := time.Now()
-
-		ctx := context.Background()
-		err := runner.RunPipeline(ctx, fixTask.Pipeline, runner.PipelineOptions{
-			Jobs:         []string{jobName},
-			Silent:       true,
-			Debug:        m.agent.Options().Debug,
-			AllPipelines: m.agent.Pipelines(),
-		})
-
-		return AutofixDoneMsg{
-			OriginalTask: originalTask,
-			Err:          err,
-			Duration:     time.Since(start),
-		}
-	}
-}
-
-// runShellCommand runs a shell command and captures output.
-func (m Model) runShellCommand(command string) tea.Cmd {
-	return func() tea.Msg {
-		start := time.Now()
-
-		cmd := exec.Command("sh", "-c", command)
-		cmd.Dir = m.cwd
-		out, err := cmd.CombinedOutput()
-
-		exitCode := 0
-		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				exitCode = exitErr.ExitCode()
-			} else {
-				exitCode = 1
-			}
-		}
-
-		return ShellDoneMsg{
-			Command:  command,
-			Output:   string(out),
-			Err:      err,
-			ExitCode: exitCode,
-			Duration: time.Since(start),
-		}
-	}
-}
-
-// Helper functions for hostname and git branch detection.
-
-func detectHostname() string {
-	out, err := exec.Command("uname", "-n").Output()
-	if err != nil {
-		if h, err := os.Hostname(); err == nil {
-			return h
-		}
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
-// GitStats holds +/- line counts from git diff.
-type GitStats struct {
-	Added   int
-	Removed int
-}
-
-func detectGitStats(dir string) GitStats {
-	cmd := exec.Command("git", "-C", dir, "diff", "--shortstat")
-	out, err := cmd.Output()
-	if err != nil {
-		return GitStats{}
-	}
-
-	// Parse output like: " 3 files changed, 45 insertions(+), 12 deletions(-)"
-	output := string(out)
-	var stats GitStats
-
-	// Extract insertions
-	if idx := strings.Index(output, "insertion"); idx > 0 {
-		// Find the number before "insertion"
-		start := strings.LastIndex(output[:idx], " ")
-		if start >= 0 {
-			numStr := strings.TrimSpace(output[start:idx])
-			if n, err := strconv.Atoi(numStr); err == nil {
-				stats.Added = n
-			}
-		}
-	}
-
-	// Extract deletions
-	if idx := strings.Index(output, "deletion"); idx > 0 {
-		// Find the number before "deletion"
-		start := strings.LastIndex(output[:idx], " ")
-		if start >= 0 {
-			numStr := strings.TrimSpace(output[start:idx])
-			if n, err := strconv.Atoi(numStr); err == nil {
-				stats.Removed = n
-			}
-		}
-	}
-
-	return stats
-}
-
-func detectGitBranch(dir string) string {
-	cmd := exec.Command("git", "-C", dir, "branch", "--show-current")
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
-// refreshCwd updates the current working directory and git branch.
-func (m *Model) refreshCwd() {
-	if cwd, err := os.Getwd(); err == nil {
-		m.cwd = cwd
-	}
-	m.gitBranch = detectGitBranch(m.cwd)
-}
-
-// changeDir handles changing the working directory and reloading pipelines.
-func (m *Model) changeDir(dir string) error {
-	target := dir
-	if !filepath.IsAbs(target) {
-		target = filepath.Join(m.cwd, target)
-	}
-	target = filepath.Clean(target)
-
-	if err := os.Chdir(target); err != nil {
-		return err
-	}
-
-	m.cwd = target
-	m.gitBranch = detectGitBranch(target)
-	m.agent.workDir = target
-
-	// Reload pipelines for new directory
-	loader := runner.NewSkillsLoader(target, target)
-	pipelines, err := loader.Load()
-	if err != nil {
-		pipelines = []*model.Pipeline{}
-	}
-
-	if !m.agent.options.Jail {
-		if home, err := os.UserHomeDir(); err == nil {
-			globalLoader := runner.NewSkillsLoader(target, target)
-			globalLoader.SkillsDirs = []string{filepath.Join(home, ".atkins", "skills")}
-			if globalPipelines, globalErr := globalLoader.Load(); globalErr == nil {
-				seen := make(map[string]bool)
-				for _, p := range pipelines {
-					if p.ID != "" {
-						seen[p.ID] = true
-					}
-				}
-				for _, gp := range globalPipelines {
-					if !seen[gp.ID] {
-						pipelines = append(pipelines, gp)
-					}
-				}
-			}
-		}
-	}
-
-	if configPath, _, err := runner.DiscoverConfigFromCwd(); err == nil && configPath != "" {
-		if mainPipelines, loadErr := runner.LoadPipeline(configPath); loadErr == nil {
-			pipelines = append(mainPipelines, pipelines...)
-		}
-	}
-
-	m.agent.pipelines = pipelines
-	m.agent.resolver = runner.NewTaskResolver(pipelines)
-	m.router = NewRouter(m.agent.Resolver(), m.agent.Pipelines(), m.registry)
-
-	return nil
-}

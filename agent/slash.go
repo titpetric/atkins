@@ -55,8 +55,7 @@ func (r *Registry) HelpText() string {
 		if cmd.Description == "" {
 			continue // hidden command
 		}
-		b.WriteString("  /")
-		b.WriteString(cmd.Name)
+		b.WriteString(colors.BrightWhite("  /" + cmd.Name))
 		if len(cmd.Aliases) > 0 {
 			b.WriteString(" (")
 			for i, alias := range cmd.Aliases {
@@ -69,7 +68,7 @@ func (r *Registry) HelpText() string {
 			b.WriteString(")")
 		}
 		b.WriteString("\n    ")
-		b.WriteString(cmd.Description)
+		b.WriteString(colors.Dim(cmd.Description))
 		b.WriteString("\n")
 	}
 
@@ -118,7 +117,7 @@ func DefaultRegistry() *Registry {
 				}
 			}
 
-			m.appendLog("info", "Available skills:\n\n"+strings.Join(lines, "\n"))
+			m.appendLog("info", "Available skills:\n\n"+strings.Join(lines, "\n")+"\n")
 			return *m, nil
 		},
 	})
@@ -277,9 +276,9 @@ func DefaultRegistry() *Registry {
 
 			var lines []string
 			for _, a := range aliases {
-				lines = append(lines, fmt.Sprintf("  %s → %s",
+				lines = append(lines, fmt.Sprintf("  %s as %s",
 					colors.BrightCyan(a.Phrase),
-					colors.BrightGreen(a.Task)))
+					colors.BrightGreen(a.Prompt)))
 			}
 			m.appendLog("info", "Defined aliases:\n\n"+strings.Join(lines, "\n"))
 			return *m, nil
