@@ -1,27 +1,22 @@
-package agent
+package parser
 
 import (
 	"sort"
 	"strings"
 
+	"github.com/titpetric/atkins/agent/aliases"
+	agentmodel "github.com/titpetric/atkins/agent/model"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
 
-// FillerWords to strip from natural language input.
-var FillerWords = []string{
-	"give", "me", "the", "a", "an", "please", "can", "you",
-	"i", "want", "need", "get", "show", "run", "execute",
-	"do", "make", "let", "lets", "let's", "my", "some",
-	"what", "is", "are", "how", "about", "whats", "what's",
-	"your", "its", "it's", "tell", "whats",
-}
+type Intent = agentmodel.Intent
 
 // Parser parses user input into intents.
 type Parser struct {
 	resolver *runner.TaskResolver
 	skills   []*model.Pipeline
-	aliases  *AliasStore
+	aliases  *aliases.AliasStore
 }
 
 // NewParser creates a new intent parser.
@@ -29,18 +24,18 @@ func NewParser(resolver *runner.TaskResolver, skills []*model.Pipeline) *Parser 
 	return &Parser{
 		resolver: resolver,
 		skills:   skills,
-		aliases:  NewAliasStore(),
+		aliases:  aliases.NewAliasStore(),
 	}
 }
 
-// Parse analyzes input and returns an Intent.
-func (p *Parser) Parse(input string) (*Intent, error) {
+// Parse analyzes input and returns an agentmodel.Intent.
+func (p *Parser) Parse(input string) (*agentmodel.Intent, error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
-		return &Intent{Type: IntentUnknown, Raw: input}, nil
+		return &agentmodel.Intent{Type: agentmodel.IntentUnknown, Raw: input}, nil
 	}
 
-	intent := &Intent{Raw: input}
+	intent := &agentmodel.Intent{Raw: input}
 
 	// Check for slash command
 	if strings.HasPrefix(input, "/") {
@@ -50,28 +45,28 @@ func (p *Parser) Parse(input string) (*Intent, error) {
 	// Check for quit commands
 	lower := strings.ToLower(input)
 	if lower == "quit" || lower == "exit" || lower == "q" {
-		intent.Type = IntentQuit
+		intent.Type = agentmodel.IntentQuit
 		return intent, nil
 	}
 
 	// Check for help commands
 	if lower == "help" || lower == "?" {
-		intent.Type = IntentHelp
+		intent.Type = agentmodel.IntentHelp
 		return intent, nil
 	}
 
 	// Could not resolve
-	intent.Type = IntentUnknown
+	intent.Type = agentmodel.IntentUnknown
 	return intent, nil
 }
 
 // Aliases returns the alias store for external use.
-func (p *Parser) Aliases() *AliasStore {
+func (p *Parser) Aliases() *aliases.AliasStore {
 	return p.aliases
 }
 
 // parseSlashCommand parses a slash command.
-func (p *Parser) parseSlashCommand(input string) (*Intent, error) {
+func (p *Parser) parseSlashCommand(input string) (*agentmodel.Intent, error) {
 	input = strings.TrimPrefix(input, "/")
 
 	parts := strings.SplitN(input, " ", 2)
@@ -82,14 +77,14 @@ func (p *Parser) parseSlashCommand(input string) (*Intent, error) {
 	}
 
 	if command == "quit" || command == "exit" || command == "q" {
-		return &Intent{Type: IntentQuit, Command: command}, nil
+		return &agentmodel.Intent{Type: agentmodel.IntentQuit, Command: command}, nil
 	}
 	if command == "help" || command == "h" || command == "?" {
-		return &Intent{Type: IntentHelp, Command: command}, nil
+		return &agentmodel.Intent{Type: agentmodel.IntentHelp, Command: command}, nil
 	}
 
-	return &Intent{
-		Type:    IntentSlash,
+	return &agentmodel.Intent{
+		Type:    agentmodel.IntentSlash,
 		Raw:     input,
 		Command: command,
 		Args:    args,
@@ -111,7 +106,7 @@ func (p *Parser) parseNaturalLanguage(input string) []string {
 	words := strings.Fields(lower)
 
 	fillerSet := make(map[string]bool)
-	for _, f := range FillerWords {
+	for _, f := range agentmodel.FillerWords {
 		fillerSet[f] = true
 	}
 
@@ -154,45 +149,13 @@ func (p *Parser) allSkillInfos() []skillInfo {
 	return infos
 }
 
-// singularize strips common plural suffixes.
-func singularize(word string) string {
-	if strings.HasSuffix(word, "ies") && len(word) > 3 {
-		return word[:len(word)-3] + "y"
-	}
-	if strings.HasSuffix(word, "ses") && len(word) > 3 {
-		return word[:len(word)-2]
-	}
-	if strings.HasSuffix(word, "s") && len(word) > 1 {
-		return word[:len(word)-1]
-	}
-	return word
-}
-
-// expandKeywords returns the original keywords plus singularized variants.
-func expandKeywords(keywords []string) []string {
-	expanded := make([]string, 0, len(keywords)*2)
-	seen := make(map[string]bool)
-	for _, kw := range keywords {
-		if !seen[kw] {
-			expanded = append(expanded, kw)
-			seen[kw] = true
-		}
-		s := singularize(kw)
-		if s != kw && !seen[s] {
-			expanded = append(expanded, s)
-			seen[s] = true
-		}
-	}
-	return expanded
-}
-
 // matchKeywordsToSkill tries to match extracted keywords to available skills.
 func (p *Parser) matchKeywordsToSkill(keywords []string) *model.ResolvedTask {
 	if len(keywords) == 0 {
 		return nil
 	}
 
-	allKW := expandKeywords(keywords)
+	allKW := agentmodel.ExpandKeywords(keywords)
 
 	// 1. Try colon-joined combinations (most specific first)
 	//    ["go", "test"] → "go:test"
@@ -358,7 +321,7 @@ func (p *Parser) FindMatches(keywords []string) []string {
 		return nil
 	}
 
-	allKW := expandKeywords(keywords)
+	allKW := agentmodel.ExpandKeywords(keywords)
 	infos := p.allSkillInfos()
 	seen := make(map[string]bool)
 	var matches []string

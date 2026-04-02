@@ -1,4 +1,4 @@
-package agent
+package aliases
 
 import (
 	"os"
@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/titpetric/atkins/agent/model"
 )
 
 // AliasEntry maps a natural language phrase to a prompt.
@@ -15,16 +17,21 @@ type AliasEntry struct {
 	Prompt string `yaml:"prompt"`
 }
 
+// Aliases is the alias store type alias for convenience.
+type Aliases = AliasStore
+
 // AliasStore manages user-defined phrase to prompt mappings.
 type AliasStore struct {
 	Aliases []AliasEntry `yaml:"aliases"`
-	path    string
+
+	path string
 }
 
 // NewAliasStore loads or creates the alias store.
 func NewAliasStore() *AliasStore {
-	s := &AliasStore{}
-	s.path = aliasStorePath()
+	s := &AliasStore{
+		path: aliasStorePath(),
+	}
 	if s.path != "" {
 		s.load()
 	}
@@ -70,7 +77,7 @@ func (s *AliasStore) Match(input string) string {
 	}
 
 	// Match with filler words stripped
-	cleaned := stripFillerWords(clean)
+	cleaned := model.StripFillerWords(clean)
 	for _, a := range s.Aliases {
 		if cleaned == a.Phrase {
 			return a.Prompt
@@ -146,21 +153,6 @@ func ParseCorrection(input string) (string, string, bool) {
 	}
 
 	return "", "", false
-}
-
-func stripFillerWords(input string) string {
-	fillerSet := make(map[string]bool, len(FillerWords))
-	for _, f := range FillerWords {
-		fillerSet[f] = true
-	}
-	words := strings.Fields(input)
-	var result []string
-	for _, w := range words {
-		if !fillerSet[w] {
-			result = append(result, w)
-		}
-	}
-	return strings.Join(result, " ")
 }
 
 func (s *AliasStore) load() {

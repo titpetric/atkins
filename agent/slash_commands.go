@@ -7,75 +7,54 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/titpetric/atkins/agent/registry"
 	"github.com/titpetric/atkins/colors"
 )
 
-// Registry holds all registered slash commands.
-type Registry struct {
-	commands map[string]*SlashCommand
-	ordered  []string
+// SlashCommand represents a slash command handler.
+type SlashCommand struct {
+	Name        string
+	Aliases     []string
+	Description string
+	Handler     func(m *Model, args string) (Model, tea.Cmd)
 }
 
-// NewRegistry creates a new slash command registry.
-func NewRegistry() *Registry {
-	return &Registry{
-		commands: make(map[string]*SlashCommand),
-	}
+// SlashRegistry wraps the generic registry to implement CommandLookup.
+type SlashRegistry struct {
+	*registry.Registry[*SlashCommand]
 }
 
-// Register adds a slash command.
-func (r *Registry) Register(cmd *SlashCommand) {
-	r.commands[cmd.Name] = cmd
-	r.ordered = append(r.ordered, cmd.Name)
-	for _, alias := range cmd.Aliases {
-		r.commands[alias] = cmd
-	}
+// HasCommand returns true if the command exists in the registry.
+func (r *SlashRegistry) HasCommand(name string) bool {
+	_, ok := r.Get(name)
+	return ok
 }
 
-// Get retrieves a command by name or alias.
-func (r *Registry) Get(name string) *SlashCommand {
-	return r.commands[strings.ToLower(name)]
-}
-
-// HelpText returns formatted help text for all commands.
-func (r *Registry) HelpText() string {
-	var b strings.Builder
-	b.WriteString("Available commands:\n\n")
-
-	for _, name := range r.ordered {
-		cmd := r.commands[name]
-		if cmd.Description == "" {
-			continue // hidden command
-		}
-		b.WriteString(colors.BrightWhite("  /" + cmd.Name))
-		if len(cmd.Aliases) > 0 {
-			b.WriteString(" (")
-			for i, alias := range cmd.Aliases {
-				if i > 0 {
-					b.WriteString(", ")
-				}
-				b.WriteString("/")
-				b.WriteString(alias)
-			}
-			b.WriteString(")")
-		}
-		b.WriteString("\n    ")
-		b.WriteString(colors.Dim(cmd.Description))
-		b.WriteString("\n")
-	}
-
-	b.WriteString("\nYou can also type:\n")
-	b.WriteString("  - Skill names directly: test, build, go:test\n")
-	b.WriteString("  - Natural language: \"run the tests\", \"build it\"\n")
-
-	return b.String()
-}
+// Registry is the slash command registry type.
+type Registry = SlashRegistry
 
 // DefaultRegistry returns the built-in slash commands.
 func DefaultRegistry() *Registry {
-	r := NewRegistry()
+	r := &SlashRegistry{registry.New[*SlashCommand]()}
 
-	r.Register(&SlashCommand{
+	registerList(r)
+	registerDebug(r)
+	registerVerbose(r)
+	registerJail(r)
+	registerHelp(r)
+	registerHistory(r)
+	registerQuit(r)
+	registerRun(r)
+	registerSkills(r)
+	registerCd(r)
+	registerTree(r)
+	registerAliases(r)
+
+	return r
+}
+
+func registerList(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "list",
 		Description: "List available skills and jobs",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
@@ -112,9 +91,12 @@ func DefaultRegistry() *Registry {
 			m.appendLog("info", "Available skills:\n\n"+strings.Join(lines, "\n")+"\n")
 			return *m, nil
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerDebug(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "debug",
 		Description: "Toggle debug mode",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
@@ -126,9 +108,12 @@ func DefaultRegistry() *Registry {
 			m.appendLog("info", fmt.Sprintf("Debug mode: %s", status))
 			return *m, nil
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerVerbose(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "verbose",
 		Aliases:     []string{"v"},
 		Description: "Toggle verbose output",
@@ -141,9 +126,12 @@ func DefaultRegistry() *Registry {
 			m.appendLog("info", fmt.Sprintf("Verbose mode: %s", status))
 			return *m, nil
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerJail(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "jail",
 		Description: "Toggle jail mode (restrict to project scope)",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
@@ -155,19 +143,25 @@ func DefaultRegistry() *Registry {
 			m.appendLog("info", fmt.Sprintf("Jail mode: %s", status))
 			return *m, nil
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerHelp(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "help",
 		Aliases:     []string{"h", "?"},
 		Description: "Show this help message",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
-			m.appendLog("info", r.HelpText())
+			m.appendLog("info", m.registry.HelpText())
 			return *m, nil
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerHistory(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "history",
 		Description: "Show command history",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
@@ -182,18 +176,24 @@ func DefaultRegistry() *Registry {
 			m.appendLog("info", "Command history:\n\n"+strings.Join(lines, "\n"))
 			return *m, nil
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerQuit(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "quit",
 		Aliases:     []string{"q", "exit"},
 		Description: "Exit the agent",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
 			return *m, tea.Quit
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerRun(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "run",
 		Description: "Run a specific task (e.g., /run go:test)",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
@@ -217,17 +217,24 @@ func DefaultRegistry() *Registry {
 				}
 			}
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerSkills(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "skills",
 		Description: "Alias for /list - show available skills",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
-			return r.Get("list").Handler(m, args)
+			listCmd, _ := r.Get("list")
+			return listCmd.Handler(m, args)
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerCd(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "cd",
 		Description: "Change working directory (e.g., /cd .., /cd /path/to/dir)",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
@@ -245,18 +252,25 @@ func DefaultRegistry() *Registry {
 			m.appendLog("info", "Changed directory to "+m.cwd)
 			return *m, nil
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerTree(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "tree",
 		Description: "Show available skills as a list",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
 			// In TUI mode, delegate to /list since treeview prints to stdout
-			return r.Get("list").Handler(m, args)
+			listCmd, _ := r.Get("list")
+			return listCmd.Handler(m, args)
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	r.Register(&SlashCommand{
+func registerAliases(r *Registry) {
+	cmd := &SlashCommand{
 		Name:        "aliases",
 		Description: "List defined aliases",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
@@ -275,7 +289,40 @@ func DefaultRegistry() *Registry {
 			m.appendLog("info", "Defined aliases:\n\n"+strings.Join(lines, "\n"))
 			return *m, nil
 		},
-	})
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
 
-	return r
+// HelpText returns formatted help text for all commands.
+func (r *Registry) HelpText() string {
+	var b strings.Builder
+	b.WriteString("Available commands:\n\n")
+
+	for _, name := range r.Names() {
+		cmd, _ := r.GetByName(name)
+		if cmd.Description == "" {
+			continue // hidden command
+		}
+		b.WriteString(colors.BrightWhite("  /" + cmd.Name))
+		if len(cmd.Aliases) > 0 {
+			b.WriteString(" (")
+			for i, alias := range cmd.Aliases {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString("/")
+				b.WriteString(alias)
+			}
+			b.WriteString(")")
+		}
+		b.WriteString("\n    ")
+		b.WriteString(colors.Dim(cmd.Description))
+		b.WriteString("\n")
+	}
+
+	b.WriteString("\nYou can also type:\n")
+	b.WriteString("  - Skill names directly: test, build, go:test\n")
+	b.WriteString("  - Natural language: \"run the tests\", \"build it\"\n")
+
+	return b.String()
 }

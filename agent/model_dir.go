@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/titpetric/atkins/agent/router"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -67,7 +68,7 @@ func (m *Model) changeDir(dir string) error {
 
 	m.agent.pipelines = pipelines
 	m.agent.resolver = runner.NewTaskResolver(pipelines)
-	m.router = NewRouter(m.agent.Resolver(), m.agent.Pipelines(), m.registry)
+	m.router = router.NewRouter(m.agent.Resolver(), m.agent.Pipelines(), m.registry)
 
 	return nil
 }

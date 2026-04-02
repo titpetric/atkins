@@ -1,8 +1,9 @@
-package agent
+package router
 
 import (
 	"strings"
 
+	agentmodel "github.com/titpetric/atkins/agent/model"
 	"github.com/titpetric/atkins/model"
 )
 
@@ -146,7 +147,7 @@ func (r *Router) FindMatches(keywords []string) []string {
 		return nil
 	}
 
-	allKW := expandKeywords(keywords)
+	allKW := agentmodel.ExpandKeywords(keywords)
 	infos := r.allSkillInfos()
 	seen := make(map[string]bool)
 	var matches []string

@@ -7,7 +7,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
-	agentmodel "github.com/titpetric/atkins/agent/model"
+	"github.com/titpetric/atkins/agent/router"
 	"github.com/titpetric/atkins/agent/view"
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
@@ -30,28 +30,6 @@ func UsageText() string {
 	b.WriteString("  if i say deploy, run docker:push\n")
 	return b.String()
 }
-
-// Type aliases for agent/model package types.
-type (
-	State             = agentmodel.State
-	Options           = agentmodel.Options
-	GitStats          = agentmodel.GitStats
-	ExecutionStartMsg = agentmodel.ExecutionStartMsg
-	ExecutionDoneMsg  = agentmodel.ExecutionDoneMsg
-	AutofixStartMsg   = agentmodel.AutofixStartMsg
-	AutofixDoneMsg    = agentmodel.AutofixDoneMsg
-	RetryMsg          = agentmodel.RetryMsg
-	ShellStartMsg     = agentmodel.ShellStartMsg
-	ShellDoneMsg      = agentmodel.ShellDoneMsg
-)
-
-// State constants.
-const (
-	StateIdle      = agentmodel.StateIdle
-	StateExecuting = agentmodel.StateExecuting
-	StateAutofix   = agentmodel.StateAutofix
-	StateRetrying  = agentmodel.StateRetrying
-)
 
 // Type aliases for view package types.
 type (
@@ -108,7 +86,7 @@ type Model struct {
 	retryCount int
 
 	// Centralized router and slash commands
-	router   *Router
+	router   *router.Router
 	registry *Registry
 
 	// Dimensions
@@ -128,7 +106,7 @@ type Model struct {
 	runLogIdx int // index of the current running entry in log
 
 	// Confirmation state for fuzzy matching
-	pendingConfirm *Route
+	pendingConfirm *router.Route
 
 	// Prompt mode (language or shell)
 	promptMode PromptMode
@@ -146,7 +124,7 @@ func NewModel(agent *Agent, version string) Model {
 		history:    []string{},
 		historyIdx: -1,
 		breadcrumb: NewBreadcrumb(),
-		router:     NewRouter(agent.Resolver(), agent.Pipelines(), registry),
+		router:     router.NewRouter(agent.Resolver(), agent.Pipelines(), registry),
 		registry:   registry,
 		version:    version,
 		hostname:   detectHostname(),
@@ -447,7 +425,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-// handleSubmit processes the entered command using the centralized Router.
+// handleSubmit processes the entered command using the centralizedrouter.Router.
 func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 	input := strings.TrimSpace(m.input)
 	if input == "" {
@@ -500,14 +478,14 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 	m.history = append(m.history, input)
 	m.historyIdx = len(m.history)
 
-	// Route input using centralized router (follows structure.d2 flow)
+	//router.Route input using centralized router (follows structure.d2 flow)
 	route := m.router.Route(input)
 
 	switch route.Type {
-	case RouteQuit:
+	case router.RouteQuit:
 		return m, tea.Quit
 
-	case RouteRetry:
+	case router.RouteRetry:
 		// Retry the last command
 		lastCmd := m.router.LastCommand()
 		if lastCmd == "" {
@@ -519,7 +497,7 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		m.appendLog("info", colors.Dim("Retrying: ")+lastCmd)
 		// Re-route the last command
 		retryRoute := m.router.Route(lastCmd)
-		if retryRoute.Type == RouteTask || retryRoute.Type == RouteAlias {
+		if retryRoute.Type == router.RouteTask || retryRoute.Type == router.RouteAlias {
 			return m, func() tea.Msg {
 				return ExecutionStartMsg{
 					Input:    lastCmd,
@@ -527,7 +505,7 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 					Resolved: retryRoute.Resolved,
 				}
 			}
-		} else if retryRoute.Type == RouteShell {
+		} else if retryRoute.Type == router.RouteShell {
 			return m, func() tea.Msg {
 				return ShellStartMsg{Command: retryRoute.ShellCmd}
 			}
@@ -535,7 +513,7 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		m.appendLog("error", "Cannot retry: "+lastCmd)
 		return m, nil
 
-	case RouteConfirm:
+	case router.RouteConfirm:
 		// Fuzzy match needs confirmation
 		m.appendLog("prompt", "> "+input)
 		m.pendingConfirm = route
@@ -543,17 +521,17 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 			colors.BrightGreen(route.Suggestion)))
 		return m, nil
 
-	case RouteSlash:
+	case router.RouteSlash:
 		m.appendLog("prompt", "> "+input)
-		slashCmd := m.registry.Get(route.Command)
-		if slashCmd != nil {
+		slashCmd, ok := m.registry.Get(route.Command)
+		if ok && slashCmd != nil {
 			return slashCmd.Handler(&m, route.Args)
 		}
 		m.appendLog("error", "Unknown command: /"+route.Command)
 		m.appendLog("info", "")
 		return m, nil
 
-	case RouteMultiTask:
+	case router.RouteMultiTask:
 		// Run multiple tasks in sequence
 		if len(route.Tasks) == 0 {
 			m.appendLog("prompt", "> "+input)
@@ -570,7 +548,7 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 			}
 		}
 
-	case RouteTask, RouteAlias:
+	case router.RouteTask, router.RouteAlias:
 		if route.Resolved == nil {
 			m.appendLog("prompt", "> "+input)
 			m.appendLog("error", "Could not resolve: "+input)
@@ -587,39 +565,39 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 			}
 		}
 
-	case RouteHelp:
+	case router.RouteHelp:
 		m.appendLog("prompt", "> "+input)
 		m.appendLog("info", m.registry.HelpText())
 		m.appendLog("info", "")
 		return m, nil
 
-	case RouteCorrection:
+	case router.RouteCorrection:
 		m.router.Aliases().Add(route.Phrase, route.AliasTask)
 		m.appendLog("prompt", "> "+input)
 		m.appendLog("info", "Got it! \""+route.Phrase+"\" will now run "+colors.BrightGreen(route.AliasTask))
 		m.appendLog("info", "")
 		return m, nil
 
-	case RouteGreeting:
+	case router.RouteGreeting:
 		m.appendLog("prompt", "> "+input)
 		m.appendLog("info", route.Greeting)
 		m.appendLog("info", "")
 		return m, nil
 
-	case RouteFortune:
+	case router.RouteFortune:
 		m.appendLog("prompt", "> "+input)
 		m.appendLog("info", route.Fortune)
 		m.appendLog("info", "")
 		return m, nil
 
-	case RouteShell:
+	case router.RouteShell:
 		m.router.SetLastCommand(input, false)
 		return m, func() tea.Msg {
 			return ShellStartMsg{Command: route.ShellCmd}
 		}
 
 	default:
-		// RouteUnknown - show suggestions if ambiguous
+		//router.RouteUnknown - show suggestions if ambiguous
 		if route.Ambiguous {
 			m.appendLog("prompt", "> "+input)
 			var b strings.Builder

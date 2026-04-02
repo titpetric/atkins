@@ -1,4 +1,4 @@
-package agent_test
+package aliases_test
 
 import (
 	"os"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/titpetric/atkins/agent"
+	"github.com/titpetric/atkins/agent/aliases"
 )
 
 func TestAliasStore_New(t *testing.T) {
@@ -17,7 +17,7 @@ func TestAliasStore_New(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", oldHome)
 
-	store := agent.NewAliasStore()
+	store := aliases.NewAliasStore()
 	assert.NotNil(t, store)
 }
 
@@ -30,7 +30,7 @@ func TestAliasStore_Add_New(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	store := agent.NewAliasStore()
+	store := aliases.NewAliasStore()
 	store.Add("deploy", "docker:push")
 
 	result := store.Match("deploy")
@@ -46,7 +46,7 @@ func TestAliasStore_Add_Update(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	store := agent.NewAliasStore()
+	store := aliases.NewAliasStore()
 	store.Add("deploy", "docker:push")
 	store.Add("deploy", "docker:build") // Update
 
@@ -63,7 +63,7 @@ func TestAliasStore_Match_CaseInsensitive(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	store := agent.NewAliasStore()
+	store := aliases.NewAliasStore()
 	store.Add("Server Name", "uname -n")
 
 	assert.Equal(t, "uname -n", store.Match("server name"))
@@ -80,7 +80,7 @@ func TestAliasStore_Match_WithPunctuation(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	store := agent.NewAliasStore()
+	store := aliases.NewAliasStore()
 	store.Add("build it", "go:build")
 
 	assert.Equal(t, "go:build", store.Match("build it!"))
@@ -97,7 +97,7 @@ func TestAliasStore_Match_WithFillerWords(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	store := agent.NewAliasStore()
+	store := aliases.NewAliasStore()
 	store.Add("server name", "uname -n")
 
 	// Should match with filler words stripped
@@ -111,7 +111,7 @@ func TestAliasStore_Match_NoMatch(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 	defer os.Setenv("HOME", oldHome)
 
-	store := agent.NewAliasStore()
+	store := aliases.NewAliasStore()
 	store.Add("deploy", "docker:push")
 
 	assert.Empty(t, store.Match("unknown"))
@@ -119,49 +119,49 @@ func TestAliasStore_Match_NoMatch(t *testing.T) {
 }
 
 func TestParseCorrection_IfISay(t *testing.T) {
-	phrase, task, ok := agent.ParseCorrection("if i say deploy, run docker:push")
+	phrase, task, ok := aliases.ParseCorrection("if i say deploy, run docker:push")
 	assert.True(t, ok)
 	assert.Equal(t, "deploy", phrase)
 	assert.Equal(t, "docker:push", task)
 }
 
 func TestParseCorrection_IfISayToRun(t *testing.T) {
-	phrase, task, ok := agent.ParseCorrection("if i say to run tests, run go:test")
+	phrase, task, ok := aliases.ParseCorrection("if i say to run tests, run go:test")
 	assert.True(t, ok)
 	assert.Equal(t, "tests", phrase)
 	assert.Equal(t, "go:test", task)
 }
 
 func TestParseCorrection_WhenISay(t *testing.T) {
-	phrase, task, ok := agent.ParseCorrection("when i say build, run make build")
+	phrase, task, ok := aliases.ParseCorrection("when i say build, run make build")
 	assert.True(t, ok)
 	assert.Equal(t, "build", phrase)
 	assert.Equal(t, "make build", task)
 }
 
 func TestParseCorrection_Map(t *testing.T) {
-	phrase, task, ok := agent.ParseCorrection("map test to go:test")
+	phrase, task, ok := aliases.ParseCorrection("map test to go:test")
 	assert.True(t, ok)
 	assert.Equal(t, "test", phrase)
 	assert.Equal(t, "go:test", task)
 }
 
 func TestParseCorrection_Alias(t *testing.T) {
-	phrase, task, ok := agent.ParseCorrection("alias server name to uname -n")
+	phrase, task, ok := aliases.ParseCorrection("alias server name to uname -n")
 	assert.True(t, ok)
 	assert.Equal(t, "server name", phrase)
 	assert.Equal(t, "uname -n", task)
 }
 
 func TestParseCorrection_ShouldRun(t *testing.T) {
-	phrase, task, ok := agent.ParseCorrection("run tests should run go:test")
+	phrase, task, ok := aliases.ParseCorrection("run tests should run go:test")
 	assert.True(t, ok)
 	assert.Equal(t, "run tests", phrase)
 	assert.Equal(t, "go:test", task)
 }
 
 func TestParseCorrection_Means(t *testing.T) {
-	phrase, task, ok := agent.ParseCorrection("deploy means docker:push")
+	phrase, task, ok := aliases.ParseCorrection("deploy means docker:push")
 	assert.True(t, ok)
 	assert.Equal(t, "deploy", phrase)
 	assert.Equal(t, "docker:push", task)
@@ -178,14 +178,14 @@ func TestParseCorrection_Invalid(t *testing.T) {
 
 	for _, input := range tests {
 		t.Run(input, func(t *testing.T) {
-			_, _, ok := agent.ParseCorrection(input)
+			_, _, ok := aliases.ParseCorrection(input)
 			assert.False(t, ok)
 		})
 	}
 }
 
 func TestParseCorrection_WithQuotes(t *testing.T) {
-	phrase, task, ok := agent.ParseCorrection(`alias "run tests" to "go:test"`)
+	phrase, task, ok := aliases.ParseCorrection(`alias "run tests" to "go:test"`)
 	assert.True(t, ok)
 	assert.Equal(t, "run tests", phrase)
 	assert.Equal(t, "go:test", task)

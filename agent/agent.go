@@ -11,6 +11,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/titpetric/atkins/agent/aliases"
+	agentrouter "github.com/titpetric/atkins/agent/router"
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
@@ -118,17 +120,17 @@ func (a *Agent) Exec(ctx context.Context, prompt, version string) error {
 
 	// Use centralized router (follows structure.d2 flow)
 	registry := DefaultRegistry()
-	router := NewRouter(a.resolver, a.pipelines, registry)
-	route := router.Route(prompt)
+	rtr := agentrouter.NewRouter(a.resolver, a.pipelines, registry)
+	route := rtr.Route(prompt)
 
 	switch route.Type {
-	case RouteTask, RouteAlias:
+	case agentrouter.RouteTask, agentrouter.RouteAlias:
 		if route.Resolved == nil {
 			return fmt.Errorf("could not resolve: %s", prompt)
 		}
 		return a.execTask(ctx, route.Resolved)
 
-	case RouteMultiTask:
+	case agentrouter.RouteMultiTask:
 		// Run multiple tasks in sequence
 		for _, task := range route.Tasks {
 			if err := a.execTask(ctx, task); err != nil {
@@ -137,17 +139,17 @@ func (a *Agent) Exec(ctx context.Context, prompt, version string) error {
 		}
 		return nil
 
-	case RouteConfirm:
+	case agentrouter.RouteConfirm:
 		// In non-interactive mode, show suggestion and fail
 		fmt.Printf("Did you mean %s?\n", route.Suggestion)
 		fmt.Printf("Run: atkins -x \"%s\"\n", route.Suggestion)
 		return fmt.Errorf("unknown command: %s", route.Original)
 
-	case RouteHelp:
+	case agentrouter.RouteHelp:
 		fmt.Print(UsageText())
 		return nil
 
-	case RouteSlash:
+	case agentrouter.RouteSlash:
 		// Handle some slash commands in non-interactive mode
 		switch route.Command {
 		case "list", "l", "ls", "skills":
@@ -157,33 +159,33 @@ func (a *Agent) Exec(ctx context.Context, prompt, version string) error {
 			fmt.Print(UsageText())
 			return nil
 		case "aliases", "alias":
-			a.printAliases(router.Aliases())
+			a.printAliases(rtr.Aliases())
 			return nil
 		default:
 			return fmt.Errorf("slash command /%s is only available in interactive mode", route.Command)
 		}
 
-	case RouteQuit:
+	case agentrouter.RouteQuit:
 		return nil
 
-	case RouteGreeting:
+	case agentrouter.RouteGreeting:
 		fmt.Println(route.Greeting)
 		return nil
 
-	case RouteFortune:
+	case agentrouter.RouteFortune:
 		fmt.Println(route.Fortune)
 		return nil
 
-	case RouteCorrection:
-		router.Aliases().Add(route.Phrase, route.AliasTask)
+	case agentrouter.RouteCorrection:
+		rtr.Aliases().Add(route.Phrase, route.AliasTask)
 		fmt.Printf("Got it! \"%s\" will now run %s\n", route.Phrase, route.AliasTask)
 		return nil
 
-	case RouteShell:
+	case agentrouter.RouteShell:
 		return a.execShell(ctx, route.ShellCmd)
 
 	default:
-		// RouteUnknown
+		// agentrouter.RouteUnknown
 		if route.Ambiguous && len(route.Matches) > 0 {
 			fmt.Println("Matching skills:")
 			for _, match := range route.Matches {
@@ -222,8 +224,8 @@ func (a *Agent) printSkillList() {
 }
 
 // printAliases prints defined aliases for non-interactive mode.
-func (a *Agent) printAliases(aliases *AliasStore) {
-	if len(aliases.Aliases) == 0 {
+func (a *Agent) printAliases(aliasStore *aliases.Aliases) {
+	if len(aliasStore.Aliases) == 0 {
 		fmt.Println("No aliases defined.")
 		fmt.Println("\nTeach an alias with:")
 		fmt.Println("  alias <phrase> to <command>")
@@ -231,7 +233,7 @@ func (a *Agent) printAliases(aliases *AliasStore) {
 	}
 
 	fmt.Println("Defined aliases:")
-	for _, alias := range aliases.Aliases {
+	for _, alias := range aliasStore.Aliases {
 		fmt.Printf("  %s as %s\n", alias.Phrase, alias.Prompt)
 	}
 }

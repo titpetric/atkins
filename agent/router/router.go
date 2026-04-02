@@ -1,22 +1,32 @@
-package agent
+package router
 
 import (
 	"os/exec"
 	"strings"
 
+	"github.com/titpetric/atkins/agent/aliases"
+	"github.com/titpetric/atkins/agent/greeting"
 	"github.com/titpetric/atkins/agent/history"
+	agentmodel "github.com/titpetric/atkins/agent/model"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
 
+// CommandLookup provides command existence checking.
+type CommandLookup interface {
+	HasCommand(name string) bool
+}
+
 // Router implements the centralized routing logic based on structure.d2.
 // Flow: Prompt → Is alias? → Semantic parsing → Match (skills/targets)?
 type Router struct {
-	resolver     *runner.TaskResolver
-	skills       []*model.Pipeline
-	aliases      *AliasStore
-	greeter      *Greeter
-	registry     *Registry
+	resolver *runner.TaskResolver
+	skills   []*model.Pipeline
+
+	commands CommandLookup
+	greeter  *greeting.Greeter
+	aliases  *aliases.Aliases
+
 	shellHistory *history.ShellHistory
 
 	// Context for retry/again
@@ -25,24 +35,24 @@ type Router struct {
 }
 
 // NewRouter creates a new router with all dependencies.
-func NewRouter(resolver *runner.TaskResolver, skills []*model.Pipeline, registry *Registry) *Router {
+func NewRouter(resolver *runner.TaskResolver, skills []*model.Pipeline, commands CommandLookup) *Router {
 	return &Router{
+		commands:     commands,
+		greeter:      greeting.NewGreeter(),
+		aliases:      aliases.NewAliasStore(),
 		resolver:     resolver,
 		skills:       skills,
-		aliases:      NewAliasStore(),
-		greeter:      NewGreeter(),
-		registry:     registry,
 		shellHistory: history.NewShellHistory(),
 	}
 }
 
 // Aliases returns the alias store.
-func (r *Router) Aliases() *AliasStore {
+func (r *Router) Aliases() *aliases.Aliases {
 	return r.aliases
 }
 
 // Greeter returns the greeter.
-func (r *Router) Greeter() *Greeter {
+func (r *Router) Greeter() *greeting.Greeter {
 	return r.greeter
 }
 
@@ -132,7 +142,7 @@ func (r *Router) Route(input string) *Route {
 	}
 
 	// Step 5: Check for correction/alias definition
-	if phrase, task, ok := ParseCorrection(input); ok {
+	if phrase, task, ok := aliases.ParseCorrection(input); ok {
 		route.Type = RouteCorrection
 		route.Phrase = phrase
 		route.AliasTask = task
@@ -154,9 +164,9 @@ func (r *Router) Route(input string) *Route {
 	}
 
 	// Step 8: Check for fortune
-	if MatchFortune(input) {
+	if greeting.MatchFortune(input) {
 		route.Type = RouteFortune
-		route.Fortune = Fortune()
+		route.Fortune = greeting.Fortune()
 		return route
 	}
 
@@ -335,7 +345,7 @@ func (r *Router) matchNaturalSlashCommand(input string) *Route {
 		for _, phrase := range phrases {
 			if lower == phrase {
 				// Verify the command exists in registry
-				if r.registry != nil && r.registry.Get(cmd) != nil {
+				if r.commands != nil && r.commands.HasCommand(cmd) {
 					return &Route{
 						Type:    RouteSlash,
 						Raw:     input,
@@ -348,7 +358,7 @@ func (r *Router) matchNaturalSlashCommand(input string) *Route {
 	}
 
 	// Check if first word matches a slash command directly
-	if r.registry != nil && r.registry.Get(words[0]) != nil {
+	if r.commands != nil && r.commands.HasCommand(words[0]) {
 		args := ""
 		if len(words) > 1 {
 			args = strings.Join(words[1:], " ")
@@ -396,7 +406,7 @@ func (r *Router) parseNaturalLanguage(input string) []string {
 	words := strings.Fields(lower)
 
 	fillerSet := make(map[string]bool)
-	for _, f := range FillerWords {
+	for _, f := range agentmodel.FillerWords {
 		fillerSet[f] = true
 	}
 
@@ -416,7 +426,7 @@ func (r *Router) matchKeywordsToSkill(keywords []string) *model.ResolvedTask {
 		return nil
 	}
 
-	allKW := expandKeywords(keywords)
+	allKW := agentmodel.ExpandKeywords(keywords)
 
 	// 1. Try colon-joined combinations (most specific first)
 	if len(allKW) >= 2 {
