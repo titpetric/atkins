@@ -59,27 +59,21 @@ func (s *AliasStore) Add(phrase, prompt string) {
 // Match checks if the input matches any alias phrase.
 // Returns the target task name, or empty string if no match.
 func (s *AliasStore) Match(input string) string {
-	lower := strings.ToLower(strings.TrimSpace(input))
+	lower := strings.TrimSpace(input)
+	lower = strings.ToLower(lower)
+	lower = strings.TrimRight(lower, "!?.,;:-")
 
 	// Exact match first
 	for _, a := range s.Aliases {
-		if lower == a.Phrase {
-			return a.Prompt
-		}
-	}
-
-	// Try with trailing punctuation stripped
-	clean := strings.TrimRight(lower, "!?.,;:-")
-	for _, a := range s.Aliases {
-		if clean == a.Phrase {
+		if strings.Contains(lower, a.Phrase) {
 			return a.Prompt
 		}
 	}
 
 	// Match with filler words stripped
-	cleaned := model.StripFillerWords(clean)
+	cleaned := model.StripFillerWords(lower)
 	for _, a := range s.Aliases {
-		if cleaned == a.Phrase {
+		if strings.Contains(cleaned, a.Phrase) {
 			return a.Prompt
 		}
 	}

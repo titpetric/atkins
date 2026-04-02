@@ -478,7 +478,7 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 	m.history = append(m.history, input)
 	m.historyIdx = len(m.history)
 
-	//router.Route input using centralized router (follows structure.d2 flow)
+	// router.Route input using centralized router (follows structure.d2 flow)
 	route := m.router.Route(input)
 
 	switch route.Type {
@@ -597,7 +597,7 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		}
 
 	default:
-		//router.RouteUnknown - show suggestions if ambiguous
+		// router.RouteUnknown - show suggestions if ambiguous
 		if route.Ambiguous {
 			m.appendLog("prompt", "> "+input)
 			var b strings.Builder

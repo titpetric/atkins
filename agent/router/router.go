@@ -91,19 +91,17 @@ func (r *Router) Route(input string) *Route {
 	route := &Route{Raw: input}
 	lower := strings.ToLower(input)
 
-	// Step 0: Check for retry/again commands
-	if lower == "again" || lower == "retry" || lower == "redo" {
-		if r.lastInput != "" {
-			route.Type = RouteRetry
-			return route
-		}
-		route.Type = RouteUnknown
+	// Step 5: Check for correction/alias definition
+	if phrase, task, ok := aliases.ParseCorrection(input); ok {
+		route.Type = RouteCorrection
+		route.Phrase = phrase
+		route.AliasTask = task
 		return route
 	}
 
-	// Step 0.5: Check for command chaining (&&, "then", ";")
-	if chainedRoute := r.parseChainedCommands(input); chainedRoute != nil {
-		return chainedRoute
+	// Step 2: Check explicit slash command
+	if strings.HasPrefix(input, "/") {
+		return r.parseSlashCommand(input)
 	}
 
 	// Step 1: Check alias (Is alias? → yes → Replace with alias)
@@ -124,9 +122,20 @@ func (r *Router) Route(input string) *Route {
 		}
 	}
 
-	// Step 2: Check explicit slash command
-	if strings.HasPrefix(input, "/") {
-		return r.parseSlashCommand(input)
+	// Step 0: Check for retry/again commands
+	if lower == "again" || lower == "retry" || lower == "redo" {
+		if r.lastInput != "" {
+			route.Type = RouteRetry
+			return route
+		}
+		route.Type = RouteUnknown
+		return route
+	}
+
+	// Step 0.5: Check for command chaining (&&, "then", ";")
+	if chainedRoute := r.parseChainedCommands(input); chainedRoute != nil {
+		// not stable, not tested
+		// return chainedRoute
 	}
 
 	// Step 3: Check for quit/exit
@@ -138,14 +147,6 @@ func (r *Router) Route(input string) *Route {
 	// Step 4: Check for help
 	if lower == "help" || lower == "?" {
 		route.Type = RouteHelp
-		return route
-	}
-
-	// Step 5: Check for correction/alias definition
-	if phrase, task, ok := aliases.ParseCorrection(input); ok {
-		route.Type = RouteCorrection
-		route.Phrase = phrase
-		route.AliasTask = task
 		return route
 	}
 
@@ -175,15 +176,6 @@ func (r *Router) Route(input string) *Route {
 	// This takes precedence over shell commands for registered commands
 	if slashRoute := r.matchNaturalSlashCommand(input); slashRoute != nil {
 		return slashRoute
-	}
-
-	// Step 10: Check shell expression (command exists in PATH)
-	// This prioritizes actual executables over natural language patterns
-	// But slash commands take precedence (checked above)
-	if r.isShellCommand(input) {
-		route.Type = RouteShell
-		route.ShellCmd = input
-		return route
 	}
 
 	// Step 11: Check shell history for single match
@@ -383,7 +375,6 @@ func (r *Router) isShellCommand(input string) bool {
 	}
 
 	// Check if first word is an executable
-	// Note: We don't restrict to lowercase-only anymore to fix "curl wttr.in" issue
 	if _, err := exec.LookPath(fields[0]); err == nil {
 		return true
 	}

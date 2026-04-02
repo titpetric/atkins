@@ -173,7 +173,7 @@ func registerHistory(r *Registry) {
 			for i, cmd := range m.history {
 				lines = append(lines, fmt.Sprintf("  %d. %s", i+1, cmd))
 			}
-			m.appendLog("info", "Command history:\n\n"+strings.Join(lines, "\n"))
+			m.appendLog("info", "Command history:\n\n"+strings.Join(lines, "\n")+"\n")
 			return *m, nil
 		},
 	}
@@ -286,7 +286,7 @@ func registerAliases(r *Registry) {
 					colors.BrightCyan(a.Phrase),
 					colors.BrightGreen(a.Prompt)))
 			}
-			m.appendLog("info", "Defined aliases:\n\n"+strings.Join(lines, "\n"))
+			m.appendLog("info", "Defined aliases:\n\n"+strings.Join(lines, "\n")+"\n")
 			return *m, nil
 		},
 	}

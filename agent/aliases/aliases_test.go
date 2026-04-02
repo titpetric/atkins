@@ -1,6 +1,7 @@
 package aliases_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,25 +12,36 @@ import (
 	"github.com/titpetric/atkins/agent/aliases"
 )
 
-func TestAliasStore_New(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", oldHome)
+var fixtures = []struct {
+	Alias aliases.AliasEntry
 
-	store := aliases.NewAliasStore()
-	assert.NotNil(t, store)
+	Inputs []string
+	Want   string
+}{
+	{
+		Alias: aliases.AliasEntry{"what can you", "/list"},
+		Inputs: []string{
+			"what can you do?",
+			"what can you run?",
+		},
+	},
+}
+
+func TestAliasStore(t *testing.T) {
+	for _, testcase := range fixtures {
+		store := aliases.NewAliasStore()
+		store.Aliases = append(store.Aliases, testcase.Alias)
+
+		for idx, input := range testcase.Inputs {
+			t.Run("Step "+fmt.Sprint(idx), func(t *testing.T) {
+				got := store.Match(input)
+				assert.Equal(t, "/list", got)
+			})
+		}
+	}
 }
 
 func TestAliasStore_Add_New(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", oldHome)
-
-	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
-
 	store := aliases.NewAliasStore()
 	store.Add("deploy", "docker:push")
 
@@ -103,19 +115,17 @@ func TestAliasStore_Match_WithFillerWords(t *testing.T) {
 	// Should match with filler words stripped
 	assert.Equal(t, "uname -n", store.Match("give me the server name"))
 	assert.Equal(t, "uname -n", store.Match("show my server name"))
+	assert.Equal(t, "uname -n", store.Match("what's your server name?"))
+	assert.Equal(t, "uname -n", store.Match("tell me server name"))
+	assert.Equal(t, "uname -n", store.Match("give me your server name"))
 }
 
 func TestAliasStore_Match_NoMatch(t *testing.T) {
-	tmpDir := t.TempDir()
-	oldHome := os.Getenv("HOME")
-	os.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", oldHome)
-
 	store := aliases.NewAliasStore()
 	store.Add("deploy", "docker:push")
 
 	assert.Empty(t, store.Match("unknown"))
-	assert.Empty(t, store.Match("deployer")) // Not an exact match
+	assert.Equal(t, "docker:push", store.Match("deployer")) // not an exact match
 }
 
 func TestParseCorrection_IfISay(t *testing.T) {
