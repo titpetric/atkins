@@ -4,6 +4,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/titpetric/atkins/agent/history"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -16,7 +17,7 @@ type Router struct {
 	aliases      *AliasStore
 	greeter      *Greeter
 	registry     *Registry
-	shellHistory *ShellHistory
+	shellHistory *history.ShellHistory
 
 	// Context for retry/again
 	lastInput  string // Last input for retry
@@ -31,7 +32,7 @@ func NewRouter(resolver *runner.TaskResolver, skills []*model.Pipeline, registry
 		aliases:      NewAliasStore(),
 		greeter:      NewGreeter(),
 		registry:     registry,
-		shellHistory: NewShellHistory(),
+		shellHistory: history.NewShellHistory(),
 	}
 }
 
@@ -46,7 +47,7 @@ func (r *Router) Greeter() *Greeter {
 }
 
 // ShellHistory returns the shell history.
-func (r *Router) ShellHistory() *ShellHistory {
+func (r *Router) ShellHistory() *history.ShellHistory {
 	return r.shellHistory
 }
 

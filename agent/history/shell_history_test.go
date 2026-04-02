@@ -1,4 +1,4 @@
-package agent_test
+package history_test
 
 import (
 	"os"
@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/titpetric/atkins/agent"
+	"github.com/titpetric/atkins/agent/history"
 )
 
 func TestShellHistory_NewShellHistory(t *testing.T) {
-	h := agent.NewShellHistory()
+	h := history.NewShellHistory()
 	assert.NotNil(t, h)
 }
 
@@ -28,7 +28,7 @@ func TestShellHistory_Add(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	h := agent.NewShellHistory()
+	h := history.NewShellHistory()
 	h.Add("ls -la", 0, 100*time.Millisecond, "/home/user")
 
 	matches := h.Match("ls")
@@ -46,7 +46,7 @@ func TestShellHistory_Match(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	h := agent.NewShellHistory()
+	h := history.NewShellHistory()
 	h.Add("git status", 0, 50*time.Millisecond, "/repo")
 	h.Add("git diff", 0, 60*time.Millisecond, "/repo")
 	h.Add("git log", 0, 70*time.Millisecond, "/repo")
@@ -80,7 +80,7 @@ func TestShellHistory_FindExact(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	h := agent.NewShellHistory()
+	h := history.NewShellHistory()
 	h.Add("echo hello", 0, 10*time.Millisecond, "/home")
 	h.Add("echo world", 0, 10*time.Millisecond, "/home")
 	h.Add("echo hello", 0, 10*time.Millisecond, "/home") // Duplicate
@@ -104,7 +104,7 @@ func TestShellHistory_MatchLimit(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	h := agent.NewShellHistory()
+	h := history.NewShellHistory()
 
 	// Add more than 10 commands
 	for i := 0; i < 15; i++ {
@@ -125,7 +125,7 @@ func TestShellHistory_MatchDedupe(t *testing.T) {
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
 	require.NoError(t, err)
 
-	h := agent.NewShellHistory()
+	h := history.NewShellHistory()
 	h.Add("echo test", 0, 10*time.Millisecond, "/home")
 	h.Add("echo test", 0, 10*time.Millisecond, "/home")
 	h.Add("echo test", 0, 10*time.Millisecond, "/home")

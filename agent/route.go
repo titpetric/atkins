@@ -1,6 +1,9 @@
 package agent
 
-import "github.com/titpetric/atkins/model"
+import (
+	"github.com/titpetric/atkins/agent/history"
+	"github.com/titpetric/atkins/model"
+)
 
 // RouteType categorizes the routing decision.
 type RouteType int
@@ -25,19 +28,19 @@ const (
 // Route represents a routing decision.
 type Route struct {
 	Type        RouteType
-	Raw         string              // Original input
-	Task        string              // Task name for RouteTask
-	Resolved    *model.ResolvedTask // Resolved task for RouteTask
-	Command     string              // Slash command name for RouteSlash
-	Args        string              // Arguments for RouteSlash
-	ShellCmd    string              // Shell command for RouteShell
-	Greeting    string              // Greeting response for RouteGreeting
-	Fortune     string              // Fortune text for RouteFortune
-	Phrase      string              // Phrase for RouteCorrection
-	AliasTask   string              // Alias target for RouteCorrection
-	Ambiguous   bool                // Multiple matches found
-	Matches     []string            // Matching skills when ambiguous
-	HistMatches []ShellHistoryEntry // Shell history matches
+	Raw         string                      // Original input
+	Task        string                      // Task name for RouteTask
+	Resolved    *model.ResolvedTask         // Resolved task for RouteTask
+	Command     string                      // Slash command name for RouteSlash
+	Args        string                      // Arguments for RouteSlash
+	ShellCmd    string                      // Shell command for RouteShell
+	Greeting    string                      // Greeting response for RouteGreeting
+	Fortune     string                      // Fortune text for RouteFortune
+	Phrase      string                      // Phrase for RouteCorrection
+	AliasTask   string                      // Alias target for RouteCorrection
+	Ambiguous   bool                        // Multiple matches found
+	Matches     []string                    // Matching skills when ambiguous
+	HistMatches []history.ShellHistoryEntry // Shell history matches
 
 	// Multi-task support (chained commands)
 	Tasks []*model.ResolvedTask // Multiple tasks for RouteMultiTask
