@@ -7,12 +7,6 @@ import (
 	"strings"
 )
 
-// GitStats holds +/- line counts from git diff.
-type GitStats struct {
-	Added   int
-	Removed int
-}
-
 // detectHostname returns the system hostname.
 func detectHostname() string {
 	out, err := exec.Command("uname", "-n").Output()

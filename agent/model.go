@@ -3,11 +3,12 @@ package agent
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
+	agentmodel "github.com/titpetric/atkins/agent/model"
+	"github.com/titpetric/atkins/agent/view"
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
 )
@@ -30,27 +31,67 @@ func UsageText() string {
 	return b.String()
 }
 
-// State represents the current REPL state.
-type State int
-
-// State constants for the REPL.
-const (
-	StateIdle State = iota
-	StateExecuting
-	StateAutofix
-	StateRetrying
+// Type aliases for agent/model package types.
+type (
+	State             = agentmodel.State
+	Options           = agentmodel.Options
+	GitStats          = agentmodel.GitStats
+	ExecutionStartMsg = agentmodel.ExecutionStartMsg
+	ExecutionDoneMsg  = agentmodel.ExecutionDoneMsg
+	AutofixStartMsg   = agentmodel.AutofixStartMsg
+	AutofixDoneMsg    = agentmodel.AutofixDoneMsg
+	RetryMsg          = agentmodel.RetryMsg
+	ShellStartMsg     = agentmodel.ShellStartMsg
+	ShellDoneMsg      = agentmodel.ShellDoneMsg
 )
 
-// LogEntry represents a single entry in the message log.
-type LogEntry struct {
-	Time     time.Time
-	Kind     string // "info", "error", "run", "prompt"
-	Text     string
-	Task     string
-	Running  bool
-	Started  time.Time
-	Duration time.Duration
-	Failed   bool
+// State constants.
+const (
+	StateIdle      = agentmodel.StateIdle
+	StateExecuting = agentmodel.StateExecuting
+	StateAutofix   = agentmodel.StateAutofix
+	StateRetrying  = agentmodel.StateRetrying
+)
+
+// Type aliases for view package types.
+type (
+	LogEntry   = view.LogEntry
+	Breadcrumb = view.Breadcrumb
+	PromptMode = view.PromptMode
+	JobStatus  = view.JobStatus
+	JobEntry   = view.JobEntry
+	StepEntry  = view.StepEntry
+	JobView    = view.JobView
+)
+
+// PromptMode constants.
+const (
+	PromptModeLanguage = view.PromptModeLanguage
+	PromptModeShell    = view.PromptModeShell
+)
+
+// JobStatus constants.
+const (
+	JobStatusPending = view.JobStatusPending
+	JobStatusRunning = view.JobStatusRunning
+	JobStatusPassed  = view.JobStatusPassed
+	JobStatusFailed  = view.JobStatusFailed
+	JobStatusSkipped = view.JobStatusSkipped
+)
+
+// NewBreadcrumb creates a new breadcrumb tracker.
+func NewBreadcrumb() *Breadcrumb {
+	return view.NewBreadcrumb()
+}
+
+// DetectPromptMode returns the appropriate mode based on input.
+func DetectPromptMode(input string) PromptMode {
+	return view.DetectPromptMode(input)
+}
+
+// NewJobView creates a new job view.
+func NewJobView() *JobView {
+	return view.NewJobView()
 }
 
 // Model is the bubbletea model for the agent REPL.
@@ -92,42 +133,6 @@ type Model struct {
 	// Prompt mode (language or shell)
 	promptMode PromptMode
 }
-
-// Messages for async operations.
-type (
-	ExecutionStartMsg struct {
-		Input    string // original user input
-		Task     string
-		Resolved *model.ResolvedTask
-	}
-	ExecutionDoneMsg struct {
-		Task     *model.ResolvedTask
-		Err      error
-		Duration time.Duration
-	}
-	AutofixStartMsg struct {
-		OriginalTask *model.ResolvedTask
-		FixTask      *model.ResolvedTask
-	}
-	AutofixDoneMsg struct {
-		OriginalTask *model.ResolvedTask
-		Err          error
-		Duration     time.Duration
-	}
-	RetryMsg struct {
-		Task *model.ResolvedTask
-	}
-	ShellStartMsg struct {
-		Command string
-	}
-	ShellDoneMsg struct {
-		Command  string
-		Output   string
-		Err      error
-		ExitCode int
-		Duration time.Duration
-	}
-)
 
 // NewModel creates a new bubbletea model for the agent.
 func NewModel(agent *Agent, version string) Model {
@@ -184,7 +189,6 @@ func (m *Model) appendGreeting() {
 
 func (m *Model) appendLog(kind, text string) {
 	m.log = append(m.log, LogEntry{
-		Time: time.Now(),
 		Kind: kind,
 		Text: text,
 	})
@@ -196,11 +200,9 @@ func (m *Model) appendLog(kind, text string) {
 
 func (m *Model) appendRunLog(task string) int {
 	m.log = append(m.log, LogEntry{
-		Time:    time.Now(),
 		Kind:    "run",
 		Task:    task,
 		Running: true,
-		Started: time.Now(),
 	})
 	m.scrollOff = 0
 	return len(m.log) - 1
@@ -652,5 +654,3 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 }
-
-
