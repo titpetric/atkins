@@ -1,4 +1,4 @@
-package agent
+package view
 
 import (
 	"fmt"
@@ -28,14 +28,6 @@ type JobEntry struct {
 	Duration  time.Duration
 	Error     string
 	Steps     []StepEntry
-}
-
-// StepEntry tracks a single step within a job.
-type StepEntry struct {
-	Name     string
-	Status   JobStatus
-	Duration time.Duration
-	Error    string
 }
 
 // JobView renders job execution in gotestsum-style format.
@@ -73,15 +65,11 @@ func (v *JobView) EndJob(name string, success bool, errMsg string) {
 	}
 }
 
-// RenderEntry renders a single job entry in gotestsum style.
-// Format: ✓ job:name (0.12s)
-//
-//	or: ✗ job:name (0.12s)
-//	        → Error: <message>
+// RenderJobEntry renders a single job entry in gotestsum style.
 func RenderJobEntry(name string, running bool, failed bool, duration time.Duration, errMsg string) string {
 	var lines []string
 
-	durStr := formatJobDuration(duration)
+	durStr := FormatJobDuration(duration)
 
 	if running {
 		lines = append(lines, fmt.Sprintf("  %s %s",
@@ -93,7 +81,6 @@ func RenderJobEntry(name string, running bool, failed bool, duration time.Durati
 			colors.BrightWhite(name),
 			colors.Dim("("+durStr+")")))
 		if errMsg != "" {
-			// Show only the first line of error for compact display
 			firstLine := strings.SplitN(errMsg, "\n", 2)[0]
 			if len(firstLine) > 80 {
 				firstLine = firstLine[:77] + "..."
@@ -112,10 +99,9 @@ func RenderJobEntry(name string, running bool, failed bool, duration time.Durati
 	return strings.Join(lines, "\n")
 }
 
-// RenderSummary renders a summary line in gotestsum style.
-// Format: DONE 5 jobs, 1 failure in 2.34s
+// RenderJobSummary renders a summary line in gotestsum style.
 func RenderJobSummary(total, passed, failed int, duration time.Duration) string {
-	durStr := formatJobDuration(duration)
+	durStr := FormatJobDuration(duration)
 
 	if failed == 0 {
 		return fmt.Sprintf("%s %d jobs in %s",
@@ -131,8 +117,8 @@ func RenderJobSummary(total, passed, failed int, duration time.Duration) string 
 		durStr)
 }
 
-// formatJobDuration formats duration for display (similar to gotestsum).
-func formatJobDuration(d time.Duration) string {
+// FormatJobDuration formats duration for display (similar to gotestsum).
+func FormatJobDuration(d time.Duration) string {
 	if d < time.Millisecond {
 		return "<1ms"
 	}

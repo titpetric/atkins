@@ -16,13 +16,6 @@ import (
 	"github.com/titpetric/atkins/runner"
 )
 
-// Options configures agent behavior.
-type Options struct {
-	Debug   bool
-	Verbose bool
-	Jail    bool
-}
-
 // Agent manages the interactive REPL session.
 type Agent struct {
 	pipelines []*model.Pipeline

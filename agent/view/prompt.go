@@ -1,4 +1,4 @@
-package agent
+package view
 
 // PromptMode represents the current input mode.
 type PromptMode int

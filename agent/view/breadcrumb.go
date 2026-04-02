@@ -1,4 +1,4 @@
-package agent
+package view
 
 import (
 	"strings"
@@ -59,7 +59,7 @@ func (b *Breadcrumb) String() string {
 		if !b.startTime.IsZero() && (b.status == "done" || b.status == "failed") {
 			elapsed := time.Since(b.startTime)
 			sb.WriteString(" ")
-			sb.WriteString(formatDuration(elapsed))
+			sb.WriteString(FormatDuration(elapsed))
 		}
 
 		sb.WriteString("]")
@@ -83,8 +83,8 @@ func (b *Breadcrumb) LastSegment() string {
 	return b.segments[len(b.segments)-1]
 }
 
-// formatDuration formats a duration for display.
-func formatDuration(d time.Duration) string {
+// FormatDuration formats a duration for display.
+func FormatDuration(d time.Duration) string {
 	if d < time.Second {
 		return d.Round(time.Millisecond).String()
 	}

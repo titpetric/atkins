@@ -10,14 +10,6 @@ import (
 	"github.com/titpetric/atkins/colors"
 )
 
-// SlashCommand represents a slash command handler.
-type SlashCommand struct {
-	Name        string
-	Aliases     []string
-	Description string
-	Handler     func(m *Model, args string) (Model, tea.Cmd)
-}
-
 // Registry holds all registered slash commands.
 type Registry struct {
 	commands map[string]*SlashCommand
