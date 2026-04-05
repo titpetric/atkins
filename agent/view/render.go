@@ -82,7 +82,7 @@ func Render(d *RenderData) tea.View {
 func RenderHeader(w int, version, hostname string) string {
 	left := " 🔧 atkins"
 	if version != "" {
-		left += " " + colors.Dim("v"+version)
+		left += " " + colors.Dim(version)
 	}
 	right := ""
 	if hostname != "" {

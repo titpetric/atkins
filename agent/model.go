@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -117,6 +118,13 @@ type Model struct {
 	// Job progress tracking
 	progressCh   <-chan runner.JobProgressEvent
 	execProgress *executionProgress
+
+	// Execution cancellation
+	execCtx    context.Context
+	execCancel context.CancelFunc
+
+	// Double-cancel to quit tracking
+	lastCancelTime time.Time
 }
 
 // NewModel creates a new bubbletea model for the agent.
@@ -233,7 +241,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progressCh = progressCh
 		m.execProgress = newExecutionProgress()
 
-		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runPipeline(msg.Resolved, progressCh))
+		// Create cancellable context for this execution
+		ctx, cancel := context.WithCancel(context.Background())
+		m.execCtx = ctx
+		m.execCancel = cancel
+
+		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runPipeline(ctx, msg.Resolved, progressCh))
 
 	case JobProgressMsg:
 		if m.execProgress != nil {
@@ -242,6 +255,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.runLogIdx >= 0 && m.runLogIdx < len(m.log) {
 				m.log[m.runLogIdx].Progress = m.execProgress.StatusLine(time.Now())
 			}
+			// Check if we're being cancelled
+			cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
 			durStr := view.FormatJobDuration(msg.Event.Duration)
 			bc := formatBreadcrumb(msg.Event.Parents, msg.Event.JobName)
 			switch msg.Event.Status {
@@ -249,14 +264,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.appendLog("job-result", fmt.Sprintf("%s %s %s",
 					colors.BrightGreen("✓"), bc, colors.Dim("("+durStr+")")))
 			case runner.JobProgressFailed:
-				errText := ""
-				if msg.Event.Err != nil {
-					errText = msg.Event.Err.Error()
-				}
 				m.appendLog("job-result", fmt.Sprintf("%s %s %s",
 					colors.BrightRed("✗"), bc, colors.Dim("("+durStr+")")))
-				if errText != "" {
-					m.appendLog("job-error", errText)
+				if cancelled {
+					m.appendLog("job-error", "cancelled")
+				} else if msg.Event.Err != nil {
+					m.appendLog("job-error", msg.Event.Err.Error())
 				}
 			}
 		}
@@ -266,6 +279,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ExecutionDoneMsg:
+		// Check if execution was cancelled (check context before clearing it)
+		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
+
+		// Clean up cancellation context
+		m.execCtx = nil
+		m.execCancel = nil
+
 		// Drain any remaining progress events from the buffered channel.
 		// The channel is closed (defer) before ExecutionDoneMsg is returned,
 		// so this won't block — it just processes any buffered events that
@@ -282,10 +302,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case runner.JobProgressFailed:
 					m.appendLog("job-result", fmt.Sprintf("%s %s %s",
 						colors.BrightRed("✗"), bc, colors.Dim("("+durStr+")")))
-					if ev.Err != nil {
+					if cancelled {
+						m.appendLog("job-error", "cancelled")
+					} else if ev.Err != nil {
 						m.appendLog("job-error", ev.Err.Error())
 					}
 				}
+			}
+		}
+
+		// Log any jobs that were still running when cancelled
+		if cancelled && m.execProgress != nil {
+			now := time.Now()
+			for name, rj := range m.execProgress.Running {
+				durStr := view.FormatJobDuration(now.Sub(rj.StartedAt))
+				bc := formatBreadcrumb(rj.Parents, name)
+				m.appendLog("job-result", fmt.Sprintf("%s %s %s",
+					colors.BrightRed("✗"), bc, colors.Dim("("+durStr+")")))
+				m.appendLog("job-error", "cancelled")
 			}
 		}
 
@@ -293,7 +327,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			entry := &m.log[m.runLogIdx]
 			entry.Running = false
 			entry.Duration = msg.Duration
-			entry.Failed = msg.Err != nil
+			entry.Failed = msg.Err != nil || cancelled
 			entry.Progress = ""
 		}
 		m.execProgress = nil
@@ -301,6 +335,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Refresh git stats after execution
 		m.gitStats = detectGitStats(m.cwd)
+
+		// Handle cancellation separately
+		if cancelled {
+			m.breadcrumb.SetStatus("cancelled")
+			m.appendLog("info", colors.BrightYellow("Cancelled"))
+			m.appendLog("info", "")
+			m.state = StateIdle
+			m.runLogIdx = -1
+			return m, nil
+		}
 
 		if msg.Err != nil {
 			m.lastError = msg.Err
@@ -321,6 +365,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+			m.lastCancelTime = time.Time{} // Clear cancel tracking on normal completion
 			m.state = StateIdle
 			m.runLogIdx = -1
 			return m, nil
@@ -328,6 +373,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.breadcrumb.SetStatus("done")
 		m.lastError = nil
+		m.lastCancelTime = time.Time{} // Clear cancel tracking on normal completion
 		m.appendLog("info", "")
 		m.state = StateIdle
 		m.runLogIdx = -1
@@ -344,22 +390,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progressCh = progressCh
 		m.execProgress = newExecutionProgress()
 
-		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runAutofixPipeline(msg.OriginalTask, msg.FixTask, progressCh))
+		// Create cancellable context for autofix
+		ctx, cancel := context.WithCancel(context.Background())
+		m.execCtx = ctx
+		m.execCancel = cancel
+
+		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runAutofixPipeline(ctx, msg.OriginalTask, msg.FixTask, progressCh))
 
 	case AutofixDoneMsg:
+		// Check if autofix was cancelled (check context before clearing it)
+		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
+
+		// Clean up cancellation context
+		m.execCtx = nil
+		m.execCancel = nil
+
 		if m.runLogIdx >= 0 && m.runLogIdx < len(m.log) {
 			entry := &m.log[m.runLogIdx]
 			entry.Running = false
 			entry.Duration = msg.Duration
-			entry.Failed = msg.Err != nil
+			entry.Failed = msg.Err != nil || cancelled
 			entry.Progress = ""
 		}
 		m.execProgress = nil
 		m.progressCh = nil
 
+		// Handle cancellation
+		if cancelled {
+			m.breadcrumb.SetStatus("cancelled")
+			m.appendLog("info", colors.BrightYellow("Cancelled"))
+			m.appendLog("info", "")
+			m.state = StateIdle
+			m.runLogIdx = -1
+			return m, nil
+		}
+
 		if msg.Err != nil {
 			m.lastError = msg.Err
 			m.breadcrumb.SetStatus("fix failed")
+			m.lastCancelTime = time.Time{} // Clear cancel tracking on normal completion
 			m.state = StateIdle
 			m.runLogIdx = -1
 			m.appendLog("error", colors.BrightRed("Autofix failed: ")+msg.Err.Error())
@@ -369,6 +438,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.breadcrumb.Pop()
 		m.breadcrumb.SetStatus("retrying...")
 		m.retryCount++
+		m.lastCancelTime = time.Time{} // Clear cancel tracking on normal completion
 		m.runLogIdx = -1
 		return m, func() tea.Msg {
 			return RetryMsg{Task: msg.OriginalTask}
@@ -382,23 +452,46 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.progressCh = progressCh
 		m.execProgress = newExecutionProgress()
 
-		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runPipeline(msg.Task, progressCh))
+		// Create cancellable context for retry
+		ctx, cancel := context.WithCancel(context.Background())
+		m.execCtx = ctx
+		m.execCancel = cancel
+
+		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runPipeline(ctx, msg.Task, progressCh))
 
 	case ShellStartMsg:
 		m.state = StateExecuting
 		m.appendLog("shell-cmd", "$ "+msg.Command)
-		return m, m.runShellCommand(msg.Command)
+
+		// Create cancellable context for shell command
+		ctx, cancel := context.WithCancel(context.Background())
+		m.execCtx = ctx
+		m.execCancel = cancel
+
+		return m, m.runShellCommand(ctx, msg.Command)
 
 	case ShellDoneMsg:
+		// Check if shell command was cancelled (check context before clearing it)
+		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
+
+		// Clean up cancellation context
+		m.execCtx = nil
+		m.execCancel = nil
+
 		if output := strings.TrimRight(msg.Output, "\n"); output != "" {
 			m.appendLog("output", output)
 		}
-		if msg.Err != nil {
+		if cancelled {
+			m.appendLog("info", colors.BrightYellow("Cancelled"))
+		} else if msg.Err != nil {
 			m.appendLog("error", fmt.Sprintf("%s (exit %d)",
 				colors.BrightRed("failed"), msg.ExitCode))
 			m.router.SetLastCommand(msg.Command, true) // Mark as failed
 		}
-		m.router.ShellHistory().Add(msg.Command, msg.ExitCode, msg.Duration, m.cwd)
+		if !cancelled {
+			m.router.ShellHistory().Add(msg.Command, msg.ExitCode, msg.Duration, m.cwd)
+			m.lastCancelTime = time.Time{} // Clear cancel tracking on normal completion
+		}
 		// Refresh git stats after shell command
 		m.gitStats = detectGitStats(m.cwd)
 		m.appendLog("info", "")
@@ -422,14 +515,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // handleKey processes keyboard input.
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.state != StateIdle {
-		if msg.String() == "ctrl+c" {
-			return m, tea.Quit
+		// Cancel running execution on Escape or Ctrl+C
+		if msg.String() == "escape" || msg.String() == "ctrl+c" {
+			now := time.Now()
+			// If second cancel within 1 second, quit the agent
+			if !m.lastCancelTime.IsZero() && now.Sub(m.lastCancelTime) < time.Second {
+				return m, tea.Quit
+			}
+			m.lastCancelTime = now
+			if m.execCancel != nil {
+				m.execCancel()
+			}
+			return m, nil
 		}
 		return m, nil
 	}
 
 	switch msg.String() {
-	case "ctrl+c", "ctrl+d":
+	case "ctrl+c", "escape":
+		// If recent cancel (within 1 second), quit
+		now := time.Now()
+		if !m.lastCancelTime.IsZero() && now.Sub(m.lastCancelTime) < time.Second {
+			return m, tea.Quit
+		}
+		// First cancel in idle just records the time (no action needed in idle)
+		// But ctrl+c in idle should still quit for expected terminal behavior
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+		return m, nil
+
+	case "ctrl+d":
 		return m, tea.Quit
 
 	case "enter":

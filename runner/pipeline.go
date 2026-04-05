@@ -523,7 +523,9 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			root.SetStatus(treeview.StatusFailed)
 
 			// Clear the live tree and print final scrollable output
-			display.RenderFinal(root)
+			if !silentOutput {
+				display.RenderFinal(root)
+			}
 
 			// Write event log on failure
 			writeEventLog(logger, root, err)

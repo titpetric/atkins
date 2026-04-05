@@ -161,6 +161,13 @@ type Model struct {
 	// Job progress tracking
 	progressCh   <-chan runner.JobProgressEvent
 	execProgress *executionProgress
+
+	// Execution cancellation
+	execCtx    context.Context
+	execCancel context.CancelFunc
+
+	// Double-cancel to quit tracking
+	lastCancelTime time.Time
 }
 ```
 
