@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -572,7 +574,7 @@ func parseEnv(env string) (string, string) {
 
 // printAvailableJobs prints available jobs in a format similar to task.
 func printAvailableJobs(jobs map[string]*model.Job, pipelineID string) {
-	names := treeview.SortJobsByDepth(jobNames(jobs))
+	names := treeview.SortJobsByDepth(slices.Collect(maps.Keys(jobs)))
 	maxLen := 0
 	for _, name := range names {
 		displayName := name

@@ -4,16 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/titpetric/atkins/agent/aliases"
 	agentrouter "github.com/titpetric/atkins/agent/router"
-	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -118,152 +114,12 @@ func (a *Agent) Exec(ctx context.Context, prompt, version string) error {
 		return fmt.Errorf("empty prompt")
 	}
 
-	// Use centralized router (follows structure.d2 flow)
+	// Use centralized router and executor
 	registry := DefaultRegistry()
 	rtr := agentrouter.NewRouter(a.resolver, a.pipelines, registry)
 	route := rtr.Route(prompt)
 
-	switch route.Type {
-	case agentrouter.RouteTask, agentrouter.RouteAlias:
-		if route.Resolved == nil {
-			return fmt.Errorf("could not resolve: %s", prompt)
-		}
-		return a.execTask(ctx, route.Resolved)
-
-	case agentrouter.RouteMultiTask:
-		// Run multiple tasks in sequence
-		for _, task := range route.Tasks {
-			if err := a.execTask(ctx, task); err != nil {
-				return err // Stop on first failure
-			}
-		}
-		return nil
-
-	case agentrouter.RouteConfirm:
-		// In non-interactive mode, show suggestion and fail
-		fmt.Printf("Did you mean %s?\n", route.Suggestion)
-		fmt.Printf("Run: atkins -x \"%s\"\n", route.Suggestion)
-		return fmt.Errorf("unknown command: %s", route.Original)
-
-	case agentrouter.RouteHelp:
-		fmt.Print(UsageText())
-		return nil
-
-	case agentrouter.RouteSlash:
-		// Handle some slash commands in non-interactive mode
-		switch route.Command {
-		case "list", "l", "ls", "skills":
-			a.printSkillList()
-			return nil
-		case "help", "h", "?":
-			fmt.Print(UsageText())
-			return nil
-		case "aliases", "alias":
-			a.printAliases(rtr.Aliases())
-			return nil
-		default:
-			return fmt.Errorf("slash command /%s is only available in interactive mode", route.Command)
-		}
-
-	case agentrouter.RouteQuit:
-		return nil
-
-	case agentrouter.RouteGreeting:
-		fmt.Println(route.Greeting)
-		return nil
-
-	case agentrouter.RouteFortune:
-		fmt.Println(route.Fortune)
-		return nil
-
-	case agentrouter.RouteCorrection:
-		rtr.Aliases().Add(route.Phrase, route.AliasTask)
-		fmt.Printf("Got it! \"%s\" will now run %s\n", route.Phrase, route.AliasTask)
-		return nil
-
-	case agentrouter.RouteShell:
-		return a.execShell(ctx, route.ShellCmd)
-
-	default:
-		// agentrouter.RouteUnknown
-		if route.Ambiguous && len(route.Matches) > 0 {
-			fmt.Println("Matching skills:")
-			for _, match := range route.Matches {
-				fmt.Println("  " + match)
-			}
-			fmt.Println("\nBe more specific or use the full skill name")
-			return nil
-		}
-		return fmt.Errorf("unknown command: %s", prompt)
-	}
-}
-
-// printSkillList prints available skills for non-interactive mode.
-func (a *Agent) printSkillList() {
-	if len(a.pipelines) == 0 {
-		fmt.Println("No skills available")
-		return
-	}
-
-	fmt.Println("Available skills:")
-	for _, p := range a.pipelines {
-		var prefix string
-		if p.ID != "" {
-			prefix = p.ID + ":"
-		}
-
-		for name, job := range p.Jobs {
-			fullName := prefix + name
-			if job.Desc != "" {
-				fmt.Printf("  %s - %s\n", fullName, job.Desc)
-			} else {
-				fmt.Printf("  %s\n", fullName)
-			}
-		}
-	}
-}
-
-// printAliases prints defined aliases for non-interactive mode.
-func (a *Agent) printAliases(aliasStore *aliases.Aliases) {
-	if len(aliasStore.Aliases) == 0 {
-		fmt.Println("No aliases defined.")
-		fmt.Println("\nTeach an alias with:")
-		fmt.Println("  alias <phrase> to <command>")
-		return
-	}
-
-	fmt.Println("Defined aliases:")
-	for _, alias := range aliasStore.Aliases {
-		fmt.Printf("  %s as %s\n", alias.Phrase, alias.Prompt)
-	}
-}
-
-func (a *Agent) execTask(ctx context.Context, task *model.ResolvedTask) error {
-	start := time.Now()
-	err := runner.RunPipeline(ctx, task.Pipeline, runner.PipelineOptions{
-		Jobs:         []string{task.Job.Name},
-		Silent:       true,
-		Debug:        a.options.Debug,
-		AllPipelines: a.pipelines,
-	})
-	dur := time.Since(start)
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s %s %s\n",
-			colors.BrightRed("✗"), task.Name,
-			colors.BrightRed("FAIL")+" "+colors.Dim(fmt.Sprintf("%.2fs", dur.Seconds())))
-		return err
-	}
-	fmt.Fprintf(os.Stderr, "%s %s %s\n",
-		colors.BrightGreen("✓"), task.Name,
-		colors.BrightGreen("OK")+" "+colors.Dim(fmt.Sprintf("%.2fs", dur.Seconds())))
-	return nil
-}
-
-func (a *Agent) execShell(ctx context.Context, command string) error {
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
-	cmd.Dir = a.workDir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	out := NewStdOutput()
+	exec := NewExecutor(ctx, a, rtr, out)
+	return exec.ExecuteRoute(route)
 }

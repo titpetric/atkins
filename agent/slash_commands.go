@@ -2,13 +2,13 @@ package agent
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/titpetric/atkins/agent/registry"
 	"github.com/titpetric/atkins/colors"
+	"github.com/titpetric/atkins/runner"
 )
 
 // SlashCommand represents a slash command handler.
@@ -64,31 +64,7 @@ func registerList(r *Registry) {
 				return *m, nil
 			}
 
-			var lines []string
-			for _, p := range pipelines {
-				var prefix string
-				if p.ID != "" {
-					prefix = p.ID + ":"
-				}
-
-				jobNames := make([]string, 0, len(p.Jobs))
-				for name := range p.Jobs {
-					jobNames = append(jobNames, name)
-				}
-				sort.Strings(jobNames)
-
-				for _, name := range jobNames {
-					job := p.Jobs[name]
-					fullName := prefix + name
-					line := "  " + colors.BrightGreen(fullName)
-					if job.Desc != "" {
-						line += " - " + job.Desc
-					}
-					lines = append(lines, line)
-				}
-			}
-
-			m.appendLog("info", "Available skills:\n\n"+strings.Join(lines, "\n")+"\n")
+			m.appendLog("info", runner.ListPipelines(pipelines))
 			return *m, nil
 		},
 	}

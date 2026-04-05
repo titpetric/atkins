@@ -46,7 +46,7 @@ func Render(d *RenderData) tea.View {
 
 	// === Message log ===
 	logH := LogHeight(d.Height)
-	lines := RenderLog(d.Spinner, d.Log)
+	lines := RenderLog(d.Spinner, d.Log, w)
 
 	// Apply scroll offset
 	start := len(lines) - logH - d.ScrollOff
@@ -99,7 +99,10 @@ func RenderHeader(w int, version, hostname string) string {
 }
 
 // RenderLog renders all log entries into lines.
-func RenderLog(spin spinner.Model, log []LogEntry) []string {
+func RenderLog(spin spinner.Model, log []LogEntry, width int) []string {
+	borderColor := "\033[38;5;66m"
+	reset := "\033[0m"
+
 	var lines []string
 	for _, entry := range log {
 		switch entry.Kind {
@@ -107,10 +110,18 @@ func RenderLog(spin spinner.Model, log []LogEntry) []string {
 			lines = append(lines, RenderRunEntry(spin, entry))
 		case "prompt":
 			lines = append(lines, " "+colors.BrightCyan(entry.Text))
+		case "shell-cmd":
+			lines = append(lines, " "+colors.BrightOrange(entry.Text))
+			lines = append(lines, " "+borderColor+"╭────────────────────────────────────────"+reset)
 		case "output":
-			for _, l := range strings.Split(entry.Text, "\n") {
-				lines = append(lines, " "+colors.Dim("│")+" "+l)
+			// Trim leading/trailing empty lines and expand tabs
+			text := strings.TrimSpace(entry.Text)
+			for _, l := range strings.Split(text, "\n") {
+				l = expandTabs(l, 8)
+				lines = append(lines, " "+borderColor+"│"+reset+" "+l)
 			}
+		case "welcome":
+			lines = append(lines, RenderWelcomeBox(entry.Text, width)...)
 		default:
 			for _, l := range strings.Split(entry.Text, "\n") {
 				lines = append(lines, " "+l)
@@ -118,6 +129,23 @@ func RenderLog(spin spinner.Model, log []LogEntry) []string {
 		}
 	}
 	return lines
+}
+
+// expandTabs expands tab characters to spaces with the given tab width.
+func expandTabs(s string, tabWidth int) string {
+	var result strings.Builder
+	col := 0
+	for _, r := range s {
+		if r == '\t' {
+			spaces := tabWidth - (col % tabWidth)
+			result.WriteString(strings.Repeat(" ", spaces))
+			col += spaces
+		} else {
+			result.WriteRune(r)
+			col++
+		}
+	}
+	return result.String()
 }
 
 // RenderRunEntry renders a single run log entry.
@@ -221,6 +249,43 @@ func RenderFooter(promptMode PromptMode, w, gitAdded, gitRemoved, state, cursor 
 	botLine := borderColor + "╰" + strings.Repeat("─", bottomRemain) + "╯" + reset
 
 	return topLine + "\n" + midLine + "\n" + botLine
+}
+
+// RenderWelcomeBox renders the welcome message in a bordered box.
+func RenderWelcomeBox(text string, width int) []string {
+	borderColor := "\033[38;5;66m"
+	reset := "\033[0m"
+
+	contentLines := strings.Split(text, "\n")
+
+	// Calculate inner width (leave room for borders and padding)
+	innerW := width - 4 // 2 for border chars, 2 for padding
+	if innerW < 10 {
+		innerW = 10
+	}
+
+	var lines []string
+
+	// Top border
+	topBorder := borderColor + "╭" + strings.Repeat("─", width-2) + "╮" + reset
+	lines = append(lines, topBorder)
+
+	// Content lines with border
+	for _, l := range contentLines {
+		visLen := colors.VisualLength(l)
+		pad := innerW - visLen
+		if pad < 0 {
+			pad = 0
+		}
+		line := borderColor + "│" + reset + " " + l + strings.Repeat(" ", pad) + " " + borderColor + "│" + reset
+		lines = append(lines, line)
+	}
+
+	// Bottom border
+	botBorder := borderColor + "╰" + strings.Repeat("─", width-2) + "╯" + reset
+	lines = append(lines, botBorder)
+
+	return lines
 }
 
 // ShortenPath replaces the home directory prefix with ~.

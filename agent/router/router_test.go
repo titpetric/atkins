@@ -124,16 +124,25 @@ func TestRouter_RouteNaturalSlashCommand(t *testing.T) {
 	}
 }
 
-func TestRouter_ShellTakesPrecedence(t *testing.T) {
-	// Shell commands take precedence over natural language slash commands
+func TestRouter_ShellRequiresDollarPrefix(t *testing.T) {
+	// Shell commands require explicit "$ " prefix to execute
 	rtr := createTestRouter(t, nil)
 
+	// Without $ prefix, shell commands should NOT be auto-executed
 	tests := []string{"ls", "clear"}
 	for _, input := range tests {
-		t.Run(input, func(t *testing.T) {
+		t.Run(input+"_no_prefix", func(t *testing.T) {
 			route := rtr.Route(input)
-			// "ls" and "clear" are real shell commands
-			assert.Equal(t, router.RouteShell, route.Type, "expected RouteShell for %q (shell takes precedence)", input)
+			// Without $ prefix, should NOT be RouteShell
+			assert.NotEqual(t, router.RouteShell, route.Type, "expected %q to NOT auto-execute without $ prefix", input)
+		})
+	}
+
+	// With $ prefix, shell commands should execute
+	for _, input := range tests {
+		t.Run(input+"_with_prefix", func(t *testing.T) {
+			route := rtr.Route("$ " + input)
+			assert.Equal(t, router.RouteShell, route.Type, "expected RouteShell for '$ %s'", input)
 			assert.Equal(t, input, route.ShellCmd)
 		})
 	}
@@ -166,14 +175,14 @@ func TestRouter_RouteTask(t *testing.T) {
 func TestRouter_RouteShell(t *testing.T) {
 	rtr := createTestRouter(t, nil)
 
-	// Test shell commands - these should be executable on most systems
+	// Shell commands require "$ " prefix for execution
 	tests := []struct {
 		input    string
 		shellCmd string
 	}{
-		{"echo hello", "echo hello"},
-		{"ls -la", "ls -la"},
-		{"pwd", "pwd"},
+		{"$ echo hello", "echo hello"},
+		{"$ ls -la", "ls -la"},
+		{"$ pwd", "pwd"},
 	}
 
 	for _, tt := range tests {
@@ -186,18 +195,17 @@ func TestRouter_RouteShell(t *testing.T) {
 }
 
 func TestRouter_RouteShell_CurlWttrIn(t *testing.T) {
-	// This test specifically verifies the fix for "curl wttr.in" routing
+	// Shell commands require "$ " prefix for execution
 	rtr := createTestRouter(t, nil)
 
+	// Without $ prefix, should NOT auto-execute
 	route := rtr.Route("curl wttr.in")
+	assert.NotEqual(t, router.RouteShell, route.Type, "curl should not auto-execute without $ prefix")
 
-	// Note: This test will pass if curl is installed
-	// If curl is not installed, the route type will be RouteUnknown
-	if route.Type == router.RouteShell {
-		assert.Equal(t, "curl wttr.in", route.ShellCmd)
-	} else {
-		t.Skip("curl not installed, skipping shell routing test")
-	}
+	// With $ prefix, should execute
+	route = rtr.Route("$ curl wttr.in")
+	assert.Equal(t, router.RouteShell, route.Type)
+	assert.Equal(t, "curl wttr.in", route.ShellCmd)
 }
 
 func TestRouter_RouteGreeting(t *testing.T) {

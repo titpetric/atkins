@@ -3,14 +3,18 @@ package model
 import "strings"
 
 // singularize strips common plural suffixes.
+// Only applies to words longer than 3 chars to avoid mangling short words like "ls".
 func singularize(word string) string {
-	if strings.HasSuffix(word, "ies") && len(word) > 3 {
+	if len(word) <= 3 {
+		return word
+	}
+	if strings.HasSuffix(word, "ies") && len(word) > 4 {
 		return word[:len(word)-3] + "y"
 	}
-	if strings.HasSuffix(word, "ses") && len(word) > 3 {
+	if strings.HasSuffix(word, "ses") && len(word) > 4 {
 		return word[:len(word)-2]
 	}
-	if strings.HasSuffix(word, "s") && len(word) > 1 {
+	if strings.HasSuffix(word, "s") {
 		return word[:len(word)-1]
 	}
 	return word

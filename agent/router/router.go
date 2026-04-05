@@ -78,7 +78,7 @@ func (r *Router) LastCommand() string {
 // 3. Match prompt (skills & targets)?
 //   - single match → execute
 //   - multiple matches → ambiguous
-//   - shell expression → shell exec
+//   - shell expression → shell exec (requires $ prefix)
 //   - greeting → greeting response
 //   - store correction → save alias
 //   - none → failure.
@@ -90,6 +90,16 @@ func (r *Router) Route(input string) *Route {
 
 	route := &Route{Raw: input}
 	lower := strings.ToLower(input)
+
+	// Step 0: Explicit shell mode with $ prefix
+	if strings.HasPrefix(input, "$ ") {
+		shellCmd := strings.TrimPrefix(input, "$ ")
+		if shellCmd != "" {
+			route.Type = RouteShell
+			route.ShellCmd = shellCmd
+			return route
+		}
+	}
 
 	// Step 5: Check for correction/alias definition
 	if phrase, task, ok := aliases.ParseCorrection(input); ok {
@@ -106,8 +116,17 @@ func (r *Router) Route(input string) *Route {
 
 	// Step 1: Check alias (Is alias? → yes → Replace with alias)
 	if aliasTarget := r.aliases.Match(input); aliasTarget != "" {
-		// Alias found - recursively route the target
-		// But first check if it's a shell command
+		// Alias found - check if it's a shell command (with $ prefix)
+		if strings.HasPrefix(aliasTarget, "$ ") {
+			route.Type = RouteShell
+			route.ShellCmd = strings.TrimPrefix(aliasTarget, "$ ")
+			return route
+		}
+		// Check if it's a slash command
+		if strings.HasPrefix(aliasTarget, "/") {
+			return r.parseSlashCommand(aliasTarget)
+		}
+		// Check if it's a shell command (executable in PATH)
 		if r.isShellCommand(aliasTarget) {
 			route.Type = RouteShell
 			route.ShellCmd = aliasTarget
@@ -134,8 +153,7 @@ func (r *Router) Route(input string) *Route {
 
 	// Step 0.5: Check for command chaining (&&, "then", ";")
 	if chainedRoute := r.parseChainedCommands(input); chainedRoute != nil {
-		// not stable, not tested
-		// return chainedRoute
+		return chainedRoute
 	}
 
 	// Step 3: Check for quit/exit
@@ -178,15 +196,8 @@ func (r *Router) Route(input string) *Route {
 		return slashRoute
 	}
 
-	// Step 11: Check shell history for single match
-	if histMatches := r.shellHistory.Match(input); len(histMatches) == 1 {
-		cmd := histMatches[0].Command
-		if r.isShellCommand(cmd) {
-			route.Type = RouteShell
-			route.ShellCmd = cmd
-			return route
-		}
-	}
+	// Step 11: Shell history matches are shown as suggestions, not auto-executed.
+	// Shell commands require explicit "$ command" prefix for execution.
 
 	// Step 12: Try natural language skill matching
 	keywords := r.parseNaturalLanguage(input)
@@ -318,6 +329,8 @@ func (r *Router) parseSlashCommand(input string) *Route {
 // Examples: "list" → /list, "list tasks" → /list, "show skills" → /list
 func (r *Router) matchNaturalSlashCommand(input string) *Route {
 	lower := strings.ToLower(strings.TrimSpace(input))
+	// Strip trailing punctuation
+	lower = strings.TrimRight(lower, "!?.,;:-")
 	words := strings.Fields(lower)
 	if len(words) == 0 {
 		return nil
@@ -328,6 +341,7 @@ func (r *Router) matchNaturalSlashCommand(input string) *Route {
 		"list":    {"list", "list tasks", "list skills", "show tasks", "show skills", "tasks", "skills"},
 		"help":    {"help", "help me", "what can you do", "commands"},
 		"history": {"history", "show history", "command history"},
+		"aliases": {"aliases", "alias", "show aliases", "show me your aliases", "show my aliases", "list aliases", "my aliases"},
 		"debug":   {"debug", "toggle debug"},
 		"verbose": {"verbose", "toggle verbose"},
 	}

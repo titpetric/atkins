@@ -56,7 +56,7 @@ func buildListOutput(pipelines []*model.Pipeline) []OutputSection {
 	var sections []OutputSection
 
 	// Main pipeline section
-	if main != nil && hasJobs(main) {
+	if main != nil && main.HasJobs() {
 		sections = append(sections, buildPipelineSection(main, ""))
 	}
 
@@ -67,7 +67,7 @@ func buildListOutput(pipelines []*model.Pipeline) []OutputSection {
 
 	// Skill pipelines
 	for _, skill := range skills {
-		if hasJobs(skill) {
+		if skill.HasJobs() {
 			sections = append(sections, buildPipelineSection(skill, skill.ID))
 		}
 	}
@@ -78,7 +78,7 @@ func buildListOutput(pipelines []*model.Pipeline) []OutputSection {
 // buildPipelineSection builds a section for a pipeline.
 func buildPipelineSection(p *model.Pipeline, prefix string) OutputSection {
 	jobs := p.GetJobs()
-	names := treeview.SortJobsByDepth(jobNames(jobs))
+	names := treeview.SortJobsByDepth(p.JobNames())
 
 	// Move "default" to front
 	for i, name := range names {

@@ -249,7 +249,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func InterpolateMap (ctx *ExecutionContext, m map[string]any) error`
 - `func InterpolateString (s string, ctx *ExecutionContext) (string, error)`
 - `func IsEchoCommand (cmd string) bool`
-- `func ListPipelines (pipelines []*model.Pipeline)`
+- `func ListPipelines (pipelines []*model.Pipeline) string`
 - `func ListPipelinesJSON (pipelines []*model.Pipeline) error`
 - `func ListPipelinesYAML (pipelines []*model.Pipeline) error`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
@@ -427,11 +427,11 @@ func IsEchoCommand(cmd string) bool
 
 ### ListPipelines
 
-ListPipelines displays pipelines grouped by section in a flat list format:
+ListPipelines returns pipelines formatted as a string in a flat list format:
 Main Pipeline, then Aliases, then Skills.
 
 ```go
-func ListPipelines(pipelines []*model.Pipeline)
+func ListPipelines(pipelines []*model.Pipeline) string
 ```
 
 ### ListPipelinesJSON

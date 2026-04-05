@@ -11,7 +11,6 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/titpetric/cli"
-	yaml "gopkg.in/yaml.v3"
 
 	"github.com/titpetric/atkins/agent"
 	"github.com/titpetric/atkins/colors"
@@ -281,15 +280,7 @@ pipelineReady:
 			return runner.ListPipelinesYAML(pipelines)
 		}
 
-		runner.ListPipelines(pipelines)
-
-		if opts.Debug {
-			for _, pipeline := range pipelines {
-				b, _ := yaml.Marshal(pipeline)
-				fmt.Printf("%s\n", string(b))
-			}
-		}
-
+		fmt.Print(runner.ListPipelines(pipelines))
 		return nil
 	}
 

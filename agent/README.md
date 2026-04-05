@@ -8,7 +8,7 @@ For non-interactive use, run a single prompt with `-x`:
 
 ```
 atkins -x "go:test"              # run a skill
-atkins -x "curl -s wttr.in"      # run a shell command
+atkins -x "$ curl -s wttr.in"    # run a shell command ($ prefix)
 atkins -x "list tasks"           # list available skills
 atkins -x "hello"                # get a greeting
 ```
@@ -73,19 +73,21 @@ Slash commands can also be invoked using natural language. Typing `list`, `list 
 
 ## Shell Commands
 
-The agent supports two ways to run shell commands.
-
-### Automatic Shell Detection
-
-The agent detects shell commands by checking if the first word is an executable in PATH. Shell commands take precedence over natural language slash commands. Commands like `curl wttr.in`, `uname -n`, `ls -la`, `git status`, and `docker ps` are detected and executed directly.
+Shell commands require an explicit `$` prefix to execute. This prevents accidental command execution from typos or ambiguous input.
 
 ### Explicit Shell Mode
 
-Type `$` as the first character to enter shell mode. This changes the prompt from `>` to `$` displayed in deep orange. In shell mode, the command executes directly as a shell command without any routing logic. Use shell mode when a command name conflicts with a task name or when you want to ensure shell execution.
+Type `$` followed by a space to enter shell mode. This changes the prompt from `>` to `$` displayed in deep orange. Commands like `$ curl wttr.in`, `$ ls -la`, and `$ git status` run directly as shell commands.
+
+Examples:
+- `$ curl wttr.in` - fetch weather
+- `$ ls -la` - list files
+- `$ git status` - check git status
+- `$ docker ps` - list containers
 
 ### Shell History
 
-Shell commands are recorded in `~/.atkins/shell_history.json` with the command, exit code, duration, and working directory. If you later type something that matches a single entry from shell history, it runs automatically.
+Shell commands are recorded in `~/.atkins/shell_history.json` with the command, exit code, duration, and working directory. History entries are shown as suggestions when typing partial matches but do not auto-execute.
 
 ## Greetings
 

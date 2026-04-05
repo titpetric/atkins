@@ -231,6 +231,8 @@ type VariableStorage interface {
 - `func (*Pipeline) GetAliases () map[string]string`
 - `func (*Pipeline) GetJobs () map[string]*Job`
 - `func (*Pipeline) GetKeys () []string`
+- `func (*Pipeline) HasJobs () bool`
+- `func (*Pipeline) JobNames () []string`
 - `func (*Pipeline) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Pipeline) Walk (fn PipelineWalkFunc) error`
 - `func (*Step) Commands () []string`
@@ -413,6 +415,22 @@ job is ordered first in the result.
 
 ```go
 func (*Pipeline) GetKeys() []string
+```
+
+### HasJobs
+
+HasJobs returns true if the pipeline has any jobs or tasks defined.
+
+```go
+func (*Pipeline) HasJobs() bool
+```
+
+### JobNames
+
+JobNames returns the names of all jobs (or tasks) in the pipeline.
+
+```go
+func (*Pipeline) JobNames() []string
 ```
 
 ### UnmarshalYAML

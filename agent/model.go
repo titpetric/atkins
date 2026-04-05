@@ -22,7 +22,7 @@ func UsageText() string {
 	b.WriteString("  atkins -x \"<cmd>\"   Execute a single command\n\n")
 	b.WriteString("Examples:\n")
 	b.WriteString("  atkins -x \"go:test\"             Run a skill\n")
-	b.WriteString("  atkins -x \"curl wttr.in\"        Run shell command\n")
+	b.WriteString("  atkins -x \"$ curl wttr.in\"      Run shell command ($ prefix)\n")
 	b.WriteString("  atkins -x \"run the tests\"       Natural language\n")
 	b.WriteString("  atkins -x \"list\"                List available skills\n\n")
 	b.WriteString("Teach aliases:\n")
@@ -144,24 +144,24 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m *Model) appendGreeting() {
-	m.appendLog("info", "")
-	m.appendLog("info", colors.BrightCyan("Welcome to atkins.")+" Type a command to get started.")
-	m.appendLog("info", "")
-	m.appendLog("info", colors.Dim("Usage:"))
-	m.appendLog("info", "  "+colors.BrightWhite("Natural language:")+
-		"   \"run the tests\", \"build it\", \"list tasks\"")
-	m.appendLog("info", "  "+colors.BrightWhite("Direct skills:")+
-		"       go:test, build, test")
-	m.appendLog("info", "  "+colors.BrightWhite("Shell commands:")+
-		"     curl wttr.in, ls -la, docker ps")
-	m.appendLog("info", "")
-	m.appendLog("info", colors.Dim("Aliasing commands and job targets:"))
-	m.appendLog("info", "  "+colors.BrightWhite("\"alias server name to uname -n\""))
-	m.appendLog("info", "  "+colors.BrightWhite("\"if i say deploy, run docker:push\""))
-	m.appendLog("info", "")
-	m.appendLog("info", colors.Dim("Slash commands:")+
+	var b strings.Builder
+	b.WriteString(colors.BrightCyan("Welcome to atkins.") + " Type a command to get started.\n")
+	b.WriteString("\n")
+	b.WriteString(colors.Dim("Usage:") + "\n")
+	b.WriteString("  " + colors.BrightWhite("Natural language:") +
+		"   \"run the tests\", \"build it\", \"list tasks\"\n")
+	b.WriteString("  " + colors.BrightWhite("Direct skills:") +
+		"       go:test, build, test\n")
+	b.WriteString("  " + colors.BrightWhite("Shell commands:") +
+		"     $ curl wttr.in, $ ls -la, $ docker ps\n")
+	b.WriteString("\n")
+	b.WriteString(colors.Dim("Aliasing commands and job targets:") + "\n")
+	b.WriteString("  " + colors.BrightWhite("\"alias server name to uname -n\"") + "\n")
+	b.WriteString("  " + colors.BrightWhite("\"if i say deploy, run docker:push\"") + "\n")
+	b.WriteString("\n")
+	b.WriteString(colors.Dim("Slash commands:") +
 		"  /help  /list  /run <task>  /cd <path>  /quit")
-
+	m.appendLog("welcome", b.String())
 	m.appendLog("info", "")
 }
 
@@ -294,7 +294,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ShellStartMsg:
 		m.state = StateExecuting
-		m.appendLog("prompt", "> "+msg.Command)
+		m.appendLog("shell-cmd", "$ "+msg.Command)
 		return m, m.runShellCommand(msg.Command)
 
 	case ShellDoneMsg:
@@ -591,6 +591,10 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case router.RouteShell:
+		// If the original input differs from shell command (e.g., alias), show original first
+		if input != route.ShellCmd {
+			m.appendLog("prompt", "> "+input)
+		}
 		m.router.SetLastCommand(input, false)
 		return m, func() tea.Msg {
 			return ShellStartMsg{Command: route.ShellCmd}
@@ -608,6 +612,9 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 				}
 			}
 			if len(route.HistMatches) > 0 {
+				if len(route.Matches) > 0 {
+					b.WriteString("\n")
+				}
 				b.WriteString("From shell history:\n")
 				for _, h := range route.HistMatches {
 					status := colors.BrightGreen("exit 0")
@@ -615,13 +622,13 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 						status = colors.BrightRed(fmt.Sprintf("exit %d", h.ExitCode))
 					}
 					b.WriteString(fmt.Sprintf("  %s %s %s\n",
-						colors.Dim("$"),
+						colors.BrightOrange("$"),
 						h.Command,
 						colors.Dim("("+status+")"),
 					))
 				}
 			}
-			b.WriteString("\nBe more specific or use /run <task>")
+			b.WriteString("\nBe more specific or use $ <command>")
 			m.appendLog("info", b.String())
 			m.appendLog("info", "")
 		} else {

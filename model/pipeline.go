@@ -1,6 +1,8 @@
 package model
 
 import (
+	"maps"
+	"slices"
 	"sort"
 
 	yaml "gopkg.in/yaml.v3"
@@ -73,6 +75,16 @@ func (p *Pipeline) GetKeys() []string {
 	}
 
 	return result
+}
+
+// HasJobs returns true if the pipeline has any jobs or tasks defined.
+func (p *Pipeline) HasJobs() bool {
+	return len(p.GetJobs()) > 0
+}
+
+// JobNames returns the names of all jobs (or tasks) in the pipeline.
+func (p *Pipeline) JobNames() []string {
+	return slices.Collect(maps.Keys(p.GetJobs()))
 }
 
 // GetAliases will give key => value mapping for commands in a pipeline.
