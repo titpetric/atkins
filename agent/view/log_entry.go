@@ -10,4 +10,5 @@ type LogEntry struct {
 	Running  bool
 	Duration time.Duration
 	Failed   bool
+	Progress string // live progress status line (when running)
 }

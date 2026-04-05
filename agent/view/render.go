@@ -13,21 +13,22 @@ import (
 
 // RenderData holds all data needed to render the TUI view.
 type RenderData struct {
-	Width      int
-	Height     int
-	Version    string
-	Hostname   string
-	Cwd        string
-	GitBranch  string
-	GitAdded   int
-	GitRemoved int
-	Log        []LogEntry
-	ScrollOff  int
-	Spinner    spinner.Model
-	State      int // 0=idle
-	Input      string
-	Cursor     int
-	PromptMode PromptMode
+	Width           int
+	Height          int
+	Version         string
+	Hostname        string
+	Cwd             string
+	GitBranch       string
+	GitAdded        int
+	GitRemoved      int
+	Log             []LogEntry
+	ScrollOff       int
+	Spinner         spinner.Model
+	ProgressSpinner spinner.Model
+	State           int // 0=idle
+	Input           string
+	Cursor          int
+	PromptMode      PromptMode
 }
 
 // Render produces the full TUI view.
@@ -46,7 +47,7 @@ func Render(d *RenderData) tea.View {
 
 	// === Message log ===
 	logH := LogHeight(d.Height)
-	lines := RenderLog(d.Spinner, d.Log, w)
+	lines := RenderLog(d.Spinner, d.ProgressSpinner, d.Log, w)
 
 	// Apply scroll offset
 	start := len(lines) - logH - d.ScrollOff
@@ -99,18 +100,39 @@ func RenderHeader(w int, version, hostname string) string {
 }
 
 // RenderLog renders all log entries into lines.
-func RenderLog(spin spinner.Model, log []LogEntry, width int) []string {
+func RenderLog(spin spinner.Model, progressSpin spinner.Model, log []LogEntry, width int) []string {
 	borderColor := "\033[38;5;66m"
 	reset := "\033[0m"
 
 	var lines []string
+	inJobBlock := false
+
+	closeJobBlock := func() {
+		if inJobBlock {
+			lines = append(lines, " "+borderColor+"╰────────────────────────────────────────"+reset)
+			inJobBlock = false
+		}
+	}
+
 	for _, entry := range log {
 		switch entry.Kind {
 		case "run":
+			// The run entry opens the job result block (like shell-cmd opens output)
+			closeJobBlock()
 			lines = append(lines, RenderRunEntry(spin, entry))
+			lines = append(lines, " "+borderColor+"╭────────────────────────────────────────"+reset)
+			inJobBlock = true
+		case "job-result":
+			lines = append(lines, " "+borderColor+"│"+reset+" "+entry.Text)
+		case "job-error":
+			for _, l := range strings.Split(strings.TrimSpace(entry.Text), "\n") {
+				lines = append(lines, " "+borderColor+"│"+reset+"   "+colors.Dim(l))
+			}
 		case "prompt":
+			closeJobBlock()
 			lines = append(lines, " "+colors.BrightCyan(entry.Text))
 		case "shell-cmd":
+			closeJobBlock()
 			lines = append(lines, " "+colors.BrightOrange(entry.Text))
 			lines = append(lines, " "+borderColor+"╭────────────────────────────────────────"+reset)
 		case "output":
@@ -121,12 +143,18 @@ func RenderLog(spin spinner.Model, log []LogEntry, width int) []string {
 				lines = append(lines, " "+borderColor+"│"+reset+" "+l)
 			}
 		case "welcome":
+			closeJobBlock()
 			lines = append(lines, RenderWelcomeBox(entry.Text, width)...)
 		default:
+			closeJobBlock()
 			for _, l := range strings.Split(entry.Text, "\n") {
 				lines = append(lines, " "+l)
 			}
 		}
+	}
+	// If still inside a job block (execution in progress), show progress spinner
+	if inJobBlock {
+		lines = append(lines, " "+borderColor+"│"+reset+" "+progressSpin.View())
 	}
 	return lines
 }
@@ -151,6 +179,11 @@ func expandTabs(s string, tabWidth int) string {
 // RenderRunEntry renders a single run log entry.
 func RenderRunEntry(spin spinner.Model, entry LogEntry) string {
 	if entry.Running {
+		if entry.Progress != "" {
+			return fmt.Sprintf(" %s %s",
+				spin.View(),
+				entry.Progress)
+		}
 		return fmt.Sprintf(" %s %s",
 			spin.View(),
 			colors.BrightWhite(entry.Task))

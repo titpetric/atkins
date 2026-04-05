@@ -74,6 +74,12 @@ type ExecutionContext struct {
 	// jobTracker tracks which jobs have finished execution (for dependency resolution).
 	// Shared across copies so the mutex protects the map consistently.
 	jobTracker *jobTracker
+
+	// Progress receives job lifecycle events (optional).
+	Progress ProgressObserver
+
+	// Parents is the ancestor job chain for nested task invocations.
+	Parents []string
 }
 ```
 
@@ -96,6 +102,23 @@ type FuzzyMatchError struct {
 type IterationContext struct {
 	Variables model.VariableStorage
 }
+```
+
+```go
+// JobProgressEvent represents a job lifecycle event.
+type JobProgressEvent struct {
+	JobName   string
+	Parents   []string // ancestor chain for nested task invocations, e.g. ["default", "fmt"] when "lint" runs inside default > fmt
+	Status    JobProgressStatus
+	StartedAt time.Time
+	Duration  time.Duration // set for terminal states
+	Err       error         // set for failed
+}
+```
+
+```go
+// JobProgressStatus represents the status of a job in progress.
+type JobProgressStatus string
 ```
 
 ```go
@@ -168,7 +191,20 @@ type PipelineOptions struct {
 	JSON         bool
 	YAML         bool
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
+	Progress     ProgressObserver  // Optional observer for job progress events
 }
+```
+
+```go
+// ProgressObserver receives job progress events.
+type ProgressObserver interface {
+	OnJobProgress(JobProgressEvent)
+}
+```
+
+```go
+// ProgressObserverFunc is a function adapter for ProgressObserver.
+type ProgressObserverFunc func(JobProgressEvent)
 ```
 
 ```go
@@ -220,6 +256,18 @@ type VarPromise struct {
 	state promiseState
 	mu    sync.Mutex
 }
+```
+
+## Consts
+
+```go
+// Job progress status constants.
+const (
+	JobProgressRunning JobProgressStatus = "running"
+	JobProgressPassed  JobProgressStatus = "passed"
+	JobProgressFailed  JobProgressStatus = "failed"
+	JobProgressSkipped JobProgressStatus = "skipped"
+)
 ```
 
 ## Vars
@@ -282,6 +330,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*ContextVariables) SetResolver (resolver func(string) (string, error))`
 - `func (*ContextVariables) Walk (fn func(key string, value any))`
 - `func (*ExecutionContext) Copy () *ExecutionContext`
+- `func (*ExecutionContext) EmitProgress (ev JobProgressEvent)`
 - `func (*ExecutionContext) IsJobCompleted (jobName string) bool`
 - `func (*ExecutionContext) MarkJobCompleted (jobName string)`
 - `func (*ExecutionContext) NextStepIndex () int`
@@ -305,6 +354,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (Env) Environ () []string`
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
+- `func (ProgressObserverFunc) OnJobProgress (ev JobProgressEvent)`
 
 ### DefaultOptions
 
@@ -716,6 +766,14 @@ jobTracker is shared (not copied) to maintain consistent dependency tracking.
 func (*ExecutionContext) Copy() *ExecutionContext
 ```
 
+### EmitProgress
+
+EmitProgress sends a job progress event if an observer is set.
+
+```go
+func (*ExecutionContext) EmitProgress(ev JobProgressEvent)
+```
+
 ### IsJobCompleted
 
 IsJobCompleted checks if a job has been completed.
@@ -912,4 +970,12 @@ Len returns the length of the error output.
 
 ```go
 func (ExecError) Len() int
+```
+
+### OnJobProgress
+
+OnJobProgress implements ProgressObserver.
+
+```go
+func (ProgressObserverFunc) OnJobProgress(ev JobProgressEvent)
 ```

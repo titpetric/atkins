@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -11,6 +12,7 @@ import (
 	"github.com/titpetric/atkins/agent/view"
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
+	"github.com/titpetric/atkins/runner"
 )
 
 // UsageText returns the usage help text for non-interactive mode.
@@ -100,16 +102,21 @@ type Model struct {
 	gitBranch string
 	gitStats  GitStats
 
-	log       []LogEntry
-	scrollOff int
-	spinner   spinner.Model
-	runLogIdx int // index of the current running entry in log
+	log             []LogEntry
+	scrollOff       int
+	spinner         spinner.Model
+	progressSpinner spinner.Model
+	runLogIdx       int // index of the current running entry in log
 
 	// Confirmation state for fuzzy matching
 	pendingConfirm *router.Route
 
 	// Prompt mode (language or shell)
 	promptMode PromptMode
+
+	// Job progress tracking
+	progressCh   <-chan runner.JobProgressEvent
+	execProgress *executionProgress
 }
 
 // NewModel creates a new bubbletea model for the agent.
@@ -117,22 +124,25 @@ func NewModel(agent *Agent, version string) Model {
 	cwd := agent.WorkDir()
 	s := spinner.New()
 	s.Spinner = spinner.Dot
+	ps := spinner.New()
+	ps.Spinner = spinner.Meter
 	registry := DefaultRegistry()
 	m := Model{
-		agent:      agent,
-		state:      StateIdle,
-		history:    []string{},
-		historyIdx: -1,
-		breadcrumb: NewBreadcrumb(),
-		router:     router.NewRouter(agent.Resolver(), agent.Pipelines(), registry),
-		registry:   registry,
-		version:    version,
-		hostname:   detectHostname(),
-		cwd:        cwd,
-		gitBranch:  detectGitBranch(cwd),
-		gitStats:   detectGitStats(cwd),
-		spinner:    s,
-		runLogIdx:  -1,
+		agent:           agent,
+		state:           StateIdle,
+		history:         []string{},
+		historyIdx:      -1,
+		breadcrumb:      NewBreadcrumb(),
+		router:          router.NewRouter(agent.Resolver(), agent.Pipelines(), registry),
+		registry:        registry,
+		version:         version,
+		hostname:        detectHostname(),
+		cwd:             cwd,
+		gitBranch:       detectGitBranch(cwd),
+		gitStats:        detectGitStats(cwd),
+		spinner:         s,
+		progressSpinner: ps,
+		runLogIdx:       -1,
 	}
 	m.appendGreeting()
 	return m
@@ -140,7 +150,7 @@ func NewModel(agent *Agent, version string) Model {
 
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
-	return m.spinner.Tick
+	return tea.Batch(m.spinner.Tick, m.progressSpinner.Tick)
 }
 
 func (m *Model) appendGreeting() {
@@ -186,6 +196,17 @@ func (m *Model) appendRunLog(task string) int {
 	return len(m.log) - 1
 }
 
+// waitForJobProgress reads the next event from the progress channel.
+func waitForJobProgress(ch <-chan runner.JobProgressEvent) tea.Cmd {
+	return func() tea.Msg {
+		ev, ok := <-ch
+		if !ok {
+			return JobProgressClosedMsg{}
+		}
+		return JobProgressMsg{Event: ev}
+	}
+}
+
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -208,15 +229,75 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.runLogIdx = m.appendRunLog(msg.Task)
 
-		return m, tea.Batch(m.spinner.Tick, m.runPipeline(msg.Resolved))
+		progressCh := make(chan runner.JobProgressEvent, 32)
+		m.progressCh = progressCh
+		m.execProgress = newExecutionProgress()
+
+		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runPipeline(msg.Resolved, progressCh))
+
+	case JobProgressMsg:
+		if m.execProgress != nil {
+			m.execProgress.Apply(msg.Event)
+			// Update the run log entry with progress status
+			if m.runLogIdx >= 0 && m.runLogIdx < len(m.log) {
+				m.log[m.runLogIdx].Progress = m.execProgress.StatusLine(time.Now())
+			}
+			durStr := view.FormatJobDuration(msg.Event.Duration)
+			bc := formatBreadcrumb(msg.Event.Parents, msg.Event.JobName)
+			switch msg.Event.Status {
+			case runner.JobProgressPassed:
+				m.appendLog("job-result", fmt.Sprintf("%s %s %s",
+					colors.BrightGreen("✓"), bc, colors.Dim("("+durStr+")")))
+			case runner.JobProgressFailed:
+				errText := ""
+				if msg.Event.Err != nil {
+					errText = msg.Event.Err.Error()
+				}
+				m.appendLog("job-result", fmt.Sprintf("%s %s %s",
+					colors.BrightRed("✗"), bc, colors.Dim("("+durStr+")")))
+				if errText != "" {
+					m.appendLog("job-error", errText)
+				}
+			}
+		}
+		return m, waitForJobProgress(m.progressCh)
+
+	case JobProgressClosedMsg:
+		return m, nil
 
 	case ExecutionDoneMsg:
+		// Drain any remaining progress events from the buffered channel.
+		// The channel is closed (defer) before ExecutionDoneMsg is returned,
+		// so this won't block — it just processes any buffered events that
+		// bubbletea hasn't consumed yet.
+		if m.progressCh != nil && m.execProgress != nil {
+			for ev := range m.progressCh {
+				m.execProgress.Apply(ev)
+				durStr := view.FormatJobDuration(ev.Duration)
+				bc := formatBreadcrumb(ev.Parents, ev.JobName)
+				switch ev.Status {
+				case runner.JobProgressPassed:
+					m.appendLog("job-result", fmt.Sprintf("%s %s %s",
+						colors.BrightGreen("✓"), bc, colors.Dim("("+durStr+")")))
+				case runner.JobProgressFailed:
+					m.appendLog("job-result", fmt.Sprintf("%s %s %s",
+						colors.BrightRed("✗"), bc, colors.Dim("("+durStr+")")))
+					if ev.Err != nil {
+						m.appendLog("job-error", ev.Err.Error())
+					}
+				}
+			}
+		}
+
 		if m.runLogIdx >= 0 && m.runLogIdx < len(m.log) {
 			entry := &m.log[m.runLogIdx]
 			entry.Running = false
 			entry.Duration = msg.Duration
 			entry.Failed = msg.Err != nil
+			entry.Progress = ""
 		}
+		m.execProgress = nil
+		m.progressCh = nil
 
 		// Refresh git stats after execution
 		m.gitStats = detectGitStats(m.cwd)
@@ -226,7 +307,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.breadcrumb.SetStatus("failed")
 			m.router.SetLastCommand(m.router.LastCommand(), true) // Mark as failed
 
-			m.appendLog("error", colors.BrightRed("Error: ")+msg.Err.Error())
 			m.appendLog("info", colors.Dim("Tip: type 'again' or 'retry' to re-run"))
 			m.appendLog("info", "")
 
@@ -260,7 +340,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.runLogIdx = m.appendRunLog(msg.FixTask.Name + " (autofix)")
 
-		return m, tea.Batch(m.spinner.Tick, m.runAutofixPipeline(msg.OriginalTask, msg.FixTask))
+		progressCh := make(chan runner.JobProgressEvent, 32)
+		m.progressCh = progressCh
+		m.execProgress = newExecutionProgress()
+
+		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runAutofixPipeline(msg.OriginalTask, msg.FixTask, progressCh))
 
 	case AutofixDoneMsg:
 		if m.runLogIdx >= 0 && m.runLogIdx < len(m.log) {
@@ -268,7 +352,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			entry.Running = false
 			entry.Duration = msg.Duration
 			entry.Failed = msg.Err != nil
+			entry.Progress = ""
 		}
+		m.execProgress = nil
+		m.progressCh = nil
 
 		if msg.Err != nil {
 			m.lastError = msg.Err
@@ -290,7 +377,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case RetryMsg:
 		m.state = StateRetrying
 		m.runLogIdx = m.appendRunLog(msg.Task.Name + " (retry)")
-		return m, tea.Batch(m.spinner.Tick, m.runPipeline(msg.Task))
+
+		progressCh := make(chan runner.JobProgressEvent, 32)
+		m.progressCh = progressCh
+		m.execProgress = newExecutionProgress()
+
+		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runPipeline(msg.Task, progressCh))
 
 	case ShellStartMsg:
 		m.state = StateExecuting
@@ -314,10 +406,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Forward all other messages to the spinner
-	var cmd tea.Cmd
-	m.spinner, cmd = m.spinner.Update(msg)
-	return m, cmd
+	// Forward all other messages to the spinners
+	var cmd1, cmd2 tea.Cmd
+	m.spinner, cmd1 = m.spinner.Update(msg)
+	m.progressSpinner, cmd2 = m.progressSpinner.Update(msg)
+
+	// On spinner tick, refresh the progress status line so timers update live
+	if m.execProgress != nil && m.runLogIdx >= 0 && m.runLogIdx < len(m.log) {
+		m.log[m.runLogIdx].Progress = m.execProgress.StatusLine(time.Now())
+	}
+
+	return m, tea.Batch(cmd1, cmd2)
 }
 
 // handleKey processes keyboard input.
@@ -438,6 +537,14 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		input = strings.TrimSpace(input[1:])
 	}
 
+	// Save original input (with $ prefix for shell commands) to history
+	if shellMode && input != "" {
+		m.history = append(m.history, "$ "+input)
+	} else {
+		m.history = append(m.history, input)
+	}
+	m.historyIdx = len(m.history)
+
 	m.input = ""
 	m.cursor = 0
 	m.promptMode = PromptModeLanguage
@@ -474,9 +581,6 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		m.appendLog("info", "")
 		return m, nil
 	}
-
-	m.history = append(m.history, input)
-	m.historyIdx = len(m.history)
 
 	// router.Route input using centralized router (follows structure.d2 flow)
 	route := m.router.Route(input)

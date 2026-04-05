@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/titpetric/atkins/model"
+	"github.com/titpetric/atkins/runner"
 )
 
 // ExecutionStartMsg signals a task execution should begin.
@@ -51,3 +52,11 @@ type ShellDoneMsg struct {
 	ExitCode int
 	Duration time.Duration
 }
+
+// JobProgressMsg signals a job progress update from the runner.
+type JobProgressMsg struct {
+	Event runner.JobProgressEvent
+}
+
+// JobProgressClosedMsg signals the progress channel was closed.
+type JobProgressClosedMsg struct{}

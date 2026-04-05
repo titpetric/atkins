@@ -67,6 +67,12 @@ type ExecutionContext struct {
 	// jobTracker tracks which jobs have finished execution (for dependency resolution).
 	// Shared across copies so the mutex protects the map consistently.
 	jobTracker *jobTracker
+
+	// Progress receives job lifecycle events (optional).
+	Progress ProgressObserver
+
+	// Parents is the ancestor job chain for nested task invocations.
+	Parents []string
 }
 
 // Resolver provides task resolution in the execution context.
@@ -113,6 +119,8 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 		EventLogger:  e.EventLogger,
 		StepSequence: e.StepSequence,
 		jobTracker:   e.jobTracker,
+		Progress:     e.Progress,
+		Parents:      append([]string(nil), e.Parents...),
 	}
 }
 
@@ -134,6 +142,13 @@ func (e *ExecutionContext) IsJobCompleted(jobName string) bool {
 // Render refreshes the treeview.
 func (e *ExecutionContext) Render() {
 	e.Display.Render(e.Builder.Root())
+}
+
+// EmitProgress sends a job progress event if an observer is set.
+func (e *ExecutionContext) EmitProgress(ev JobProgressEvent) {
+	if e.Progress != nil {
+		e.Progress.OnJobProgress(ev)
+	}
 }
 
 // NextStepIndex returns the next sequential step index for this job execution.

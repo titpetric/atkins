@@ -50,6 +50,7 @@ type LogEntry struct {
 	Running  bool
 	Duration time.Duration
 	Failed   bool
+	Progress string // live progress status line (when running)
 }
 ```
 
@@ -61,21 +62,22 @@ type PromptMode int
 ```go
 // RenderData holds all data needed to render the TUI view.
 type RenderData struct {
-	Width      int
-	Height     int
-	Version    string
-	Hostname   string
-	Cwd        string
-	GitBranch  string
-	GitAdded   int
-	GitRemoved int
-	Log        []LogEntry
-	ScrollOff  int
-	Spinner    spinner.Model
-	State      int // 0=idle
-	Input      string
-	Cursor     int
-	PromptMode PromptMode
+	Width           int
+	Height          int
+	Version         string
+	Hostname        string
+	Cwd             string
+	GitBranch       string
+	GitAdded        int
+	GitRemoved      int
+	Log             []LogEntry
+	ScrollOff       int
+	Spinner         spinner.Model
+	ProgressSpinner spinner.Model
+	State           int // 0=idle
+	Input           string
+	Cursor          int
+	PromptMode      PromptMode
 }
 ```
 
@@ -129,7 +131,7 @@ const (
 - `func RenderHeader (w int, version,hostname string) string`
 - `func RenderJobEntry (name string, running bool, failed bool, duration time.Duration, errMsg string) string`
 - `func RenderJobSummary (total,passed,failed int, duration time.Duration) string`
-- `func RenderLog (spin spinner.Model, log []LogEntry, width int) []string`
+- `func RenderLog (spin spinner.Model, progressSpin spinner.Model, log []LogEntry, width int) []string`
 - `func RenderRunEntry (spin spinner.Model, entry LogEntry) string`
 - `func RenderWelcomeBox (text string, width int) []string`
 - `func ShortenPath (p string) string`
@@ -238,7 +240,7 @@ func RenderJobSummary(total, passed, failed int, duration time.Duration) string
 RenderLog renders all log entries into lines.
 
 ```go
-func RenderLog(spin spinner.Model, log []LogEntry, width int) []string
+func RenderLog(spin spinner.Model, progressSpin spinner.Model, log []LogEntry, width int) []string
 ```
 
 ### RenderRunEntry

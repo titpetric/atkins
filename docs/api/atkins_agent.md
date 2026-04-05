@@ -67,6 +67,11 @@ type ExecutionDoneMsg struct {
 ```
 
 ```go
+// ExecutionProgressExported is exported for testing. Use newExecutionProgress in production.
+type ExecutionProgressExported = executionProgress
+```
+
+```go
 // ExecutionStartMsg signals a task execution should begin.
 type ExecutionStartMsg struct {
 	Input    string // original user input
@@ -101,6 +106,18 @@ type (
 ```
 
 ```go
+// JobProgressClosedMsg signals the progress channel was closed.
+type JobProgressClosedMsg struct{}
+```
+
+```go
+// JobProgressMsg signals a job progress update from the runner.
+type JobProgressMsg struct {
+	Event runner.JobProgressEvent
+}
+```
+
+```go
 // Model is the bubbletea model for the agent REPL.
 type Model struct {
 	agent      *Agent
@@ -129,16 +146,21 @@ type Model struct {
 	gitBranch string
 	gitStats  GitStats
 
-	log       []LogEntry
-	scrollOff int
-	spinner   spinner.Model
-	runLogIdx int // index of the current running entry in log
+	log             []LogEntry
+	scrollOff       int
+	spinner         spinner.Model
+	progressSpinner spinner.Model
+	runLogIdx       int // index of the current running entry in log
 
 	// Confirmation state for fuzzy matching
 	pendingConfirm *router.Route
 
 	// Prompt mode (language or shell)
 	promptMode PromptMode
+
+	// Job progress tracking
+	progressCh   <-chan runner.JobProgressEvent
+	execProgress *executionProgress
 }
 ```
 
@@ -298,6 +320,7 @@ var (
 - `func New (workDir string, opts *Options) (*Agent, error)`
 - `func NewAutoFixer (resolver *runner.TaskResolver, skills []*model.Pipeline) *AutoFixer`
 - `func NewBreadcrumb () *Breadcrumb`
+- `func NewExecutionProgressForTest () *executionProgress`
 - `func NewExecutor (ctx context.Context, agent *Agent, rtr *router.Router, out Output) *Executor`
 - `func NewJobView () *JobView`
 - `func NewModel (agent *Agent, version string) Model`
@@ -374,6 +397,14 @@ NewBreadcrumb creates a new breadcrumb tracker.
 
 ```go
 func NewBreadcrumb() *Breadcrumb
+```
+
+### NewExecutionProgressForTest
+
+NewExecutionProgressForTest creates an executionProgress for testing.
+
+```go
+func NewExecutionProgressForTest() *executionProgress
 ```
 
 ### NewExecutor

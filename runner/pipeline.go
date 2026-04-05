@@ -32,6 +32,7 @@ type PipelineOptions struct {
 	JSON         bool
 	YAML         bool
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
+	Progress     ProgressObserver  // Optional observer for job progress events
 }
 
 // Pipeline holds pipeline execution logic.
@@ -109,6 +110,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		JobNodes:     make(map[string]*treeview.TreeNode),
 		EventLogger:  logger,
 		jobTracker:   newJobTracker(),
+		Progress:     p.opts.Progress,
 	}
 
 	// Copy environment variables from OS
@@ -169,6 +171,10 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			}
 		}
 	}
+
+	// Build ancestor map: for each dependency job, track which parent chain caused it.
+	// e.g. if "default" depends_on "fmt", depAncestors["fmt"] = ["default"].
+	depAncestors := buildDepAncestors(allJobs, jobs)
 
 	// Pre-populate all jobs as pending - include all jobs that might be invoked
 	jobNodes := make(map[string]*treeview.TreeNode)
@@ -389,6 +395,10 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		jobCtx.Depth = 1
 		jobCtx.StepSequence = 0 // Reset step counter for each job
 
+		// Set parent chain from dependency ancestry
+		ancestors := depAncestors[jobName]
+		jobCtx.Parents = append(ancestors, jobName)
+
 		// Get pre-created job node and mark it as running
 		jobNode := jobNodes[jobName]
 		jobNode.SetStatus(treeview.StatusRunning)
@@ -401,6 +411,13 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		}
 		jobNode.SetStartOffset(jobStartOffset)
 		jobStartTime := time.Now()
+
+		pipelineCtx.EmitProgress(JobProgressEvent{
+			JobName:   jobName,
+			Parents:   ancestors,
+			Status:    JobProgressRunning,
+			StartedAt: jobStartTime,
+		})
 
 		display.Render(root)
 
@@ -421,6 +438,14 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 				child.Node.SetStatus(treeview.StatusSkipped)
 			}
 			display.Render(root)
+
+			pipelineCtx.EmitProgress(JobProgressEvent{
+				JobName:   jobName,
+				Parents:   ancestors,
+				Status:    JobProgressSkipped,
+				StartedAt: jobStartTime,
+				Duration:  jobDuration,
+			})
 
 			// Log skip event
 			jobID := "jobs." + jobName
@@ -443,6 +468,15 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		}
 
 		if execErr != nil {
+			pipelineCtx.EmitProgress(JobProgressEvent{
+				JobName:   jobName,
+				Parents:   ancestors,
+				Status:    JobProgressFailed,
+				StartedAt: jobStartTime,
+				Duration:  jobDuration,
+				Err:       execErr,
+			})
+
 			pipelineCtx.MarkJobCompleted(jobName)
 			return execErr
 		}
@@ -450,6 +484,14 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		// Mark job as passed
 		jobNode.SetStatus(treeview.StatusPassed)
 		display.Render(root)
+
+		pipelineCtx.EmitProgress(JobProgressEvent{
+			JobName:   jobName,
+			Parents:   ancestors,
+			Status:    JobProgressPassed,
+			StartedAt: jobStartTime,
+			Duration:  jobDuration,
+		})
 
 		pipelineCtx.MarkJobCompleted(jobName)
 
@@ -561,6 +603,34 @@ func writeEventLog(logger *eventlog.Logger, root *treeview.Node, runErr error) {
 	}
 
 	_ = logger.Write(state, summary)
+}
+
+// buildDepAncestors walks the depends_on graph for each requested job
+// and returns a map from each dependency job name to its ancestor chain.
+// For example, if "default" depends_on ["fmt"] and "fmt" depends_on ["lint"],
+// the result is: {"fmt": ["default"], "lint": ["default", "fmt"]}.
+// Root jobs (the ones directly requested) have no ancestors (empty slice).
+func buildDepAncestors(allJobs map[string]*model.Job, requestedJobs []string) map[string][]string {
+	ancestors := make(map[string][]string)
+
+	var walk func(jobName string, chain []string)
+	walk = func(jobName string, chain []string) {
+		job := allJobs[jobName]
+		if job == nil {
+			return
+		}
+		for _, dep := range GetDependencies(job.DependsOn) {
+			depChain := make([]string, len(chain))
+			copy(depChain, chain)
+			ancestors[dep] = depChain
+			walk(dep, append(depChain, dep))
+		}
+	}
+
+	for _, name := range requestedJobs {
+		walk(name, []string{name})
+	}
+	return ancestors
 }
 
 func parseEnv(env string) (string, string) {

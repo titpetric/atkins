@@ -104,6 +104,13 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	taskJobNode.SetStartOffset(taskStartOffset)
 	taskStartTime := time.Now()
 
+	execCtx.EmitProgress(JobProgressEvent{
+		JobName:   taskName,
+		Parents:   execCtx.Parents,
+		Status:    JobProgressRunning,
+		StartedAt: taskStartTime,
+	})
+
 	// Create a new execution context for the task using the task's existing tree node
 	taskCtx := execCtx.Copy()
 	taskCtx.Depth++
@@ -111,6 +118,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	taskCtx.CurrentJob = taskJobNode
 	taskCtx.Context = ctx
 	taskCtx.StepSequence = 0 // Reset step counter for new job
+	taskCtx.Parents = append(append([]string(nil), execCtx.Parents...), taskName)
 
 	err = func() error {
 		if err := MergeSkillVariables(taskCtx, targetPipeline.Decl); err != nil {
@@ -150,9 +158,26 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	if err != nil {
 		taskJobNode.SetStatus(treeview.StatusFailed)
 		stepNode.SetStatus(treeview.StatusFailed)
+
+		execCtx.EmitProgress(JobProgressEvent{
+			JobName:   taskName,
+			Parents:   execCtx.Parents,
+			Status:    JobProgressFailed,
+			StartedAt: taskStartTime,
+			Duration:  taskDuration,
+			Err:       err,
+		})
 	} else {
 		taskJobNode.SetStatus(treeview.StatusPassed)
 		stepNode.SetStatus(treeview.StatusPassed)
+
+		execCtx.EmitProgress(JobProgressEvent{
+			JobName:   taskName,
+			Parents:   execCtx.Parents,
+			Status:    JobProgressPassed,
+			StartedAt: taskStartTime,
+			Duration:  taskDuration,
+		})
 	}
 
 	execCtx.MarkJobCompleted(taskName)

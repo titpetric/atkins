@@ -26,8 +26,11 @@ func (m Model) getFixTask(task *model.ResolvedTask) *model.ResolvedTask {
 
 // runPipeline executes the task silently and returns the result with duration.
 // Silent mode suppresses tree display; only error messages are captured.
-func (m Model) runPipeline(task *model.ResolvedTask) tea.Cmd {
+// The progress channel receives job lifecycle events during execution.
+func (m Model) runPipeline(task *model.ResolvedTask, progressCh chan runner.JobProgressEvent) tea.Cmd {
 	return func() tea.Msg {
+		defer close(progressCh)
+
 		jobName := task.Job.Name
 		start := time.Now()
 
@@ -37,6 +40,9 @@ func (m Model) runPipeline(task *model.ResolvedTask) tea.Cmd {
 			Silent:       true,
 			Debug:        m.agent.Options().Debug,
 			AllPipelines: m.agent.Pipelines(),
+			Progress: runner.ProgressObserverFunc(func(ev runner.JobProgressEvent) {
+				progressCh <- ev
+			}),
 		})
 
 		return ExecutionDoneMsg{
@@ -49,8 +55,10 @@ func (m Model) runPipeline(task *model.ResolvedTask) tea.Cmd {
 
 // runAutofixPipeline runs the fix task and then signals completion.
 // Silent mode suppresses tree display; only error messages are captured.
-func (m Model) runAutofixPipeline(originalTask, fixTask *model.ResolvedTask) tea.Cmd {
+func (m Model) runAutofixPipeline(originalTask, fixTask *model.ResolvedTask, progressCh chan runner.JobProgressEvent) tea.Cmd {
 	return func() tea.Msg {
+		defer close(progressCh)
+
 		jobName := fixTask.Job.Name
 		start := time.Now()
 
@@ -60,6 +68,9 @@ func (m Model) runAutofixPipeline(originalTask, fixTask *model.ResolvedTask) tea
 			Silent:       true,
 			Debug:        m.agent.Options().Debug,
 			AllPipelines: m.agent.Pipelines(),
+			Progress: runner.ProgressObserverFunc(func(ev runner.JobProgressEvent) {
+				progressCh <- ev
+			}),
 		})
 
 		return AutofixDoneMsg{
