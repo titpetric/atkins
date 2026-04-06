@@ -162,8 +162,34 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m *Model) appendGreeting() {
+	// figlet -f smslant "atkins"
+	art := []string{
+		colors.BrightCyan("       __  __    _        "),
+		colors.BrightCyan(" ___ _/ /_/ /__ (_)__  ___"),
+		colors.BrightCyan("/ _ `/ __/  '_// / _ \\(_-<"),
+		colors.BrightCyan("\\_,_/\\__/_/\\_\\/_/_//_/___/"),
+	}
+
 	var b strings.Builder
-	b.WriteString(colors.BrightCyan("Welcome to atkins.") + " Type a command to get started.\n")
+
+	// Print art lines
+	for _, line := range art {
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n")
+
+	// Session details below art
+	if m.version != "" {
+		b.WriteString(colors.Dim("version  ") + m.version + "\n")
+	}
+	if m.hostname != "" {
+		b.WriteString(colors.Dim("host     ") + m.hostname + "\n")
+	}
+	b.WriteString(colors.Dim("cwd      ") + view.ShortenPath(m.cwd) + "\n")
+	if m.gitBranch != "" {
+		b.WriteString(colors.Dim("branch   ") + m.gitBranch + "\n")
+	}
+
 	b.WriteString("\n")
 	b.WriteString(colors.Dim("Usage:") + "\n")
 	b.WriteString("  " + colors.BrightWhite("Natural language:") +
@@ -172,10 +198,6 @@ func (m *Model) appendGreeting() {
 		"       go:test, build, test\n")
 	b.WriteString("  " + colors.BrightWhite("Shell commands:") +
 		"     $ curl wttr.in, $ ls -la, $ docker ps\n")
-	b.WriteString("\n")
-	b.WriteString(colors.Dim("Aliasing commands and job targets:") + "\n")
-	b.WriteString("  " + colors.BrightWhite("\"alias server name to uname -n\"") + "\n")
-	b.WriteString("  " + colors.BrightWhite("\"if i say deploy, run docker:push\"") + "\n")
 	b.WriteString("\n")
 	b.WriteString(colors.Dim("Slash commands:") +
 		"  /help  /list  /run <task>  /cd <path>  /quit")

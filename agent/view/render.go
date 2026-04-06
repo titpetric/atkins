@@ -40,13 +40,8 @@ func Render(d *RenderData) tea.View {
 	var b strings.Builder
 	w := d.Width
 
-	// === Header bar ===
-	header := RenderHeader(w, d.Version, d.Hostname)
-	b.WriteString(header)
-	b.WriteString("\n")
-
 	// === Message log ===
-	logH := LogHeight(d.Height)
+	logH := d.Height - 3 // 3 footer lines, no header
 	lines := RenderLog(d.Spinner, d.ProgressSpinner, d.Log, w)
 
 	// Apply scroll offset
@@ -76,27 +71,6 @@ func Render(d *RenderData) tea.View {
 	v := tea.NewView(b.String())
 	v.AltScreen = true
 	return v
-}
-
-// RenderHeader renders the top header bar.
-func RenderHeader(w int, version, hostname string) string {
-	left := " 🔧 atkins"
-	if version != "" {
-		left += " " + colors.Dim(version)
-	}
-	right := ""
-	if hostname != "" {
-		right = hostname + " "
-	}
-
-	leftLen := colors.VisualLength(left)
-	rightLen := colors.VisualLength(right)
-	padding := w - leftLen - rightLen
-	if padding < 1 {
-		padding = 1
-	}
-
-	return "\033[7m" + left + strings.Repeat(" ", padding) + right + "\033[0m"
 }
 
 // RenderLog renders all log entries into lines.
@@ -335,7 +309,7 @@ func ShortenPath(p string) string {
 
 // LogHeight calculates the available log area height.
 func LogHeight(totalHeight int) int {
-	h := totalHeight - 4 // 1 header + 3 footer
+	h := totalHeight - 3 // 3 footer lines, no header
 	if h < 1 {
 		h = 1
 	}

@@ -63,6 +63,11 @@ func BrightCyan(text string) string {
 	return colorBright + colorCyan + text + colorReset
 }
 
+// Cyan returns text in cyan color.
+func Cyan(text string) string {
+	return colorCyan + text + colorReset
+}
+
 // BrightMagenta returns text in bright magenta color.
 func BrightMagenta(text string) string {
 	return colorBright + colorMagenta + text + colorReset
