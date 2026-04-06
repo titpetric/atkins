@@ -128,7 +128,6 @@ const (
 - `func NewJobView () *JobView`
 - `func Render (d *RenderData) tea.View`
 - `func RenderFooter (promptMode PromptMode, w,gitAdded,gitRemoved,state,cursor int, cwd,gitBranch,input string) string`
-- `func RenderHeader (w int, version,hostname string) string`
 - `func RenderJobEntry (name string, running bool, failed bool, duration time.Duration, errMsg string) string`
 - `func RenderJobSummary (total,passed,failed int, duration time.Duration) string`
 - `func RenderLog (spin spinner.Model, progressSpin spinner.Model, log []LogEntry, width int) []string`
@@ -209,14 +208,6 @@ RenderFooter renders the 3-line footer (border + input + bottom border).
 
 ```go
 func RenderFooter(promptMode PromptMode, w, gitAdded, gitRemoved, state, cursor int, cwd, gitBranch, input string) string
-```
-
-### RenderHeader
-
-RenderHeader renders the top header bar.
-
-```go
-func RenderHeader(w int, version, hostname string) string
 ```
 
 ### RenderJobEntry

@@ -15,6 +15,7 @@ import (
 - `func BrightRed (text string) string`
 - `func BrightWhite (text string) string`
 - `func BrightYellow (text string) string`
+- `func Cyan (text string) string`
 - `func Dim (text string) string`
 - `func Gray (text string) string`
 - `func Green (text string) string`
@@ -84,6 +85,14 @@ BrightYellow returns text in bright yellow color.
 
 ```go
 func BrightYellow(text string) string
+```
+
+### Cyan
+
+Cyan returns text in cyan color.
+
+```go
+func Cyan(text string) string
 ```
 
 ### Dim
