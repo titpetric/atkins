@@ -19,12 +19,22 @@ var interpolationRegex = regexp.MustCompile(`\$\{\{\s*([^}]+?)\s*\}\}`)
 // InterpolateString replaces ${{ expression }} with values from context.
 // Supports variable interpolation, dot notation, and expr expressions with ?? and || operators.
 func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
+	return interpolateString(s, ctx, false)
+}
+
+// interpolateIfString interpolates an if expression. Failed commands become
+// false, while successful commands with no output become true.
+func interpolateIfString(s string, ctx *ExecutionContext) (string, error) {
+	return interpolateString(s, ctx, true)
+}
+
+func interpolateString(s string, ctx *ExecutionContext, commandStatusAsCondition bool) (string, error) {
 	result := s
 
 	// Handle command execution: $(command)
 	// Use manual parsing to handle nested parentheses correctly
 	var cmdErr error
-	result = extractAndProcessCommandSubstitutions(ctx, result, &cmdErr)
+	result = extractAndProcessCommandSubstitutions(ctx, result, &cmdErr, commandStatusAsCondition)
 
 	if cmdErr != nil {
 		return "", cmdErr
@@ -55,7 +65,7 @@ func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
 }
 
 // extractAndProcessCommandSubstitutions handles $(...) by properly matching nested parentheses
-func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdErr *error) string {
+func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdErr *error, commandStatusAsCondition bool) string {
 	if *cmdErr != nil {
 		return s
 	}
@@ -129,7 +139,7 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 				})
 			}
 
-			if !cmdResult.Success() {
+			if !cmdResult.Success() && !commandStatusAsCondition {
 				// Capture error with better context showing what command was executed
 				errMsg := ""
 				if cmdResult.Err() != nil {
@@ -138,7 +148,16 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 				*cmdErr = fmt.Errorf("command execution failed in $(%s): %s", interpolatedCmd, errMsg)
 				return s
 			}
-			result += strings.TrimSpace(cmdResult.Output())
+
+			output := strings.TrimSpace(cmdResult.Output())
+			if commandStatusAsCondition {
+				if !cmdResult.Success() {
+					output = "false"
+				} else if output == "" {
+					output = "true"
+				}
+			}
+			result += output
 			i = closeIdx + 1
 		} else {
 			result += string(s[i])

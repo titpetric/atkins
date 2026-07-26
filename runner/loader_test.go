@@ -331,6 +331,36 @@ func TestEvaluateIfInContext(t *testing.T) {
 			env:      make(map[string]string),
 			wantBool: true,
 		},
+
+		// Command exit statuses
+		{
+			name:     "successful command with no output is truthy",
+			ifCond:   "$(test -d .)",
+			vars:     make(map[string]any),
+			env:      make(map[string]string),
+			wantBool: true,
+		},
+		{
+			name:     "failed command with no output is falsy",
+			ifCond:   "$(test -e ./path-that-does-not-exist)",
+			vars:     make(map[string]any),
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "failed command output does not override exit status",
+			ifCond:   "$(printf true; false)",
+			vars:     make(map[string]any),
+			env:      make(map[string]string),
+			wantBool: false,
+		},
+		{
+			name:     "successful command output remains an expression",
+			ifCond:   "$(printf true)",
+			vars:     make(map[string]any),
+			env:      make(map[string]string),
+			wantBool: true,
+		},
 	}
 
 	for _, tt := range tests {

@@ -76,6 +76,27 @@ jobs:
 if: branch matches "^release/.*"
 ```
 
+**Checking for files and directories:**
+
+```yaml
+jobs:
+  build-docs:
+    if: $(test -f README.md)
+    steps:
+      - run: echo "README.md exists"
+
+  publish-docs:
+    if: $(test -d docs)
+    steps:
+      - run: echo "docs directory exists"
+```
+
+Use `test -f` to check for a regular file and `test -d` to check for a
+directory. Commands in `$(...)` use their exit status as a condition when they
+produce no output: exit status 0 evaluates to `true`, and a non-zero exit status
+evaluates to `false` without failing the job. A non-zero status always evaluates
+to `false`, even if the command wrote output.
+
 ## Truthiness
 
 Values are coerced to boolean as follows:
