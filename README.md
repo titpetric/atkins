@@ -16,7 +16,6 @@ With atkins you can:
 It's driven by yaml syntax, and supports shell interpolation with `$(...)`, and
 yaml friendly variable interpolation: `name: ${{app.name}}`.
 
-
 ## Documentation
 
 - Getting Started
