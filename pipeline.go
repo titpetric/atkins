@@ -63,7 +63,7 @@ func Pipeline() *cli.Command {
 	opts := NewOptions()
 
 	return &cli.Command{
-		Name:    "run",
+		Name:    "_pipeline",
 		Title:   "Pipeline automation tool",
 		Default: true,
 		Bind: func(fs *pflag.FlagSet) {

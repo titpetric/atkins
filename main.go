@@ -17,8 +17,6 @@ func main() {
 func start() error {
 	app := cli.NewApp("atkins")
 	app.AddCommand("run", "Run pipeline", Pipeline)
-
 	app.DefaultCommand = "run"
-
 	return app.Run()
 }

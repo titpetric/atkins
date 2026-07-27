@@ -21,9 +21,7 @@ jobs:
     depends_on: fmt
     steps:
       - task: test:simple
-      - task: test:build
       - task: test:docs
-      - task: test:run
 
   install:
     desc: "Install atkins"

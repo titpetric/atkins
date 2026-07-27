@@ -745,6 +745,42 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 	})
 }
 
+func TestInvokedTask_SkipsWhenSubshellConditionFalse(t *testing.T) {
+	tmpDir := t.TempDir()
+	marker := tmpDir + "/should-not-exist"
+
+	conditionalTask := &model.Job{
+		Name: "conditional",
+		If:   model.Conditionals{"$(test -f missing-file)"},
+		Steps: []*model.Step{
+			{Run: "touch " + marker},
+		},
+	}
+	caller := &model.Job{
+		Name: "caller",
+		Steps: []*model.Step{
+			{Task: "conditional"},
+		},
+	}
+	pipeline := &model.Pipeline{
+		Name: "conditional task",
+		Dir:  tmpDir,
+		Jobs: map[string]*model.Job{
+			"caller":      caller,
+			"conditional": conditionalTask,
+		},
+	}
+
+	err := runner.RunPipeline(t.Context(), pipeline, runner.PipelineOptions{
+		Jobs:         []string{"caller"},
+		Silent:       true,
+		AllPipelines: []*model.Pipeline{pipeline},
+	})
+	assert.NoError(t, err)
+	_, statErr := os.Stat(marker)
+	assert.ErrorIs(t, statErr, os.ErrNotExist)
+}
+
 func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
 	t.Run("CurrentStep should be set to iteration node during execution", func(t *testing.T) {
 		// This tests the fix for BUG 1: output should go to the correct iteration node,

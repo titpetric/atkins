@@ -120,6 +120,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	taskCtx.StepSequence = 0 // Reset step counter for new job
 	taskCtx.Parents = append(append([]string(nil), execCtx.Parents...), taskName)
 
+	taskSkipped := false
 	err = func() error {
 		if err := MergeSkillVariables(taskCtx, targetPipeline.Decl); err != nil {
 			return err
@@ -136,6 +137,14 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		if err := ValidateJobRequirements(taskCtx, taskJob); err != nil {
 			return err
 		}
+		shouldRun, err := EvaluateJobIf(taskCtx)
+		if err != nil {
+			return fmt.Errorf("failed to evaluate if condition for task %q: %w", taskName, err)
+		}
+		if !shouldRun {
+			taskSkipped = true
+			return nil
+		}
 		if err := e.executeSteps(ctx, taskCtx, taskJob.Children()); err != nil {
 			return err
 		}
@@ -149,7 +158,9 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	taskID := "jobs." + taskName
 	if execCtx.EventLogger != nil {
 		result := eventlog.ResultPass
-		if err != nil {
+		if taskSkipped {
+			result = eventlog.ResultSkipped
+		} else if err != nil {
 			result = eventlog.ResultFail
 		}
 		execCtx.EventLogger.LogExec(result, taskID, taskName, taskStartOffset, taskDuration.Milliseconds(), err)
@@ -166,6 +177,21 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 			StartedAt: taskStartTime,
 			Duration:  taskDuration,
 			Err:       err,
+		})
+	} else if taskSkipped {
+		taskJobNode.SetStatus(treeview.StatusSkipped)
+		taskJobNode.SetIf(taskJob.If.String())
+		stepNode.SetStatus(treeview.StatusSkipped)
+		for _, child := range taskJobNode.GetChildren() {
+			child.Node.SetStatus(treeview.StatusSkipped)
+		}
+
+		execCtx.EmitProgress(JobProgressEvent{
+			JobName:   taskName,
+			Parents:   execCtx.Parents,
+			Status:    JobProgressSkipped,
+			StartedAt: taskStartTime,
+			Duration:  taskDuration,
 		})
 	} else {
 		taskJobNode.SetStatus(treeview.StatusPassed)
@@ -320,6 +346,17 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 			if err := ValidateJobRequirements(iterCtx, taskJob); err != nil {
 				iterTreeNode.SetStatus(treeview.StatusFailed)
 				return err
+			}
+
+			shouldRun, err := EvaluateJobIf(iterCtx)
+			if err != nil {
+				iterTreeNode.SetStatus(treeview.StatusFailed)
+				return fmt.Errorf("failed to evaluate if condition for task %q: %w", taskJob.Name, err)
+			}
+			if !shouldRun {
+				iterTreeNode.SetStatus(treeview.StatusSkipped)
+				iterTreeNode.SetIf(taskJob.If.String())
+				return nil
 			}
 
 			// Execute the task job steps with the iteration's own context
