@@ -11,9 +11,10 @@ import (
 ```go
 // ContextVariables provides thread-safe variable storage with Promise-based lazy evaluation.
 type ContextVariables struct {
-	promises map[string]*VarPromise
-	resolver func(string) (string, error)
-	mu       sync.Mutex
+	promises        map[string]*VarPromise
+	resolver        func(string) (string, error)
+	loopResolvedEnv map[string]bool
+	mu              sync.Mutex
 }
 ```
 
@@ -325,6 +326,8 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func VisualLength (s string) int`
 - `func (*ContextVariables) Clone () model.VariableStorage`
 - `func (*ContextVariables) Get (key string) any`
+- `func (*ContextVariables) GetWithError (key string) (any, error)`
+- `func (*ContextVariables) IsResolved (key string) bool`
 - `func (*ContextVariables) ResolveAll () error`
 - `func (*ContextVariables) Set (key string, value any)`
 - `func (*ContextVariables) SetResolver (resolver func(string) (string, error))`
@@ -722,6 +725,22 @@ Get returns a variable value, evaluating lazily if pending.
 
 ```go
 func (*ContextVariables) Get(key string) any
+```
+
+### GetWithError
+
+GetWithError returns a variable value and any lazy evaluation error.
+
+```go
+func (*ContextVariables) GetWithError(key string) (any, error)
+```
+
+### IsResolved
+
+IsResolved reports whether a variable has completed lazy evaluation.
+
+```go
+func (*ContextVariables) IsResolved(key string) bool
 ```
 
 ### ResolveAll

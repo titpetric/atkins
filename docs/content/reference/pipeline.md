@@ -55,7 +55,7 @@ The pipeline is the root configuration object in an Atkins file.
 
 ## Environment Inheritance
 
-Atkins passes the full shell environment to all commands. There is no need to explicitly declare which variables to inherit.
+Atkins passes the full shell environment to all commands. You don't need to explicitly declare which variables to inherit.
 
 ```yaml
 jobs:

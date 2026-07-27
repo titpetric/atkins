@@ -40,9 +40,10 @@ func newPendingPromise(raw any) *VarPromise {
 
 // ContextVariables provides thread-safe variable storage with Promise-based lazy evaluation.
 type ContextVariables struct {
-	promises map[string]*VarPromise
-	resolver func(string) (string, error)
-	mu       sync.Mutex
+	promises        map[string]*VarPromise
+	resolver        func(string) (string, error)
+	loopResolvedEnv map[string]bool
+	mu              sync.Mutex
 }
 
 // NewContextVariables creates a ContextVariables from a map of evaluated values.
@@ -94,6 +95,34 @@ func (v *ContextVariables) Get(key string) any {
 
 	val, _ := v.resolve(promise, resolver)
 	return val
+}
+
+// GetWithError returns a variable value and any lazy evaluation error.
+func (v *ContextVariables) GetWithError(key string) (any, error) {
+	v.mu.Lock()
+	promise, ok := v.promises[key]
+	resolver := v.resolver
+	v.mu.Unlock()
+
+	if !ok {
+		return nil, nil
+	}
+
+	return v.resolve(promise, resolver)
+}
+
+// IsResolved reports whether a variable has completed lazy evaluation.
+func (v *ContextVariables) IsResolved(key string) bool {
+	v.mu.Lock()
+	promise, ok := v.promises[key]
+	v.mu.Unlock()
+	if !ok {
+		return false
+	}
+
+	promise.mu.Lock()
+	defer promise.mu.Unlock()
+	return promise.state == stateResolved
 }
 
 // resolve evaluates a single promise, detecting cycles via the resolving state.
@@ -168,13 +197,21 @@ func (v *ContextVariables) Clone() model.VariableStorage {
 	defer v.mu.Unlock()
 
 	clone := &ContextVariables{
-		promises: make(map[string]*VarPromise, len(v.promises)),
-		resolver: v.resolver,
+		promises:        make(map[string]*VarPromise, len(v.promises)),
+		resolver:        v.resolver,
+		loopResolvedEnv: make(map[string]bool, len(v.loopResolvedEnv)),
+	}
+	for k, resolved := range v.loopResolvedEnv {
+		clone.loopResolvedEnv[k] = resolved
 	}
 	for k, p := range v.promises {
 		p.mu.Lock()
 		if p.state == stateResolved {
-			clone.promises[k] = newResolvedPromise(p.value)
+			clone.promises[k] = &VarPromise{
+				value: p.value,
+				err:   p.err,
+				state: stateResolved,
+			}
 		} else {
 			clone.promises[k] = newPendingPromise(p.raw)
 		}

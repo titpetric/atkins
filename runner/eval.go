@@ -8,6 +8,8 @@ import (
 	"github.com/expr-lang/expr"
 )
 
+var directVariableRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
 // EvaluateIf evaluates the If condition using expr-lang.
 // Returns true if the condition is met, false if no condition or condition is false.
 // When multiple conditions are provided, all must be true (AND logic).
@@ -153,6 +155,12 @@ func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, fo
 		tempCtx := &ExecutionContext{
 			Variables: parentCtx.Variables,
 			Env:       ctx.Env,
+			Dir:       ctx.Dir,
+		}
+		if lazyVars, ok := tempCtx.Variables.(*ContextVariables); ok && ctx.Step.Decl != nil && len(ctx.Step.Decl.Vars) > 0 {
+			lazyVars.SetResolver(func(s string) (string, error) {
+				return InterpolateString(s, tempCtx)
+			})
 		}
 
 		// Get the items list using the parent context
@@ -234,6 +242,18 @@ func parseForPattern(forSpec string) (string, string, string, string, error) {
 	return "", "", "", "", fmt.Errorf("unrecognized for pattern, expected 'item in items' or '(idx, item) in items'")
 }
 
+// directForVariable returns the variable name when a loop source is a direct
+// reference in one of the supported forms: name, ${name}, or ${{ name }}.
+func directForVariable(itemsSpec string) (string, bool) {
+	itemsSpec = strings.TrimSpace(itemsSpec)
+	if strings.HasPrefix(itemsSpec, "${{") && strings.HasSuffix(itemsSpec, "}}") {
+		itemsSpec = strings.TrimSpace(itemsSpec[3 : len(itemsSpec)-2])
+	} else if strings.HasPrefix(itemsSpec, "${") && strings.HasSuffix(itemsSpec, "}") {
+		itemsSpec = strings.TrimSpace(itemsSpec[2 : len(itemsSpec)-1])
+	}
+	return itemsSpec, directVariableRegex.MatchString(itemsSpec)
+}
+
 // getForItems retrieves the items list for a for loop
 // itemsSpec can be:
 //   - A variable name: "items"
@@ -269,6 +289,25 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 		return items, nil
 	}
 
+	// Resolve exact variable references through the error-aware lazy path before
+	// trying expressions. Expression evaluation uses Get(), which intentionally
+	// cannot return lazy resolution errors.
+	if variable, direct := directForVariable(itemsSpec); direct {
+		var val any
+		if lazyVars, ok := ctx.Variables.(*ContextVariables); ok {
+			var err error
+			val, err = lazyVars.GetWithError(variable)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve variable %q: %w", variable, err)
+			}
+		} else {
+			val = ctx.Variables.Get(variable)
+		}
+		if val != nil {
+			return convertToAnySlice(val)
+		}
+	}
+
 	// Check for variable interpolation: ${{ ... }}
 	// Extract variable name from ${{ varname }} pattern
 	if strings.HasPrefix(itemsSpec, "${{") && strings.HasSuffix(itemsSpec, "}}") {
@@ -288,11 +327,6 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 		if items, err := convertToAnySlice(val); err == nil {
 			return items, nil
 		}
-	}
-
-	// Look up in variables
-	if val := ctx.Variables.Get(itemsSpec); val != nil {
-		return convertToAnySlice(val)
 	}
 
 	return nil, fmt.Errorf("variable %q not found in context", itemsSpec)

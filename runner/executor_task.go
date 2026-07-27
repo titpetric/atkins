@@ -214,6 +214,10 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, taskJob *model.Job, taskJobNode *treeview.TreeNode, targetPipeline *model.Pipeline) error {
 	defer execCtx.Render()
 
+	if err := prepareStepLoopVariables(execCtx, step); err != nil {
+		return fmt.Errorf("failed to prepare for loop: %w", err)
+	}
+
 	// Expand the for loop to get iteration contexts
 	exec := psexec.NewWithOptions(&psexec.Options{
 		DefaultDir: execCtx.Dir,
@@ -230,7 +234,6 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 		stepNode.SetStatus(treeview.StatusFailed)
 		return fmt.Errorf("failed to expand for loop: %w", err)
 	}
-
 	if len(iterations) == 0 {
 		stepNode.SetStatus(treeview.StatusPassed)
 		return nil
@@ -241,10 +244,11 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 	for idx, iteration := range iterations {
 		// Create iteration context for node name interpolation
 		iterCtx := e.prepareIterationContext(execCtx, iteration.Variables)
+		iterationDecl := stepDeclWithoutResolvedVars(step.Decl, iteration.Variables)
 
 		// Merge step vars to get interpolated values for display
-		if step.Decl != nil {
-			_ = MergeVariables(iterCtx, step.Decl)
+		if iterationDecl != nil {
+			_ = MergeVariables(iterCtx, iterationDecl)
 		}
 
 		// Get job name for ID generation
@@ -309,6 +313,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 
 		executeIteration := func(iterRunCtx context.Context) error {
 			iterTreeNode := iterationNodes[idx]
+			iterationDecl := stepDeclWithoutResolvedVars(step.Decl, iter.Variables)
 
 			// Create execution context for this iteration with loop variables
 			iterCtx := execCtx.Copy()
@@ -337,7 +342,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 
 			// Merge step-level vars (call-site overrides) with iteration context
 			// This allows step vars like `path: $(dirname "${{item}}")` to be interpolated
-			if err := MergeVariables(iterCtx, step.Decl); err != nil {
+			if err := MergeVariables(iterCtx, iterationDecl); err != nil {
 				iterTreeNode.SetStatus(treeview.StatusFailed)
 				return err
 			}

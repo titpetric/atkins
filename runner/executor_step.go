@@ -144,15 +144,15 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 		return nil
 	}
 
-	// Handle for loop expansion
+	// Task invocations own their loop expansion.
+	if step.Task != "" {
+		stepNode.SetStatus(treeview.StatusRunning)
+		return e.executeTaskStep(ctx, stepCtx, step, stepNode)
+	}
+
+	// Handle command for loop expansion.
 	if !step.For.IsEmpty() {
 		return e.executeStepWithForLoop(ctx, stepCtx, step, stepNode, 0)
-	} else {
-		// Handle task invocation
-		if step.Task != "" {
-			stepNode.SetStatus(treeview.StatusRunning)
-			return e.executeTaskStep(ctx, stepCtx, step, stepNode)
-		}
 	}
 
 	// Execute all commands
@@ -356,6 +356,13 @@ func (e *Executor) logStepSkipped(execCtx *ExecutionContext, step *model.Step, s
 // executeStepWithForLoop handles for loop expansion and execution.
 // Each iteration becomes a separate execution with iteration variables overlaid on context.
 func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, stepIndex int) error {
+	// Step vars may provide the collection used by the loop. Keep them lazy so
+	// only vars referenced by the loop are evaluated before iteration variables
+	// exist, and cache those values for all iterations.
+	if err := prepareStepLoopVariables(execCtx, step); err != nil {
+		return fmt.Errorf("failed to prepare for loop: %w", err)
+	}
+
 	// Expand the for loop to get all iterations
 	exec := psexec.NewWithOptions(&psexec.Options{
 		DefaultDir: execCtx.Dir,
@@ -372,7 +379,6 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 		stepNode.SetStatus(treeview.StatusFailed)
 		return fmt.Errorf("failed to expand for loop for step %q: %w", step.Name, err)
 	}
-
 	if len(iterations) == 0 {
 		// Empty for loop - mark as passed
 		stepNode.SetStatus(treeview.StatusPassed)
@@ -486,7 +492,8 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 
 			// Merge step-level env with interpolation
 			// This needs to happen before building the command so env vars can be interpolated
-			if err := MergeVariables(stepIterCtx, step.Decl); err != nil {
+			iterationDecl := stepDeclWithoutResolvedVars(step.Decl, iteration.Variables)
+			if err := MergeVariables(stepIterCtx, iterationDecl); err != nil {
 				return fmt.Errorf("failed to process step env for iteration %d: %w", idx, err)
 			}
 
@@ -554,4 +561,95 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 
 	e.recordStepCompletion(execCtx, true)
 	return nil
+}
+
+// prepareStepLoopVariables overlays step vars as lazy values. Existing parent
+// vars remain visible, while step vars retain the usual precedence.
+func prepareStepLoopVariables(ctx *ExecutionContext, step *model.Step) error {
+	if step.Decl == nil {
+		return nil
+	}
+
+	// Resolve the first source's unified declaration closure before installing
+	// the remaining lazy vars. Later iterator sources may depend on iterator
+	// variables and therefore must remain pending until expansion reaches them.
+	resolvedVars := map[string]bool{}
+	resolvedEnv := map[string]bool{}
+	if len(step.For) > 0 {
+		items, _, _, _, err := parseForPattern(string(step.For[0]))
+		if err != nil {
+			return err
+		}
+		var envVars map[string]any
+		if step.Decl.Env != nil {
+			envVars = step.Decl.Env.Vars
+		}
+		roots := extractUnifiedDependencies(items, step.Decl.Vars, envVars)
+		if name, direct := directForVariable(items); direct {
+			if _, ok := step.Decl.Vars[name]; ok {
+				roots = append(roots, nodePrefixVar+name)
+			} else if _, ok := envVars[name]; ok {
+				roots = append(roots, nodePrefixEnv+name)
+			}
+		}
+		if len(roots) > 0 {
+			r, err := newResolver(ctx, step.Decl)
+			if err != nil {
+				return err
+			}
+			resolvedVars, resolvedEnv, err = r.resolveRequiredInto(ctx, roots)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	pending := make(map[string]any)
+	for k, v := range step.Decl.Vars {
+		if !resolvedVars[k] {
+			pending[k] = v
+		}
+	}
+	lazyVars := NewContextVariablesWithResolver(pending, func(s string) (string, error) {
+		return InterpolateString(s, ctx)
+	})
+	ctx.Variables.Walk(func(k string, v any) {
+		if _, overridden := pending[k]; !overridden {
+			lazyVars.Set(k, v)
+		}
+	})
+	ctx.Variables = lazyVars
+	lazyVars.loopResolvedEnv = resolvedEnv
+	return nil
+}
+
+// stepDeclWithoutResolvedVars leaves vars resolved during loop expansion out
+// of per-iteration merging. Their cached values are already in each iteration;
+// unresolved vars still resolve after iteration variables are bound.
+func stepDeclWithoutResolvedVars(decl *model.Decl, variables model.VariableStorage) *model.Decl {
+	lazyVars, ok := variables.(*ContextVariables)
+	if decl == nil || !ok {
+		return decl
+	}
+
+	copyDecl := *decl
+	copyDecl.Vars = make(map[string]any, len(decl.Vars))
+	for k, v := range decl.Vars {
+		if !lazyVars.IsResolved(k) {
+			copyDecl.Vars[k] = v
+		}
+	}
+	if decl.Env != nil {
+		envCopy := *decl.Env
+		envCopy.Vars = make(map[string]any, len(decl.Env.Vars))
+		for k, v := range decl.Env.Vars {
+			// Values already present in the expansion environment are cached source
+			// dependencies; other env declarations remain per-iteration.
+			if !lazyVars.loopResolvedEnv[k] {
+				envCopy.Vars[k] = v
+			}
+		}
+		copyDecl.Env = &envCopy
+	}
+	return &copyDecl
 }

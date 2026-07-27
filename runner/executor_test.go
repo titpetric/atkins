@@ -100,6 +100,24 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 	}
 }
 
+func TestExpandForDirectVariablePropagatesLazyErrors(t *testing.T) {
+	for _, source := range []string{"items", "${items}", "${{ items }}"} {
+		t.Run(source, func(t *testing.T) {
+			ctx := &runner.ExecutionContext{
+				Variables: runner.NewContextVariablesWithResolver(
+					map[string]any{"items": "bad"},
+					func(string) (string, error) { return "", assert.AnError },
+				),
+				Step: &model.Step{For: model.Iterators{model.Iterator("item in " + source)}},
+				Env:  make(map[string]string),
+			}
+
+			_, err := runner.ExpandFor(ctx, nil)
+			assert.ErrorIs(t, err, assert.AnError)
+		})
+	}
+}
+
 func TestInterpolationInForLoop(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -191,6 +209,210 @@ func TestForLoopStepExecution(t *testing.T) {
 			assert.Equal(t, expectedItems[i], iter.Variables.Get("item"), "Iteration %d item mismatch", i)
 		}
 	})
+}
+
+func TestForLoopStepExecutionWithLazyCommandVar(t *testing.T) {
+	tmpDir := t.TempDir()
+	counterFile := tmpDir + "/evaluations"
+	outputFile := tmpDir + "/output"
+
+	job := &model.Job{
+		Name: "fmt",
+		Steps: []*model.Step{
+			{
+				Run: `printf '%s\n' "${{ file }}" >> "` + outputFile + `"`,
+				For: model.Iterators{"file in ${files}"},
+				Decl: &model.Decl{Vars: map[string]any{
+					"files":      "${{ discovered }}",
+					"discovered": `$(printf x >> "` + counterFile + `"; printf 'one.md\ntwo.md\n')`,
+				}},
+			},
+		},
+	}
+
+	display := treeview.NewSilentDisplay()
+	builder := treeview.NewBuilder("test")
+	ctx := &runner.ExecutionContext{
+		Variables:  runner.NewContextVariables(nil),
+		Env:        make(map[string]string),
+		Job:        job,
+		CurrentJob: builder.AddJob(job, nil, job.Name),
+		Display:    display,
+		Builder:    builder,
+	}
+
+	err := runner.NewExecutor().ExecuteJob(t.Context(), ctx)
+	assert.NoError(t, err)
+
+	output, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
+	assert.Equal(t, "one.md\ntwo.md\n", string(output))
+
+	evaluations, err := os.ReadFile(counterFile)
+	assert.NoError(t, err)
+	assert.Equal(t, "x", string(evaluations), "loop source var should be evaluated once")
+}
+
+func TestForLoopSourceResolvesEnvDependencyClosureOnce(t *testing.T) {
+	tmpDir := t.TempDir()
+	counterFile := tmpDir + "/evaluations"
+	outputFile := tmpDir + "/output"
+	job := &model.Job{Name: "env-loop", Steps: []*model.Step{{
+		Run: `printf '%s\n' "${{ file }}:${{ label }}" >> "` + outputFile + `"`,
+		For: model.Iterators{"file in ${files}"},
+		Decl: &model.Decl{
+			Vars: map[string]any{
+				"files": `$(printf v >> "` + counterFile + `"; printf '%s' "$FILES")`,
+				"label": "${{ file }}",
+			},
+			Env: &model.EnvDecl{Vars: map[string]any{
+				"FILES": `$(printf e >> "` + counterFile + `"; printf 'one.md\ntwo.md\n')`,
+				"LATER": "${{ file }}",
+			}},
+		},
+	}}}
+	builder := treeview.NewBuilder("test")
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(nil), Env: make(map[string]string), Job: job,
+		CurrentJob: builder.AddJob(job, nil, job.Name), Display: treeview.NewSilentDisplay(), Builder: builder,
+	}
+
+	err := runner.NewExecutor().ExecuteJob(t.Context(), ctx)
+	assert.NoError(t, err)
+	output, readErr := os.ReadFile(outputFile)
+	assert.NoError(t, readErr)
+	assert.Equal(t, "one.md:one.md\ntwo.md:two.md\n", string(output))
+	evaluations, readErr := os.ReadFile(counterFile)
+	assert.NoError(t, readErr)
+	assert.Equal(t, "ev", string(evaluations), "required env and var commands should each execute once")
+}
+
+func TestForLoopStepVarCanDependOnEarlierIterator(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := tmpDir + "/output"
+	job := &model.Job{
+		Name: "nested",
+		Steps: []*model.Step{
+			{
+				Run: `printf '%s:%s\n' "${{ group }}" "${{ child }}" >> "` + outputFile + `"`,
+				For: model.Iterators{"group in groups", "child in children"},
+				Decl: &model.Decl{Vars: map[string]any{
+					"groups":   []any{"one", "two"},
+					"children": "${{ group }}",
+				}},
+			},
+		},
+	}
+	display := treeview.NewSilentDisplay()
+	builder := treeview.NewBuilder("test")
+	ctx := &runner.ExecutionContext{
+		Variables:  runner.NewContextVariables(nil),
+		Env:        make(map[string]string),
+		Job:        job,
+		CurrentJob: builder.AddJob(job, nil, job.Name),
+		Display:    display,
+		Builder:    builder,
+	}
+
+	err := runner.NewExecutor().ExecuteJob(t.Context(), ctx)
+	assert.NoError(t, err)
+	output, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
+	assert.Equal(t, "one:one\ntwo:two\n", string(output))
+}
+
+func TestTaskLoopWithLazyCallSiteVar(t *testing.T) {
+	tmpDir := t.TempDir()
+	counterFile := tmpDir + "/evaluations"
+	outputFile := tmpDir + "/output"
+
+	task := &model.Job{
+		Name:     "format-one",
+		Requires: []string{"file"},
+		Steps: []*model.Step{
+			{Run: `printf '%s\n' "${{ file }}" >> "` + outputFile + `"`},
+		},
+	}
+	caller := &model.Job{
+		Name: "fmt",
+		Steps: []*model.Step{
+			{
+				Task: "format-one",
+				For:  model.Iterators{"file in ${{ files }}"},
+				Decl: &model.Decl{Vars: map[string]any{
+					"files": `$(printf x >> "` + counterFile + `"; printf 'one.md\ntwo.md\n')`,
+				}},
+			},
+		},
+	}
+	pipeline := &model.Pipeline{
+		Name: "task loop",
+		Dir:  tmpDir,
+		Jobs: map[string]*model.Job{
+			"fmt":        caller,
+			"format-one": task,
+		},
+	}
+
+	err := runner.RunPipeline(t.Context(), pipeline, runner.PipelineOptions{
+		Jobs:         []string{"fmt"},
+		Silent:       true,
+		AllPipelines: []*model.Pipeline{pipeline},
+	})
+	assert.NoError(t, err)
+
+	output, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
+	assert.Equal(t, "one.md\ntwo.md\n", string(output))
+
+	evaluations, err := os.ReadFile(counterFile)
+	assert.NoError(t, err)
+	assert.Equal(t, "x", string(evaluations), "loop source var should be evaluated once")
+}
+
+func TestDeferredTaskLoopExpandsOnce(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := tmpDir + "/output"
+
+	task := &model.Job{
+		Name:     "record",
+		Requires: []string{"item"},
+		Steps: []*model.Step{
+			{Run: `printf '%s\n' "${{ item }}" >> "` + outputFile + `"`},
+		},
+	}
+	caller := &model.Job{
+		Name: "caller",
+		Steps: []*model.Step{
+			{
+				Task:     "record",
+				For:      model.Iterators{"item in items"},
+				Deferred: true,
+				Decl: &model.Decl{Vars: map[string]any{
+					"items": []any{"one", "two"},
+				}},
+			},
+		},
+	}
+	pipeline := &model.Pipeline{
+		Name: "deferred task loop",
+		Dir:  tmpDir,
+		Jobs: map[string]*model.Job{
+			"caller": caller,
+			"record": task,
+		},
+	}
+
+	err := runner.RunPipeline(t.Context(), pipeline, runner.PipelineOptions{
+		Jobs:         []string{"caller"},
+		Silent:       true,
+		AllPipelines: []*model.Pipeline{pipeline},
+	})
+	assert.NoError(t, err)
+
+	output, err := os.ReadFile(outputFile)
+	assert.NoError(t, err)
+	assert.Equal(t, "one\ntwo\n", string(output))
 }
 
 func TestValidateJobRequirements(t *testing.T) {

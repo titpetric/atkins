@@ -23,8 +23,10 @@ type Resolver struct {
 // newResolver loads includes and seeds a working context for unified resolution.
 func newResolver(ctx *ExecutionContext, decl *model.Decl) (*Resolver, error) {
 	r := &Resolver{
-		vars:    decl.Vars,
-		envVars: decl.Env.Vars,
+		vars: decl.Vars,
+	}
+	if decl.Env != nil {
+		r.envVars = decl.Env.Vars
 	}
 
 	if err := r.loadIncludes(decl); err != nil {
@@ -97,6 +99,69 @@ func (r *Resolver) buildOrder() ([]string, error) {
 		}
 	}
 	return topologicalSort(deps)
+}
+
+// buildRequiredOrder returns only the declaration dependency closure needed by
+// roots. Unlike buildOrder it deliberately ignores unrelated declarations, so
+// loop preparation does not evaluate (or reject) iteration-dependent values.
+func (r *Resolver) buildRequiredOrder(roots []string) ([]string, error) {
+	deps := make(map[string][]string)
+	for k, v := range r.vars {
+		deps[nodePrefixVar+k] = nil
+		if s, ok := v.(string); ok {
+			deps[nodePrefixVar+k] = extractUnifiedDependencies(s, r.vars, r.envVars)
+		}
+	}
+	for k, v := range r.envVars {
+		deps[nodePrefixEnv+k] = nil
+		if s, ok := v.(string); ok {
+			deps[nodePrefixEnv+k] = extractUnifiedDependencies(s, r.vars, r.envVars)
+		}
+	}
+
+	required := make(map[string][]string)
+	var visit func(string)
+	visit = func(node string) {
+		if _, seen := required[node]; seen {
+			return
+		}
+		children, declared := deps[node]
+		if !declared {
+			return
+		}
+		required[node] = children
+		for _, child := range children {
+			visit(child)
+		}
+	}
+	for _, root := range roots {
+		visit(root)
+	}
+	return topologicalSort(required)
+}
+
+// resolveRequiredInto resolves and caches just the requested unified
+// vars/env dependency closure in ctx.
+func (r *Resolver) resolveRequiredInto(ctx *ExecutionContext, roots []string) (map[string]bool, map[string]bool, error) {
+	order, err := r.buildRequiredOrder(roots)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error processing variables: %w", err)
+	}
+	resolvedVars, resolvedEnv, err := r.resolve(order)
+	if err != nil {
+		return nil, nil, err
+	}
+	varKeys := make(map[string]bool, len(resolvedVars))
+	envKeys := make(map[string]bool, len(resolvedEnv))
+	for k, v := range resolvedVars {
+		ctx.Variables.Set(k, v)
+		varKeys[k] = true
+	}
+	for k, v := range resolvedEnv {
+		ctx.Env[k] = v
+		envKeys[k] = true
+	}
+	return varKeys, envKeys, nil
 }
 
 // resolve walks nodes in topological order, interpolating each value

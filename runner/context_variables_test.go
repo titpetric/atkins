@@ -122,6 +122,20 @@ func TestContextVariables_Clone(t *testing.T) {
 
 		assert.Equal(t, "R:val", clone.Get("key"))
 	})
+
+	t.Run("clone preserves resolved errors", func(t *testing.T) {
+		original := runner.NewContextVariablesWithResolver(
+			map[string]any{"key": "bad"},
+			func(string) (string, error) { return "", assert.AnError },
+		)
+		_, err := original.GetWithError("key")
+		assert.ErrorIs(t, err, assert.AnError)
+
+		clone := original.Clone().(*runner.ContextVariables)
+		value, err := clone.GetWithError("key")
+		assert.Equal(t, "bad", value)
+		assert.ErrorIs(t, err, assert.AnError)
+	})
 }
 
 // TestContextVariables_Walk tests the Walk method.
