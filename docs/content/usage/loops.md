@@ -21,7 +21,7 @@ Use `for:` in steps to invoke tasks or run commands repeatedly with different lo
 
 ## How It Works
 
-1. **`for:` in a step** - defines the loop with `for: variable in collection`
+1. **`for:` in a step** - defines the loop with `for: variable in collection`, or equivalently `for: collection as variable`
 2. **`task:` or `run:` in the same step** - the action to perform for each iteration
 3. **Loop variable** - becomes available as `${{ variable }}`
 4. **`requires:`** - invoked tasks can declare required variables to validate they are present

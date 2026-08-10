@@ -22,6 +22,18 @@ func TestIterators_UnmarshalYAML_SingleString(t *testing.T) {
 	assert.False(t, step.For.IsEmpty())
 }
 
+func TestIterators_UnmarshalYAML_AsSyntax(t *testing.T) {
+	input := `for: items as item`
+
+	var step struct {
+		For Iterators `yaml:"for"`
+	}
+	err := yaml.Unmarshal([]byte(input), &step)
+	require.NoError(t, err)
+
+	assert.Equal(t, Iterators{"item in items"}, step.For)
+}
+
 func TestIterators_UnmarshalYAML_List(t *testing.T) {
 	input := `for:
   - goos in build.goos
@@ -39,7 +51,7 @@ func TestIterators_UnmarshalYAML_List(t *testing.T) {
 }
 
 func TestIterators_UnmarshalYAML_InlineList(t *testing.T) {
-	input := `for: ["a in as", "b in bs", "c in cs"]`
+	input := `for: ["a in as", "bs as b", "c in cs"]`
 
 	var step struct {
 		For Iterators `yaml:"for"`
