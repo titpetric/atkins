@@ -56,7 +56,8 @@ type IncludeDecl struct {
 
 ```go
 // Iterator represents a single for-loop iteration specification,
-// using format "item in items" or "(idx, item) in items".
+// using format "item in items" or "(idx, item) in items". The alternative
+// "items as item" syntax is normalized to "item in items" when decoded.
 type Iterator string
 ```
 
