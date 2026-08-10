@@ -967,6 +967,40 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 	})
 }
 
+func TestSkippedStepDisplaysInterpolatedCondition(t *testing.T) {
+	repoPath := t.TempDir()
+	step := &model.Step{
+		Run: "echo should not run",
+		If:  model.Conditionals{"$(test ! -d ${{repo.path}})"},
+	}
+	job := &model.Job{
+		Name:  "setup",
+		Steps: []*model.Step{step},
+	}
+
+	display := treeview.NewSilentDisplay()
+	builder := treeview.NewBuilder("test")
+	jobNode := builder.AddJob(job, nil, job.Name)
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(map[string]any{
+			"repo": map[string]any{"path": repoPath},
+		}),
+		Env:        make(map[string]string),
+		Dir:        repoPath,
+		Job:        job,
+		CurrentJob: jobNode,
+		Display:    display,
+		Builder:    builder,
+	}
+
+	err := runner.NewExecutor().ExecuteJob(t.Context(), ctx)
+	assert.NoError(t, err)
+
+	stepNode := jobNode.GetChildren()[0].Node
+	assert.Equal(t, treeview.StatusSkipped, stepNode.GetStatus())
+	assert.Equal(t, "$(test ! -d "+repoPath+")", stepNode.GetIf())
+}
+
 func TestInvokedTask_SkipsWhenSubshellConditionFalse(t *testing.T) {
 	tmpDir := t.TempDir()
 	marker := tmpDir + "/should-not-exist"

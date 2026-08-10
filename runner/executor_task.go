@@ -180,7 +180,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		})
 	} else if taskSkipped {
 		taskJobNode.SetStatus(treeview.StatusSkipped)
-		taskJobNode.SetIf(taskJob.If.String())
+		taskJobNode.SetIf(interpolateIfDisplay(taskJob.If.String(), taskCtx))
 		stepNode.SetStatus(treeview.StatusSkipped)
 		for _, child := range taskJobNode.GetChildren() {
 			child.Node.SetStatus(treeview.StatusSkipped)
@@ -360,7 +360,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 			}
 			if !shouldRun {
 				iterTreeNode.SetStatus(treeview.StatusSkipped)
-				iterTreeNode.SetIf(taskJob.If.String())
+				iterTreeNode.SetIf(interpolateIfDisplay(taskJob.If.String(), iterCtx))
 				return nil
 			}
 

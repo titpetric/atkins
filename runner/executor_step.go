@@ -140,7 +140,7 @@ func (e *Executor) executeStepWithNode(ctx context.Context, execCtx *ExecutionCo
 
 	if !shouldRun {
 		seqIndex := execCtx.NextStepIndex()
-		e.logStepSkipped(execCtx, step, stepNode, seqIndex)
+		e.logStepSkipped(stepCtx, step, stepNode, seqIndex)
 		return nil
 	}
 
@@ -213,7 +213,7 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 	}
 
 	if !shouldRun {
-		e.logStepSkipped(execCtx, step, stepNode, seqIndex)
+		e.logStepSkipped(stepCtx, step, stepNode, seqIndex)
 		return nil
 	}
 
@@ -330,7 +330,7 @@ func (e *Executor) logStepSkipped(execCtx *ExecutionContext, step *model.Step, s
 	// Mark step as skipped in the tree
 	stepNode.SetStatus(treeview.StatusSkipped)
 	if !step.If.IsEmpty() {
-		stepNode.SetIf(step.If.String())
+		stepNode.SetIf(interpolateIfDisplay(step.If.String(), execCtx))
 	}
 
 	// Get step name for logging

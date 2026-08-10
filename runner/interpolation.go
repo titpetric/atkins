@@ -28,6 +28,16 @@ func interpolateIfString(s string, ctx *ExecutionContext) (string, error) {
 	return interpolateString(s, ctx, true)
 }
 
+// interpolateIfDisplay resolves variables for condition output without executing
+// command substitutions a second time.
+func interpolateIfDisplay(s string, ctx *ExecutionContext) string {
+	interpolated, err := interpolateVariablesInString(s, ctx)
+	if err != nil {
+		return s
+	}
+	return interpolated
+}
+
 func interpolateString(s string, ctx *ExecutionContext, commandStatusAsCondition bool) (string, error) {
 	result := s
 
