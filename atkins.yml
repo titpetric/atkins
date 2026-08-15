@@ -49,9 +49,20 @@ jobs:
         vars:
           source: ./docs
 
+  templ:
+    desc: "Generate templ components"
+    steps:
+      - templ fmt ./server/web
+      - templ generate -path ./server/web
+
   fmt:
     desc: "Format the code"
     steps:
+      # Generation comes first so the Go formatters below normalise its
+      # output too: templ emits two single-line import statements that
+      # goimports-reviser merges, and generating afterwards would leave
+      # the committed files permanently one `fmt` behind.
+      - task: templ
       - goimports -w .
       - goimports-reviser -set-alias -format -imports-order "std,blanked,general,company,project" -excludes "scripts/" ./...
       - gofumpt -w .

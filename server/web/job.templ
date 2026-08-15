@@ -1,0 +1,165 @@
+package web
+
+import "strconv"
+
+// jobView is the page atkins prints a URL to.
+//
+// Links is passed in rather than reached for: a component cannot call a
+// method on the handler that rendered it, and whether a link needs a
+// view token is a runtime setting rather than something the markup can
+// decide for itself.
+templ jobView(page *JobPage, links Links) {
+	@layout("Job "+page.Job.ID, page.Refresh) {
+		<header>
+			<h1><span class="mono">{ page.Job.Command }</span></h1>
+			<p class="muted mono">
+				{ page.Job.ID }
+				if links.Listing() {
+					{ " · " }
+					<a href="/">all jobs</a>
+				}
+			</p>
+		</header>
+		<p>
+			<span class={ "badge", "badge-" + page.Job.Status }>{ page.Job.Status }</span>
+			if page.Refresh > 0 {
+				<span class="muted">· this page refreshes every { strconv.Itoa(page.Refresh) }s</span>
+			}
+		</p>
+		<table>
+			<tr>
+				<th>Repository</th>
+				<td class="mono">
+					if page.Repository != nil {
+						{ page.Repository.Slug }
+					} else {
+						{ "—" }
+					}
+				</td>
+			</tr>
+			<tr>
+				<th>Remote</th>
+				<td class="mono">
+					if page.Repository != nil {
+						{ page.Repository.RemoteURL }
+					} else {
+						{ "—" }
+					}
+				</td>
+			</tr>
+			<tr>
+				<th>Working directory</th>
+				<td class="mono">{ orDash(page.Job.WorkingDirectory, ".") }</td>
+			</tr>
+			<tr>
+				<th>Ref</th>
+				<td class="mono">{ orDash(page.Job.Ref, "default branch") }</td>
+			</tr>
+			<tr>
+				<th>Commit</th>
+				<td class="mono">{ orDash(page.Job.CommitSha, "—") }</td>
+			</tr>
+			<tr>
+				<th>Clone depth</th>
+				<td class="mono">
+					if page.Job.CloneDepth > 0 {
+						{ strconv.FormatInt(page.Job.CloneDepth, 10) }
+					} else {
+						{ "full history" }
+					}
+				</td>
+			</tr>
+			<tr>
+				<th>Labels</th>
+				<td class="mono">{ orDash(page.Job.Labels, "any agent") }</td>
+			</tr>
+			<tr>
+				<th>Agent</th>
+				<td class="mono">{ orDash(page.Job.AgentID, "—") }</td>
+			</tr>
+			<tr>
+				<th>Queued</th>
+				<td>{ stamp(page.Job.CreatedAt) }</td>
+			</tr>
+			<tr>
+				<th>Started</th>
+				<td>{ stamp(page.Job.StartedAt) }</td>
+			</tr>
+			<tr>
+				<th>Finished</th>
+				<td>{ stamp(page.Job.FinishedAt) }</td>
+			</tr>
+			<tr>
+				<th>Duration</th>
+				<td>{ duration(page.Job) }</td>
+			</tr>
+			<tr>
+				<th>Exit code</th>
+				<td class="mono">{ strconv.FormatInt(page.Job.ExitCode, 10) }</td>
+			</tr>
+			if page.Job.ParentID != "" {
+				<tr>
+					<th>Parent job</th>
+					<td class="mono"><a href={ templ.URL(links.Job(page.Job.ParentID)) }>{ page.Job.ParentID }</a></td>
+				</tr>
+			}
+		</table>
+		if page.Job.Error != "" {
+			<h2>Error</h2>
+			<pre>{ page.Job.Error }</pre>
+		}
+		<h2>Output</h2>
+		if len(page.Log) > 0 {
+			<pre>
+				for _, entry := range page.Log {
+					{ entry.Content }
+				}
+			</pre>
+		} else {
+			<p class="muted">
+				{ "No output recorded" }
+				if page.Job.StartedAt == nil {
+					{ " — the job has not been claimed by an agent yet" }
+				}
+				{ "." }
+			</p>
+		}
+		if len(page.Artefacts) > 0 {
+			<h2>Artefacts</h2>
+			<table>
+				<tr><th>File</th><td>Size</td><td>Type</td></tr>
+				for _, artefact := range page.Artefacts {
+					<tr>
+						<th class="mono">
+							<a href={ templ.URL(links.Artefact(artefact.JobID, artefact.ID)) }>{ artefact.Path }</a>
+						</th>
+						<td>{ filesize(artefact.Size) }</td>
+						<td class="mono">{ artefact.ContentType }</td>
+					</tr>
+				}
+			</table>
+		}
+		if len(page.Children) > 0 {
+			<h2>Dispatched by this job</h2>
+			<table>
+				<tr><th>Job</th><td>Status</td></tr>
+				for _, child := range page.Children {
+					<tr>
+						<th class="mono"><a href={ templ.URL(links.Job(child.ID)) }>{ child.Command }</a></th>
+						<td><span class={ "badge", "badge-" + child.Status }>{ child.Status }</span></td>
+					</tr>
+				}
+			</table>
+		}
+	}
+}
+
+// orDash renders a value, or a stand-in when it is empty. The job page
+// is a table of facts and a blank cell reads as a rendering bug rather
+// than as "nothing was asked for".
+func orDash(value, empty string) string {
+	if value == "" {
+		return empty
+	}
+	return value
+}

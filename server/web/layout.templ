@@ -1,7 +1,95 @@
-{{define "head"}}
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
+package web
+
+import "strconv"
+
+// layout is the shell every page sits in.
+//
+// It was `{{define "head"}}` before: a fragment each page pasted into
+// its own `<head>`, which meant every page repeated the doctype, the
+// html element and the body. As a component it can hold the whole
+// document and take the page as children, so a page is only its own
+// content.
+templ layout(title string, refresh int) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title } — atkins</title>
+			if refresh > 0 {
+				<meta http-equiv="refresh" content={ strconv.Itoa(refresh) }/>
+			}
+			@styles()
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
+}
+
+// navbar is the header every admin page carries: where you are, who you
+// are, and the way out.
+//
+// Signing out is a form because logging somebody out on a GET is
+// something a preloading browser can do by itself.
+templ navbar(page Page) {
+	<header>
+		<h1>atkins</h1>
+		<nav>
+			<a href="/">Jobs</a>
+			<a
+				href="/admin/repository"
+				if page.Section == sectionRepositories {
+					class="current"
+				}
+			>Repositories</a>
+			<a
+				href="/admin/allowlist"
+				if page.Section == sectionAllowlist {
+					class="current"
+				}
+			>Allowlist</a>
+			<a
+				href="/admin/setting"
+				if page.Section == sectionSettings {
+					class="current"
+				}
+			>Settings</a>
+			<a
+				href="/admin/user"
+				if page.Section == sectionUsers {
+					class="current"
+				}
+			>Users</a>
+			<a
+				href="/admin/ssh-key"
+				if page.Section == sectionKeys {
+					class="current"
+				}
+			>Deploy keys</a>
+			<span class="spacer"></span>
+			<form method="post" action="/logout" class="inline">
+				<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+				<button type="submit" class="link">Sign out { page.User.Username }</button>
+			</form>
+		</nav>
+	</header>
+	if page.Notice != "" {
+		<p class="flash flash-notice">{ page.Notice }</p>
+	}
+	if page.Error != "" {
+		<p class="flash flash-error">{ page.Error }</p>
+	}
+}
+
+// styles is the whole stylesheet.
+//
+// It stays inline rather than becoming a served file: a job page is
+// opened once, from a link somebody pasted, and a second request for a
+// few kilobytes of CSS buys nothing. A <style> element's contents are
+// raw in templ, so this is the same text it always was.
+templ styles() {
+	<style>
   :root {
     color-scheme: light dark;
     --bg: #ffffff;
@@ -115,29 +203,4 @@
   .actions { display: flex; flex-wrap: wrap; gap: .35rem; }
   .warn { border-left-color: #b4514f; }
 </style>
-{{end}}
-
-{{/* nav is the header every admin page carries: where you are, who you
-     are, and the way out. The sign-out button is a form because logging
-     somebody out on a GET is something a preloading browser can do by
-     itself. */}}
-{{define "nav"}}
-<header>
-  <h1>atkins</h1>
-  <nav>
-    <a href="/">Jobs</a>
-    <a href="/admin/repository" {{if eq .Section "repository"}}class="current"{{end}}>Repositories</a>
-    <a href="/admin/allowlist" {{if eq .Section "allowlist"}}class="current"{{end}}>Allowlist</a>
-    <a href="/admin/setting" {{if eq .Section "setting"}}class="current"{{end}}>Settings</a>
-    <a href="/admin/user" {{if eq .Section "user"}}class="current"{{end}}>Users</a>
-    <a href="/admin/ssh-key" {{if eq .Section "ssh-key"}}class="current"{{end}}>Deploy keys</a>
-    <span class="spacer"></span>
-    <form method="post" action="/logout" class="inline">
-      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
-      <button type="submit" class="link">Sign out {{.User.Username}}</button>
-    </form>
-  </nav>
-</header>
-{{if .Notice}}<p class="flash flash-notice">{{.Notice}}</p>{{end}}
-{{if .Error}}<p class="flash flash-error">{{.Error}}</p>{{end}}
-{{end}}
+}

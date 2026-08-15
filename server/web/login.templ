@@ -1,0 +1,26 @@
+package web
+
+// loginView is the sign-in form.
+//
+// It is the one form with no CSRF token: there is no session yet to
+// derive one from, and a forged login submits the attacker's own
+// credentials, which is not an attack.
+templ loginView(page *loginPage) {
+	@layout("Sign in", 0) {
+		<header>
+			<h1>atkins</h1>
+			<p class="muted">Sign in with the account <span class="mono">atkins --login</span> uses.</p>
+		</header>
+		if page.Error != "" {
+			<p class="flash flash-error">{ page.Error }</p>
+		}
+		<form method="post" action="/login">
+			<input type="hidden" name="next" value={ page.Next }/>
+			<label for="email">Email</label>
+			<input type="email" id="email" name="email" required autofocus/>
+			<label for="password">Password</label>
+			<input type="password" id="password" name="password" required/>
+			<p class="actions"><button type="submit" class="primary">Sign in</button></p>
+		</form>
+	}
+}

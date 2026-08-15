@@ -451,6 +451,7 @@ const (
 - `func (*JobStorage) RecordCheckout (ctx context.Context, jobID string, req CheckoutRequest) error`
 - `func (*JobStorage) VisibleTo (ctx context.Context, job *model.Job, userID string) (bool, error)`
 - `func (*RepositoryRuleStorage) Allowed (ctx context.Context, slug string) (bool, error)`
+- `func (*RepositoryRuleStorage) AllowedUnderPolicy (ctx context.Context, policy model.RepositoryPolicy, slug string) (bool, error)`
 - `func (*RepositoryRuleStorage) Create (ctx context.Context, userID string, req RuleRequest) (*model.RepositoryRule, error)`
 - `func (*RepositoryRuleStorage) Delete (ctx context.Context, id string) error`
 - `func (*RepositoryRuleStorage) Get (ctx context.Context, id string) (*model.RepositoryRule, error)`
@@ -490,6 +491,7 @@ const (
 - `func (*UserStorage) EnsureAgent (ctx context.Context, agentID string) (*model.User, error)`
 - `func (*UserStorage) Get (ctx context.Context, id string) (*model.User, error)`
 - `func (*UserStorage) GetByEmail (ctx context.Context, email string) (*model.User, error)`
+- `func (*UserStorage) GuardLastAdmin (ctx context.Context, id string, flags Flags) error`
 - `func (*UserStorage) List (ctx context.Context) ([]model.User, error)`
 - `func (*UserStorage) SetFlags (ctx context.Context, id string, flags Flags) (*model.User, error)`
 - `func (RetentionResult) Empty () bool`
@@ -794,6 +796,19 @@ run.
 
 ```go
 func (*RepositoryRuleStorage) Allowed(ctx context.Context, slug string) (bool, error)
+```
+
+### AllowedUnderPolicy
+
+AllowedUnderPolicy reports whether a slug may be built under the
+given policy. Under "open" everything is; under "allowlist" a rule
+has to say so.
+
+Dispatch, triggers and the admin pages all ask this question, and an
+answer that differs between them is a hole.
+
+```go
+func (*RepositoryRuleStorage) AllowedUnderPolicy(ctx context.Context, policy model.RepositoryPolicy, slug string) (bool, error)
 ```
 
 ### Create
@@ -1143,6 +1158,20 @@ GetByEmail returns a user by email. Soft-deleted users are not returned.
 
 ```go
 func (*UserStorage) GetByEmail(ctx context.Context, email string) (*model.User, error)
+```
+
+### GuardLastAdmin
+
+GuardLastAdmin refuses a flag change that would leave the instance
+with no active admin.
+
+The invariant lives here rather than in a handler because both the
+JSON API and the admin pages change these flags, and an instance that
+can be locked out of itself through one door but not the other is
+locked out either way.
+
+```go
+func (*UserStorage) GuardLastAdmin(ctx context.Context, id string, flags Flags) error
 ```
 
 ### List

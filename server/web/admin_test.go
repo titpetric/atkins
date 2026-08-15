@@ -2,14 +2,13 @@ package web
 
 import (
 	"html"
-	"io/fs"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/titpetric/atkins/server/api"
 	"github.com/titpetric/atkins/server/model"
@@ -20,17 +19,6 @@ import (
 // key names off a form: none of them are the server's own text.
 const xss = `<script>alert("x")</script>`
 
-// adminHandlers returns Handlers with the templates parsed and no
-// storage: enough to render a page from a fixture.
-func adminHandlers(t *testing.T) *Handlers {
-	t.Helper()
-
-	handlers, err := NewHandlers(Options{})
-	require.NoError(t, err)
-
-	return handlers
-}
-
 // samplePage is the common state an admin template needs.
 func samplePage(section string) Page {
 	return Page{
@@ -40,44 +28,56 @@ func samplePage(section string) Page {
 	}
 }
 
-func TestAdminTemplatesParse(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	for _, name := range []string{
-		"login.html",
-		"admin_repository.html",
-		"admin_allowlist.html",
-		"admin_setting.html",
-		"admin_user.html",
-		"admin_ssh_key.html",
-	} {
-		assert.NotNil(t, handlers.templates.Lookup(name), name)
+// adminViews is every admin page, rendered from a fixture with one
+// row's worth of content so a form appears.
+func adminViews() map[string]templ.Component {
+	return map[string]templ.Component{
+		"repository": repositoriesView(&repositoriesPage{
+			Page:         samplePage(sectionRepositories),
+			Policy:       model.PolicyOpen,
+			Repositories: []repositoryRow{{Repository: model.Repository{ID: "repo-1"}, Allowed: true}},
+		}, Links{}),
+		"allowlist": allowlistView(&allowlistPage{
+			Page:  samplePage(sectionAllowlist),
+			Rules: []model.RepositoryRule{{ID: "rule-1", Pattern: "github.com/**", IsActive: true}},
+		}),
+		"setting": settingsView(&settingsPage{
+			Page:     samplePage(sectionSettings),
+			Settings: []settingRow{{Name: "job.max_depth", Kind: "int", Value: "3"}},
+		}),
+		"user": usersView(&usersPage{
+			Page:  samplePage(sectionUsers),
+			Users: []userRow{{UserView: api.UserView{ID: "user-1", Username: "ci"}}},
+		}),
+		"ssh-key": sshKeysView(&sshKeysPage{
+			Page: samplePage(sectionKeys),
+			Keys: []api.SSHKeyView{{ID: "key-1", Name: "github"}},
+		}),
 	}
 }
 
 // TestAdminFormsCarryTheCSRFField guards the name the templates and the
 // handler have to agree on. A rename on one side alone would turn every
 // form into a 403 nobody could explain.
+//
+// It used to grep the embedded .html sources. There are none now, so it
+// asks the better question instead: does the page a browser is served
+// carry the field?
 func TestAdminFormsCarryTheCSRFField(t *testing.T) {
-	entries, err := fs.Glob(files, "templates/admin_*.html")
-	require.NoError(t, err)
-	require.NotEmpty(t, entries)
-
-	for _, entry := range entries {
-		body, err := fs.ReadFile(files, entry)
-		require.NoError(t, err)
-		assert.Contains(t, string(body), `name="`+csrfField+`"`, entry)
+	for name, page := range adminViews() {
+		t.Run(name, func(t *testing.T) {
+			rendered := render(t, page)
+			assert.Contains(t, rendered, `name="`+csrfField+`"`)
+			assert.Contains(t, rendered, "csrf-token-value")
+		})
 	}
 }
 
 func TestRepositoriesPageRenders(t *testing.T) {
-	handlers := adminHandlers(t)
-
 	job := &model.Job{ID: "01ARZ3NDEKTSV4RRFFQ69G5FAV", Command: "atkins test:build", Status: model.JobStatusPassed}
 	job.SetCreatedAt(time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC))
 
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_repository.html", &repositoriesPage{
+	rendered := render(t, repositoriesView(&repositoriesPage{
 		Page:   samplePage(sectionRepositories),
 		Policy: model.PolicyOpen,
 		Repositories: []repositoryRow{
@@ -96,10 +96,8 @@ func TestRepositoriesPageRenders(t *testing.T) {
 				Allowed:    false,
 			},
 		},
-	})
-	require.NoError(t, err)
+	}, Links{}))
 
-	rendered := out.String()
 	assert.Contains(t, rendered, "github.com/titpetric/atkins")
 	assert.Contains(t, rendered, "atkins test:build")
 	assert.Contains(t, rendered, `action="/admin/repository/repo-1/trigger"`)
@@ -111,10 +109,7 @@ func TestRepositoriesPageRenders(t *testing.T) {
 }
 
 func TestRepositoriesPageEscapesSlugAndCommand(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_repository.html", &repositoriesPage{
+	rendered := render(t, repositoriesView(&repositoriesPage{
 		Page:   samplePage(sectionRepositories),
 		Policy: model.PolicyOpen,
 		Repositories: []repositoryRow{{
@@ -122,25 +117,20 @@ func TestRepositoriesPageEscapesSlugAndCommand(t *testing.T) {
 			LastJob:    &model.Job{ID: "job-1", Command: xss, Status: model.JobStatusFailed},
 			Allowed:    true,
 		}},
-	})
-	require.NoError(t, err)
+	}, Links{}))
 
-	assert.NotContains(t, out.String(), xss)
-	assert.Contains(t, out.String(), "&lt;script&gt;")
+	assert.NotContains(t, rendered, xss)
+	assert.Contains(t, rendered, "&lt;script&gt;")
 }
 
 func TestAllowlistPageWarnsWhenNothingCanRun(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	render := func(page *allowlistPage) string {
-		var out strings.Builder
-		require.NoError(t, handlers.templates.ExecuteTemplate(&out, "admin_allowlist.html", page))
-		return out.String()
+	allowlist := func(page *allowlistPage) string {
+		return render(t, allowlistView(page))
 	}
 
 	// Allowlist on, no active rule: the page has to say that this stops
 	// everything, because the symptom is otherwise a 403 per dispatch.
-	stopped := render(&allowlistPage{
+	stopped := allowlist(&allowlistPage{
 		Page:        samplePage(sectionAllowlist),
 		Policy:      model.PolicyAllowlist,
 		Rules:       []model.RepositoryRule{{ID: "rule-1", Pattern: "github.com/titpetric/*"}},
@@ -148,7 +138,7 @@ func TestAllowlistPageWarnsWhenNothingCanRun(t *testing.T) {
 	})
 	assert.Contains(t, stopped, "nothing will run")
 
-	running := render(&allowlistPage{
+	running := allowlist(&allowlistPage{
 		Page:        samplePage(sectionAllowlist),
 		Policy:      model.PolicyAllowlist,
 		Rules:       []model.RepositoryRule{{ID: "rule-1", Pattern: "github.com/titpetric/*", IsActive: true}},
@@ -160,30 +150,24 @@ func TestAllowlistPageWarnsWhenNothingCanRun(t *testing.T) {
 
 	// Under an open policy the rules are inert, and saying so is kinder
 	// than letting somebody write rules that do nothing.
-	open := render(&allowlistPage{Page: samplePage(sectionAllowlist), Policy: model.PolicyOpen})
+	open := allowlist(&allowlistPage{Page: samplePage(sectionAllowlist), Policy: model.PolicyOpen})
 	assert.Contains(t, open, "not consulted")
 }
 
 func TestAllowlistPageEscapesPatterns(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_allowlist.html", &allowlistPage{
+	rendered := render(t, allowlistView(&allowlistPage{
 		Page:   samplePage(sectionAllowlist),
 		Policy: model.PolicyAllowlist,
 		Rules:  []model.RepositoryRule{{ID: "rule-1", Pattern: xss, Description: xss, IsActive: true}},
-	})
-	require.NoError(t, err)
+	}))
 
-	assert.NotContains(t, out.String(), xss)
+	assert.NotContains(t, rendered, xss)
 }
 
 // TestSettingsPageRendersFromTheRegistry drives the page with the real
 // registry, so a setting added to model/setting.go appears here without
 // anybody editing a template.
 func TestSettingsPageRendersFromTheRegistry(t *testing.T) {
-	handlers := adminHandlers(t)
-
 	rows := []settingRow{}
 	for _, definition := range model.SettingDefinitions() {
 		rows = append(rows, settingRow{
@@ -197,14 +181,11 @@ func TestSettingsPageRendersFromTheRegistry(t *testing.T) {
 		})
 	}
 
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_setting.html", &settingsPage{
+	rendered := render(t, settingsView(&settingsPage{
 		Page:     samplePage(sectionSettings),
 		Settings: rows,
-	})
-	require.NoError(t, err)
+	}))
 
-	rendered := out.String()
 	for _, definition := range model.SettingDefinitions() {
 		assert.Contains(t, rendered, definition.Name)
 		// Escaped, not raw: a description containing an apostrophe —
@@ -221,10 +202,7 @@ func TestSettingsPageRendersFromTheRegistry(t *testing.T) {
 }
 
 func TestSettingsPageMarksAnOverride(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_setting.html", &settingsPage{
+	rendered := render(t, settingsView(&settingsPage{
 		Page: samplePage(sectionSettings),
 		Settings: []settingRow{{
 			Name:    "job.max_depth",
@@ -232,40 +210,31 @@ func TestSettingsPageMarksAnOverride(t *testing.T) {
 			Value:   "7",
 			Default: "3",
 		}},
-	})
-	require.NoError(t, err)
+	}))
 
-	rendered := out.String()
 	assert.Contains(t, rendered, "overridden")
 	assert.Contains(t, rendered, `value="reset"`)
 	assert.Contains(t, rendered, `value="7"`)
 }
 
 func TestSettingsPageEscapesValues(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_setting.html", &settingsPage{
+	rendered := render(t, settingsView(&settingsPage{
 		Page: samplePage(sectionSettings),
 		Settings: []settingRow{{
 			Name:  "job.max_depth",
 			Kind:  string(model.KindInt),
 			Value: `" onfocus="alert(1)`,
 		}},
-	})
-	require.NoError(t, err)
+	}))
 
 	// The value lands in an attribute, which is the context where a bare
 	// quote would break out of it.
-	assert.NotContains(t, out.String(), `onfocus="alert(1)"`)
-	assert.Contains(t, out.String(), "&#34;")
+	assert.NotContains(t, rendered, `onfocus="alert(1)"`)
+	assert.Contains(t, rendered, "&#34;")
 }
 
 func TestUsersPageDisablesTheLastAdmin(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_user.html", &usersPage{
+	rendered := render(t, usersView(&usersPage{
 		Page: samplePage(sectionUsers),
 		Users: []userRow{
 			{
@@ -276,10 +245,8 @@ func TestUsersPageDisablesTheLastAdmin(t *testing.T) {
 				UserView: api.UserView{ID: "user-2", Username: "dev", Email: "dev@example.com", IsActive: true},
 			},
 		},
-	})
-	require.NoError(t, err)
+	}))
 
-	rendered := out.String()
 	assert.Contains(t, rendered, "the last active admin")
 	assert.Contains(t, rendered, "disabled")
 	assert.Contains(t, rendered, `action="/admin/user/user-2"`)
@@ -297,16 +264,12 @@ func TestUserViewHasNoPasswordField(t *testing.T) {
 }
 
 func TestUsersPageEscapesAccountFields(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_user.html", &usersPage{
+	rendered := render(t, usersView(&usersPage{
 		Page:  samplePage(sectionUsers),
 		Users: []userRow{{UserView: api.UserView{ID: "user-1", Username: xss, Email: xss, FullName: xss}}},
-	})
-	require.NoError(t, err)
+	}))
 
-	assert.NotContains(t, out.String(), xss)
+	assert.NotContains(t, rendered, xss)
 }
 
 // TestSSHKeyViewHasNoPrivateField is the guard behind the guard. The
@@ -323,8 +286,6 @@ func TestSSHKeyViewHasNoPrivateField(t *testing.T) {
 }
 
 func TestSSHKeyPageRendersWithoutPrivateMaterial(t *testing.T) {
-	handlers := adminHandlers(t)
-
 	stored := model.SSHKey{
 		ID:          "key-1",
 		Name:        "github",
@@ -336,14 +297,11 @@ func TestSSHKeyPageRendersWithoutPrivateMaterial(t *testing.T) {
 		IsActive:    true,
 	}
 
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_ssh_key.html", &sshKeysPage{
+	rendered := render(t, sshKeysView(&sshKeysPage{
 		Page: samplePage(sectionKeys),
 		Keys: api.SSHKeyViews([]model.SSHKey{stored}),
-	})
-	require.NoError(t, err)
+	}))
 
-	rendered := out.String()
 	assert.Contains(t, rendered, "SHA256:abcdef")
 	assert.Contains(t, rendered, "ssh-ed25519 AAAAC3Nz")
 	assert.NotContains(t, rendered, "not-a-real-key")
@@ -351,50 +309,37 @@ func TestSSHKeyPageRendersWithoutPrivateMaterial(t *testing.T) {
 }
 
 func TestSSHKeyPageEscapesKeyNames(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_ssh_key.html", &sshKeysPage{
+	rendered := render(t, sshKeysView(&sshKeysPage{
 		Page: samplePage(sectionKeys),
 		Keys: api.SSHKeyViews([]model.SSHKey{{ID: "key-1", Name: xss, Host: xss, PublicKey: xss, Fingerprint: xss}}),
-	})
-	require.NoError(t, err)
+	}))
 
-	assert.NotContains(t, out.String(), xss)
+	assert.NotContains(t, rendered, xss)
 }
 
 // TestFlashMessagesAreEscaped covers the notice and error a redirect
 // puts in the query string. They are the one place on these pages where
 // text from a URL is rendered back.
 func TestFlashMessagesAreEscaped(t *testing.T) {
-	handlers := adminHandlers(t)
-
 	page := samplePage(sectionAllowlist)
 	page.Notice = xss
 	page.Error = xss
 
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "admin_allowlist.html", &allowlistPage{
+	rendered := render(t, allowlistView(&allowlistPage{
 		Page:   page,
 		Policy: model.PolicyOpen,
-	})
-	require.NoError(t, err)
+	}))
 
-	assert.NotContains(t, out.String(), xss)
-	assert.Contains(t, out.String(), "&lt;script&gt;")
+	assert.NotContains(t, rendered, xss)
+	assert.Contains(t, rendered, "&lt;script&gt;")
 }
 
 func TestLoginPageRenders(t *testing.T) {
-	handlers := adminHandlers(t)
-
-	var out strings.Builder
-	err := handlers.templates.ExecuteTemplate(&out, "login.html", &loginPage{
+	rendered := render(t, loginView(&loginPage{
 		Next:  "/admin/user",
 		Error: "That email and password do not match an account.",
-	})
-	require.NoError(t, err)
+	}))
 
-	rendered := out.String()
 	assert.Contains(t, rendered, `name="email"`)
 	assert.Contains(t, rendered, `name="password"`)
 	assert.Contains(t, rendered, `value="/admin/user"`)

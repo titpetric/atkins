@@ -5,6 +5,7 @@ go 1.27rc1
 require (
 	charm.land/bubbles/v2 v2.1.1
 	charm.land/bubbletea/v2 v2.0.8
+	github.com/a-h/templ v0.3.1020
 	github.com/creack/pty v1.1.24
 	github.com/expr-lang/expr v1.17.8
 	github.com/go-bridget/mig v0.4.4

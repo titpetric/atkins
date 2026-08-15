@@ -319,17 +319,18 @@ Deletion happens in bounded batches, up to 500 rows at a time and 20 batches per
 How often the server looks is `server.retention_interval` (default `1h`), a start-up setting rather than a runtime one: the windows are policy, the cadence is a property of the machine. `0` turns the sweep off entirely.
 
 Artefact downloads from the page — `/job/{ULID}/artefact/{ULID}` — are on the same terms, because a browser has no bearer token to offer and a download link that fails is not a link. `GET /api/job/{id}/artefact/{id}` is the authenticated door, and it is the one a script should use. A file a job produced is served as an attachment with `X-Content-Type-Options: nosniff`, so an artefact named `report.html` is something to save rather than something that runs in the server's origin.
+
 ## The admin pages
 
 Everything under `/admin` is the operator's face on `/api/admin/*`, and it needs an administrator to be signed in:
 
-| Page                  | What it does                                                        |
-|-----------------------|---------------------------------------------------------------------|
-| `/admin/repository`   | What the server has seen, with each repository's last job, and a trigger form |
-| `/admin/allowlist`    | List, add, enable, disable and remove rules, with the policy in force |
-| `/admin/setting`      | Every setting with its effective value, default, and whether it is overridden |
-| `/admin/user`         | Accounts and their `is_admin` / `is_active` / `is_agent` flags       |
-| `/admin/ssh-key`      | Deploy keys with fingerprints: add, deactivate, remove               |
+| Page                | What it does                                                                  |
+|---------------------|-------------------------------------------------------------------------------|
+| `/admin/repository` | What the server has seen, with each repository's last job, and a trigger form |
+| `/admin/allowlist`  | List, add, enable, disable and remove rules, with the policy in force         |
+| `/admin/setting`    | Every setting with its effective value, default, and whether it is overridden |
+| `/admin/user`       | Accounts and their `is_admin` / `is_active` / `is_agent` flags                |
+| `/admin/ssh-key`    | Deploy keys with fingerprints: add, deactivate, remove                        |
 
 Sign in at `/login` with the same account `atkins --login` uses — there is no separate web password. The first account on a fresh instance becomes an administrator, so `atkins --register <server>` is how you get in.
 
@@ -341,7 +342,9 @@ Nothing about the browser's session is special: it is revoked by signing out, it
 
 Forms carry a CSRF token — an HMAC of the session id, scoped so it is not the cookie value — and a cross-origin post is refused outright. A form that has been open long enough for the session to change comes back with "this form has expired; reload the page and try again".
 
-The pages are plain HTML: a form post and a redirect. There is no JavaScript, no framework and no CDN, and the templates are compiled into the binary.
+The pages are plain HTML: a form post and a redirect. There is no JavaScript, no framework and no CDN.
+
+The markup lives in `server/web/*.templ` and is compiled to Go by [templ](https://templ.guide). The generated `*_templ.go` files are committed next to their sources, so building the server needs nothing beyond the Go toolchain — a template that does not compile is a build failure rather than a page that breaks the first time somebody opens it, and an interpolated value is escaped for the context it lands in without anyone having to remember to do it. Regenerate after editing a `.templ` with `atkins templ`; `atkins fmt` already runs it first, so the usual formatting pass before a commit is enough.
 
 ## Configuration
 
@@ -548,18 +551,18 @@ Authentication is `Authorization: Bearer <token>`. Access tokens live an hour an
 
 ## Pages
 
-| Page                                    | Method   | Who    | Purpose                          |
-|-----------------------------------------|----------|--------|----------------------------------|
-| `/`                                     | GET      | anyone | Recent jobs                      |
-| `/job/{ULID}`                           | GET      | anyone | One run, and its output          |
-| `/login`                                | GET/POST | anyone | Sign in, setting the session cookie |
-| `/logout`                               | POST     | user   | Revoke the session, clear the cookie |
-| `/admin/repository`                     | GET      | admin  | Repositories and their last job  |
-| `/admin/repository/{id}/trigger`        | POST     | admin  | Queue a job by name              |
-| `/admin/allowlist[/{id}]`               | GET/POST | admin  | Manage allowlist rules           |
-| `/admin/setting`                        | GET/POST | admin  | Read and change settings         |
-| `/admin/user[/{id}]`                    | GET/POST | admin  | Accounts and flags               |
-| `/admin/ssh-key[/{id}]`                 | GET/POST | admin  | Manage deploy keys               |
+| Page                             | Method   | Who    | Purpose                              |
+|----------------------------------|----------|--------|--------------------------------------|
+| `/`                              | GET      | anyone | Recent jobs                          |
+| `/job/{ULID}`                    | GET      | anyone | One run, and its output              |
+| `/login`                         | GET/POST | anyone | Sign in, setting the session cookie  |
+| `/logout`                        | POST     | user   | Revoke the session, clear the cookie |
+| `/admin/repository`              | GET      | admin  | Repositories and their last job      |
+| `/admin/repository/{id}/trigger` | POST     | admin  | Queue a job by name                  |
+| `/admin/allowlist[/{id}]`        | GET/POST | admin  | Manage allowlist rules               |
+| `/admin/setting`                 | GET/POST | admin  | Read and change settings             |
+| `/admin/user[/{id}]`             | GET/POST | admin  | Accounts and flags                   |
+| `/admin/ssh-key[/{id}]`          | GET/POST | admin  | Manage deploy keys                   |
 
 The pages authenticate with the session cookie, not the bearer token, and every post carries a CSRF token from the page it belongs to.
 

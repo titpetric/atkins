@@ -20,10 +20,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/titpetric/platform"
 
 	"github.com/titpetric/atkins/server/api"
@@ -59,8 +59,6 @@ type Handlers struct {
 	// cookie and CSRF HMACs are computed directly rather than as JWTs.
 	// Rotating it logs the browser out along with everything else.
 	signingKey string
-
-	templates *template.Template
 }
 
 // Options is passed from the server module scope.
@@ -81,7 +79,12 @@ type Options struct {
 	SigningKey string
 }
 
-// NewHandlers returns Handlers with the page templates parsed.
+// NewHandlers returns Handlers for the page routes.
+//
+// The error is always nil. It survives from when the templates were
+// parsed at construction: templ compiles them instead, so a broken page
+// is a build failure rather than a start-up one. The signature stays so
+// callers do not have to change when something here does need to fail.
 func NewHandlers(opts Options) (*Handlers, error) {
 	handlers := &Handlers{
 		jobs:         opts.JobStorage,
@@ -96,15 +99,6 @@ func NewHandlers(opts Options) (*Handlers, error) {
 		tokens:       auth.NewJWT(opts.SigningKey),
 		signingKey:   opts.SigningKey,
 	}
-
-	// The link helper is bound to these handlers rather than to the
-	// package: whether a link needs a token is a runtime setting, and
-	// the closure reads it when the page renders.
-	templates, err := template.New("").Funcs(handlers.functions()).ParseFS(files, "templates/*.html")
-	if err != nil {
-		return nil, err
-	}
-	handlers.templates = templates
 
 	return handlers, nil
 }
@@ -202,7 +196,7 @@ type IndexPage struct {
 // check probing it should find a server rather than a refusal.
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 	if !h.public() {
-		h.render(w, r, "index.html", IndexPage{Private: true})
+		h.render(w, r, indexView(IndexPage{Private: true}, h.links()))
 		return
 	}
 
@@ -212,7 +206,7 @@ func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.render(w, r, "index.html", IndexPage{Jobs: jobs, Refresh: 5})
+	h.render(w, r, indexView(IndexPage{Jobs: jobs, Refresh: 5}, h.links()))
 }
 
 // Job renders one job: its status, the command, and captured output.
@@ -258,7 +252,7 @@ func (h *Handlers) Job(w http.ResponseWriter, r *http.Request) {
 		page.Children = childrenOf(children, job.ID)
 	}
 
-	h.render(w, r, "job.html", page)
+	h.render(w, r, jobView(page, h.links()))
 }
 
 // Artefact serves the bytes of one artefact, as a download.
@@ -305,12 +299,12 @@ func childrenOf(jobs []model.Job, parentID string) []model.Job {
 	return children
 }
 
-// render writes a template, reporting failures as a 500 rather than a
+// render writes a component, reporting failures as a 500 rather than a
 // half-written page.
-func (h *Handlers) render(w http.ResponseWriter, r *http.Request, name string, data any) {
+func (h *Handlers) render(w http.ResponseWriter, r *http.Request, page templ.Component) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	if err := h.templates.ExecuteTemplate(w, name, data); err != nil {
+	if err := page.Render(r.Context(), w); err != nil {
 		h.fail(w, r, http.StatusInternalServerError, err)
 	}
 }
@@ -320,35 +314,57 @@ func (h *Handlers) fail(w http.ResponseWriter, r *http.Request, status int, err 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 
-	_ = h.templates.ExecuteTemplate(w, "error.html", struct {
-		Status  int
-		Message string
-	}{Status: status, Message: err.Error()})
+	_ = errorView(status, err.Error()).Render(r.Context(), w)
 }
 
-// functions are the template helpers.
-func (h *Handlers) functions() template.FuncMap {
-	return template.FuncMap{
-		"stamp":        stamp,
-		"duration":     duration,
-		"filesize":     filesize,
-		"joblink":      h.jobLink,
-		"artefactlink": h.artefactLink,
-		"listing":      h.public,
-	}
+// Links builds the URLs a page points at.
+//
+// It exists because a component is a package-level function and cannot
+// reach the handler that rendered it, while whether a link needs a view
+// token is a runtime setting. Passing this in keeps the decision in one
+// place and lets a render test construct one directly.
+type Links struct {
+	tokens *auth.JWT
+	public bool
 }
 
-// artefactLink is where an artefact downloads from, token and all.
+// links returns the link builder for the current setting.
+func (h *Handlers) links() Links {
+	return Links{tokens: h.tokens, public: h.public()}
+}
+
+// Listing reports whether the front page lists anything, which is also
+// whether it is worth linking to.
+func (l Links) Listing() bool {
+	return l.public
+}
+
+// Job is where a job page lives, token and all.
+//
+// Every link a page renders goes through here, so following a parent or
+// a child from a job you were given a link to keeps working: each hop
+// carries the token for the job it points at, and never the token for
+// the job it came from.
+func (l Links) Job(jobID string) string {
+	return l.withToken("/job/"+jobID, jobID)
+}
+
+// Artefact is where an artefact downloads from.
 //
 // It carries the token of the job the artefact belongs to, so a
 // download is reachable exactly when the page listing it is.
-func (h *Handlers) artefactLink(jobID, artefactID string) string {
-	link := "/job/" + jobID + "/artefact/" + artefactID
-	if h.public() {
+func (l Links) Artefact(jobID, artefactID string) string {
+	return l.withToken("/job/"+jobID+"/artefact/"+artefactID, jobID)
+}
+
+// withToken appends a job's view token to a link, unless the instance
+// is public or has no signing key to derive one from.
+func (l Links) withToken(link, jobID string) string {
+	if l.public || l.tokens == nil {
 		return link
 	}
 
-	token := h.tokens.ViewToken(jobID)
+	token := l.tokens.ViewToken(jobID)
 	if token == "" {
 		return link
 	}
@@ -373,25 +389,6 @@ func filesize(size int64) string {
 	}
 
 	return fmt.Sprintf("%.1f PB", value/unit)
-}
-
-// jobLink is where a job page lives, token and all.
-//
-// Every link a page renders goes through here, so following a parent or
-// a child from a job you were given a link to keeps working: each hop
-// carries the token for the job it points at, and never the token for
-// the job it came from.
-func (h *Handlers) jobLink(jobID string) string {
-	if h.public() {
-		return "/job/" + jobID
-	}
-
-	token := h.tokens.ViewToken(jobID)
-	if token == "" {
-		return "/job/" + jobID
-	}
-
-	return "/job/" + jobID + "?" + ViewTokenParam + "=" + token
 }
 
 // stamp formats a nullable timestamp.

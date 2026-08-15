@@ -1,0 +1,14 @@
+package web
+
+import "strconv"
+
+// errorView is what a refused or missing page renders.
+templ errorView(status int, message string) {
+	@layout(strconv.Itoa(status), 0) {
+		<header>
+			<h1>{ status }</h1>
+		</header>
+		<p class="muted">{ message }</p>
+		<p><a href="/">All jobs</a></p>
+	}
+}
