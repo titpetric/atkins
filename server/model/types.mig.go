@@ -183,6 +183,9 @@ type Job struct {
 	// Updated At
 	UpdatedAt *time.Time `db:"updated_at" json:"updated_at"`
 
+	// Artefact Paths
+	ArtefactPaths string `db:"artefact_paths" json:"artefact_paths"`
+
 	// Ref
 	Ref string `db:"ref" json:"ref"`
 
@@ -307,6 +310,12 @@ func (j *Job) GetUpdatedAt() *time.Time { return j.UpdatedAt }
 // SetUpdatedAt sets UpdatedAt to the provided value.
 func (j *Job) SetUpdatedAt(stamp time.Time) { j.UpdatedAt = &stamp }
 
+// GetArtefactPaths will return the value of ArtefactPaths.
+func (j *Job) GetArtefactPaths() string { return j.ArtefactPaths }
+
+// SetArtefactPaths sets ArtefactPaths to the provided value.
+func (j *Job) SetArtefactPaths(val string) { j.ArtefactPaths = val }
+
 // GetRef will return the value of Ref.
 func (j *Job) GetRef() string { return j.Ref }
 
@@ -329,10 +338,114 @@ func (j *Job) SetCloneDepth(val int64) { j.CloneDepth = val }
 const JobTable = "`job`"
 
 // JobFields is a list of all columns in the DB table.
-var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "ref", "commit_sha", "clone_depth"}
+var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "artefact_paths", "ref", "commit_sha", "clone_depth"}
 
 // JobPrimaryFields are the primary key fields in the DB table.
 var JobPrimaryFields = []string{"id"}
+
+// JobArtefact generated for db table `job_artefact`.
+//
+// Job Artefact.
+type JobArtefact struct {
+	// ID
+	ID string `db:"id" json:"id"`
+
+	// Job ID
+	JobID string `db:"job_id" json:"job_id"`
+
+	// Path
+	Path string `db:"path" json:"path"`
+
+	// Storage Key
+	StorageKey string `db:"storage_key" json:"storage_key"`
+
+	// Size
+	Size int64 `db:"size" json:"size"`
+
+	// Content Type
+	ContentType string `db:"content_type" json:"content_type"`
+
+	// Checksum
+	Checksum string `db:"checksum" json:"checksum"`
+
+	// Agent ID
+	AgentID string `db:"agent_id" json:"agent_id"`
+
+	// Created At
+	CreatedAt *time.Time `db:"created_at" json:"created_at"`
+
+	// Deleted At
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
+}
+
+// GetID will return the value of ID.
+func (j *JobArtefact) GetID() string { return j.ID }
+
+// SetID sets ID to the provided value.
+func (j *JobArtefact) SetID(val string) { j.ID = val }
+
+// GetJobID will return the value of JobID.
+func (j *JobArtefact) GetJobID() string { return j.JobID }
+
+// SetJobID sets JobID to the provided value.
+func (j *JobArtefact) SetJobID(val string) { j.JobID = val }
+
+// GetPath will return the value of Path.
+func (j *JobArtefact) GetPath() string { return j.Path }
+
+// SetPath sets Path to the provided value.
+func (j *JobArtefact) SetPath(val string) { j.Path = val }
+
+// GetStorageKey will return the value of StorageKey.
+func (j *JobArtefact) GetStorageKey() string { return j.StorageKey }
+
+// SetStorageKey sets StorageKey to the provided value.
+func (j *JobArtefact) SetStorageKey(val string) { j.StorageKey = val }
+
+// GetSize will return the value of Size.
+func (j *JobArtefact) GetSize() int64 { return j.Size }
+
+// SetSize sets Size to the provided value.
+func (j *JobArtefact) SetSize(val int64) { j.Size = val }
+
+// GetContentType will return the value of ContentType.
+func (j *JobArtefact) GetContentType() string { return j.ContentType }
+
+// SetContentType sets ContentType to the provided value.
+func (j *JobArtefact) SetContentType(val string) { j.ContentType = val }
+
+// GetChecksum will return the value of Checksum.
+func (j *JobArtefact) GetChecksum() string { return j.Checksum }
+
+// SetChecksum sets Checksum to the provided value.
+func (j *JobArtefact) SetChecksum(val string) { j.Checksum = val }
+
+// GetAgentID will return the value of AgentID.
+func (j *JobArtefact) GetAgentID() string { return j.AgentID }
+
+// SetAgentID sets AgentID to the provided value.
+func (j *JobArtefact) SetAgentID(val string) { j.AgentID = val }
+
+// GetCreatedAt will return the value of CreatedAt.
+func (j *JobArtefact) GetCreatedAt() *time.Time { return j.CreatedAt }
+
+// SetCreatedAt sets CreatedAt to the provided value.
+func (j *JobArtefact) SetCreatedAt(stamp time.Time) { j.CreatedAt = &stamp }
+
+// GetDeletedAt will return the value of DeletedAt.
+func (j *JobArtefact) GetDeletedAt() *time.Time { return j.DeletedAt }
+
+// SetDeletedAt sets DeletedAt to the provided value.
+func (j *JobArtefact) SetDeletedAt(stamp time.Time) { j.DeletedAt = &stamp }
+
+// JobArtefactTable is the name of the table in the DB.
+const JobArtefactTable = "`job_artefact`"
+
+// JobArtefactFields is a list of all columns in the DB table.
+var JobArtefactFields = []string{"id", "job_id", "path", "storage_key", "size", "content_type", "checksum", "agent_id", "created_at", "deleted_at"}
+
+// JobArtefactPrimaryFields are the primary key fields in the DB table.
+var JobArtefactPrimaryFields = []string{"id"}
 
 // JobLog generated for db table `job_log`.
 //
@@ -1093,6 +1206,67 @@ func (j *Job) Update(opts ...QueryOption) string {
 // Delete starts building a DELETE query.
 func (j *Job) Delete(opts ...QueryOption) string {
 	cfg := (&QueryConfig{Table: JobTable}).Apply(opts...)
+	query := fmt.Sprintf("DELETE FROM %s", cfg.Table)
+	if cfg.Where != "" {
+		query += " WHERE " + cfg.Where
+	}
+	return query
+}
+
+// Insert starts building an INSERT INTO query.
+func (j *JobArtefact) Insert(opts ...QueryOption) string {
+	cfg := (&QueryConfig{Table: JobArtefactTable, Statement: "INSERT INTO"}).Apply(opts...)
+	cols := JobArtefactFields
+	if len(cfg.Columns) > 0 {
+		cols = cfg.Columns
+	}
+	return fmt.Sprintf("%s %s (%s) VALUES (:%s)", cfg.Statement, cfg.Table, strings.Join(cols, ", "), strings.Join(cols, ", :"))
+}
+
+// Select starts building a SELECT query.
+func (j *JobArtefact) Select(opts ...QueryOption) string {
+	cfg := (&QueryConfig{Table: JobArtefactTable}).Apply(opts...)
+	cols := "*"
+	if len(cfg.Columns) > 0 {
+		cols = strings.Join(cfg.Columns, ", ")
+	}
+	query := fmt.Sprintf("SELECT %s FROM %s", cols, cfg.Table)
+	if cfg.Where != "" {
+		query += " WHERE " + cfg.Where
+	}
+	if cfg.OrderBy != "" {
+		query += " ORDER BY " + cfg.OrderBy
+	}
+	if cfg.LimitOffset > 0 {
+		query += fmt.Sprintf(" LIMIT %d, %d", cfg.LimitStart, cfg.LimitOffset)
+	}
+	return query
+}
+
+// Update starts building a UPDATE query.
+func (j *JobArtefact) Update(opts ...QueryOption) string {
+	cfg := (&QueryConfig{Table: JobArtefactTable}).Apply(opts...)
+	cols := JobArtefactFields
+	if len(cfg.Columns) > 0 {
+		cols = cfg.Columns
+	}
+	setClause := ""
+	for i, col := range cols {
+		if i > 0 {
+			setClause += ", "
+		}
+		setClause += col + "=:" + col
+	}
+	query := fmt.Sprintf("UPDATE %s SET %s", cfg.Table, setClause)
+	if cfg.Where != "" {
+		query += " WHERE " + cfg.Where
+	}
+	return query
+}
+
+// Delete starts building a DELETE query.
+func (j *JobArtefact) Delete(opts ...QueryOption) string {
+	cfg := (&QueryConfig{Table: JobArtefactTable}).Apply(opts...)
 	query := fmt.Sprintf("DELETE FROM %s", cfg.Table)
 	if cfg.Where != "" {
 		query += " WHERE " + cfg.Where

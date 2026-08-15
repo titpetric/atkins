@@ -33,6 +33,7 @@ type Options struct {
 	RepositoryStorage     *storage.RepositoryStorage
 	JobStorage            *storage.JobStorage
 	JobLogStorage         *storage.JobLogStorage
+	JobArtefactStorage    *storage.JobArtefactStorage
 	RepositoryRuleStorage *storage.RepositoryRuleStorage
 	SettingStorage        *storage.SettingStorage
 	SSHKeyStorage         *storage.SSHKeyStorage

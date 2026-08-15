@@ -210,8 +210,10 @@ func (w *Worker) run(ctx context.Context, job *jobContext) {
 	w.recordCheckout(ctx, job.Job.ID, workspace.Checkout)
 
 	defer func() {
-		if err := os.RemoveAll(workspace.Root); err != nil {
-			log.Printf("[agent] job %s: cleanup failed: %v", job.Job.ID, err)
+		for _, dir := range []string{workspace.Root, workspace.Artefacts} {
+			if err := os.RemoveAll(dir); err != nil {
+				log.Printf("[agent] job %s: cleanup failed: %v", job.Job.ID, err)
+			}
 		}
 	}()
 
@@ -224,6 +226,10 @@ func (w *Worker) run(ctx context.Context, job *jobContext) {
 	case result.ExitCode != 0:
 		status = client.StatusFailed
 	}
+
+	// Collect before settling the job: the lease is still held, and a
+	// page that says `passed` should not then grow files for a while.
+	w.collect(ctx, job, workspace)
 
 	w.report(ctx, job.Job.ID, client.JobStatusRequest{
 		Status:   status,

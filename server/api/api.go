@@ -36,6 +36,7 @@ type Handlers struct {
 	repositories *storage.RepositoryStorage
 	jobs         *storage.JobStorage
 	jobLogs      *storage.JobLogStorage
+	artefacts    *storage.JobArtefactStorage
 	rules        *storage.RepositoryRuleStorage
 	settings     *storage.SettingStorage
 	sshKeys      *storage.SSHKeyStorage
@@ -58,6 +59,7 @@ func NewHandlers(opts Options) *Handlers {
 		repositories:      opts.RepositoryStorage,
 		jobs:              opts.JobStorage,
 		jobLogs:           opts.JobLogStorage,
+		artefacts:         opts.JobArtefactStorage,
 		rules:             opts.RepositoryRuleStorage,
 		settings:          opts.SettingStorage,
 		sshKeys:           opts.SSHKeyStorage,
@@ -88,6 +90,10 @@ func (s *Handlers) Mount(r platform.Router) {
 		r.Post("/api/job/{jobID}/heartbeat", s.JobHeartbeat)
 		r.Get("/api/job/{jobID}/log", s.GetJobLog)
 		r.Post("/api/job/{jobID}/log", s.AppendJobLog)
+
+		r.Get("/api/job/{jobID}/artefact", s.ListArtefacts)
+		r.Post("/api/job/{jobID}/artefact", s.UploadArtefact)
+		r.Get("/api/job/{jobID}/artefact/{artefactID}", s.DownloadArtefact)
 	})
 
 	s.MountAgent(r)

@@ -75,6 +75,9 @@ func (s *ServerConfig) applyDefaults(defaults ServerConfig) {
 	if s.Connection == "" {
 		s.Connection = defaults.Connection
 	}
+	if s.ArtefactDir == "" {
+		s.ArtefactDir = defaults.ArtefactDir
+	}
 	if s.TokenTTL <= 0 {
 		s.TokenTTL = defaults.TokenTTL
 	}

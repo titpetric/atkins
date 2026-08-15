@@ -26,6 +26,10 @@ type Options struct {
 	// PLATFORM_DB_ATKINS, falling back to PLATFORM_DB_DEFAULT).
 	Connection string
 
+	// ArtefactDir is the root the bytes of job artefacts are written
+	// under. Empty selects DefaultArtefactDir.
+	ArtefactDir string
+
 	// TokenTTL is the access token lifetime.
 	TokenTTL time.Duration
 
@@ -57,12 +61,18 @@ const (
 	EnvAgentToken = "ATKINS_AGENT_TOKEN"
 )
 
+// DefaultArtefactDir is where artefact bytes go when nothing says
+// otherwise: beside the database, which is where the rest of a small
+// instance's state already lives.
+const DefaultArtefactDir = "artefacts"
+
 // FromConfig builds module options from a resolved server config.
 func FromConfig(cfg config.ServerConfig) *Options {
 	return &Options{
 		SigningKey:        cfg.SigningKey,
 		AgentToken:        cfg.AgentToken,
 		Connection:        cfg.Connection,
+		ArtefactDir:       cfg.ArtefactDir,
 		TokenTTL:          cfg.TokenTTL,
 		SessionTTL:        cfg.SessionTTL,
 		AllowRegistration: cfg.AllowRegistration,

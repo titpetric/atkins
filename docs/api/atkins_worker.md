@@ -118,6 +118,11 @@ type Workspace struct {
 
 	// Checkout is what the work tree ended up at.
 	Checkout Checkout
+
+	// Artefacts is the directory the job copies files into to have them
+	// kept. It sits beside the work tree rather than inside it, so
+	// staging a file does not dirty the checkout the job is testing.
+	Artefacts string
 }
 ```
 

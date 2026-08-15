@@ -53,6 +53,9 @@ type ServerOptions struct {
 	// mysql://user:pass@tcp(host)/atkins.
 	Database string
 
+	// ArtefactDir is where the bytes of job artefacts are stored.
+	ArtefactDir string
+
 	// SigningKey signs access tokens. Required.
 	SigningKey string
 

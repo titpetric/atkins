@@ -26,6 +26,9 @@ type ServerOptions struct {
 	// mysql://user:pass@tcp(host)/atkins.
 	Database string
 
+	// ArtefactDir is where the bytes of job artefacts are stored.
+	ArtefactDir string
+
 	// SigningKey signs access tokens. Required.
 	SigningKey string
 
@@ -41,6 +44,7 @@ type ServerOptions struct {
 func (o *ServerOptions) Bind(fs *pflag.FlagSet) {
 	fs.StringVar(&o.Addr, "addr", "", "Listen address")
 	fs.StringVar(&o.Database, "database", "", "Database DSN")
+	fs.StringVar(&o.ArtefactDir, "artefact-dir", "", "Directory for the bytes of job artefacts")
 	fs.StringVar(&o.SigningKey, "signing-key", "", "Signing key for access tokens")
 	fs.StringVar(&o.AgentToken, "agent-token", "", "Shared token agents enrol with")
 	fs.BoolVar(&o.AllowRegistration, "allow-registration", false, "Keep registration open after the first user")
@@ -71,6 +75,7 @@ func runServer(ctx context.Context, opts *ServerOptions) error {
 	config := settings.Server
 	override(&config.Addr, opts.Addr)
 	override(&config.Database, opts.Database)
+	override(&config.ArtefactDir, opts.ArtefactDir)
 	override(&config.SigningKey, opts.SigningKey)
 	override(&config.AgentToken, opts.AgentToken)
 	if opts.AllowRegistration {

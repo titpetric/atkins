@@ -45,6 +45,10 @@ type DispatchRequest struct {
 	// CloneDepth limits the history of the work tree the agent builds.
 	// 0, the default, is the whole history.
 	CloneDepth int64 `json:"clone_depth"`
+
+	// Artefacts are glob patterns the agent collects after the command
+	// exits, relative to the directory it ran in.
+	Artefacts []string `json:"artefacts"`
 }
 
 // RepositoryPayload is the git detail a client reports about its checkout.
@@ -192,6 +196,7 @@ func (s *Handlers) dispatch(w http.ResponseWriter, r *http.Request) error {
 		CloneDepth:       req.CloneDepth,
 		Labels:           req.Labels,
 		Params:           params,
+		Artefacts:        req.Artefacts,
 	})
 	if err != nil {
 		switch {

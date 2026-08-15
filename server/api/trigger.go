@@ -52,6 +52,11 @@ type TriggerRequest struct {
 
 	Labels []string `json:"labels"`
 
+	// Artefacts are glob patterns the agent collects after the command
+	// exits. This is what lets a cron collect `coverage/*.json` from a
+	// pipeline that knows nothing about artefacts.
+	Artefacts []string `json:"artefacts"`
+
 	// ParentID records the job that triggered this one.
 	ParentID string `json:"parent_id"`
 }
@@ -122,6 +127,7 @@ func (s *Handlers) trigger(w http.ResponseWriter, r *http.Request) error {
 		CloneDepth:       req.CloneDepth,
 		Labels:           req.Labels,
 		Params:           params,
+		Artefacts:        req.Artefacts,
 	})
 	if err != nil {
 		return mapJobCreateError(err)
@@ -202,6 +208,10 @@ func (s *Handlers) retryJob(w http.ResponseWriter, r *http.Request) error {
 		CloneDepth:       previous.CloneDepth,
 		Labels:           splitLabels(previous.Labels),
 		Params:           previous.Params,
+		// A retry collects what the original was asked to collect;
+		// otherwise the re-run of a failed job would come back without
+		// the files that explain it.
+		Artefacts: model.ArtefactPatterns(previous.ArtefactPaths),
 	})
 	if err != nil {
 		return mapJobCreateError(err)

@@ -18,7 +18,9 @@ server/
 │   ├── dispatch.go  dispatch and the job queue
 │   ├── agent.go     enrolment, policy, deploy keys
 │   └── admin.go     users, allowlist, settings, keys
+│   └── artefact.go  upload, list and download job outputs
 ├── auth/            HS256 access tokens
+├── blob/            artefact bytes, behind a Put/Open/Remove interface
 ├── model/           generated records (types.mig.go) + domain helpers
 ├── schema/          append-only migrations, one file per table
 ├── storage/         SQL, via titpetric/pdo generic methods
@@ -54,6 +56,7 @@ Generated files say `DO NOT EDIT`: change SQL and regenerate.
 | `repository`      | A git repository, identified by its normalized slug  |
 | `job`             | One dispatched run, its lease and its outcome        |
 | `job_log`         | Output chunks, sequenced per job                     |
+| `job_artefact`    | Files a job produced, and where their bytes are      |
 | `repository_rule` | Allowlist patterns                                   |
 | `setting`         | Runtime configuration an admin can change            |
 | `ssh_key`         | Deploy keys for clone and fetch                      |
@@ -84,15 +87,43 @@ The pool comes from the platform's connection provider, named `atkins`
 give each case its own database: the platform caches pools by name for
 the life of the process.
 
+## Artefacts
+
+A job's output splits in two. `job_artefact` holds what the file is —
+job, path, size, media type, SHA256 — and `blob` holds the bytes,
+addressed by the `storage_key` on the row.
+
+The split is what keeps an object store backend to one interface: `Put`,
+`Open`, `Remove` over a key namespace, with no SQL and no handler near
+it. `blob.Dir` writes under a root directory, which is the right first
+backend and probably the right one for most installs — the database is
+already on a disk, artefacts are written once and read rarely, and a
+directory is something an operator can back up without asking anybody
+for a bucket.
+
+`JobArtefactStorage` owns both halves so they cannot drift: bytes are
+written before the row exists, and removed if the insert fails; a
+retention sweep removes bytes first and then soft deletes the row, so
+the failure mode is a row that reads as "swept" rather than a file
+nothing will ever clean up.
+
+The count and size limits are settings rather than constants, because
+the moment they matter is the moment a disk is filling, and that is the
+worst moment to need a redeploy.
+
 ## Lifecycle
 
-`Start` connects, migrates, wires storage and handlers, and starts the
-lease sweep. `Mount` registers routes. `Stop` cancels the sweep and
-waits for it.
+`Start` connects, migrates, wires storage and handlers, prepares the
+artefact root, and starts the sweep. `Mount` registers routes. `Stop`
+cancels the sweep and waits for it.
 
 The sweep is the reason an agent can die without stranding a job: a
 `running` job whose `lease_expires_at` has passed is moved to `timeout`
-and can be retried.
+and can be retried. It carries the artefact retention pass too, which
+reads its setting on every tick rather than at start-up.
+
+A root the server cannot create is fatal at start-up rather than a
+surprise on the first job that produces a file.
 
 ## Authentication and roles
 

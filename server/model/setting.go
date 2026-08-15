@@ -2,7 +2,9 @@ package model
 
 import (
 	"fmt"
+	"math"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -26,6 +28,17 @@ const (
 	// SettingJobRetention is how long finished jobs and their output
 	// are kept. Zero keeps them forever.
 	SettingJobRetention = "job.retention"
+
+	// SettingArtefactMaxSize bounds one uploaded artefact.
+	SettingArtefactMaxSize = "artefact.max_size"
+
+	// SettingArtefactMaxCount bounds how many artefacts one job may
+	// keep.
+	SettingArtefactMaxCount = "artefact.max_count"
+
+	// SettingArtefactRetention is how long artefact bytes are kept.
+	// Zero follows job.retention.
+	SettingArtefactRetention = "artefact.retention"
 )
 
 // SettingKind is how a setting's value is validated and parsed.
@@ -38,6 +51,10 @@ const (
 	KindInt      SettingKind = "int"
 	KindDuration SettingKind = "duration"
 	KindEnum     SettingKind = "enum"
+
+	// KindBytes is a size, written the way an operator thinks about
+	// one: 32MB rather than 33554432.
+	KindBytes SettingKind = "bytes"
 )
 
 // SettingDefinition describes one configurable value.
@@ -84,6 +101,24 @@ var settingDefinitions = []SettingDefinition{
 		Default:     "0",
 		Description: "How long finished jobs are kept. 0 keeps them forever.",
 	},
+	{
+		Name:        SettingArtefactMaxSize,
+		Kind:        KindBytes,
+		Default:     "32MB",
+		Description: "Largest single artefact an agent may upload, e.g. 32MB. 0 removes the limit.",
+	},
+	{
+		Name:        SettingArtefactMaxCount,
+		Kind:        KindInt,
+		Default:     "50",
+		Description: "How many artefacts one job may keep. Further uploads are refused. 0 removes the limit.",
+	},
+	{
+		Name:        SettingArtefactRetention,
+		Kind:        KindDuration,
+		Default:     "0",
+		Description: "How long artefact bytes are kept. 0 follows job.retention.",
+	},
 }
 
 // SettingDefinitions returns the registry.
@@ -118,6 +153,10 @@ func (d SettingDefinition) ValidateSetting(value string) error {
 		if _, err := time.ParseDuration(value); err != nil {
 			return fmt.Errorf("%s must be a duration such as 15m or 24h", d.Name)
 		}
+	case KindBytes:
+		if _, err := ParseBytes(value); err != nil {
+			return fmt.Errorf("%s must be a size such as 512KB or 32MB", d.Name)
+		}
 	case KindEnum:
 		for _, allowed := range d.Values {
 			if value == allowed {
@@ -128,4 +167,48 @@ func (d SettingDefinition) ValidateSetting(value string) error {
 	}
 
 	return nil
+}
+
+// byteUnits are the suffixes ParseBytes understands, longest first so
+// "KB" is not read as "B" with a stray K in front.
+var byteUnits = []struct {
+	suffix string
+	scale  int64
+}{
+	{"GB", 1 << 30},
+	{"MB", 1 << 20},
+	{"KB", 1 << 10},
+	{"B", 1},
+}
+
+// ParseBytes reads a size written as a plain number of bytes or with a
+// KB/MB/GB suffix. The units are powers of 1024: this bounds a file on
+// a disk, and disks are measured the way `ls -lh` measures them.
+func ParseBytes(value string) (int64, error) {
+	trimmed := strings.ToUpper(strings.TrimSpace(value))
+	if trimmed == "" {
+		return 0, fmt.Errorf("empty size")
+	}
+
+	scale := int64(1)
+	for _, unit := range byteUnits {
+		if rest, ok := strings.CutSuffix(trimmed, unit.suffix); ok {
+			trimmed = strings.TrimSpace(rest)
+			scale = unit.scale
+			break
+		}
+	}
+
+	amount, err := strconv.ParseInt(trimmed, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%q is not a size", value)
+	}
+	if amount < 0 {
+		return 0, fmt.Errorf("%q is negative", value)
+	}
+	if amount > math.MaxInt64/scale {
+		return 0, fmt.Errorf("%q is too large", value)
+	}
+
+	return amount * scale, nil
 }

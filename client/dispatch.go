@@ -25,6 +25,16 @@ const (
 	// EnvJobParams is the JSON object the job was dispatched with.
 	EnvJobParams = "ATKINS_JOB_PARAMS"
 
+	// EnvArtefacts is a directory the job copies files into to have
+	// them kept. Whatever is in it when the command exits is uploaded
+	// and attached to the job.
+	//
+	// It is the declaration that needs no schema: a pipeline says what
+	// it wants kept by putting it somewhere, which works for any
+	// command in any language without atkins having to parse its
+	// output or its configuration.
+	EnvArtefacts = "ATKINS_ARTEFACTS"
+
 	// EnvServer selects which logged-in server to dispatch to when a
 	// machine has credentials for more than one.
 	EnvServer = "ATKINS_SERVER"

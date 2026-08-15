@@ -19,6 +19,7 @@ atkins          ─────────► /api/dispatch  ──┐
                                             ──► clone into
                                                 /app/data/repos/<slug>
                            /api/job/{id}/log ◄─ streamed output
+                           /api/job/{id}/artefact ◄ files it produced
                            /api/job/{id}/status ◄ terminal state
 browser ──► /job/{ULID}
 ```
@@ -84,6 +85,7 @@ Once logged in, `atkins` posts to `/api/dispatch` and prints the job URL:
 | `parent_id`         | `ATKINS_JOB_ID`, when a job dispatches further work |
 | `labels`            | Which agents may run it                             |
 | `clone_depth`       | History the agent's work tree needs; 0 is all of it |
+| `artefacts`         | Globs the agent collects when the command exits     |
 
 The server normalizes the remote URL into a `host/owner/name` slug, so `git@github.com:you/repo.git` and `https://github.com/you/repo` are one repository. Repositories are created on first sight; nothing has to be registered up front.
 
@@ -111,6 +113,7 @@ An agent publishes these to the command it runs:
 | `ATKINS_ROOT_JOB_ID`   | Top of the job tree, stable across nesting  |
 | `ATKINS_JOB_PARAMS`    | The JSON object the job was dispatched with |
 | `ATKINS_WORKSPACE`     | The checkout the job runs in                |
+| `ATKINS_ARTEFACTS`     | Directory whose contents are kept           |
 | `ATKINS_REPOSITORY`    | Repository slug                             |
 | `ATKINS_REF`           | The ref that was checked out                |
 | `ATKINS_COMMIT_SHA`    | The commit that ref resolved to             |
@@ -200,6 +203,54 @@ What a shallow work tree buys is a small `.git`: it matters when the job package
 
 A job with `clone_depth: 1` has no history and no tags: `git describe`, `git log` past the tip and `git merge-base` will not work, even for the tag the job itself named. `ATKINS_REF` carries that name into the job, which is what a build usually wanted `git describe` for. Fan-outs over tags are the case that wants a depth — each child builds one commit and never looks behind it.
 
+## Artefacts
+
+A job that produces a file — a scan, a coverage report, a built binary — can push it back to the server and have it attached to the job. This is the "collect the outputs and data mine them centrally" half of a CI system: the agent's disk is thrown away with the work tree, and the server keeps what mattered.
+
+There are two ways to say what to keep, and a job can use both.
+
+**Copy it into `$ATKINS_ARTEFACTS`.** The agent creates that directory before the command runs, and uploads whatever is in it afterwards, named by its path within the directory:
+
+```yaml
+jobs:
+  scan:
+    steps:
+      - ./.atkins/bin/scan-repository > scan.json
+      - cp scan.json "$ATKINS_ARTEFACTS/"
+```
+
+Nothing has to be declared anywhere, no schema changes with your pipeline, and it works for any command in any language: a job says what it wants kept by putting it somewhere.
+
+**Declare a glob when you dispatch or trigger.** For a pipeline you'd rather not edit — one that writes `coverage.json` where it writes it — the job can say what to pick up:
+
+```bash
+curl -sS -X POST -H "Authorization: Bearer $TOKEN" "$SERVER/api/repository/$REPO/trigger" \
+  -d '{"job": "test", "artefacts": ["coverage.json", "reports/**/*.json"]}'
+```
+
+Patterns are relative to the directory the job ran in. `*` matches within a path segment and `**` across segments, the same as the repository allowlist patterns. `.git` is never collected.
+
+Collection runs **after the command exits, whatever it exited with** — including a timeout. The artefacts of a failure are usually the ones worth having.
+
+The agent walks the checkout and matches what it finds, rather than handing the pattern to the filesystem: a pattern can only ever select among files that are already inside the checkout, symlinks are not followed, and a path that tries to leave — `../../etc/passwd` — is dropped when the job is created and again by the agent.
+
+Reading them back:
+
+```bash
+curl -sS -H "Authorization: Bearer $TOKEN" "$SERVER/api/job/$JOB/artefact" |
+  jq -r '.[] | "\(.path)\t\(.size)\t\(.checksum)"'
+
+curl -sSL -H "Authorization: Bearer $TOKEN" -O "$SERVER/api/job/$JOB/artefact/$ARTEFACT"
+```
+
+The job page lists them with download links, so the URL atkins printed is also where the files are.
+
+**Where the bytes live.** The database records what an artefact is — job, path, size, media type, SHA256 — and the file itself goes under `server.artefact_dir` as `<job-id>/<artefact-id>`. That is a directory an operator can back up, rsync or mount on a volume. The upload is streamed straight to it and hashed on the way past, so the checksum is what the server received rather than what the agent claimed; an upload that arrives short of its declared checksum is refused.
+
+**Limits.** `artefact.max_size` bounds one file and `artefact.max_count` bounds how many one job may keep, both settings rather than constants, so a full disk is a `curl` away from being stopped rather than a redeploy. Re-uploading a path replaces it instead of adding to it.
+
+**Retention.** `artefact.retention` is how long the bytes are kept; `0` follows `job.retention`. The sweep runs on the same ticker as the lease reclaim, removes the file and marks the row deleted — so the record that a 40MB `scan.json` was produced and swept survives, while the 40MB does not. Artefacts are the thing that fills a disk, and they have their own setting because keeping a year of job history while keeping a week of files is a normal thing to want; the reverse never is.
+
 ## Retrying and cancelling
 
 ```bash
@@ -211,9 +262,11 @@ A retry is a **new job** built from the finished one, not a reset: the previous 
 
 ## The job page
 
-`/job/{ULID}` is the URL atkins prints. It shows the status, the command, the repository, the ref the job asked for and the commit the agent resolved it to, timing, the exit code, and the output the agent captured, and it refreshes itself until the job settles. `/` lists recent jobs.
+`/job/{ULID}` is the URL atkins prints. It shows the status, the command, the repository, the ref the job asked for and the commit the agent resolved it to, timing, the exit code, the output the agent captured and the artefacts it uploaded, and it refreshes itself until the job settles. `/` lists recent jobs.
 
 The pages are readable without a session: a ULID is not enumerable in practice, and the point of printing a URL in a terminal is that pasting it into a browser works. Put the server behind your own auth if the output is sensitive.
+
+Artefact downloads from the page — `/job/{ULID}/artefact/{ULID}` — are on the same terms, because a browser has no bearer token to offer and a download link that fails is not a link. `GET /api/job/{id}/artefact/{id}` is the authenticated door, and it is the one a script should use. A file a job produced is served as an attachment with `X-Content-Type-Options: nosniff`, so an artefact named `report.html` is something to save rather than something that runs in the server's origin.
 
 ## Configuration
 
@@ -234,6 +287,7 @@ client:
 server:
   addr: ":3200"
   database: sqlite://file:atkins.db
+  artefact_dir: artefacts
   signing_key: ""
   agent_token: ""
 
@@ -255,6 +309,7 @@ atkins server --signing-key "$(openssl rand -hex 32)" \
 |------------------------|-----------------------------|-----------------------------|
 | `--addr`               | `server.addr`               | `PLATFORM_SERVER_ADDR`      |
 | `--database`           | `server.database`           | `PLATFORM_DB_DEFAULT`       |
+| `--artefact-dir`       | `server.artefact_dir`       | `ATKINS_ARTEFACT_DIR`       |
 | `--signing-key`        | `server.signing_key`        | `ATKINS_SIGNING_KEY`        |
 | `--agent-token`        | `server.agent_token`        | `ATKINS_AGENT_TOKEN`        |
 | `--allow-registration` | `server.allow_registration` | `ATKINS_ALLOW_REGISTRATION` |
@@ -282,7 +337,8 @@ For each claimed job the agent:
 3. builds a work tree in `<data_dir>/work/<job-id>` at that commit, shallow if the job asked for a depth, and reports the ref and commit back to the server;
 4. runs the command in the job's working directory;
 5. streams the output back as it goes;
-6. reports `passed`, `failed` or `timeout`, and removes the work tree.
+6. uploads the artefacts the job asked to keep, whatever the exit code;
+7. reports `passed`, `failed` or `timeout`, and removes the work tree.
 
 The work tree is checked out detached. A job builds one commit; leaving a branch checked out would suggest it has somewhere to push it back to.
 
@@ -344,13 +400,16 @@ which rewrites `git@host:owner/repo.git` to `https://host/owner/repo.git` before
 
 Runtime configuration an admin can change without a restart:
 
-| Setting             | Default | Purpose                                       |
-|---------------------|---------|-----------------------------------------------|
-| `repository.policy` | `open`  | `open`, or `allowlist` to gate on rules       |
-| `registration.open` | `false` | Let anyone register                           |
-| `job.max_depth`     | `3`     | How deep a job may dispatch children          |
-| `job.lease_ttl`     | `15m`   | How long an agent may hold a job              |
-| `job.retention`     | `0`     | How long finished jobs are kept; 0 is forever |
+| Setting              | Default | Purpose                                             |
+|----------------------|---------|-----------------------------------------------------|
+| `repository.policy`  | `open`  | `open`, or `allowlist` to gate on rules             |
+| `registration.open`  | `false` | Let anyone register                                 |
+| `job.max_depth`      | `3`     | How deep a job may dispatch children                |
+| `job.lease_ttl`      | `15m`   | How long an agent may hold a job                    |
+| `job.retention`      | `0`     | How long finished jobs are kept; 0 is forever       |
+| `artefact.max_size`  | `32MB`  | Largest single artefact an agent may upload         |
+| `artefact.max_count` | `50`    | How many artefacts one job may keep                 |
+| `artefact.retention` | `0`     | How long artefact bytes are kept; 0 follows the job |
 
 ```bash
 curl -sS -H "Authorization: Bearer $TOKEN" "$SERVER/api/admin/setting" |
@@ -388,6 +447,8 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
 | `/api/job`                     | GET             | user   | List jobs                              |
 | `/api/job/{id}`                | GET             | user   | Read one job                           |
 | `/api/job/{id}/log`            | GET             | user   | Read captured output                   |
+| `/api/job/{id}/artefact`       | GET             | user   | List the files a job produced          |
+| `/api/job/{id}/artefact/{id}`  | GET             | user   | Download one artefact                  |
 | `/api/job/{id}/retry`          | POST            | user   | Queue a copy of a finished job         |
 | `/api/job/{id}/cancel`         | POST            | user   | Settle an unfinished job               |
 | `/api/job/claim`               | POST            | agent  | Lease the oldest pending job           |
@@ -395,6 +456,7 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
 | `/api/job/{id}/checkout`       | POST            | agent  | Record the ref and commit it built     |
 | `/api/job/{id}/heartbeat`      | POST            | agent  | Extend the lease                       |
 | `/api/job/{id}/log`            | POST            | agent  | Append output                          |
+| `/api/job/{id}/artefact`       | POST            | agent  | Upload a file, `?path=` names it       |
 | `/api/agent/enrol`             | POST            | token  | Trade the shared token for credentials |
 | `/api/agent/policy`            | GET             | agent  | The repository policy to enforce       |
 | `/api/agent/ssh-key`           | GET             | agent  | Deploy keys, with private material     |

@@ -68,6 +68,9 @@ type Job struct {
 	// Updated At
 	UpdatedAt *time.Time `db:"updated_at" json:"updated_at"`
 
+	// Artefact Paths
+	ArtefactPaths string `db:"artefact_paths" json:"artefact_paths"`
+
 	// Ref
 	Ref string `db:"ref" json:"ref"`
 
@@ -76,6 +79,42 @@ type Job struct {
 
 	// Clone Depth
 	CloneDepth int64 `db:"clone_depth" json:"clone_depth"`
+}
+```
+
+```go
+// JobArtefact generated for db table `job_artefact`.
+// Job Artefact.
+type JobArtefact struct {
+	// ID
+	ID string `db:"id" json:"id"`
+
+	// Job ID
+	JobID string `db:"job_id" json:"job_id"`
+
+	// Path
+	Path string `db:"path" json:"path"`
+
+	// Storage Key
+	StorageKey string `db:"storage_key" json:"storage_key"`
+
+	// Size
+	Size int64 `db:"size" json:"size"`
+
+	// Content Type
+	ContentType string `db:"content_type" json:"content_type"`
+
+	// Checksum
+	Checksum string `db:"checksum" json:"checksum"`
+
+	// Agent ID
+	AgentID string `db:"agent_id" json:"agent_id"`
+
+	// Created At
+	CreatedAt *time.Time `db:"created_at" json:"created_at"`
+
+	// Deleted At
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
 }
 ```
 
@@ -381,6 +420,17 @@ type User struct {
 ## Consts
 
 ```go
+// DefaultContentType is what an artefact is served as when the agent
+// could not tell what it uploaded.
+const DefaultContentType = "application/octet-stream"
+```
+
+```go
+// JobArtefactTable is the name of the table in the DB.
+const JobArtefactTable = "`job_artefact`"
+```
+
+```go
 // JobLogTable is the name of the table in the DB.
 const JobLogTable = "`job_log`"
 ```
@@ -388,6 +438,13 @@ const JobLogTable = "`job_log`"
 ```go
 // JobTable is the name of the table in the DB.
 const JobTable = "`job`"
+```
+
+```go
+// MaxArtefactPathLength bounds the name an artefact is stored under.
+// The value is a path, not prose; anything longer is a mistake or an
+// attempt to fill a column.
+const MaxArtefactPathLength = 512
 ```
 
 ```go
@@ -433,6 +490,10 @@ const (
 	KindInt      SettingKind = "int"
 	KindDuration SettingKind = "duration"
 	KindEnum     SettingKind = "enum"
+
+	// KindBytes is a size, written the way an operator thinks about
+	// one: 32MB rather than 33554432.
+	KindBytes SettingKind = "bytes"
 )
 ```
 
@@ -457,6 +518,33 @@ const (
 	// SettingJobRetention is how long finished jobs and their output
 	// are kept. Zero keeps them forever.
 	SettingJobRetention = "job.retention"
+
+	// SettingArtefactMaxSize bounds one uploaded artefact.
+	SettingArtefactMaxSize = "artefact.max_size"
+
+	// SettingArtefactMaxCount bounds how many artefacts one job may
+	// keep.
+	SettingArtefactMaxCount = "artefact.max_count"
+
+	// SettingArtefactRetention is how long artefact bytes are kept.
+	// Zero follows job.retention.
+	SettingArtefactRetention = "artefact.retention"
+)
+```
+
+```go
+// Repository policy values.
+const (
+	// PolicyOpen builds any repository a logged-in user dispatches.
+	// It is the default: a personal instance has no third party to
+	// defend against, and requiring a rule before the first run would
+	// make the tool feel broken.
+	PolicyOpen RepositoryPolicy = "open"
+
+	// PolicyAllowlist builds only repositories matching an active
+	// rule. With no rules configured, nothing runs — which is the
+	// point of turning it on.
+	PolicyAllowlist RepositoryPolicy = "allowlist"
 )
 ```
 
@@ -487,27 +575,21 @@ const (
 )
 ```
 
-```go
-// Repository policy values.
-const (
-	// PolicyOpen builds any repository a logged-in user dispatches.
-	// It is the default: a personal instance has no third party to
-	// defend against, and requiring a rule before the first run would
-	// make the tool feel broken.
-	PolicyOpen RepositoryPolicy = "open"
-
-	// PolicyAllowlist builds only repositories matching an active
-	// rule. With no rules configured, nothing runs — which is the
-	// point of turning it on.
-	PolicyAllowlist RepositoryPolicy = "allowlist"
-)
-```
-
 ## Vars
 
 ```go
+// JobArtefactFields is a list of all columns in the DB table.
+var JobArtefactFields = []string{"id", "job_id", "path", "storage_key", "size", "content_type", "checksum", "agent_id", "created_at", "deleted_at"}
+```
+
+```go
+// JobArtefactPrimaryFields are the primary key fields in the DB table.
+var JobArtefactPrimaryFields = []string{"id"}
+```
+
+```go
 // JobFields is a list of all columns in the DB table.
-var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "ref", "commit_sha", "clone_depth"}
+var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "artefact_paths", "ref", "commit_sha", "clone_depth"}
 ```
 
 ```go
@@ -654,6 +736,28 @@ var (
 	// usable private key.
 	ErrInvalidSSHKey = errors.New("not a usable ssh private key")
 
+	// ErrInvalidArtefactPath is returned when an upload names a file
+	// that could not be inside the job's directory.
+	ErrInvalidArtefactPath = errors.New("artefact path must be relative to the job directory")
+
+	// ErrArtefactTooLarge is returned when an upload runs past
+	// artefact.max_size. The bytes written so far are discarded.
+	ErrArtefactTooLarge = errors.New("artefact is larger than artefact.max_size")
+
+	// ErrTooManyArtefacts is returned when a job has already stored
+	// artefact.max_count files. It is the per-job backstop against a
+	// pipeline that uploads in a loop.
+	ErrTooManyArtefacts = errors.New("job has reached artefact.max_count")
+
+	// ErrChecksumMismatch is returned when the bytes received do not
+	// hash to the checksum the agent declared, which means the upload
+	// was truncated or altered in flight.
+	ErrChecksumMismatch = errors.New("artefact checksum does not match the uploaded bytes")
+
+	// ErrArtefactNotFound is returned when an artefact does not exist,
+	// belongs to another job, or has been swept by retention.
+	ErrArtefactNotFound = errors.New("artefact not found")
+
 	// ErrForbidden is returned when a user is authenticated but not
 	// permitted to perform the action.
 	ErrForbidden = errors.New("insufficient permissions")
@@ -666,8 +770,15 @@ var (
 
 ## Function symbols
 
+- `func ArtefactContentType (value string) string`
+- `func ArtefactPath (value string) string`
+- `func ArtefactPattern (value string) string`
+- `func ArtefactPatterns (value string) []string`
+- `func JoinArtefactPatterns (patterns []string) string`
 - `func LookupSetting (name string) (SettingDefinition, bool)`
+- `func MatchArtefactPath (pattern,value string) bool`
 - `func MatchRepository (pattern,slug string) bool`
+- `func ParseBytes (value string) (int64, error)`
 - `func RepositorySlug (remoteURL string) string`
 - `func SettingDefinitions () []SettingDefinition`
 - `func TerminalJobStatus (status JobStatus) bool`
@@ -681,6 +792,7 @@ var (
 - `func WithWhere (clause string) QueryOption`
 - `func (*Job) Delete (opts ...QueryOption) string`
 - `func (*Job) GetAgentID () string`
+- `func (*Job) GetArtefactPaths () string`
 - `func (*Job) GetCloneDepth () int64`
 - `func (*Job) GetCommand () string`
 - `func (*Job) GetCommitSha () string`
@@ -706,6 +818,7 @@ var (
 - `func (*Job) IsTerminal () bool`
 - `func (*Job) Select (opts ...QueryOption) string`
 - `func (*Job) SetAgentID (val string)`
+- `func (*Job) SetArtefactPaths (val string)`
 - `func (*Job) SetCloneDepth (val int64)`
 - `func (*Job) SetCommand (val string)`
 - `func (*Job) SetCommitSha (val string)`
@@ -728,6 +841,30 @@ var (
 - `func (*Job) SetUserID (val string)`
 - `func (*Job) SetWorkingDirectory (val string)`
 - `func (*Job) Update (opts ...QueryOption) string`
+- `func (*JobArtefact) Delete (opts ...QueryOption) string`
+- `func (*JobArtefact) GetAgentID () string`
+- `func (*JobArtefact) GetChecksum () string`
+- `func (*JobArtefact) GetContentType () string`
+- `func (*JobArtefact) GetCreatedAt () *time.Time`
+- `func (*JobArtefact) GetDeletedAt () *time.Time`
+- `func (*JobArtefact) GetID () string`
+- `func (*JobArtefact) GetJobID () string`
+- `func (*JobArtefact) GetPath () string`
+- `func (*JobArtefact) GetSize () int64`
+- `func (*JobArtefact) GetStorageKey () string`
+- `func (*JobArtefact) Insert (opts ...QueryOption) string`
+- `func (*JobArtefact) Select (opts ...QueryOption) string`
+- `func (*JobArtefact) SetAgentID (val string)`
+- `func (*JobArtefact) SetChecksum (val string)`
+- `func (*JobArtefact) SetContentType (val string)`
+- `func (*JobArtefact) SetCreatedAt (stamp time.Time)`
+- `func (*JobArtefact) SetDeletedAt (stamp time.Time)`
+- `func (*JobArtefact) SetID (val string)`
+- `func (*JobArtefact) SetJobID (val string)`
+- `func (*JobArtefact) SetPath (val string)`
+- `func (*JobArtefact) SetSize (val int64)`
+- `func (*JobArtefact) SetStorageKey (val string)`
+- `func (*JobArtefact) Update (opts ...QueryOption) string`
 - `func (*JobLog) Delete (opts ...QueryOption) string`
 - `func (*JobLog) GetContent () string`
 - `func (*JobLog) GetCreatedAt () *time.Time`
@@ -903,12 +1040,90 @@ var (
 - `func (*User) Update (opts ...QueryOption) string`
 - `func (SettingDefinition) ValidateSetting (value string) error`
 
+### ArtefactContentType
+
+ArtefactContentType sanitizes a client-declared media type.
+
+It is echoed back on download, so a header the agent invented must
+not be able to carry a newline into the response.
+
+```go
+func ArtefactContentType(value string) string
+```
+
+### ArtefactPath
+
+ArtefactPath normalizes the name a pipeline gave a file into a clean
+path relative to the directory the job ran in, or "" when the name
+cannot mean that.
+
+This is the same decision cleanWorkingDirectory makes, and it is made
+here for the same reason: the value arrives over the network and ends
+up addressing bytes on the server's disk. An absolute path or a `..`
+escape is rejected outright rather than repaired, because a caller
+asking for `../../etc/passwd` should be told no, not quietly handed
+`etc/passwd`.
+
+```go
+func ArtefactPath(value string) string
+```
+
+### ArtefactPattern
+
+ArtefactPattern normalizes one collection glob, or returns "".
+
+A pattern is a path with `*` and `**` in it, so it is held to exactly
+the same rules as a path: relative, no `..`, no leading separator.
+
+```go
+func ArtefactPattern(value string) string
+```
+
+### ArtefactPatterns
+
+ArtefactPatterns parses the comma separated artefact_paths column
+into the globs an agent should collect, dropping anything that could
+not name a file inside the checkout.
+
+Patterns are validated where they are read rather than only where
+they are written: a pattern can be stored by one version of the
+server and read by another, and the agent is the one that touches the
+filesystem.
+
+```go
+func ArtefactPatterns(value string) []string
+```
+
+### JoinArtefactPatterns
+
+JoinArtefactPatterns renders patterns for the artefact_paths column,
+keeping only the ones that survive validation.
+
+```go
+func JoinArtefactPatterns(patterns []string) string
+```
+
 ### LookupSetting
 
 LookupSetting returns the definition for a name.
 
 ```go
 func LookupSetting(name string) (SettingDefinition, bool)
+```
+
+### MatchArtefactPath
+
+MatchArtefactPath reports whether a path relative to the job's
+directory matches a collection pattern. `*` matches within a path
+segment, `**` across segments, exactly as the repository allowlist
+patterns do.
+
+Unlike MatchRepository this is case-sensitive: repository slugs are
+lowercased on the way in, filenames are not, and `*.JSON` collecting
+`scan.json` on one agent and not another would be worse than strict.
+
+```go
+func MatchArtefactPath(pattern, value string) bool
 ```
 
 ### MatchRepository
@@ -929,6 +1144,16 @@ case-insensitive because slugs are lowercased.
 
 ```go
 func MatchRepository(pattern, slug string) bool
+```
+
+### ParseBytes
+
+ParseBytes reads a size written as a plain number of bytes or with a
+KB/MB/GB suffix. The units are powers of 1024: this bounds a file on
+a disk, and disks are measured the way `ls -lh` measures them.
+
+```go
+func ParseBytes(value string) (int64, error)
 ```
 
 ### RepositorySlug
@@ -1040,6 +1265,14 @@ GetAgentID will return the value of AgentID.
 
 ```go
 func (*Job) GetAgentID() string
+```
+
+### GetArtefactPaths
+
+GetArtefactPaths will return the value of ArtefactPaths.
+
+```go
+func (*Job) GetArtefactPaths() string
 ```
 
 ### GetCloneDepth
@@ -1242,6 +1475,14 @@ SetAgentID sets AgentID to the provided value.
 func (*Job) SetAgentID(val string)
 ```
 
+### SetArtefactPaths
+
+SetArtefactPaths sets ArtefactPaths to the provided value.
+
+```go
+func (*Job) SetArtefactPaths(val string)
+```
+
 ### SetCloneDepth
 
 SetCloneDepth sets CloneDepth to the provided value.
@@ -1416,6 +1657,198 @@ Update starts building a UPDATE query.
 
 ```go
 func (*Job) Update(opts ...QueryOption) string
+```
+
+### Delete
+
+Delete starts building a DELETE query.
+
+```go
+func (*JobArtefact) Delete(opts ...QueryOption) string
+```
+
+### GetAgentID
+
+GetAgentID will return the value of AgentID.
+
+```go
+func (*JobArtefact) GetAgentID() string
+```
+
+### GetChecksum
+
+GetChecksum will return the value of Checksum.
+
+```go
+func (*JobArtefact) GetChecksum() string
+```
+
+### GetContentType
+
+GetContentType will return the value of ContentType.
+
+```go
+func (*JobArtefact) GetContentType() string
+```
+
+### GetCreatedAt
+
+GetCreatedAt will return the value of CreatedAt.
+
+```go
+func (*JobArtefact) GetCreatedAt() *time.Time
+```
+
+### GetDeletedAt
+
+GetDeletedAt will return the value of DeletedAt.
+
+```go
+func (*JobArtefact) GetDeletedAt() *time.Time
+```
+
+### GetID
+
+GetID will return the value of ID.
+
+```go
+func (*JobArtefact) GetID() string
+```
+
+### GetJobID
+
+GetJobID will return the value of JobID.
+
+```go
+func (*JobArtefact) GetJobID() string
+```
+
+### GetPath
+
+GetPath will return the value of Path.
+
+```go
+func (*JobArtefact) GetPath() string
+```
+
+### GetSize
+
+GetSize will return the value of Size.
+
+```go
+func (*JobArtefact) GetSize() int64
+```
+
+### GetStorageKey
+
+GetStorageKey will return the value of StorageKey.
+
+```go
+func (*JobArtefact) GetStorageKey() string
+```
+
+### Insert
+
+Insert starts building an INSERT INTO query.
+
+```go
+func (*JobArtefact) Insert(opts ...QueryOption) string
+```
+
+### Select
+
+Select starts building a SELECT query.
+
+```go
+func (*JobArtefact) Select(opts ...QueryOption) string
+```
+
+### SetAgentID
+
+SetAgentID sets AgentID to the provided value.
+
+```go
+func (*JobArtefact) SetAgentID(val string)
+```
+
+### SetChecksum
+
+SetChecksum sets Checksum to the provided value.
+
+```go
+func (*JobArtefact) SetChecksum(val string)
+```
+
+### SetContentType
+
+SetContentType sets ContentType to the provided value.
+
+```go
+func (*JobArtefact) SetContentType(val string)
+```
+
+### SetCreatedAt
+
+SetCreatedAt sets CreatedAt to the provided value.
+
+```go
+func (*JobArtefact) SetCreatedAt(stamp time.Time)
+```
+
+### SetDeletedAt
+
+SetDeletedAt sets DeletedAt to the provided value.
+
+```go
+func (*JobArtefact) SetDeletedAt(stamp time.Time)
+```
+
+### SetID
+
+SetID sets ID to the provided value.
+
+```go
+func (*JobArtefact) SetID(val string)
+```
+
+### SetJobID
+
+SetJobID sets JobID to the provided value.
+
+```go
+func (*JobArtefact) SetJobID(val string)
+```
+
+### SetPath
+
+SetPath sets Path to the provided value.
+
+```go
+func (*JobArtefact) SetPath(val string)
+```
+
+### SetSize
+
+SetSize sets Size to the provided value.
+
+```go
+func (*JobArtefact) SetSize(val int64)
+```
+
+### SetStorageKey
+
+SetStorageKey sets StorageKey to the provided value.
+
+```go
+func (*JobArtefact) SetStorageKey(val string)
+```
+
+### Update
+
+Update starts building a UPDATE query.
+
+```go
+func (*JobArtefact) Update(opts ...QueryOption) string
 ```
 
 ### Delete

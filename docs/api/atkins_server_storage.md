@@ -19,6 +19,39 @@ instead so transactions and scoping stay in one place.
 ## Types
 
 ```go
+// ArtefactRequest is one uploaded file.
+type ArtefactRequest struct {
+	// JobID is the job that produced the file. The caller has already
+	// established that it exists.
+	JobID string
+
+	// AgentID records which worker uploaded it.
+	AgentID string
+
+	// Path is the name the pipeline gave the file, relative to the
+	// directory the job ran in.
+	Path string
+
+	// ContentType is what the agent thought it was uploading.
+	ContentType string
+
+	// Checksum, when set, is the SHA256 the agent computed. It is
+	// compared against what actually arrived.
+	Checksum string
+
+	// Content is the file. It is streamed to the blob store rather than
+	// read into memory: an artefact is as large as the limit allows.
+	Content io.Reader
+
+	// MaxSize bounds this upload; MaxCount bounds how many artefacts
+	// the job may keep. Both come from the setting registry, so an
+	// admin can change them without a restart.
+	MaxSize  int64
+	MaxCount int64
+}
+```
+
+```go
 // CheckoutRequest is what an agent reports having checked out.
 type CheckoutRequest struct {
 	// Ref is the effective ref: the one the job named, or the default
@@ -49,6 +82,18 @@ type Flags struct {
 	IsAdmin  *bool `json:"is_admin"`
 	IsActive *bool `json:"is_active"`
 	IsAgent  *bool `json:"is_agent"`
+}
+```
+
+```go
+// JobArtefactStorage persists the files a job produced.
+// It owns both halves of an artefact: the row that describes it and the
+// bytes it points at. Keeping them behind one type is what stops the
+// two from drifting — a caller cannot insert a row for bytes that were
+// never written, or delete a row and forget the file.
+type JobArtefactStorage struct {
+	db    *sqlx.DB
+	blobs blob.Store
 }
 ```
 
@@ -91,6 +136,10 @@ type JobRequest struct {
 
 	// Params is a JSON object handed to the job as ATKINS_JOB_PARAMS.
 	Params string
+
+	// Artefacts are glob patterns the agent collects after the command
+	// exits, relative to the directory it ran in.
+	Artefacts []string
 }
 ```
 
@@ -312,6 +361,7 @@ const (
 
 - `func DB (ctx context.Context, name string) (*sqlx.DB, error)`
 - `func Migrate (ctx context.Context, db *sqlx.DB, schema fs.FS) error`
+- `func NewJobArtefactStorage (db *sqlx.DB, blobs blob.Store) *JobArtefactStorage`
 - `func NewJobLogStorage (db *sqlx.DB) *JobLogStorage`
 - `func NewJobStorage (db *sqlx.DB, maxDepth int64, leaseTTL time.Duration) *JobStorage`
 - `func NewRepositoryRuleStorage (db *sqlx.DB) *RepositoryRuleStorage`
@@ -320,6 +370,12 @@ const (
 - `func NewSessionStorage (db *sqlx.DB, ttl time.Duration) *SessionStorage`
 - `func NewSettingStorage (db *sqlx.DB) *SettingStorage`
 - `func NewUserStorage (db *sqlx.DB) *UserStorage`
+- `func (*JobArtefactStorage) Count (ctx context.Context, jobID string) (int64, error)`
+- `func (*JobArtefactStorage) Create (ctx context.Context, req ArtefactRequest) (*model.JobArtefact, error)`
+- `func (*JobArtefactStorage) Get (ctx context.Context, jobID,artefactID string) (*model.JobArtefact, error)`
+- `func (*JobArtefactStorage) List (ctx context.Context, jobID string) ([]model.JobArtefact, error)`
+- `func (*JobArtefactStorage) Open (ctx context.Context, artefact *model.JobArtefact) (io.ReadCloser, error)`
+- `func (*JobArtefactStorage) PruneExpired (ctx context.Context, cutoff time.Time) (int64, error)`
 - `func (*JobLogStorage) Append (ctx context.Context, jobID,stream,content string) error`
 - `func (*JobLogStorage) List (ctx context.Context, jobID string) ([]model.JobLog, error)`
 - `func (*JobStorage) Claim (ctx context.Context, agentID string, labels []string) (*model.Job, error)`
@@ -356,6 +412,7 @@ const (
 - `func (*SessionStorage) Touch (ctx context.Context, sessionID string) error`
 - `func (*SettingStorage) All () []SettingValue`
 - `func (*SettingStorage) Bool (name string) bool`
+- `func (*SettingStorage) Bytes (name string) int64`
 - `func (*SettingStorage) Duration (name string) time.Duration`
 - `func (*SettingStorage) Get (name string) string`
 - `func (*SettingStorage) Int (name string) int64`
@@ -391,6 +448,15 @@ Migrate applies SQL migrations from the given filesystem to the database.
 
 ```go
 func Migrate(ctx context.Context, db *sqlx.DB, schema fs.FS) error
+```
+
+### NewJobArtefactStorage
+
+NewJobArtefactStorage returns a JobArtefactStorage backed by the
+given pool and blob store.
+
+```go
+func NewJobArtefactStorage(db *sqlx.DB, blobs blob.Store) *JobArtefactStorage
 ```
 
 ### NewJobLogStorage
@@ -457,6 +523,69 @@ NewUserStorage returns a UserStorage backed by the given pool.
 
 ```go
 func NewUserStorage(db *sqlx.DB) *UserStorage
+```
+
+### Count
+
+Count returns how many artefacts a job currently keeps.
+
+```go
+func (*JobArtefactStorage) Count(ctx context.Context, jobID string) (int64, error)
+```
+
+### Create
+
+Create stores an uploaded artefact.
+
+Uploading a path a job already has replaces it. A collection that
+runs twice — a retried upload, a pipeline that copies the same file
+from two steps — should leave one scan.json rather than two, and the
+count limit should not be spent on duplicates.
+
+```go
+func (*JobArtefactStorage) Create(ctx context.Context, req ArtefactRequest) (*model.JobArtefact, error)
+```
+
+### Get
+
+Get returns one artefact of one job.
+
+The job is part of the lookup rather than checked afterwards: an
+artefact ID from another job must not resolve here just because the
+caller could read some job.
+
+```go
+func (*JobArtefactStorage) Get(ctx context.Context, jobID, artefactID string) (*model.JobArtefact, error)
+```
+
+### List
+
+List returns the artefacts of a job whose bytes are still there.
+
+```go
+func (*JobArtefactStorage) List(ctx context.Context, jobID string) ([]model.JobArtefact, error)
+```
+
+### Open
+
+Open returns the bytes of an artefact.
+
+```go
+func (*JobArtefactStorage) Open(ctx context.Context, artefact *model.JobArtefact) (io.ReadCloser, error)
+```
+
+### PruneExpired
+
+PruneExpired drops the bytes of artefacts older than the cutoff and
+reports how many it swept.
+
+The row is soft deleted rather than removed. It costs a few dozen
+bytes, it keeps the record that a 40MB scan.json was produced, and it
+makes the removal auditable: "swept by retention" and "never uploaded"
+are different answers to why a file isn't there.
+
+```go
+func (*JobArtefactStorage) PruneExpired(ctx context.Context, cutoff time.Time) (int64, error)
 ```
 
 ### Append
@@ -792,6 +921,14 @@ Bool returns a setting parsed as a boolean.
 
 ```go
 func (*SettingStorage) Bool(name string) bool
+```
+
+### Bytes
+
+Bytes returns a setting parsed as a size, such as 32MB.
+
+```go
+func (*SettingStorage) Bytes(name string) int64
 ```
 
 ### Duration

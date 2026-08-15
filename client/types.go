@@ -1,5 +1,7 @@
 package client
 
+import "io"
+
 // The payload types below mirror github.com/titpetric/atkins/server/api.
 // They are re-declared rather than imported so the atkins CLI links
 // against net/http alone; importing the server package would pull the
@@ -60,6 +62,7 @@ type DispatchRequest struct {
 	ParentID         string            `json:"parent_id,omitempty"`
 	Labels           []string          `json:"labels,omitempty"`
 	Params           map[string]any    `json:"params,omitempty"`
+	Artefacts        []string          `json:"artefacts,omitempty"`
 }
 
 // DispatchResponse is returned by POST /api/dispatch.
@@ -139,6 +142,10 @@ type Job struct {
 	Labels           string `json:"labels"`
 	Params           string `json:"params"`
 	Status           string `json:"status"`
+
+	// ArtefactPaths are the comma separated globs the agent collects
+	// after the command exits.
+	ArtefactPaths string `json:"artefact_paths"`
 }
 
 // JobCheckoutRequest is the body of POST /api/job/{jobID}/checkout: what
@@ -147,6 +154,41 @@ type JobCheckoutRequest struct {
 	Ref       string `json:"ref"`
 	CommitSHA string `json:"commit_sha"`
 }
+
+// Artefact mirrors api.ArtefactView: one file a job produced.
+type Artefact struct {
+	ID          string `json:"id"`
+	JobID       string `json:"job_id"`
+	Path        string `json:"path"`
+	Size        int64  `json:"size"`
+	ContentType string `json:"content_type"`
+	Checksum    string `json:"checksum"`
+	CreatedAt   string `json:"created_at"`
+	URL         string `json:"url"`
+}
+
+// ArtefactUpload is one file being pushed to the server.
+type ArtefactUpload struct {
+	// Path is the name the pipeline gave the file, relative to the
+	// directory the job ran in.
+	Path string
+
+	// ContentType is the media type, guessed from the extension.
+	ContentType string
+
+	// Checksum is the SHA256 the agent computed while reading the
+	// file. The server compares it against what arrives, so a
+	// truncated upload is refused rather than stored.
+	Checksum string
+
+	// Content is the file. It is streamed rather than buffered: an
+	// artefact is as large as the server's limit allows.
+	Content io.Reader
+}
+
+// HeaderArtefactChecksum carries ArtefactUpload.Checksum, mirroring
+// server/api.
+const HeaderArtefactChecksum = "X-Atkins-Checksum"
 
 // JobLogRequest is the body of POST /api/job/{jobID}/log.
 type JobLogRequest struct {

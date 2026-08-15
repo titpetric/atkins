@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -42,6 +43,11 @@ type Client struct {
 // DefaultTimeout bounds a single API call. Dispatch happens on the hot
 // path of every atkins run, so it must never hang a build.
 const DefaultTimeout = 10 * time.Second
+
+// UploadTimeout bounds one artefact transfer. It is generous because an
+// artefact is measured in megabytes rather than in fields, and nothing
+// is waiting on it: the job has already finished by the time it runs.
+const UploadTimeout = 5 * time.Minute
 
 // New returns an unauthenticated client for a server. It is what the
 // login and register flows use before a credential exists.
@@ -202,6 +208,70 @@ func (c *Client) AppendLog(ctx context.Context, jobID, stream, content string) e
 	}, nil, true)
 }
 
+// UploadArtefact pushes one file a job produced.
+//
+// The body is the file itself. A multipart envelope would buy nothing
+// here: there is one part, and the two fields around it fit in a query
+// parameter and a header.
+func (c *Client) UploadArtefact(ctx context.Context, jobID string, upload ArtefactUpload) (*Artefact, error) {
+	authorization, err := c.authorization(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	target := c.server + "/api/job/" + jobID + "/artefact?path=" + url.QueryEscape(upload.Path)
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, target, upload.Content)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Content-Type", contentTypeOrDefault(upload.ContentType))
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("User-Agent", UserAgent)
+	request.Header.Set("Authorization", authorization)
+	if upload.Checksum != "" {
+		request.Header.Set(HeaderArtefactChecksum, upload.Checksum)
+	}
+
+	// Not c.http: its timeout is sized for the dispatch call on the hot
+	// path of every run, and a 32MB artefact on a slow link is not that
+	// request.
+	response, err := (&http.Client{Timeout: UploadTimeout}).Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode >= http.StatusBadRequest {
+		return nil, decodeAPIError(response)
+	}
+
+	var artefact Artefact
+	if err := json.NewDecoder(response.Body).Decode(&artefact); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &artefact, nil
+}
+
+// Artefacts lists the files a job produced.
+func (c *Client) Artefacts(ctx context.Context, jobID string) ([]Artefact, error) {
+	var artefacts []Artefact
+	if err := c.do(ctx, http.MethodGet, "/api/job/"+jobID+"/artefact", nil, &artefacts, true); err != nil {
+		return nil, err
+	}
+	return artefacts, nil
+}
+
+// contentTypeOrDefault falls back to the media type the server would
+// have picked anyway.
+func contentTypeOrDefault(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "application/octet-stream"
+	}
+	return value
+}
+
 // JobURL is where a job is watched in a browser. It is the one thing
 // atkins prints when it hands a run to a server.
 func (c *Client) JobURL(jobID string) string {
@@ -280,6 +350,24 @@ func (e *APIError) Error() string {
 	return e.Message
 }
 
+// authorization returns the Authorization header for an authenticated
+// call, refreshing the access token first when it is close to expiring.
+//
+// Every authenticated request goes through here, including the ones
+// that don't carry JSON, so a long-running agent uploading artefacts
+// renews on exactly the same terms as one appending log lines.
+func (c *Client) authorization(ctx context.Context) (string, error) {
+	if c.credential == nil {
+		return "", ErrNotLoggedIn
+	}
+	if c.credential.Expired() {
+		if err := c.Refresh(ctx); err != nil {
+			return "", fmt.Errorf("refresh token: %w", err)
+		}
+	}
+	return "Bearer " + c.credential.Token, nil
+}
+
 // do performs a JSON request, discarding the response status.
 func (c *Client) do(ctx context.Context, method, path string, payload, target any, authenticated bool) error {
 	_, err := c.doStatus(ctx, method, path, payload, target, authenticated)
@@ -294,15 +382,13 @@ func (c *Client) doStatus(ctx context.Context, method, path string, payload, tar
 		return 0, errors.New("no server configured")
 	}
 
+	var authorization string
 	if authenticated {
-		if c.credential == nil {
-			return 0, ErrNotLoggedIn
+		header, err := c.authorization(ctx)
+		if err != nil {
+			return 0, err
 		}
-		if c.credential.Expired() {
-			if err := c.Refresh(ctx); err != nil {
-				return 0, fmt.Errorf("refresh token: %w", err)
-			}
-		}
+		authorization = header
 	}
 
 	var body io.Reader
@@ -321,8 +407,8 @@ func (c *Client) doStatus(ctx context.Context, method, path string, payload, tar
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("User-Agent", UserAgent)
-	if authenticated {
-		request.Header.Set("Authorization", "Bearer "+c.credential.Token)
+	if authorization != "" {
+		request.Header.Set("Authorization", authorization)
 	}
 
 	response, err := c.http.Do(request)

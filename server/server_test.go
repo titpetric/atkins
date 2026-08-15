@@ -38,6 +38,14 @@ const testAgentToken = "test-agent-token"
 func testServer(t *testing.T) string {
 	t.Helper()
 
+	return testServerWith(t, nil)
+}
+
+// testServerWith starts an instance whose options a test can adjust,
+// for the cases that need a background sweep or a different root.
+func testServerWith(t *testing.T, configure func(*server.Options)) string {
+	t.Helper()
+
 	// The platform caches connection pools by name for the life of the
 	// process, so each test claims a name of its own and gets a fresh
 	// database instead of the previous test's fixtures.
@@ -50,10 +58,17 @@ func testServer(t *testing.T) string {
 	opts.Connection = connection
 	opts.SigningKey = "test-signing-key"
 	opts.AgentToken = testAgentToken
+	// Artefact bytes go somewhere the test owns, rather than into an
+	// `artefacts` directory beside the package source.
+	opts.ArtefactDir = filepath.Join(t.TempDir(), "artefacts")
 	// Off by default: the bootstrap path (no users yet) is what the
 	// first register call in each test exercises.
 	opts.AllowRegistration = false
 	opts.ReclaimInterval = 0
+
+	if configure != nil {
+		configure(opts)
+	}
 
 	svc := platform.New(platform.NewTestOptions())
 	svc.Register(server.NewModule(opts))

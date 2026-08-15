@@ -23,6 +23,7 @@
 - [github.com/titpetric/atkins/server](./atkins_server.md)
 - [github.com/titpetric/atkins/server/api](./atkins_server_api.md)
 - [github.com/titpetric/atkins/server/auth](./atkins_server_auth.md)
+- [github.com/titpetric/atkins/server/blob](./atkins_server_blob.md)
 - [github.com/titpetric/atkins/server/model](./atkins_server_model.md)
 - [github.com/titpetric/atkins/server/schema](./atkins_server_schema.md)
 - [github.com/titpetric/atkins/server/storage](./atkins_server_storage.md)
