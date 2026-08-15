@@ -114,6 +114,19 @@ func (s *RepositoryRuleStorage) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// AllowedUnderPolicy reports whether a slug may be built under the
+// given policy. Under "open" everything is; under "allowlist" a rule
+// has to say so.
+//
+// Dispatch, triggers and the admin pages all ask this question, and an
+// answer that differs between them is a hole.
+func (s *RepositoryRuleStorage) AllowedUnderPolicy(ctx context.Context, policy model.RepositoryPolicy, slug string) (bool, error) {
+	if policy != model.PolicyAllowlist {
+		return true, nil
+	}
+	return s.Allowed(ctx, slug)
+}
+
 // Allowed reports whether a repository slug satisfies the allowlist.
 //
 // The caller decides whether the allowlist applies at all; this only

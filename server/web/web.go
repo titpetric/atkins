@@ -1,10 +1,19 @@
 // Package web serves the browser-facing pages of the atkins CI/CD
 // server.
 //
-// There is deliberately very little here. `atkins` prints one URL when
-// it dispatches a job — `<server>/job/{ULID}?t=<token>` — and that page
-// is where the run is watched: status, timing, the command, and the
-// output the agent captured. Everything else lives behind the JSON API.
+// Two surfaces live here, and they are deliberately different.
+//
+// `atkins` prints one URL when it dispatches a job —
+// `<server>/job/{ULID}?t=<token>` — and that page is where the run is
+// watched: status, timing, the command, and the output the agent
+// captured. It takes no session, because the point of printing a URL in
+// a terminal is that pasting it into a browser just works; a private
+// instance checks the token in that URL instead.
+//
+// `/admin/*` is the operator's face on `/api/admin/*`: repositories,
+// the allowlist, settings, users and deploy keys. Those pages need a
+// session and an admin account, and their forms carry a CSRF token.
+// See session.go.
 package web
 
 import (
@@ -34,25 +43,41 @@ type Handlers struct {
 	jobLogs      *storage.JobLogStorage
 	artefacts    *storage.JobArtefactStorage
 	repositories *storage.RepositoryStorage
+	users        *storage.UserStorage
+	sessions     *storage.SessionStorage
+	rules        *storage.RepositoryRuleStorage
 	settings     *storage.SettingStorage
+	sshKeys      *storage.SSHKeyStorage
 
 	// tokens mints and checks the per-job view tokens. It holds the
 	// server's signing key, so a link stops working when the key is
 	// rotated.
 	tokens *auth.JWT
 
+	// signingKey authenticates the session cookie and derives CSRF
+	// tokens. It is the same secret tokens holds, kept raw because the
+	// cookie and CSRF HMACs are computed directly rather than as JWTs.
+	// Rotating it logs the browser out along with everything else.
+	signingKey string
+
 	templates *template.Template
 }
 
 // Options is passed from the server module scope.
 type Options struct {
-	JobStorage         *storage.JobStorage
-	JobLogStorage      *storage.JobLogStorage
-	JobArtefactStorage *storage.JobArtefactStorage
-	RepositoryStorage  *storage.RepositoryStorage
-	SettingStorage     *storage.SettingStorage
+	JobStorage            *storage.JobStorage
+	JobLogStorage         *storage.JobLogStorage
+	JobArtefactStorage    *storage.JobArtefactStorage
+	RepositoryStorage     *storage.RepositoryStorage
+	UserStorage           *storage.UserStorage
+	SessionStorage        *storage.SessionStorage
+	RepositoryRuleStorage *storage.RepositoryRuleStorage
+	SettingStorage        *storage.SettingStorage
+	SSHKeyStorage         *storage.SSHKeyStorage
 
-	// SigningKey derives the per-job view tokens.
+	// SigningKey is the server's access token signing key. It derives
+	// the per-job view tokens, and without it the admin pages refuse
+	// every session rather than trusting an unauthenticated cookie.
 	SigningKey string
 }
 
@@ -63,8 +88,13 @@ func NewHandlers(opts Options) (*Handlers, error) {
 		jobLogs:      opts.JobLogStorage,
 		artefacts:    opts.JobArtefactStorage,
 		repositories: opts.RepositoryStorage,
+		users:        opts.UserStorage,
+		sessions:     opts.SessionStorage,
+		rules:        opts.RepositoryRuleStorage,
 		settings:     opts.SettingStorage,
+		sshKeys:      opts.SSHKeyStorage,
 		tokens:       auth.NewJWT(opts.SigningKey),
+		signingKey:   opts.SigningKey,
 	}
 
 	// The link helper is bound to these handlers rather than to the
@@ -81,7 +111,7 @@ func NewHandlers(opts Options) (*Handlers, error) {
 
 // Mount registers the page routes.
 //
-// No page here has a session to check: the browser reading them never
+// The job pages have no session to check: the browser reading them never
 // logged in. What a private instance checks instead is the per-job view
 // token in the URL atkins printed, which keeps the one thing that has
 // to stay true — a pasted URL opens the job — without also handing the
@@ -94,10 +124,36 @@ func NewHandlers(opts Options) (*Handlers, error) {
 // can open must not be a link that fails, and a browser has no bearer
 // token to offer. `GET /api/job/{id}/artefact/{id}` is the authenticated
 // door for scripts.
+//
+// Everything under `/admin` is gated on an admin session instead. Those
+// pages are not reached from a printed URL, so there is nothing to
+// preserve by leaving them open.
 func (h *Handlers) Mount(r platform.Router) {
 	r.Get("/", h.Index)
 	r.Get("/job/{jobID}", h.Job)
 	r.Get("/job/{jobID}/artefact/{artefactID}", h.Artefact)
+
+	r.Get("/login", h.LoginForm)
+	r.Post("/login", h.Login)
+	r.Post("/logout", h.Logout)
+
+	r.Get("/admin", h.admin(h.Repositories))
+	r.Get("/admin/repository", h.admin(h.Repositories))
+	r.Post("/admin/repository/{repositoryID}/trigger", h.submit(h.TriggerRepository))
+
+	r.Get("/admin/allowlist", h.admin(h.Allowlist))
+	r.Post("/admin/allowlist", h.submit(h.CreateRule))
+	r.Post("/admin/allowlist/{ruleID}", h.submit(h.UpdateRule))
+
+	r.Get("/admin/setting", h.admin(h.Settings))
+	r.Post("/admin/setting", h.submit(h.UpdateSetting))
+
+	r.Get("/admin/user", h.admin(h.Users))
+	r.Post("/admin/user/{userID}", h.submit(h.UpdateUser))
+
+	r.Get("/admin/ssh-key", h.admin(h.SSHKeys))
+	r.Post("/admin/ssh-key", h.submit(h.CreateSSHKey))
+	r.Post("/admin/ssh-key/{keyID}", h.submit(h.UpdateSSHKey))
 }
 
 // public reports whether the pages are open to anyone holding a URL.

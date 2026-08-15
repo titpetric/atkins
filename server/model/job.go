@@ -1,6 +1,10 @@
 package model
 
-import "slices"
+import (
+	"path"
+	"slices"
+	"strings"
+)
 
 // JobStatus is the lifecycle state of a job. The values mirror the
 // CHECK constraint in schema/job.up.sql; adding one means adding it in
@@ -74,4 +78,25 @@ func TerminalJobStatus(status JobStatus) bool {
 // IsTerminal reports whether the job has settled.
 func (j *Job) IsTerminal() bool {
 	return TerminalJobStatus(j.Status)
+}
+
+// CleanWorkingDirectory normalizes a caller-supplied path into a clean
+// path relative to the repository root.
+//
+// An agent will cd into this, so an absolute path or a `..` escape is
+// dropped rather than stored: the value only ever means "somewhere
+// inside this checkout". Every route that queues a job goes through
+// here, because a guard on one of them is no guard at all.
+func CleanWorkingDirectory(dir string) string {
+	dir = strings.TrimSpace(dir)
+	if dir == "" || dir == "." || dir == "/" {
+		return ""
+	}
+
+	dir = path.Clean(strings.TrimPrefix(strings.ReplaceAll(dir, "\\", "/"), "/"))
+	if dir == "." || dir == ".." || strings.HasPrefix(dir, "../") {
+		return ""
+	}
+
+	return dir
 }

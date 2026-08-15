@@ -196,7 +196,7 @@ func (s *Handlers) dispatch(w http.ResponseWriter, r *http.Request) error {
 		ParentID:         req.ParentID,
 		RepositoryID:     repository.ID,
 		UserID:           user.ID,
-		WorkingDirectory: cleanWorkingDirectory(req.WorkingDirectory),
+		WorkingDirectory: model.CleanWorkingDirectory(req.WorkingDirectory),
 		Command:          req.Command,
 		Ref:              req.Repository.CheckoutRef(),
 		CloneDepth:       req.CloneDepth,

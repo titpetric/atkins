@@ -125,30 +125,42 @@ func (m *Module) Start(ctx context.Context) error {
 	m.artefacts = storage.NewJobArtefactStorage(db, blobs)
 	jobLogs := storage.NewJobLogStorage(db)
 	repositories := storage.NewRepositoryStorage(db)
+	users := storage.NewUserStorage(db)
+	sessions := storage.NewSessionStorage(db, m.opts.SessionTTL)
+	rules := storage.NewRepositoryRuleStorage(db)
+	sshKeys := storage.NewSSHKeyStorage(db)
 
 	m.api = api.NewHandlers(api.Options{
 		SigningKey:            m.opts.SigningKey,
 		TokenTTL:              m.opts.TokenTTL,
 		AllowRegistration:     m.opts.AllowRegistration,
 		AgentToken:            m.opts.AgentToken,
-		UserStorage:           storage.NewUserStorage(db),
-		SessionStorage:        storage.NewSessionStorage(db, m.opts.SessionTTL),
+		UserStorage:           users,
+		SessionStorage:        sessions,
 		RepositoryStorage:     repositories,
 		JobStorage:            m.jobs,
 		JobLogStorage:         jobLogs,
 		JobArtefactStorage:    m.artefacts,
-		RepositoryRuleStorage: storage.NewRepositoryRuleStorage(db),
+		RepositoryRuleStorage: rules,
 		SettingStorage:        settings,
-		SSHKeyStorage:         storage.NewSSHKeyStorage(db),
+		SSHKeyStorage:         sshKeys,
 	})
 
+	// The pages read the same storage the API does. They share the
+	// signing key too: the session cookie is signed with it, so there is
+	// one secret to configure and rotating it signs the browser out
+	// along with every issued token.
 	m.web, err = web.NewHandlers(web.Options{
-		JobStorage:         m.jobs,
-		JobLogStorage:      jobLogs,
-		JobArtefactStorage: m.artefacts,
-		RepositoryStorage:  repositories,
-		SettingStorage:     settings,
-		SigningKey:         m.opts.SigningKey,
+		JobStorage:            m.jobs,
+		JobLogStorage:         jobLogs,
+		JobArtefactStorage:    m.artefacts,
+		RepositoryStorage:     repositories,
+		UserStorage:           users,
+		SessionStorage:        sessions,
+		RepositoryRuleStorage: rules,
+		SettingStorage:        settings,
+		SSHKeyStorage:         sshKeys,
+		SigningKey:            m.opts.SigningKey,
 	})
 	if err != nil {
 		return err

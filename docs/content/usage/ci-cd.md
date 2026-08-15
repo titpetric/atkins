@@ -143,7 +143,7 @@ Children read `ATKINS_JOB_ID` and are recorded under it. Nesting is bounded by `
 
 ## Triggering without a checkout
 
-A cron, a webhook receiver or another job can queue work for a repository the server already knows, without a checkout of its own. This is the "POST a job name to a project" trigger:
+A cron, a webhook receiver or another job can queue work for a repository the server already knows, without a checkout of its own. This is the "POST a job name to a project" trigger; `/admin/repository` puts a form on it for the times a person is doing the queuing:
 
 ```bash
 REPO=$(curl -sS -H "Authorization: Bearer $TOKEN" "$SERVER/api/repository" |
@@ -319,6 +319,29 @@ Deletion happens in bounded batches, up to 500 rows at a time and 20 batches per
 How often the server looks is `server.retention_interval` (default `1h`), a start-up setting rather than a runtime one: the windows are policy, the cadence is a property of the machine. `0` turns the sweep off entirely.
 
 Artefact downloads from the page — `/job/{ULID}/artefact/{ULID}` — are on the same terms, because a browser has no bearer token to offer and a download link that fails is not a link. `GET /api/job/{id}/artefact/{id}` is the authenticated door, and it is the one a script should use. A file a job produced is served as an attachment with `X-Content-Type-Options: nosniff`, so an artefact named `report.html` is something to save rather than something that runs in the server's origin.
+## The admin pages
+
+Everything under `/admin` is the operator's face on `/api/admin/*`, and it needs an administrator to be signed in:
+
+| Page                  | What it does                                                        |
+|-----------------------|---------------------------------------------------------------------|
+| `/admin/repository`   | What the server has seen, with each repository's last job, and a trigger form |
+| `/admin/allowlist`    | List, add, enable, disable and remove rules, with the policy in force |
+| `/admin/setting`      | Every setting with its effective value, default, and whether it is overridden |
+| `/admin/user`         | Accounts and their `is_admin` / `is_active` / `is_agent` flags       |
+| `/admin/ssh-key`      | Deploy keys with fingerprints: add, deactivate, remove               |
+
+Sign in at `/login` with the same account `atkins --login` uses — there is no separate web password. The first account on a fresh instance becomes an administrator, so `atkins --register <server>` is how you get in.
+
+### The session
+
+Signing in creates a session in the same `session` table the CLI uses and sets one cookie naming it. The cookie is the session id followed by an HMAC of it under the server signing key, so it cannot be forged without the key, and it is `HttpOnly`, `SameSite=Lax`, and `Secure` when the request arrived over TLS (directly, or through a proxy that sets `X-Forwarded-Proto`).
+
+Nothing about the browser's session is special: it is revoked by signing out, it expires with `server.session_ttl`, and rotating `ATKINS_SIGNING_KEY` invalidates it along with every issued access token.
+
+Forms carry a CSRF token — an HMAC of the session id, scoped so it is not the cookie value — and a cross-origin post is refused outright. A form that has been open long enough for the session to change comes back with "this form has expired; reload the page and try again".
+
+The pages are plain HTML: a form post and a redirect. There is no JavaScript, no framework and no CDN, and the templates are compiled into the binary.
 
 ## Configuration
 
@@ -404,7 +427,7 @@ atkins worker --labels linux,arm64,docker
 
 ## Repository allowlist
 
-By default any repository a logged-in user dispatches will be built. To restrict that, switch the policy and write rules:
+By default any repository a logged-in user dispatches will be built. To restrict that, switch the policy and write rules — `/admin/allowlist` does both, and says out loud when the combination stops everything. Over the API:
 
 ```bash
 # Only repositories matching a rule may be built.
@@ -430,7 +453,7 @@ The rule is enforced twice. The server refuses the dispatch with a 403, and the 
 
 ## Deploy keys
 
-An agent clones public repositories anonymously. For private ones, give the server a key:
+An agent clones public repositories anonymously. For private ones, give the server a key — paste it into `/admin/ssh-key`, or post it:
 
 ```bash
 curl -sS -X POST -H "Authorization: Bearer $TOKEN" "$SERVER/api/admin/ssh-key" \
@@ -450,7 +473,7 @@ which rewrites `git@host:owner/repo.git` to `https://host/owner/repo.git` before
 
 ## Settings
 
-Runtime configuration an admin can change without a restart:
+Runtime configuration an admin can change without a restart. `/admin/setting` renders the table below from the registry itself — kind, default and accepted values — so a setting added to the server appears there without a template change:
 
 | Setting              | Default   | Purpose                                                       |
 |----------------------|-----------|---------------------------------------------------------------|
@@ -477,6 +500,8 @@ Three flags, because there are three things to decide:
 - **`is_admin`** — the `/api/admin/*` surface. The API refuses to remove the last active admin, so an instance can't be locked out.
 - **`is_agent`** — may claim jobs, report status, append output, and read deploy keys. Reachable only by enrolment, never by registration.
 - **`is_active`** — login and every authenticated call. Deactivating takes effect immediately, not when the token expires.
+
+`/admin/user` toggles all three. It also greys out the last active admin's admin and active buttons, because the server refuses to remove the last one and being told before the click beats being told after it. Over the API:
 
 ```bash
 curl -sS -H "Authorization: Bearer $TOKEN" "$SERVER/api/admin/user" |
@@ -520,6 +545,23 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
 | `/api/admin/ssh-key[/{id}]`    | GET/POST/DELETE | admin  | Manage deploy keys                     |
 
 Authentication is `Authorization: Bearer <token>`. Access tokens live an hour and carry the session they came from, so logout takes effect immediately rather than when the token expires. Refresh tokens are single-use and rotate on every refresh, which makes a leaked one detectable: the legitimate client's next refresh fails.
+
+## Pages
+
+| Page                                    | Method   | Who    | Purpose                          |
+|-----------------------------------------|----------|--------|----------------------------------|
+| `/`                                     | GET      | anyone | Recent jobs                      |
+| `/job/{ULID}`                           | GET      | anyone | One run, and its output          |
+| `/login`                                | GET/POST | anyone | Sign in, setting the session cookie |
+| `/logout`                               | POST     | user   | Revoke the session, clear the cookie |
+| `/admin/repository`                     | GET      | admin  | Repositories and their last job  |
+| `/admin/repository/{id}/trigger`        | POST     | admin  | Queue a job by name              |
+| `/admin/allowlist[/{id}]`               | GET/POST | admin  | Manage allowlist rules           |
+| `/admin/setting`                        | GET/POST | admin  | Read and change settings         |
+| `/admin/user[/{id}]`                    | GET/POST | admin  | Accounts and flags               |
+| `/admin/ssh-key[/{id}]`                 | GET/POST | admin  | Manage deploy keys               |
+
+The pages authenticate with the session cookie, not the bearer token, and every post carries a CSRF token from the page it belongs to.
 
 ## See Also
 

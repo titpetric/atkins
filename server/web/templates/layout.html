@@ -63,5 +63,81 @@
   .badge-failed    { background: #f4d2d2; color: #7a2020; }
   .badge-timeout   { background: #eddbc4; color: #74451a; }
   .badge-cancelled { background: #e0e0e6; color: #4a4a55; }
+  .badge-on        { background: #cfe9d4; color: #1d5c2c; }
+  .badge-off       { background: #e0e0e6; color: #4a4a55; }
+
+  /* Admin pages: navigation, forms and flash messages. The controls
+     are plain HTML — a form post and a redirect — so the pages work
+     with scripting off and there is no build step to keep alive. */
+  nav { display: flex; flex-wrap: wrap; gap: .9rem; align-items: baseline; margin-top: .5rem; }
+  nav a { text-decoration: none; }
+  nav a.current { font-weight: 600; text-decoration: underline; }
+  nav .spacer { flex: 1; }
+  .flash {
+    border: 1px solid var(--line);
+    border-left-width: 4px;
+    border-radius: 4px;
+    padding: .6rem .8rem;
+    margin: 0 0 1rem;
+  }
+  .flash-notice { border-left-color: #4b9460; background: var(--panel); }
+  .flash-error  { border-left-color: #b4514f; background: var(--panel); }
+  form.inline { display: inline; }
+  fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .9rem 1rem; margin: 0 0 1.5rem; }
+  legend { color: var(--muted); padding: 0 .35rem; }
+  label { display: block; margin: .5rem 0 .15rem; color: var(--muted); font-size: 13px; }
+  input[type=text], input[type=email], input[type=password], select, textarea {
+    width: 100%;
+    max-width: 34rem;
+    padding: .35rem .5rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    font-size: 14px;
+  }
+  textarea { min-height: 7rem; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: 13px; }
+  button {
+    padding: .3rem .7rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover:enabled { border-color: var(--accent); color: var(--accent); }
+  button:disabled { cursor: not-allowed; opacity: .5; }
+  button.primary { border-color: var(--accent); color: var(--accent); }
+  button.link { border: 0; background: none; color: var(--accent); padding: 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .warn { border-left-color: #b4514f; }
 </style>
+{{end}}
+
+{{/* nav is the header every admin page carries: where you are, who you
+     are, and the way out. The sign-out button is a form because logging
+     somebody out on a GET is something a preloading browser can do by
+     itself. */}}
+{{define "nav"}}
+<header>
+  <h1>atkins</h1>
+  <nav>
+    <a href="/">Jobs</a>
+    <a href="/admin/repository" {{if eq .Section "repository"}}class="current"{{end}}>Repositories</a>
+    <a href="/admin/allowlist" {{if eq .Section "allowlist"}}class="current"{{end}}>Allowlist</a>
+    <a href="/admin/setting" {{if eq .Section "setting"}}class="current"{{end}}>Settings</a>
+    <a href="/admin/user" {{if eq .Section "user"}}class="current"{{end}}>Users</a>
+    <a href="/admin/ssh-key" {{if eq .Section "ssh-key"}}class="current"{{end}}>Deploy keys</a>
+    <span class="spacer"></span>
+    <form method="post" action="/logout" class="inline">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <button type="submit" class="link">Sign out {{.User.Username}}</button>
+    </form>
+  </nav>
+</header>
+{{if .Notice}}<p class="flash flash-notice">{{.Notice}}</p>{{end}}
+{{if .Error}}<p class="flash flash-error">{{.Error}}</p>{{end}}
 {{end}}
