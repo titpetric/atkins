@@ -10,7 +10,11 @@ Atkins provides command-line flags to control which pipeline file to use, which 
 
 ```bash
 atkins [flags] [job-names...]
+atkins server [flags]
+atkins worker [flags]
 ```
+
+Running jobs is the default, so `atkins build` and `atkins run build` are the same command. `server` runs the CI/CD server and `worker` runs an agent that claims its jobs; see [CI/CD Server](./ci-cd).
 
 ## Flag Reference
 
@@ -27,6 +31,11 @@ atkins [flags] [job-names...]
 | `--version`           | `-v`  | Print version and build information    |
 | `--working-directory` | `-w`  | Change directory before running        |
 | `--jail`              |       | Restrict to project scope only         |
+| `--config`            |       | Open the configuration menu            |
+| `--login`             |       | Log in to a CI/CD server               |
+| `--register`          |       | Register an account on a CI/CD server  |
+| `--logout`            |       | Log out of the CI/CD server            |
+| `--local`             |       | Run here instead of dispatching        |
 
 ## File Discovery
 
@@ -196,6 +205,39 @@ With `--jail`:
 - Only loads from `.atkins/skills/`
 - Ignores global skills
 
+## Configuration
+
+```bash
+atkins --config
+```
+
+Opens a menu over `.atkins/config.yml`, creating it from the built-in defaults if it doesn't exist. The document is the source of truth for how this machine talks to a CI/CD server and how `atkins server` and `atkins worker` run; `ATKINS_*` variables overlay individual fields on top of it.
+
+## CI/CD Server Login
+
+These flags attach the machine to an atkins CI/CD server. Each takes over the invocation and exits; no pipeline runs.
+
+```bash
+# Create an account and log in (first account on a server becomes admin)
+atkins --register https://ci.example.com
+
+# Log in on any other machine
+atkins --login https://ci.example.com
+
+# Detach this machine
+atkins --logout
+```
+
+Credentials are stored per server in `~/.atkins/credentials.json` (mode `0600`).
+
+Once logged in, `atkins` **hands runs to the server** instead of running them: it prints one job URL and exits, and an agent runs the pipeline against a fresh checkout. To run here instead:
+
+```bash
+atkins --local        # this run only
+```
+
+See [CI/CD Server](./ci-cd) for the configuration, the API and how agents claim jobs.
+
 ## Combining Flags
 
 Flags can be combined:
@@ -251,3 +293,4 @@ EOF
 - [Job Targeting](./job-targeting) - Running specific jobs
 - [Script Mode](./script-mode) - Executable pipelines
 - [Automation](./automation) - JSON/YAML output details
+- [CI/CD Server](./ci-cd) - `--login`, `--register` and job dispatch

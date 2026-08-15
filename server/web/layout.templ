@@ -1,0 +1,206 @@
+package web
+
+import "strconv"
+
+// layout is the shell every page sits in.
+//
+// It was `{{define "head"}}` before: a fragment each page pasted into
+// its own `<head>`, which meant every page repeated the doctype, the
+// html element and the body. As a component it can hold the whole
+// document and take the page as children, so a page is only its own
+// content.
+templ layout(title string, refresh int) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title } — atkins</title>
+			if refresh > 0 {
+				<meta http-equiv="refresh" content={ strconv.Itoa(refresh) }/>
+			}
+			@styles()
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
+}
+
+// navbar is the header every admin page carries: where you are, who you
+// are, and the way out.
+//
+// Signing out is a form because logging somebody out on a GET is
+// something a preloading browser can do by itself.
+templ navbar(page Page) {
+	<header>
+		<h1>atkins</h1>
+		<nav>
+			<a href="/">Jobs</a>
+			<a
+				href="/admin/repository"
+				if page.Section == sectionRepositories {
+					class="current"
+				}
+			>Repositories</a>
+			<a
+				href="/admin/allowlist"
+				if page.Section == sectionAllowlist {
+					class="current"
+				}
+			>Allowlist</a>
+			<a
+				href="/admin/setting"
+				if page.Section == sectionSettings {
+					class="current"
+				}
+			>Settings</a>
+			<a
+				href="/admin/user"
+				if page.Section == sectionUsers {
+					class="current"
+				}
+			>Users</a>
+			<a
+				href="/admin/ssh-key"
+				if page.Section == sectionKeys {
+					class="current"
+				}
+			>Deploy keys</a>
+			<span class="spacer"></span>
+			<form method="post" action="/logout" class="inline">
+				<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+				<button type="submit" class="link">Sign out { page.User.Username }</button>
+			</form>
+		</nav>
+	</header>
+	if page.Notice != "" {
+		<p class="flash flash-notice">{ page.Notice }</p>
+	}
+	if page.Error != "" {
+		<p class="flash flash-error">{ page.Error }</p>
+	}
+}
+
+// styles is the whole stylesheet.
+//
+// It stays inline rather than becoming a served file: a job page is
+// opened once, from a link somebody pasted, and a second request for a
+// few kilobytes of CSS buys nothing. A <style> element's contents are
+// raw in templ, so this is the same text it always was.
+templ styles() {
+	<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1b1b1f;
+    --muted: #6a6a75;
+    --line: #e2e2e8;
+    --panel: #f7f7f9;
+    --accent: #3b6ea5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --fg: #e6e6ea;
+      --muted: #9a9aa5;
+      --line: #2b2b33;
+      --panel: #1e1e24;
+      --accent: #7aa7d9;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+    max-width: 60rem;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color: var(--accent); }
+  h1 { font-size: 1.35rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1rem; margin: 2rem 0 .5rem; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 1rem; }
+  .muted { color: var(--muted); }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+  pre {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: .85rem 1rem;
+    overflow-x: auto;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; width: 11rem; }
+  .badge {
+    display: inline-block;
+    padding: .1rem .5rem;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .badge-pending   { background: #f0e6c8; color: #6b5411; }
+  .badge-running   { background: #cfe0f5; color: #1d456e; }
+  .badge-passed    { background: #cfe9d4; color: #1d5c2c; }
+  .badge-failed    { background: #f4d2d2; color: #7a2020; }
+  .badge-timeout   { background: #eddbc4; color: #74451a; }
+  .badge-cancelled { background: #e0e0e6; color: #4a4a55; }
+  .badge-on        { background: #cfe9d4; color: #1d5c2c; }
+  .badge-off       { background: #e0e0e6; color: #4a4a55; }
+
+  /* Admin pages: navigation, forms and flash messages. The controls
+     are plain HTML — a form post and a redirect — so the pages work
+     with scripting off and there is no build step to keep alive. */
+  nav { display: flex; flex-wrap: wrap; gap: .9rem; align-items: baseline; margin-top: .5rem; }
+  nav a { text-decoration: none; }
+  nav a.current { font-weight: 600; text-decoration: underline; }
+  nav .spacer { flex: 1; }
+  .flash {
+    border: 1px solid var(--line);
+    border-left-width: 4px;
+    border-radius: 4px;
+    padding: .6rem .8rem;
+    margin: 0 0 1rem;
+  }
+  .flash-notice { border-left-color: #4b9460; background: var(--panel); }
+  .flash-error  { border-left-color: #b4514f; background: var(--panel); }
+  form.inline { display: inline; }
+  fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .9rem 1rem; margin: 0 0 1.5rem; }
+  legend { color: var(--muted); padding: 0 .35rem; }
+  label { display: block; margin: .5rem 0 .15rem; color: var(--muted); font-size: 13px; }
+  input[type=text], input[type=email], input[type=password], select, textarea {
+    width: 100%;
+    max-width: 34rem;
+    padding: .35rem .5rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    font-size: 14px;
+  }
+  textarea { min-height: 7rem; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: 13px; }
+  button {
+    padding: .3rem .7rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--fg);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover:enabled { border-color: var(--accent); color: var(--accent); }
+  button:disabled { cursor: not-allowed; opacity: .5; }
+  button.primary { border-color: var(--accent); color: var(--accent); }
+  button.link { border: 0; background: none; color: var(--accent); padding: 0; }
+  .actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .warn { border-left-color: #b4514f; }
+</style>
+}

@@ -18,6 +18,7 @@ This is the table of contents for the docs:
   - [Job Targeting](./usage/job-targeting.md)
   - [Script Mode](./usage/script-mode.md)
   - [Automation (JSON/YAML)](./usage/automation.md)
+  - [CI/CD Server](./usage/ci-cd.md)
 - Migrating
   - [Migrating to Atkins](./migrating/migrating.md)
   - [Migration from Taskfile](./migrating/migration-from-task.md)
@@ -82,6 +83,10 @@ Executable pipelines and stdin input. Covers shebang execution, piping via stdin
 ### Automation (JSON/YAML)
 
 Machine-readable output for tooling integration. Covers list and execution output in JSON/YAML formats, schema, and use cases (LLM integration, CI discovery, script integration, monitoring).
+
+### CI/CD Server
+
+Distributed job dispatch. Covers the throwaway compose instance, attaching a machine with `atkins --login`, creating an account with `atkins --register`, credential storage and non-interactive login, what each run dispatches (repository, working directory, command) and the job URL it prints, the job page, the environment an agent exports to a job, nested dispatch and depth limits, `.atkins/config.yml` and the `atkins --config` menu, running `atkins server` and `atkins worker`, the repository allowlist, deploy keys, runtime settings, user roles, and the HTTP API.
 
 ## Migrating
 

@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/titpetric/cli"
+
+	"github.com/titpetric/atkins/client"
 )
 
 func main() {
@@ -15,8 +17,12 @@ func main() {
 }
 
 func start() error {
+	client.UserAgent = "atkins/" + Version
+
 	app := cli.NewApp("atkins")
 	app.AddCommand("run", "Run pipeline", Pipeline)
+	app.AddCommand("server", "Run the CI/CD server", Server)
+	app.AddCommand("worker", "Run the CI/CD agent", Worker)
 	app.DefaultCommand = "run"
 	return app.Run()
 }

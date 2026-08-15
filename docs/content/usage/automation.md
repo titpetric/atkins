@@ -258,3 +258,4 @@ This makes output parsing reliable without filtering ANSI codes or progress upda
 
 - [CLI Flags](./cli-flags) - Command-line options
 - [Script Mode](./script-mode) - Executable pipelines
+- [CI/CD Server](./ci-cd) - Recording runs as jobs over an HTTP API

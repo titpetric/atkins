@@ -19,6 +19,17 @@ type Options struct {
 	Agent            bool
 	Exec             string
 
+	// CI/CD client flags. Login and Register take the server URL;
+	// Logout applies to the server last logged in to. Local runs here
+	// instead of handing the job to the server.
+	Login    string
+	Register string
+	Logout   bool
+	Local    bool
+
+	// Config opens the configuration menu for .atkins/config.yml.
+	Config bool
+
 	FlagSet *cli.FlagSet
 }
 
@@ -40,6 +51,11 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.BoolVarP(&o.Version, "version", "v", false, "Print version and build information")
 	fs.BoolVar(&o.Agent, "agent", false, "Start interactive agent REPL")
 	fs.StringVarP(&o.Exec, "exec", "x", "", "Run a prompt non-interactively and exit")
+	fs.StringVar(&o.Login, "login", "", "Log in to an atkins CI/CD server, e.g. --login https://ci.example.com")
+	fs.StringVar(&o.Register, "register", "", "Register an account on an atkins CI/CD server and log in")
+	fs.BoolVar(&o.Logout, "logout", false, "Log out of the atkins CI/CD server")
+	fs.BoolVar(&o.Local, "local", false, "Run here instead of dispatching to the CI/CD server")
+	fs.BoolVar(&o.Config, "config", false, "Open the configuration menu for .atkins/config.yml")
 
 	o.FlagSet = fs
 }

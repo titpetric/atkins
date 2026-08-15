@@ -1,0 +1,391 @@
+# Package ./server/web
+
+```go
+import (
+	"github.com/titpetric/atkins/server/web"
+}
+```
+
+Package web serves the browser-facing pages of the atkins CI/CD
+server.
+
+Two surfaces live here, and they are deliberately different.
+
+`atkins` prints one URL when it dispatches a job —
+`<server>/job/{ULID}?t=<token>` — and that page is where the run is
+watched: status, timing, the command, and the output the agent
+captured. It takes no session, because the point of printing a URL in
+a terminal is that pasting it into a browser just works; a private
+instance checks the token in that URL instead.
+
+`/admin/*` is the operator's face on `/api/admin/*`: repositories,
+the allowlist, settings, users and deploy keys. Those pages need a
+session and an admin account, and their forms carry a CSRF token.
+See session.go.
+
+## Types
+
+```go
+// Handlers serves the HTML pages.
+type Handlers struct {
+	jobs         *storage.JobStorage
+	jobLogs      *storage.JobLogStorage
+	artefacts    *storage.JobArtefactStorage
+	repositories *storage.RepositoryStorage
+	users        *storage.UserStorage
+	sessions     *storage.SessionStorage
+	rules        *storage.RepositoryRuleStorage
+	settings     *storage.SettingStorage
+	sshKeys      *storage.SSHKeyStorage
+
+	// tokens mints and checks the per-job view tokens. It holds the
+	// server's signing key, so a link stops working when the key is
+	// rotated.
+	tokens *auth.JWT
+
+	// signingKey authenticates the session cookie and derives CSRF
+	// tokens. It is the same secret tokens holds, kept raw because the
+	// cookie and CSRF HMACs are computed directly rather than as JWTs.
+	// Rotating it logs the browser out along with everything else.
+	signingKey string
+}
+```
+
+```go
+// IndexPage is the view model for the front page.
+type IndexPage struct {
+	Jobs []model.Job
+
+	// Refresh is the auto-reload interval in seconds. Zero for a page
+	// that will not change on its own.
+	Refresh int
+
+	// Private is set when the listing is withheld, so the page can say
+	// why rather than looking like an instance nobody has ever used.
+	Private bool
+}
+```
+
+```go
+// JobPage is the view model for the job page.
+type JobPage struct {
+	Job        *model.Job
+	Repository *model.Repository
+	Children   []model.Job
+	Log        []model.JobLog
+	Artefacts  []model.JobArtefact
+
+	// Refresh is the auto-reload interval in seconds. Zero for a
+	// settled job, which never changes again.
+	Refresh int
+}
+```
+
+```go
+// Links builds the URLs a page points at.
+// It exists because a component is a package-level function and cannot
+// reach the handler that rendered it, while whether a link needs a view
+// token is a runtime setting. Passing this in keeps the decision in one
+// place and lets a render test construct one directly.
+type Links struct {
+	tokens *auth.JWT
+	public bool
+}
+```
+
+```go
+// Options is passed from the server module scope.
+type Options struct {
+	JobStorage            *storage.JobStorage
+	JobLogStorage         *storage.JobLogStorage
+	JobArtefactStorage    *storage.JobArtefactStorage
+	RepositoryStorage     *storage.RepositoryStorage
+	UserStorage           *storage.UserStorage
+	SessionStorage        *storage.SessionStorage
+	RepositoryRuleStorage *storage.RepositoryRuleStorage
+	SettingStorage        *storage.SettingStorage
+	SSHKeyStorage         *storage.SSHKeyStorage
+
+	// SigningKey is the server's access token signing key. It derives
+	// the per-job view tokens, and without it the admin pages refuse
+	// every session rather than trusting an unauthenticated cookie.
+	SigningKey string
+}
+```
+
+```go
+// Page is the state every admin template needs whatever it is showing:
+// who is signed in, the token its forms have to echo, which nav entry
+// is current, and whatever the last redirect had to say.
+//
+// It is exported because a template cannot reach a field promoted
+// through an unexported embedded one.
+type Page struct {
+	User    api.UserView
+	CSRF    string
+	Section string
+	Notice  string
+	Error   string
+}
+```
+
+## Consts
+
+```go
+// ViewTokenParam is the query parameter carrying a job's view token.
+// One letter, because it rides along in a URL a human copies out of a
+// terminal.
+const ViewTokenParam = "t"
+```
+
+## Function symbols
+
+- `func NewHandlers (opts Options) (*Handlers, error)`
+- `func (*Handlers) Allowlist (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) Artefact (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) CreateRule (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) CreateSSHKey (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) Index (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) Job (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) Login (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) LoginForm (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) Logout (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) Mount (r platform.Router)`
+- `func (*Handlers) Repositories (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) SSHKeys (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) Settings (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) TriggerRepository (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) UpdateRule (w http.ResponseWriter, r *http.Request, _ *session)`
+- `func (*Handlers) UpdateSSHKey (w http.ResponseWriter, r *http.Request, _ *session)`
+- `func (*Handlers) UpdateSetting (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) UpdateUser (w http.ResponseWriter, r *http.Request, _ *session)`
+- `func (*Handlers) Users (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (Links) Artefact (jobID,artefactID string) string`
+- `func (Links) Job (jobID string) string`
+- `func (Links) Listing () bool`
+
+### NewHandlers
+
+NewHandlers returns Handlers for the page routes.
+
+The error is always nil. It survives from when the templates were
+parsed at construction: templ compiles them instead, so a broken page
+is a build failure rather than a start-up one. The signature stays so
+callers do not have to change when something here does need to fail.
+
+```go
+func NewHandlers(opts Options) (*Handlers, error)
+```
+
+### Allowlist
+
+Allowlist lists the repository rules.
+
+```go
+func (*Handlers) Allowlist(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### Artefact
+
+Artefact serves the bytes of one artefact, as a download.
+
+```go
+func (*Handlers) Artefact(w http.ResponseWriter, r *http.Request)
+```
+
+### CreateRule
+
+CreateRule adds an allowlist rule.
+
+```go
+func (*Handlers) CreateRule(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### CreateSSHKey
+
+CreateSSHKey stores a deploy key.
+
+```go
+func (*Handlers) CreateSSHKey(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### Index
+
+Index lists recent jobs.
+
+A private instance lists nothing: no per-job token can scope a
+listing and there is no session to scope it by, so the listing lives
+on /api/job where the caller is authenticated. The page still
+answers, and says why — it is the server's front door, and a health
+check probing it should find a server rather than a refusal.
+
+```go
+func (*Handlers) Index(w http.ResponseWriter, r *http.Request)
+```
+
+### Job
+
+Job renders one job: its status, the command, and captured output.
+
+```go
+func (*Handlers) Job(w http.ResponseWriter, r *http.Request)
+```
+
+### Login
+
+Login exchanges an email and password for a session cookie.
+
+```go
+func (*Handlers) Login(w http.ResponseWriter, r *http.Request)
+```
+
+### LoginForm
+
+LoginForm renders the login page.
+
+```go
+func (*Handlers) LoginForm(w http.ResponseWriter, r *http.Request)
+```
+
+### Logout
+
+Logout revokes the session the cookie names and clears it.
+
+```go
+func (*Handlers) Logout(w http.ResponseWriter, r *http.Request)
+```
+
+### Mount
+
+Mount registers the page routes.
+
+The job pages have no session to check: the browser reading them never
+logged in. What a private instance checks instead is the per-job view
+token in the URL atkins printed, which keeps the one thing that has
+to stay true — a pasted URL opens the job — without also handing the
+job to anyone who guesses a ULID.
+
+The artefact download shares that trust model rather than a weaker or
+a stronger one. A file a job produced is no more sensitive than the
+output that produced it, so it is reachable on exactly the terms the
+page is: same token, same setting. A download link on a page a browser
+can open must not be a link that fails, and a browser has no bearer
+token to offer. `GET /api/job/{id}/artefact/{id}` is the authenticated
+door for scripts.
+
+Everything under `/admin` is gated on an admin session instead. Those
+pages are not reached from a printed URL, so there is nothing to
+preserve by leaving them open.
+
+```go
+func (*Handlers) Mount(r platform.Router)
+```
+
+### Repositories
+
+Repositories lists the known repositories with their last job.
+
+```go
+func (*Handlers) Repositories(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### SSHKeys
+
+SSHKeys lists the deploy keys.
+
+```go
+func (*Handlers) SSHKeys(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### Settings
+
+Settings renders every registered setting with its effective value.
+
+```go
+func (*Handlers) Settings(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### TriggerRepository
+
+TriggerRepository queues a job against a known repository.
+
+This is the form behind `POST /api/repository/{id}/trigger`: copying
+a repository ID into a curl invocation to run a nightly by hand is
+exactly the sort of thing a page is for.
+
+```go
+func (*Handlers) TriggerRepository(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### UpdateRule
+
+UpdateRule enables, disables or removes a rule.
+
+```go
+func (*Handlers) UpdateRule(w http.ResponseWriter, r *http.Request, _ *session)
+```
+
+### UpdateSSHKey
+
+UpdateSSHKey activates, deactivates or removes a key.
+
+```go
+func (*Handlers) UpdateSSHKey(w http.ResponseWriter, r *http.Request, _ *session)
+```
+
+### UpdateSetting
+
+UpdateSetting overrides or resets one setting.
+
+```go
+func (*Handlers) UpdateSetting(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### UpdateUser
+
+UpdateUser toggles one flag on one account.
+
+```go
+func (*Handlers) UpdateUser(w http.ResponseWriter, r *http.Request, _ *session)
+```
+
+### Users
+
+Users lists accounts.
+
+```go
+func (*Handlers) Users(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### Artefact
+
+Artefact is where an artefact downloads from.
+
+It carries the token of the job the artefact belongs to, so a
+download is reachable exactly when the page listing it is.
+
+```go
+func (Links) Artefact(jobID, artefactID string) string
+```
+
+### Job
+
+Job is where a job page lives, token and all.
+
+Every link a page renders goes through here, so following a parent or
+a child from a job you were given a link to keeps working: each hop
+carries the token for the job it points at, and never the token for
+the job it came from.
+
+```go
+func (Links) Job(jobID string) string
+```
+
+### Listing
+
+Listing reports whether the front page lists anything, which is also
+whether it is worth linking to.
+
+```go
+func (Links) Listing() bool
+```

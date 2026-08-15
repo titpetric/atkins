@@ -49,9 +49,20 @@ jobs:
         vars:
           source: ./docs
 
+  templ:
+    desc: "Generate templ components"
+    steps:
+      - templ fmt ./server/web
+      - templ generate -path ./server/web
+
   fmt:
     desc: "Format the code"
     steps:
+      # Generation comes first so the Go formatters below normalise its
+      # output too: templ emits two single-line import statements that
+      # goimports-reviser merges, and generating afterwards would leave
+      # the committed files permanently one `fmt` behind.
+      - task: templ
       - goimports -w .
       - goimports-reviser -set-alias -format -imports-order "std,blanked,general,company,project" -excludes "scripts/" ./...
       - gofumpt -w .
@@ -62,28 +73,23 @@ jobs:
     desc: "Simple go test with gotestsum (passthru)"
     passthru: true
     steps:
+      # Packages go after the `--`. Before it, gotestsum drops every
+      # go-test flag that follows them, and -coverprofile writes
+      # nothing without a word of complaint.
       - tty: true
-        cmd: gotestsum --hide-summary=skipped ./... -- -count 1
+        cmd: gotestsum --hide-summary=skipped -- -count 1 -coverpkg=github.com/titpetric/atkins/... -coverprofile=coverage.out ./...
 
-  test:build:
-    desc: "Build tests"
+  test:cover:
+    desc: "Run tests and report coverage"
+    depends_on: test:simple
+    passthru: true
     steps:
-      - rm bin/*.test -f
-      - go-fsck test -cover -coverpkg=github.com/titpetric/atkins/... -c -o bin/ ./...
-
-  test:run:
-    desc: "Run built tests"
-    depends_on: install
-    vars:
-      testBinaries: $(ls ./bin/*.test | xargs -n1 basename)
-    steps:
-      - rm -rf coverage
-      - for: item in testBinaries
-        task: test:detail
-        detach: true
-      - for: item in testBinaries
-        task: test:coverage
-      - task: test:mergecov
+      - run: mkdir -p coverage
+        quiet: true
+      - go tool cover -func=coverage.out | summary coverfunc --json > ./coverage/merged.cov.json
+      - go tool cover -func=coverage.out | summary coverfunc --packages
+      - go tool cover -func=coverage.out | summary coverfunc --files
+      - go tool cover -html=coverage.out -o ./coverage/coverage.html
 
   test:fixtures:
     desc: "Run test fixtures"
@@ -95,38 +101,3 @@ jobs:
       - ./tests/stdin.yml
       - cat ./tests/stdin.yml | atkins
 
-  test:detail:
-    dest: "Collect per-function test runs"
-    requires: [item]
-    vars:
-      tests: $(./bin/${{ item }} -test.list ^Test.)
-    steps:
-      - run: mkdir -p coverage/${{ item }}
-        quiet: true
-      - for: funcName in tests
-        summarize: true
-        detach: true
-        desc: "Testing ${{ item }} ${{ funcName }}"
-        run: ./bin/${{ item }} -test.coverprofile "./coverage/${{ item }}/${{ funcName }}.cov" -test.run "^${{ funcName }}$"
-
-  test:coverage:
-    dest: "Collect per-function test coverage"
-    requires: [item]
-    vars:
-      tests: $(./bin/${{ item }} -test.list ^Test.)
-    steps:
-      - for: funcName in tests
-        summarize: true
-        detach: true
-        desc: "Running covertrace ${{ item }} ${{ funcName }}"
-        run: covertrace --name ${{ funcName }} -i "./coverage/${{ item }}/${{ funcName }}.cov" > "./coverage/${{ item }}/${{ funcName }}.yml"
-
-  test:mergecov:
-    desc: "Merge coverage files and generate reports"
-    passthru: true
-    steps:
-      - go run ./scripts/mergecov.go ./coverage/merged.cov ./coverage
-      - go tool cover -func=./coverage/merged.cov | summary coverfunc --json > ./coverage/merged.cov.json
-      - go tool cover -func=./coverage/merged.cov | summary coverfunc --packages
-      - go tool cover -func=./coverage/merged.cov | summary coverfunc --files
-      - go tool cover -html=./coverage/merged.cov -o ./coverage/coverage.html

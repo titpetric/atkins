@@ -1,0 +1,643 @@
+- name: job
+  comment: Job
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: parent_id
+      type: text
+      key: MUL
+      comment: Parent ID
+      datatype: char(26)
+    - name: root_id
+      type: text
+      key: MUL
+      comment: Root ID
+      datatype: char(26)
+    - name: depth
+      type: integer
+      comment: Depth
+      datatype: bigint
+      size: 8
+    - name: repository_id
+      type: text
+      key: MUL
+      comment: Repository ID
+      datatype: char(26)
+    - name: user_id
+      type: text
+      key: MUL
+      comment: User ID
+      datatype: char(26)
+    - name: working_directory
+      type: text
+      comment: Working Directory
+      datatype: varchar
+    - name: command
+      type: text
+      comment: Command
+      datatype: varchar
+    - name: labels
+      type: text
+      comment: Labels
+      datatype: varchar
+    - name: params
+      type: text
+      comment: Params
+      datatype: varchar
+    - name: status
+      type: TEXT
+      key: MUL
+      comment: Status
+      datatype: varchar
+      values:
+        - cancelled
+        - failed
+        - passed
+        - pending
+        - running
+        - timeout
+    - name: exit_code
+      type: integer
+      comment: Exit Code
+      datatype: bigint
+      size: 8
+    - name: error
+      type: text
+      comment: Error
+      datatype: varchar
+    - name: agent_id
+      type: text
+      key: MUL
+      comment: Agent ID
+      datatype: varchar
+    - name: lease_expires_at
+      type: timestamp
+      key: MUL
+      comment: Lease Expires At
+      datatype: datetime
+    - name: started_at
+      type: timestamp
+      comment: Started At
+      datatype: datetime
+    - name: finished_at
+      type: timestamp
+      comment: Finished At
+      datatype: datetime
+    - name: created_at
+      type: timestamp
+      key: MUL
+      comment: Created At
+      datatype: datetime
+    - name: updated_at
+      type: timestamp
+      comment: Updated At
+      datatype: datetime
+    - name: artefact_paths
+      type: text
+      comment: Artefact Paths
+      datatype: varchar
+    - name: ref
+      type: text
+      comment: Ref
+      datatype: varchar
+    - name: commit_sha
+      type: text
+      key: MUL
+      comment: Commit Sha
+      datatype: varchar
+    - name: clone_depth
+      type: integer
+      comment: Clone Depth
+      datatype: bigint
+      size: 8
+  indexes:
+    - name: sqlite_autoindex_job_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_job_commit_sha
+      columns:
+        - commit_sha
+    - name: idx_job_lease_expires_at
+      columns:
+        - lease_expires_at
+    - name: idx_job_parent_id
+      columns:
+        - parent_id
+    - name: idx_job_repository_id
+      columns:
+        - repository_id
+    - name: idx_job_root_id
+      columns:
+        - root_id
+    - name: idx_job_status_created_at
+      columns:
+        - status
+        - created_at
+    - name: idx_job_user_id
+      columns:
+        - user_id
+- name: job_artefact
+  comment: Job Artefact
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: job_id
+      type: text
+      key: MUL
+      comment: Job ID
+      datatype: char(26)
+    - name: path
+      type: text
+      key: MUL
+      comment: Path
+      datatype: varchar
+    - name: storage_key
+      type: text
+      comment: Storage Key
+      datatype: varchar
+    - name: size
+      type: integer
+      comment: Size
+      datatype: bigint
+      size: 8
+    - name: content_type
+      type: text
+      comment: Content Type
+      datatype: varchar
+    - name: checksum
+      type: text
+      comment: Checksum
+      datatype: char(64)
+    - name: agent_id
+      type: text
+      key: MUL
+      comment: Agent ID
+      datatype: varchar
+    - name: created_at
+      type: timestamp
+      key: MUL
+      comment: Created At
+      datatype: datetime
+    - name: deleted_at
+      type: timestamp
+      key: MUL
+      comment: Deleted At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_job_artefact_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_job_artefact_created_at
+      columns:
+        - created_at
+    - name: idx_job_artefact_deleted_at
+      columns:
+        - deleted_at
+    - name: idx_job_artefact_job_id_path
+      columns:
+        - job_id
+        - path
+- name: job_log
+  comment: Job Log
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: job_id
+      type: text
+      key: MUL
+      comment: Job ID
+      datatype: char(26)
+    - name: seq
+      type: integer
+      key: MUL
+      comment: Seq
+      datatype: bigint
+      size: 8
+    - name: stream
+      type: TEXT
+      comment: Stream
+      datatype: varchar
+      values:
+        - error
+        - output
+    - name: content
+      type: text
+      comment: Content
+      datatype: varchar
+    - name: created_at
+      type: timestamp
+      comment: Created At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_job_log_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_job_log_job_id_seq
+      columns:
+        - job_id
+        - seq
+- name: migrations
+  comment: Migrations
+  columns:
+    - name: project
+      type: text
+      key: PRI
+      comment: Project
+      datatype: varchar
+    - name: filename
+      type: text
+      key: PRI
+      comment: Filename
+      datatype: varchar
+    - name: statement_index
+      type: integer
+      comment: Statement Index
+      datatype: bigint
+      size: 8
+    - name: status
+      type: text
+      comment: Status
+      datatype: varchar
+  indexes:
+    - name: sqlite_autoindex_migrations_1
+      columns:
+        - project
+        - filename
+      primary: true
+      unique: true
+- name: repository
+  comment: Repository
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: slug
+      type: text
+      key: MUL
+      comment: Slug
+      datatype: varchar
+    - name: remote_url
+      type: text
+      comment: Remote URL
+      datatype: varchar
+    - name: default_branch
+      type: text
+      comment: Default Branch
+      datatype: varchar
+    - name: created_by_user_id
+      type: text
+      key: MUL
+      comment: Created By User ID
+      datatype: char(26)
+    - name: is_active
+      type: boolean
+      comment: Is Active
+      datatype: boolean
+    - name: created_at
+      type: timestamp
+      comment: Created At
+      datatype: datetime
+    - name: updated_at
+      type: timestamp
+      comment: Updated At
+      datatype: datetime
+    - name: deleted_at
+      type: timestamp
+      key: MUL
+      comment: Deleted At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_repository_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_repository_created_by_user_id
+      columns:
+        - created_by_user_id
+    - name: idx_repository_deleted_at
+      columns:
+        - deleted_at
+    - name: uidx_repository_slug
+      columns:
+        - slug
+      unique: true
+- name: repository_rule
+  comment: Repository Rule
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: pattern
+      type: text
+      key: MUL
+      comment: Pattern
+      datatype: varchar
+    - name: description
+      type: text
+      comment: Description
+      datatype: varchar
+    - name: is_active
+      type: boolean
+      key: MUL
+      comment: Is Active
+      datatype: boolean
+    - name: created_by_user_id
+      type: text
+      key: MUL
+      comment: Created By User ID
+      datatype: char(26)
+    - name: created_at
+      type: timestamp
+      comment: Created At
+      datatype: datetime
+    - name: updated_at
+      type: timestamp
+      comment: Updated At
+      datatype: datetime
+    - name: deleted_at
+      type: timestamp
+      key: MUL
+      comment: Deleted At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_repository_rule_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_repository_rule_deleted_at
+      columns:
+        - deleted_at
+    - name: idx_repository_rule_is_active
+      columns:
+        - is_active
+    - name: uidx_repository_rule_pattern
+      columns:
+        - pattern
+      unique: true
+- name: session
+  comment: Session
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: user_id
+      type: text
+      key: MUL
+      comment: User ID
+      datatype: char(26)
+    - name: refresh_token
+      type: text
+      key: MUL
+      comment: Refresh Token
+      datatype: varchar
+    - name: hostname
+      type: text
+      comment: Hostname
+      datatype: varchar
+    - name: user_agent
+      type: text
+      comment: User Agent
+      datatype: varchar
+    - name: remote_addr
+      type: text
+      comment: Remote Addr
+      datatype: varchar
+    - name: last_seen_at
+      type: timestamp
+      comment: Last Seen At
+      datatype: datetime
+    - name: expires_at
+      type: timestamp
+      key: MUL
+      comment: Expires At
+      datatype: datetime
+    - name: revoked_at
+      type: timestamp
+      comment: Revoked At
+      datatype: datetime
+    - name: created_at
+      type: timestamp
+      comment: Created At
+      datatype: datetime
+    - name: updated_at
+      type: timestamp
+      comment: Updated At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_session_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_session_expires_at
+      columns:
+        - expires_at
+    - name: uidx_session_refresh_token
+      columns:
+        - refresh_token
+      unique: true
+    - name: idx_session_user_id
+      columns:
+        - user_id
+- name: setting
+  comment: Setting
+  columns:
+    - name: name
+      type: text
+      key: PRI
+      comment: Name
+      datatype: varchar
+    - name: value
+      type: text
+      comment: Value
+      datatype: varchar
+    - name: updated_by_user_id
+      type: text
+      key: MUL
+      comment: Updated By User ID
+      datatype: char(26)
+    - name: created_at
+      type: timestamp
+      comment: Created At
+      datatype: datetime
+    - name: updated_at
+      type: timestamp
+      comment: Updated At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_setting_1
+      columns:
+        - name
+      primary: true
+      unique: true
+- name: ssh_key
+  comment: SSH Key
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: name
+      type: text
+      key: MUL
+      comment: Name
+      datatype: varchar
+    - name: host
+      type: text
+      key: MUL
+      comment: Host
+      datatype: varchar
+    - name: private_key
+      type: text
+      comment: Private Key
+      datatype: varchar
+    - name: public_key
+      type: text
+      comment: Public Key
+      datatype: varchar
+    - name: fingerprint
+      type: text
+      comment: Fingerprint
+      datatype: varchar
+    - name: known_hosts
+      type: text
+      comment: Known Hosts
+      datatype: varchar
+    - name: is_active
+      type: boolean
+      comment: Is Active
+      datatype: boolean
+    - name: created_by_user_id
+      type: text
+      key: MUL
+      comment: Created By User ID
+      datatype: char(26)
+    - name: last_used_at
+      type: timestamp
+      comment: Last Used At
+      datatype: datetime
+    - name: created_at
+      type: timestamp
+      comment: Created At
+      datatype: datetime
+    - name: updated_at
+      type: timestamp
+      comment: Updated At
+      datatype: datetime
+    - name: deleted_at
+      type: timestamp
+      key: MUL
+      comment: Deleted At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_ssh_key_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_ssh_key_deleted_at
+      columns:
+        - deleted_at
+    - name: idx_ssh_key_host
+      columns:
+        - host
+    - name: uidx_ssh_key_name
+      columns:
+        - name
+      unique: true
+- name: user
+  comment: User
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: email
+      type: text
+      key: MUL
+      comment: Email
+      datatype: varchar
+    - name: username
+      type: text
+      key: MUL
+      comment: Username
+      datatype: varchar
+    - name: full_name
+      type: text
+      comment: Full Name
+      datatype: varchar
+    - name: password
+      type: text
+      comment: Password
+      datatype: varchar
+    - name: is_admin
+      type: boolean
+      comment: Is Admin
+      datatype: boolean
+    - name: is_active
+      type: boolean
+      comment: Is Active
+      datatype: boolean
+    - name: created_at
+      type: timestamp
+      comment: Created At
+      datatype: datetime
+    - name: updated_at
+      type: timestamp
+      comment: Updated At
+      datatype: datetime
+    - name: deleted_at
+      type: timestamp
+      key: MUL
+      comment: Deleted At
+      datatype: datetime
+    - name: is_agent
+      type: boolean
+      key: MUL
+      comment: Is Agent
+      datatype: boolean
+  indexes:
+    - name: sqlite_autoindex_user_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_user_deleted_at
+      columns:
+        - deleted_at
+    - name: uidx_user_email
+      columns:
+        - email
+      unique: true
+    - name: idx_user_is_agent
+      columns:
+        - is_agent
+    - name: uidx_user_username
+      columns:
+        - username
+      unique: true

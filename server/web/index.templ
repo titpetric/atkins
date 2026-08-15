@@ -1,0 +1,44 @@
+package web
+
+// indexView is the front page: recent jobs, or an explanation of why
+// there are none to show.
+templ indexView(page IndexPage, links Links) {
+	@layout("Jobs", page.Refresh) {
+		<header>
+			<h1>Jobs</h1>
+			<p class="muted">
+				Runs dispatched by <span class="mono">atkins</span>, newest first.
+				{ " · " }
+				<a href="/admin/repository">Admin</a>
+			</p>
+		</header>
+		if len(page.Jobs) > 0 {
+			<table>
+				<tr>
+					<th>Command</th>
+					<td>Status</td>
+					<td>Queued</td>
+				</tr>
+				for _, job := range page.Jobs {
+					<tr>
+						<th class="mono"><a href={ templ.URL(links.Job(job.ID)) }>{ job.Command }</a></th>
+						<td><span class={ "badge", "badge-" + job.Status }>{ job.Status }</span></td>
+						<td class="muted">{ stamp(job.CreatedAt) }</td>
+					</tr>
+				}
+			</table>
+		} else if page.Private {
+			<p class="muted">
+				Job listings are private on this server. Open a job with the URL
+				<span class="mono">atkins</span> printed, or list your own over
+				<span class="mono">/api/job</span>.
+			</p>
+		} else {
+			<p class="muted">
+				Nothing dispatched yet. Attach a machine with
+				<span class="mono">atkins --login</span> and run <span class="mono">atkins</span>
+				inside a git repository.
+			</p>
+		}
+	}
+}

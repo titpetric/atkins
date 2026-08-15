@@ -1,0 +1,49 @@
+# Image for the atkins CI/CD server and its agents.
+#
+# It differs from docker/Dockerfile in two ways. It builds atkins from
+# the source tree rather than copying a released binary, so `atkins up`
+# always runs what is checked out. And it carries git, because an agent
+# clones the repositories it is asked to build.
+#
+# The same image runs both roles; compose.yml picks between them with
+# `atkins server` and `atkins worker`.
+
+FROM golang:1.27rc1-alpine AS build
+
+WORKDIR /src
+
+# Dependencies first: the module files change far less often than the
+# code, so this layer survives most rebuilds.
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ARG GIT_TAG=dev
+ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=unknown
+ARG GIT_TIME=unknown
+
+RUN CGO_ENABLED=0 go build \
+    -ldflags="-X 'main.Version=${GIT_TAG}' -X 'main.Commit=${GIT_COMMIT}' -X 'main.CommitTime=${GIT_TIME}' -X 'main.Branch=${GIT_BRANCH}'" \
+    -o /out/atkins .
+
+FROM alpine:latest
+
+# bash runs pipeline commands, git clones the repositories an agent
+# builds, ca-certificates lets it clone over https, openssh-client
+# covers ssh remotes when a key is mounted in.
+RUN apk add --no-cache bash git ca-certificates openssh-client tzdata
+
+COPY --from=build /out/atkins /usr/local/bin/atkins
+
+# /app/data/repos is the repository cache: one mirror per repository,
+# fetched instead of re-cloned on later jobs. /app/data/work holds one
+# checkout per running job and is cleaned up as jobs finish.
+RUN mkdir -p /app/data/repos /app/data/work
+
+WORKDIR /app
+
+RUN atkins -v
+
+ENTRYPOINT ["/usr/local/bin/atkins"]

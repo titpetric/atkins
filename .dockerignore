@@ -1,0 +1,24 @@
+# The CI image builds atkins from source, so the context needs the Go
+# tree and nothing else. Everything below is either large, generated, or
+# specific to a developer's machine.
+.git
+.github
+.claude
+bin
+coverage
+docs
+examples
+tests
+scripts/FlameGraph
+
+# Built artefacts and recordings that would otherwise dominate the
+# context: the checked-in binary alone is ~11MB.
+atkins
+*.test
+*.cov
+*.out
+*.cast
+*.log
+*.db
+*.png
+*.svg

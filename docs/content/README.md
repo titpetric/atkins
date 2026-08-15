@@ -21,6 +21,7 @@ Atkins is a command runner for local development and CI/CD environments. It exec
 - [Steps](./usage/steps.md) - Step configuration and loops
 - [Skills](./usage/skills.md) - Modular pipeline components
 - [CLI Flags](./usage/cli-flags.md) - Command-line reference
+- [CI/CD Server](./usage/ci-cd.md) - Login, job dispatch and agents
 
 **Reference**
 - [Migrating to Atkins](./migrating/migrating.md) - Migration guides

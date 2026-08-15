@@ -4,7 +4,7 @@ subtitle: Using Atkins with GHA-style syntax
 layout: page
 ---
 
-Atkins supports a GitHub Actions-inspired syntax with `jobs:` and `steps:`, familiar for teams that use GHA workflows. Atkins runs similar job definitions locally and in any CI environment, but does not replace GitHub Actions as a CI platform.
+Atkins supports a GitHub Actions-inspired syntax with `jobs:` and `steps:`, familiar for teams that use GHA workflows. Atkins runs similar job definitions locally and in any CI environment, and can distribute them across your own agents via the [CI/CD server](../usage/ci-cd). It does not replace what GitHub hosts for you: triggers, runners, the marketplace and secrets stay where they are.
 
 ## Full Example
 
@@ -48,9 +48,18 @@ jobs:
 
 ## Key Differences
 
-### No Triggers or Runner Selection
+### No Triggers, and Runners Are Labels
 
-Atkins doesn't handle CI triggers (`on:`) or runner selection (`runs-on:`). It's a command runner, not a CI platform. Use it within your existing CI or as a local development tool.
+Atkins has no equivalent to `on:`. Nothing watches your repository for pushes, tags or pull requests; a run starts when something invokes `atkins`. Use your existing CI, a cron job, or a webhook receiver to do the invoking.
+
+`runs-on:` has a partial equivalent. With the [CI/CD server](../usage/ci-cd), a job carries labels and only lands on an agent advertising all of them:
+
+```bash
+# The agent declares what it can run
+ATKINS_LABELS=linux,arm64,docker atkins build
+```
+
+Unlike GitHub's hosted runners, you provide the machines.
 
 ### No `uses:` Actions
 
@@ -89,10 +98,10 @@ In GHA, this requires expressing the full dependency graph upfront with `needs:`
 
 ### Field Name Differences
 
-| GitHub Actions | Atkins        |
-|----------------|---------------|
-| `runs-on`      | Not supported |
-| `needs`        | `depends_on:` |
+| GitHub Actions | Atkins                         |
+|----------------|--------------------------------|
+| `runs-on`      | `ATKINS_LABELS` (agent labels) |
+| `needs`        | `depends_on:`                  |
 
 ## Jobs and Dependencies
 
@@ -297,19 +306,22 @@ jobs:
 
 ## Summary
 
-| Concept             | GitHub Actions              | Atkins                          |
-|---------------------|-----------------------------|---------------------------------|
-| Triggers            | `on: [push]`                | Not supported (use CI)          |
-| Runner selection    | `runs-on:`                  | Not supported (local execution) |
-| Marketplace actions | `uses: actions/checkout@v4` | No equivalent                   |
-| Job dependencies    | `needs:`                    | `depends_on:`                   |
-| Inline job calls    | Not supported               | `task:` in steps                |
-| Secrets             | `${{ secrets.X }}`          | Environment variables           |
-| Matrix              | `strategy.matrix`           | `for:` with multi-iterator      |
-| Parallel            | Default                     | `detach: true`                  |
+| Concept             | GitHub Actions              | Atkins                                |
+|---------------------|-----------------------------|---------------------------------------|
+| Triggers            | `on: [push]`                | Not supported (use CI or cron)        |
+| Runner selection    | `runs-on:`                  | `ATKINS_LABELS` on self-hosted agents |
+| Hosted runners      | GitHub-hosted               | Machines you provide                  |
+| Marketplace actions | `uses: actions/checkout@v4` | No equivalent                         |
+| Job dependencies    | `needs:`                    | `depends_on:`                         |
+| Inline job calls    | Not supported               | `task:` in steps                      |
+| Secrets             | `${{ secrets.X }}`          | Environment variables                 |
+| Matrix              | `strategy.matrix`           | `for:` with multi-iterator            |
+| Parallel            | Default                     | `detach: true`                        |
+| Run history         | Workflow runs               | Jobs recorded via `/api/dispatch`     |
 
 ## Best Practices
 
-1. Atkins runs commands; use your CI platform for triggers, runners, and secrets
+1. Atkins runs commands; use your CI platform for triggers and secrets
 2. Run the same tasks locally that CI runs
 3. Call `atkins` from your GHA workflow for consistency
+4. To keep the work on your own machines, attach them with [`atkins --login`](../usage/ci-cd) and let agents claim the jobs instead
