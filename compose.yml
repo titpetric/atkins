@@ -1,0 +1,55 @@
+# A throwaway atkins CI/CD instance.
+#
+#   atkins up                              # build and start
+#   atkins --register http://localhost:3200
+#   atkins                                 # prints a job URL to open
+#   atkins down
+#
+# Both services run the same image; only the command differs. Settings
+# live in .env.docker so the secrets are in one place rather than spread
+# across two service definitions.
+#
+# Nothing is mounted from the host: the agent clones the repository it
+# is asked to build into its own cache under /app/data/repos, so a job
+# runs against what the remote actually has rather than against your
+# working tree. State lives in the containers and is gone with them.
+
+name: atkins
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ci
+    image: atkins-ci:latest
+    command: ["server", "--addr", ":3200"]
+    ports:
+      - "3200:3200"
+    env_file:
+      - .env.docker
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3200/"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 3s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ci
+    image: atkins-ci:latest
+    command: ["worker"]
+    depends_on:
+      server:
+        condition: service_healthy
+    env_file:
+      - .env.docker
+    environment:
+      # The agent talks to the server over the compose network. It
+      # trades ATKINS_AGENT_TOKEN for the rotating credentials it then
+      # uses; enrolling twice with the same id returns the same account,
+      # so a restart keeps its history.
+      ATKINS_SERVER: http://server:3200
+    restart: unless-stopped

@@ -13,6 +13,7 @@ import (
 	"github.com/titpetric/cli"
 
 	"github.com/titpetric/atkins/agent"
+	"github.com/titpetric/atkins/client"
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
@@ -86,6 +87,29 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 		})
 	}
 
+	cwd, _ := os.Getwd()
+
+	// Configuration is resolved before anything reads a setting, so a
+	// broken document is reported once and by name.
+	settings, err := loadRuntimeConfig(cwd)
+	if err != nil {
+		return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
+	}
+	client.Configure(settings.Client)
+
+	// These flags take over the whole invocation: they open the
+	// configuration menu or authenticate against a server, and exit.
+	switch {
+	case opts.Config:
+		return runConfig(cwd)
+	case opts.Login != "":
+		return client.RunLogin(ctx, opts.Login)
+	case opts.Register != "":
+		return client.RunRegister(ctx, opts.Register)
+	case opts.Logout:
+		return client.RunLogout(ctx, "")
+	}
+
 	// Handle agent mode
 	if opts.Agent {
 		return runAgent(ctx, opts)
@@ -123,7 +147,6 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 
 	// Check stdin first (before file discovery)
 	var pipelines []*model.Pipeline
-	var err error
 
 	if stdinHasData() {
 		// Read pipeline from stdin
@@ -343,6 +366,15 @@ pipelineReady:
 		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, resolvedName)
 	}
 
+	// Hand the run to the CI/CD server when this machine is logged in
+	// to one and the run happens inside a git repository. An agent
+	// checks the repository out and runs the command there, so all
+	// that's left here is where to watch it.
+	if dispatched := client.Dispatch(ctx, client.DispatchOptions{Local: opts.Local}); dispatched != nil {
+		fmt.Println(dispatched.URL)
+		return nil
+	}
+
 	// Run each pipeline with its collected jobs
 	for _, pipeline := range pipelineOrder {
 		pj := pipelineJobsMap[pipeline]
@@ -383,6 +415,7 @@ pipelineReady:
 			}
 		}
 	}
+
 	return nil
 }
 

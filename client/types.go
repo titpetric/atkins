@@ -1,0 +1,172 @@
+package client
+
+// The payload types below mirror github.com/titpetric/atkins/server/api.
+// They are re-declared rather than imported so the atkins CLI links
+// against net/http alone; importing the server package would pull the
+// platform, chi and sqlx trees into every atkins build.
+
+// LoginRequest is the body of POST /api/user/login.
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Hostname string `json:"hostname"`
+}
+
+// RegisterRequest is the body of POST /api/user/register.
+type RegisterRequest struct {
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	FullName string `json:"full_name"`
+	Password string `json:"password"`
+}
+
+// RefreshRequest is the body of POST /api/user/refreshToken.
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// LogoutRequest is the body of POST /api/user/logout.
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// TokenResponse is returned by login, register and refresh.
+type TokenResponse struct {
+	UserID       string `json:"user_id"`
+	Username     string `json:"username"`
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresAt    int64  `json:"expires_at"`
+}
+
+// RepositoryPayload describes the checkout a run happens in.
+type RepositoryPayload struct {
+	RemoteURL     string `json:"remote_url"`
+	Branch        string `json:"branch"`
+	Revision      string `json:"revision"`
+	DefaultBranch string `json:"default_branch"`
+}
+
+// DispatchRequest is the body of POST /api/dispatch.
+type DispatchRequest struct {
+	Repository       RepositoryPayload `json:"repository"`
+	WorkingDirectory string            `json:"working_directory"`
+	Command          string            `json:"command"`
+	ParentID         string            `json:"parent_id,omitempty"`
+	Labels           []string          `json:"labels,omitempty"`
+	Params           map[string]any    `json:"params,omitempty"`
+}
+
+// DispatchResponse is returned by POST /api/dispatch.
+type DispatchResponse struct {
+	JobID          string `json:"job_id"`
+	ParentID       string `json:"parent_id,omitempty"`
+	RootID         string `json:"root_id"`
+	Depth          int64  `json:"depth"`
+	RepositoryID   string `json:"repository_id"`
+	RepositorySlug string `json:"repository_slug"`
+	Status         string `json:"status"`
+}
+
+// EnrolRequest is the body of POST /api/agent/enrol.
+type EnrolRequest struct {
+	Token   string   `json:"token"`
+	AgentID string   `json:"agent_id"`
+	Labels  []string `json:"labels,omitempty"`
+}
+
+// PolicyResponse is what an agent may run.
+type PolicyResponse struct {
+	Policy   string   `json:"policy"`
+	Patterns []string `json:"patterns"`
+}
+
+// AgentSSHKey is a deploy key handed to an agent.
+type AgentSSHKey struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Host        string `json:"host"`
+	PrivateKey  string `json:"private_key"`
+	KnownHosts  string `json:"known_hosts"`
+	Fingerprint string `json:"fingerprint"`
+}
+
+// Repository policy values, mirroring server/model.
+const (
+	PolicyOpen      = "open"
+	PolicyAllowlist = "allowlist"
+)
+
+// ClaimRequest is the body of POST /api/job/claim.
+type ClaimRequest struct {
+	AgentID string   `json:"agent_id"`
+	Labels  []string `json:"labels,omitempty"`
+}
+
+// ClaimResponse is returned when an agent leases a job. The repository
+// travels with the job so an agent can start cloning without a second
+// round trip.
+type ClaimResponse struct {
+	Job        *Job        `json:"job"`
+	Repository *Repository `json:"repository"`
+}
+
+// Repository is the checkout an agent has to reproduce.
+type Repository struct {
+	ID            string `json:"id"`
+	Slug          string `json:"slug"`
+	RemoteURL     string `json:"remote_url"`
+	DefaultBranch string `json:"default_branch"`
+}
+
+// Job is the subset of a queued job an agent needs to run it. It
+// mirrors the columns of server/model.Job that matter on this side.
+type Job struct {
+	ID               string `json:"id"`
+	ParentID         string `json:"parent_id"`
+	RootID           string `json:"root_id"`
+	RepositoryID     string `json:"repository_id"`
+	WorkingDirectory string `json:"working_directory"`
+	Command          string `json:"command"`
+	Branch           string `json:"branch"`
+	Revision         string `json:"revision"`
+	Labels           string `json:"labels"`
+	Params           string `json:"params"`
+	Status           string `json:"status"`
+}
+
+// JobLogRequest is the body of POST /api/job/{jobID}/log.
+type JobLogRequest struct {
+	Stream  string `json:"stream"`
+	Content string `json:"content"`
+}
+
+// Log stream names, mirroring server/storage.
+const (
+	StreamOutput = "output"
+	StreamError  = "error"
+)
+
+// JobStatusRequest is the body of POST /api/job/{jobID}/status.
+type JobStatusRequest struct {
+	Status   string `json:"status"`
+	ExitCode int64  `json:"exit_code"`
+	Error    string `json:"error,omitempty"`
+}
+
+// Job status values reported by the CLI. They mirror the server's
+// terminal statuses in server/model.
+const (
+	StatusPassed    = "passed"
+	StatusFailed    = "failed"
+	StatusTimeout   = "timeout"
+	StatusCancelled = "cancelled"
+)
+
+// errorResponse is the platform error envelope.
+type errorResponse struct {
+	Error struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}

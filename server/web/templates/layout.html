@@ -1,0 +1,67 @@
+{{define "head"}}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1b1b1f;
+    --muted: #6a6a75;
+    --line: #e2e2e8;
+    --panel: #f7f7f9;
+    --accent: #3b6ea5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --fg: #e6e6ea;
+      --muted: #9a9aa5;
+      --line: #2b2b33;
+      --panel: #1e1e24;
+      --accent: #7aa7d9;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+    max-width: 60rem;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color: var(--accent); }
+  h1 { font-size: 1.35rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1rem; margin: 2rem 0 .5rem; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 1rem; }
+  .muted { color: var(--muted); }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+  pre {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: .85rem 1rem;
+    overflow-x: auto;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; width: 11rem; }
+  .badge {
+    display: inline-block;
+    padding: .1rem .5rem;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .badge-pending   { background: #f0e6c8; color: #6b5411; }
+  .badge-running   { background: #cfe0f5; color: #1d456e; }
+  .badge-passed    { background: #cfe9d4; color: #1d5c2c; }
+  .badge-failed    { background: #f4d2d2; color: #7a2020; }
+  .badge-timeout   { background: #eddbc4; color: #74451a; }
+  .badge-cancelled { background: #e0e0e6; color: #4a4a55; }
+</style>
+{{end}}

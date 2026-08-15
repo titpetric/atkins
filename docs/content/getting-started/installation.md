@@ -86,7 +86,25 @@ chmod +x my-pipeline.yml
 
 Atkins strips the shebang line before parsing, so the file remains valid YAML for other tools.
 
+## Running the CI/CD Server
+
+The same binary hosts the optional CI/CD server. It needs a signing key and a database; sqlite is the default and needs nothing installed:
+
+```bash
+atkins server --signing-key "$(openssl rand -hex 32)"
+```
+
+Migrations are applied on start. Attach a machine to it with:
+
+```bash
+atkins --register https://ci.example.com   # first account becomes admin
+atkins --login https://ci.example.com      # on every other machine
+```
+
+See [CI/CD Server](../usage/ci-cd) for configuration, the API and how agents claim jobs.
+
 ## Next Steps
 
 - [Configuration](../usage/configuration) - Learn the pipeline format
 - [CLI Flags](../usage/cli-flags) - Command-line reference
+- [CI/CD Server](../usage/ci-cd) - Login, job dispatch and agents

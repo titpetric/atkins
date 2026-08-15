@@ -4,7 +4,7 @@ subtitle: When and why to choose Atkins
 layout: page
 ---
 
-Atkins is a command runner that works the same way on your laptop and in CI. It emphasizes simplicity and YAML-friendly syntax. Atkins runs tasks locally and in automation; it does not replace GitHub Actions or other CI platforms.
+Atkins is a command runner that works the same way on your laptop and in CI. It emphasizes simplicity and YAML-friendly syntax. Atkins runs tasks locally and in automation, and can attach to its own [CI/CD server](../usage/ci-cd) to distribute those runs across agents. It is not a hosted CI platform: there are no managed runners, no marketplace and no secrets vault.
 
 ## When to Choose Atkins
 
@@ -17,6 +17,7 @@ Atkins suits projects where:
 - Local and CI runs should behave identically. Write a pipeline once and run it the same way everywhere.
 - Jobs run in parallel with visible progress. Use `detach: true` to run jobs concurrently; the tree view shows what's happening.
 - Pipelines should be modular and reusable. Skills let you compose and conditionally activate groups of jobs across projects.
+- Work should spread across your own machines. `atkins --login` attaches a machine to a CI/CD server; runs are recorded as jobs and agents claim them from a shared queue.
 
 ## Examples
 
@@ -52,7 +53,7 @@ Run jobs concurrently with `detach: true` and see progress in the tree view:
 | Feature                  | Atkins                      | GitHub Actions                   | Taskfile                       | Lefthook                   |
 |--------------------------|-----------------------------|----------------------------------|--------------------------------|----------------------------|
 | Primary use case         | Local dev + CI runner       | CI/CD platform                   | Task runner                    | Git hooks                  |
-| Distributed execution    | No [^1]                     | Yes [^2]                         | No [^3]                        | No [^4]                    |
+| Distributed execution    | Yes (self-hosted) [^1]      | Yes [^2]                         | No [^3]                        | No [^4]                    |
 | Variable interpolation   | `${{ var }}` [^5]           | `${{ env.VAR }}` [^6]            | `{{.Var}}` (Go templates) [^7] | N/A [^8]                   |
 | Shell exec interpolation | `$(cmd)` [^9]               | N/A [^10]                        | `sh: cmd` [^11]                | N/A [^12]                  |
 | Secrets management       | No                          | Yes (encrypted) [^13]            | No [^14]                       | No                         |
@@ -67,7 +68,7 @@ Run jobs concurrently with `detach: true` and see progress in the tree view:
 | Shebang support          | Yes                         | No                               | No                             | No                         |
 | Stdin pipeline           | Yes                         | No                               | Yes                            | No                         |
 
-[^1]: Atkins runs locally on a single machine
+[^1]: Runs locally by default; `atkins server` queues jobs for agents you host
 [^2]: [Using jobs in a workflow](https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow)
 [^3]: [Taskfile](https://taskfile.dev/)
 [^4]: [Lefthook](https://github.com/evilmartians/lefthook)

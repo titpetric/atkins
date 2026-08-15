@@ -14,6 +14,7 @@ Atkins is a command runner for local development and CI/CD environments. It exec
 - YAML-friendly interpolation with `${{ var }}` for variables and `$(command)` for shell substitution
 - Cross-pipeline references using `:skill:task` syntax
 - Skills system for modular, reusable pipeline components that activate conditionally
+- Optional CI/CD server: `atkins --login` records every run as a job that your own agents can claim
 
 ## Quick Example
 
@@ -83,3 +84,4 @@ atkins --final
 - [Installation](./installation) - Install Atkins on your system
 - [Configuration](../usage/configuration) - Learn the pipeline format
 - [CLI Flags](../usage/cli-flags) - Command-line reference
+- [CI/CD Server](../usage/ci-cd) - Distribute runs across your own agents
