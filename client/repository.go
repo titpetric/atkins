@@ -32,11 +32,20 @@ type Checkout struct {
 }
 
 // Payload converts the checkout into a dispatch payload.
+//
+// The ref is the commit rather than the branch. A dispatched run belongs
+// to the code in front of the person who started it, and a branch name
+// would let the agent build whatever that branch has moved to by the
+// time the job is claimed.
 func (c *Checkout) Payload() RepositoryPayload {
+	ref := c.Revision
+	if ref == "" {
+		ref = c.Branch
+	}
+
 	return RepositoryPayload{
 		RemoteURL:     c.RemoteURL,
-		Branch:        c.Branch,
-		Revision:      c.Revision,
+		Ref:           ref,
 		DefaultBranch: c.DefaultBranch,
 	}
 }

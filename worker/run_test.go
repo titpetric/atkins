@@ -2,6 +2,7 @@ package worker
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,13 +20,37 @@ import (
 	"github.com/titpetric/atkins/server/model"
 )
 
-// gitRepository builds a repository with one commit and returns its
-// path, usable as a clone remote.
-func gitRepository(t *testing.T) string {
+// testRepository is a git repository built for the checkout tests, and
+// the shas of the things a job can ask for.
+type testRepository struct {
+	// Path is the work tree, usable as a clone remote.
+	Path string
+
+	// First, Tagged and Head are the three commits on main, oldest
+	// first. Feature is the tip of the second branch.
+	First   string
+	Tagged  string
+	Head    string
+	Feature string
+}
+
+// The names a job can put in its ref field for this repository.
+const (
+	testTag    = "v1.0.0"
+	testBranch = "feature"
+)
+
+// gitRepository builds a repository with three commits on main, a tag
+// two commits back, and a second branch.
+//
+// Every commit writes a different marker.txt, so a test can tell which
+// commit ended up in the work tree by reading a file rather than by
+// trusting what the agent reported about itself.
+func gitRepository(t *testing.T) *testRepository {
 	t.Helper()
 
 	dir := t.TempDir()
-	run := func(args ...string) {
+	run := func(args ...string) string {
 		t.Helper()
 
 		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
@@ -35,16 +60,35 @@ func gitRepository(t *testing.T) string {
 		)
 		out, err := cmd.CombinedOutput()
 		require.NoError(t, err, string(out))
+
+		return strings.TrimSpace(string(out))
+	}
+
+	commit := func(marker, message string) string {
+		t.Helper()
+
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "marker.txt"), []byte(marker+"\n"), 0o644))
+		run("add", ".")
+		run("commit", "-m", message)
+
+		return run("rev-parse", "HEAD")
 	}
 
 	run("init", "--initial-branch=main")
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "sub"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "sub", "marker.txt"), []byte("in-sub\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "marker.txt"), []byte("at-root\n"), 0o644))
-	run("add", ".")
-	run("commit", "-m", "initial")
 
-	return dir
+	repository := &testRepository{Path: dir}
+	repository.First = commit("first", "initial")
+	repository.Tagged = commit("tagged", "release")
+	run("tag", testTag)
+	repository.Head = commit("at-root", "after the release")
+
+	run("checkout", "-b", testBranch)
+	repository.Feature = commit("on-feature", "feature work")
+	run("checkout", "main")
+
+	return repository
 }
 
 // agentServer is a minimal stand-in for the queue endpoints an agent
@@ -56,6 +100,7 @@ type agentServer struct {
 	output     strings.Builder
 	status     client.JobStatusRequest
 	statusSeen bool
+	checkout   client.JobCheckoutRequest
 	heartbeats int
 }
 
@@ -93,6 +138,10 @@ func newAgentServer(t *testing.T, policy client.PolicyResponse) *agentServer {
 			fake.output.WriteString(req.Content)
 			w.WriteHeader(http.StatusNoContent)
 
+		case strings.HasSuffix(r.URL.Path, "/checkout"):
+			_ = json.NewDecoder(r.Body).Decode(&fake.checkout)
+			w.WriteHeader(http.StatusNoContent)
+
 		case strings.HasSuffix(r.URL.Path, "/heartbeat"):
 			fake.heartbeats++
 			w.WriteHeader(http.StatusNoContent)
@@ -120,6 +169,14 @@ func (f *agentServer) result() (string, client.JobStatusRequest) {
 	return f.output.String(), f.status
 }
 
+// checkedOut reports the ref and commit the agent recorded.
+func (f *agentServer) checkedOut() client.JobCheckoutRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return f.checkout
+}
+
 // testWorker enrols an agent against the fake server.
 func testWorker(t *testing.T, fake *agentServer) *Worker {
 	t.Helper()
@@ -140,7 +197,9 @@ func testWorker(t *testing.T, fake *agentServer) *Worker {
 	return worker
 }
 
-// job builds a jobContext for a repository path.
+// job builds a jobContext for a repository path. It names no ref, which
+// is the "run the default branch" case; tests that want something else
+// set Ref or CloneDepth on the result.
 func job(remote, workingDirectory, command string) *jobContext {
 	return &jobContext{
 		Job: &client.Job{
@@ -148,7 +207,6 @@ func job(remote, workingDirectory, command string) *jobContext {
 			RootID:           "01ARZ3NDEKTSV4RRFFQ69G5FAV",
 			WorkingDirectory: workingDirectory,
 			Command:          command,
-			Branch:           "main",
 		},
 		Repository: &client.Repository{
 			ID:            "repo-1",
@@ -159,8 +217,17 @@ func job(remote, workingDirectory, command string) *jobContext {
 	}
 }
 
+// checkoutJob builds a job that names a ref, at an optional depth.
+func checkoutJob(remote, ref string, depth int64, command string) *jobContext {
+	job := job(remote, "", command)
+	job.Job.Ref = ref
+	job.Job.CloneDepth = depth
+
+	return job
+}
+
 func TestRunClonesAndExecutes(t *testing.T) {
-	remote := gitRepository(t)
+	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 
@@ -175,8 +242,171 @@ func TestRunClonesAndExecutes(t *testing.T) {
 	assert.DirExists(t, filepath.Join(worker.opts.DataDir, "repos", "local", "demo.git"))
 }
 
+func TestRunChecksOutWhatTheJobNamed(t *testing.T) {
+	repository := gitRepository(t)
+
+	tests := []struct {
+		name string
+		ref  string
+
+		// marker is the file content only that commit has, so the test
+		// reads the work tree rather than the agent's own account of it.
+		marker string
+		commit string
+		branch string
+	}{
+		{
+			name:   "no ref takes the default branch",
+			marker: "at-root",
+			commit: repository.Head,
+			branch: "main",
+		},
+		{
+			name:   "a tag",
+			ref:    testTag,
+			marker: "tagged",
+			commit: repository.Tagged,
+		},
+		{
+			name:   "a fully qualified tag ref",
+			ref:    "refs/tags/" + testTag,
+			marker: "tagged",
+			commit: repository.Tagged,
+		},
+		{
+			name:   "a commit sha",
+			ref:    repository.First,
+			marker: "first",
+			commit: repository.First,
+		},
+		{
+			name:   "an abbreviated commit sha",
+			ref:    repository.First[:10],
+			marker: "first",
+			commit: repository.First,
+		},
+		{
+			name:   "a branch",
+			ref:    testBranch,
+			marker: "on-feature",
+			commit: repository.Feature,
+			branch: testBranch,
+		},
+		{
+			name:   "a fully qualified branch ref",
+			ref:    "refs/heads/" + testBranch,
+			marker: "on-feature",
+			commit: repository.Feature,
+			branch: testBranch,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
+			worker := testWorker(t, fake)
+
+			worker.run(t.Context(), checkoutJob(repository.Path, test.ref, 0, `cat marker.txt; echo "branch=$ATKINS_BRANCH"`))
+
+			output, status := fake.result()
+			require.Equal(t, client.StatusPassed, status.Status, output)
+			assert.Contains(t, output, test.marker)
+			assert.Contains(t, output, "branch="+test.branch+"\n")
+
+			// The commit is recorded, not just the ref: a tag moves, and
+			// "v1.0.0" alone does not say which code ran.
+			checkout := fake.checkedOut()
+			assert.Equal(t, test.commit, checkout.CommitSHA)
+			if test.ref != "" {
+				assert.Equal(t, test.ref, checkout.Ref)
+			} else {
+				assert.Equal(t, "main", checkout.Ref)
+			}
+		})
+	}
+}
+
+func TestRunFailsOnAMissingRef(t *testing.T) {
+	remote := gitRepository(t).Path
+	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
+	worker := testWorker(t, fake)
+
+	worker.run(t.Context(), checkoutJob(remote, "v9.9.9", 0, "echo should-not-run"))
+
+	output, status := fake.result()
+	assert.Equal(t, client.StatusFailed, status.Status)
+	// Naming the ref is the whole point: a job that quietly built the
+	// default branch instead would be a green run of the wrong code.
+	assert.Contains(t, output, `ref "v9.9.9" not found in local/demo`)
+	assert.NotContains(t, output, "should-not-run")
+	assert.Empty(t, fake.checkedOut().CommitSHA)
+}
+
+func TestRunClonesShallowWhenAskedTo(t *testing.T) {
+	repository := gitRepository(t)
+
+	for _, depth := range []int64{1, 2} {
+		t.Run(fmt.Sprintf("depth %d", depth), func(t *testing.T) {
+			fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
+			worker := testWorker(t, fake)
+
+			worker.run(t.Context(), checkoutJob(repository.Path, testTag, depth,
+				`cat marker.txt; git rev-list --count HEAD`))
+
+			output, status := fake.result()
+			require.Equal(t, client.StatusPassed, status.Status, output)
+			assert.Contains(t, output, "tagged")
+			assert.Contains(t, output, fmt.Sprintf("%d\n", depth))
+			assert.Equal(t, repository.Tagged, fake.checkedOut().CommitSHA)
+		})
+	}
+}
+
+func TestShallowJobLeavesTheCacheComplete(t *testing.T) {
+	repository := gitRepository(t)
+	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
+	worker := testWorker(t, fake)
+
+	worker.run(t.Context(), checkoutJob(repository.Path, testTag, 1, "true"))
+
+	// Depth is a property of the work tree, never of the cache: the
+	// cache is shared, and one job asking for a single commit must not
+	// cost the next one the history it already has.
+	cache := filepath.Join(worker.opts.DataDir, "repos", "local", "demo.git")
+	count, err := worker.gitOutput(t.Context(), cache, "rev-list", "--count", "refs/heads/main")
+	require.NoError(t, err)
+	assert.Equal(t, "3", count)
+
+	// And a full job after a shallow one still gets the whole history.
+	worker.run(t.Context(), checkoutJob(repository.Path, "", 0, "git rev-list --count HEAD"))
+
+	output, status := fake.result()
+	require.Equal(t, client.StatusPassed, status.Status, output)
+	assert.Contains(t, output, "3\n")
+}
+
+func TestRunExportsTheCheckoutEnvironment(t *testing.T) {
+	repository := gitRepository(t)
+	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
+	worker := testWorker(t, fake)
+
+	worker.run(t.Context(), checkoutJob(repository.Path, testTag, 0,
+		`echo "ref=$ATKINS_REF sha=$ATKINS_COMMIT_SHA revision=$ATKINS_REVISION branch=$ATKINS_BRANCH"`))
+
+	output, status := fake.result()
+	require.Equal(t, client.StatusPassed, status.Status, output)
+	assert.Contains(t, output, "ref="+testTag)
+	assert.Contains(t, output, "sha="+repository.Tagged)
+	// ATKINS_REVISION keeps its name and now always holds a resolved
+	// commit, so a pipeline can pin an artefact even under a moving tag.
+	assert.Contains(t, output, "revision="+repository.Tagged)
+	// A tag is not a branch, and saying it was would be a lie a pipeline
+	// could act on.
+	assert.Contains(t, output, "branch=\n")
+}
+
 func TestRunUsesTheWorkingDirectory(t *testing.T) {
-	remote := gitRepository(t)
+	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 
@@ -190,7 +420,7 @@ func TestRunUsesTheWorkingDirectory(t *testing.T) {
 }
 
 func TestRunExportsTheJobEnvironment(t *testing.T) {
-	remote := gitRepository(t)
+	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 
@@ -207,7 +437,7 @@ func TestRunExportsTheJobEnvironment(t *testing.T) {
 }
 
 func TestRunReportsAFailingCommand(t *testing.T) {
-	remote := gitRepository(t)
+	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 
@@ -222,7 +452,7 @@ func TestRunReportsAFailingCommand(t *testing.T) {
 }
 
 func TestRunRefusesADisallowedRepository(t *testing.T) {
-	remote := gitRepository(t)
+	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{
 		Policy:   model.PolicyAllowlist,
 		Patterns: []string{"github.com/titpetric/*"},
@@ -241,7 +471,7 @@ func TestRunRefusesADisallowedRepository(t *testing.T) {
 }
 
 func TestRunReportsAMissingWorkingDirectory(t *testing.T) {
-	remote := gitRepository(t)
+	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 
@@ -264,7 +494,7 @@ func TestRunReportsAnUnreachableRemote(t *testing.T) {
 }
 
 func TestRunCleansUpTheWorkTree(t *testing.T) {
-	remote := gitRepository(t)
+	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 
@@ -277,7 +507,7 @@ func TestRunCleansUpTheWorkTree(t *testing.T) {
 }
 
 func TestRunTimesOut(t *testing.T) {
-	remote := gitRepository(t)
+	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 	worker.opts.JobTimeout = 300 * time.Millisecond
@@ -303,7 +533,7 @@ func TestRunWithoutARepository(t *testing.T) {
 }
 
 func TestSecondJobFetchesTheCachedRepository(t *testing.T) {
-	remote := gitRepository(t)
+	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 

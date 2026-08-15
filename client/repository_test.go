@@ -50,9 +50,11 @@ func TestDetectCheckout(t *testing.T) {
 	assert.Len(t, checkout.Revision, 40)
 	assert.Empty(t, checkout.WorkingDirectory)
 
+	// The dispatched ref is the commit, not the branch: the run belongs
+	// to the code in front of whoever started it.
 	payload := checkout.Payload()
 	assert.Equal(t, checkout.RemoteURL, payload.RemoteURL)
-	assert.Equal(t, checkout.Revision, payload.Revision)
+	assert.Equal(t, checkout.Revision, payload.Ref)
 }
 
 func TestDetectCheckoutReportsSubdirectory(t *testing.T) {

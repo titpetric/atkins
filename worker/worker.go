@@ -203,6 +203,12 @@ func (w *Worker) run(ctx context.Context, job *jobContext) {
 		w.fail(ctx, job, err.Error())
 		return
 	}
+
+	// Recorded before the command runs, not with the outcome: a job that
+	// fails still has to be reproducible, and the tag it named may have
+	// moved by the time anyone reads the failure.
+	w.recordCheckout(ctx, job.Job.ID, workspace.Checkout)
+
 	defer func() {
 		if err := os.RemoveAll(workspace.Root); err != nil {
 			log.Printf("[agent] job %s: cleanup failed: %v", job.Job.ID, err)
@@ -249,6 +255,25 @@ func (w *Worker) report(ctx context.Context, jobID string, req client.JobStatusR
 
 	if err := w.client.ReportStatus(ctx, jobID, req); err != nil {
 		log.Printf("[agent] reporting job %s failed: %v", jobID, err)
+	}
+}
+
+// recordCheckout tells the server what the work tree ended up at.
+//
+// It tolerates failure like the log calls do: a job that ran is worth
+// more than the record of which commit it ran, and the agent has already
+// logged what it checked out.
+func (w *Worker) recordCheckout(ctx context.Context, jobID string, checkout Checkout) {
+	log.Printf("[agent] job %s: %s at %s", jobID, checkout.Ref, checkout.CommitSHA)
+
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), reportTimeout)
+	defer cancel()
+
+	if err := w.client.ReportCheckout(ctx, jobID, client.JobCheckoutRequest{
+		Ref:       checkout.Ref,
+		CommitSHA: checkout.CommitSHA,
+	}); err != nil {
+		log.Printf("[agent] recording the checkout of job %s failed: %v", jobID, err)
 	}
 }
 

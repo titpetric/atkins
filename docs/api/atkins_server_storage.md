@@ -19,6 +19,18 @@ instead so transactions and scoping stay in one place.
 ## Types
 
 ```go
+// CheckoutRequest is what an agent reports having checked out.
+type CheckoutRequest struct {
+	// Ref is the effective ref: the one the job named, or the default
+	// branch the agent resolved for a job that named none.
+	Ref string
+
+	// CommitSHA is the commit the work tree was placed at.
+	CommitSHA string
+}
+```
+
+```go
 // CreateRequest is the input for creating a user. It is what
 // `atkins --register` collects at the prompt.
 type CreateRequest struct {
@@ -65,9 +77,17 @@ type JobRequest struct {
 	// Command is the atkins invocation to run, verbatim.
 	Command string
 
-	Branch   string
-	Revision string
-	Labels   []string
+	// Ref is what to check out: a branch, a tag, a commit sha or a
+	// fully qualified refname. Empty means the repository's default
+	// branch, resolved by the agent when the job runs rather than here,
+	// so a nightly trigger follows the branch it is pointed at.
+	Ref string
+
+	// CloneDepth limits the history of the job's work tree. 0 is the
+	// whole history.
+	CloneDepth int64
+
+	Labels []string
 
 	// Params is a JSON object handed to the job as ATKINS_JOB_PARAMS.
 	Params string
@@ -309,6 +329,7 @@ const (
 - `func (*JobStorage) Heartbeat (ctx context.Context, jobID,agentID string) error`
 - `func (*JobStorage) List (ctx context.Context, filter ListFilter) ([]model.Job, error)`
 - `func (*JobStorage) ReclaimExpired (ctx context.Context) (int64, error)`
+- `func (*JobStorage) RecordCheckout (ctx context.Context, jobID string, req CheckoutRequest) error`
 - `func (*RepositoryRuleStorage) Allowed (ctx context.Context, slug string) (bool, error)`
 - `func (*RepositoryRuleStorage) Create (ctx context.Context, userID string, req RuleRequest) (*model.RepositoryRule, error)`
 - `func (*RepositoryRuleStorage) Delete (ctx context.Context, id string) error`
@@ -527,6 +548,18 @@ so an agent that disappears mid-job doesn't strand its work.
 
 ```go
 func (*JobStorage) ReclaimExpired(ctx context.Context) (int64, error)
+```
+
+### RecordCheckout
+
+RecordCheckout stores what an agent checked out for a job.
+
+It is guarded on the job still running, so a late report from an agent
+whose lease was already swept cannot rewrite the checkout of the run
+that replaced it.
+
+```go
+func (*JobStorage) RecordCheckout(ctx context.Context, jobID string, req CheckoutRequest) error
 ```
 
 ### Allowed

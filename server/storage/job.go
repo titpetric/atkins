@@ -71,9 +71,17 @@ type JobRequest struct {
 	// Command is the atkins invocation to run, verbatim.
 	Command string
 
-	Branch   string
-	Revision string
-	Labels   []string
+	// Ref is what to check out: a branch, a tag, a commit sha or a
+	// fully qualified refname. Empty means the repository's default
+	// branch, resolved by the agent when the job runs rather than here,
+	// so a nightly trigger follows the branch it is pointed at.
+	Ref string
+
+	// CloneDepth limits the history of the job's work tree. 0 is the
+	// whole history.
+	CloneDepth int64
+
+	Labels []string
 
 	// Params is a JSON object handed to the job as ATKINS_JOB_PARAMS.
 	Params string
@@ -122,8 +130,8 @@ func (s *JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, er
 		UserID:           req.UserID,
 		WorkingDirectory: req.WorkingDirectory,
 		Command:          req.Command,
-		Branch:           req.Branch,
-		Revision:         req.Revision,
+		Ref:              req.Ref,
+		CloneDepth:       req.CloneDepth,
 		Labels:           strings.Join(req.Labels, ","),
 		Params:           params,
 		Status:           model.JobStatusPending,
@@ -213,6 +221,40 @@ func (s *JobStorage) Heartbeat(ctx context.Context, jobID, agentID string) error
 	if db.RowsAffected() == 0 {
 		return sql.ErrNoRows
 	}
+	return nil
+}
+
+// CheckoutRequest is what an agent reports having checked out.
+type CheckoutRequest struct {
+	// Ref is the effective ref: the one the job named, or the default
+	// branch the agent resolved for a job that named none.
+	Ref string
+
+	// CommitSHA is the commit the work tree was placed at.
+	CommitSHA string
+}
+
+// RecordCheckout stores what an agent checked out for a job.
+//
+// It is guarded on the job still running, so a late report from an agent
+// whose lease was already swept cannot rewrite the checkout of the run
+// that replaced it.
+func (s *JobStorage) RecordCheckout(ctx context.Context, jobID string, req CheckoutRequest) error {
+	ctx, span := telemetry.StartAuto(ctx, s.RecordCheckout)
+	defer span.End()
+
+	now := time.Now()
+	db := client(s.db)
+
+	query := `UPDATE ` + model.JobTable + ` SET ref = ?, commit_sha = ?, updated_at = ?
+		WHERE id = ? AND status = ?`
+	if err := db.Exec(ctx, query, req.Ref, req.CommitSHA, now, jobID, model.JobStatusRunning); err != nil {
+		return fmt.Errorf("record checkout: %w", err)
+	}
+	if db.RowsAffected() == 0 {
+		return sql.ErrNoRows
+	}
+
 	return nil
 }
 

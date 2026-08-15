@@ -41,14 +41,37 @@ type DispatchRequest struct {
 
 	// Params is an arbitrary JSON object handed to the job.
 	Params map[string]any `json:"params"`
+
+	// CloneDepth limits the history of the work tree the agent builds.
+	// 0, the default, is the whole history.
+	CloneDepth int64 `json:"clone_depth"`
 }
 
 // RepositoryPayload is the git detail a client reports about its checkout.
 type RepositoryPayload struct {
-	RemoteURL     string `json:"remote_url"`
-	Branch        string `json:"branch"`
-	Revision      string `json:"revision"`
+	RemoteURL string `json:"remote_url"`
+
+	// Ref is what to check out: a branch, a tag, a commit sha or a
+	// fully qualified refname. The atkins client sends the commit it is
+	// on, so a dispatched run builds the code in front of whoever
+	// started it.
+	Ref string `json:"ref"`
+
+	// DefaultBranch is what the agent falls back to when Ref is empty.
 	DefaultBranch string `json:"default_branch"`
+
+	// Branch and Revision are the pre-ref spelling of Ref, kept so a
+	// client or a script written against the earlier API keeps working.
+	// Deprecated: send Ref.
+	Branch   string `json:"branch,omitempty"`
+	Revision string `json:"revision,omitempty"`
+}
+
+// CheckoutRef folds the deprecated branch and revision fields into the
+// single ref a job records. The more specific of the two wins: a
+// revision names one commit, a branch names wherever it has got to.
+func (p RepositoryPayload) CheckoutRef() string {
+	return checkoutRef(p.Ref, p.Revision, p.Branch)
 }
 
 // DispatchResponse is what /api/dispatch returns.
@@ -71,6 +94,20 @@ type JobStatusRequest struct {
 	Status   string `json:"status"`
 	ExitCode int64  `json:"exit_code"`
 	Error    string `json:"error"`
+}
+
+// JobCheckoutRequest is the body of /api/job/{jobID}/checkout.
+//
+// It is the agent answering the question the job asked. A job may name a
+// tag, and a tag moves; without the commit that tag pointed at, a run
+// cannot be reproduced once it has.
+type JobCheckoutRequest struct {
+	// Ref is the effective ref, which is the one the job named unless
+	// it named none and the agent resolved the default branch.
+	Ref string `json:"ref"`
+
+	// CommitSHA is the commit the work tree was placed at.
+	CommitSHA string `json:"commit_sha"`
 }
 
 // ClaimRequest is the body of /api/job/claim.
@@ -151,8 +188,8 @@ func (s *Handlers) dispatch(w http.ResponseWriter, r *http.Request) error {
 		UserID:           user.ID,
 		WorkingDirectory: cleanWorkingDirectory(req.WorkingDirectory),
 		Command:          req.Command,
-		Branch:           req.Repository.Branch,
-		Revision:         req.Repository.Revision,
+		Ref:              req.Repository.CheckoutRef(),
+		CloneDepth:       req.CloneDepth,
 		Labels:           req.Labels,
 		Params:           params,
 	})
@@ -331,6 +368,40 @@ func (s *Handlers) jobStatus(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	platform.JSON(w, r, http.StatusOK, job)
+	return nil
+}
+
+// JobCheckout records what an agent checked out for a job.
+func (s *Handlers) JobCheckout(w http.ResponseWriter, r *http.Request) {
+	s.respond(w, r, s.jobCheckout(w, r))
+}
+
+func (s *Handlers) jobCheckout(w http.ResponseWriter, r *http.Request) error {
+	if _, err := s.requireAgent(r); err != nil {
+		return err
+	}
+
+	var req JobCheckoutRequest
+	if err := decode(r, &req); err != nil {
+		return err
+	}
+
+	commit := strings.TrimSpace(req.CommitSHA)
+	if commit == "" {
+		return requestError(http.StatusBadRequest, errors.New("commit_sha is required"))
+	}
+
+	if err := s.jobs.RecordCheckout(r.Context(), platform.URLParam(r, "jobID"), storage.CheckoutRequest{
+		Ref:       strings.TrimSpace(req.Ref),
+		CommitSHA: commit,
+	}); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return requestError(http.StatusConflict, errors.New("job is not running"))
+		}
+		return err
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
