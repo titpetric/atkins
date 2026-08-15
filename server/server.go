@@ -18,6 +18,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"github.com/titpetric/platform/pkg/telemetry"
 
 	"github.com/titpetric/atkins/server/api"
+	"github.com/titpetric/atkins/server/blob"
 	"github.com/titpetric/atkins/server/model"
 	"github.com/titpetric/atkins/server/schema"
 	"github.com/titpetric/atkins/server/storage"
@@ -44,7 +46,9 @@ type Module struct {
 	api  *api.Handlers
 	web  *web.Handlers
 
-	jobs *storage.JobStorage
+	jobs      *storage.JobStorage
+	artefacts *storage.JobArtefactStorage
+	settings  *storage.SettingStorage
 
 	// reclaim is the background sweep of expired agent leases.
 	cancel context.CancelFunc
@@ -91,6 +95,19 @@ func (m *Module) Start(ctx context.Context) error {
 	if err := settings.Load(ctx); err != nil {
 		return err
 	}
+	m.settings = settings
+
+	// Artefact bytes live on a disk rather than in the database. A root
+	// the server cannot create is fatal here, instead of a surprise on
+	// the first job that produces a file.
+	artefactDir := m.opts.ArtefactDir
+	if artefactDir == "" {
+		artefactDir = DefaultArtefactDir
+	}
+	blobs := blob.NewDir(artefactDir)
+	if err := blobs.Prepare(); err != nil {
+		return fmt.Errorf("atkins server: artefact directory %q: %w", artefactDir, err)
+	}
 
 	// A setting overrides the corresponding start-up flag, so an admin
 	// can change these without a restart.
@@ -104,6 +121,7 @@ func (m *Module) Start(ctx context.Context) error {
 	}
 
 	m.jobs = storage.NewJobStorage(db, maxDepth, leaseTTL)
+	m.artefacts = storage.NewJobArtefactStorage(db, blobs)
 	jobLogs := storage.NewJobLogStorage(db)
 	repositories := storage.NewRepositoryStorage(db)
 
@@ -117,15 +135,17 @@ func (m *Module) Start(ctx context.Context) error {
 		RepositoryStorage:     repositories,
 		JobStorage:            m.jobs,
 		JobLogStorage:         jobLogs,
+		JobArtefactStorage:    m.artefacts,
 		RepositoryRuleStorage: storage.NewRepositoryRuleStorage(db),
 		SettingStorage:        settings,
 		SSHKeyStorage:         storage.NewSSHKeyStorage(db),
 	})
 
 	m.web, err = web.NewHandlers(web.Options{
-		JobStorage:        m.jobs,
-		JobLogStorage:     jobLogs,
-		RepositoryStorage: repositories,
+		JobStorage:         m.jobs,
+		JobLogStorage:      jobLogs,
+		JobArtefactStorage: m.artefacts,
+		RepositoryStorage:  repositories,
 	})
 	if err != nil {
 		return err
@@ -152,9 +172,12 @@ func (m *Module) Stop(context.Context) error {
 	return nil
 }
 
-// startReclaim sweeps jobs whose agent lease has lapsed back out of the
-// running state. Without it, an agent that dies mid-job strands that
-// job as running forever.
+// startReclaim runs the two periodic sweeps: expired agent leases, and
+// artefacts past their retention.
+//
+// They share a ticker because they are the same kind of work — a small
+// amount of tidying on a timer — and because a server with one
+// background goroutine is easier to reason about than one with two.
 func (m *Module) startReclaim(ctx context.Context) {
 	if m.opts.ReclaimInterval <= 0 {
 		return
@@ -185,7 +208,40 @@ func (m *Module) startReclaim(ctx context.Context) {
 				if reclaimed > 0 {
 					log.Printf("[atkins] reclaimed %d job(s) from expired agent leases", reclaimed)
 				}
+
+				m.pruneArtefacts(ctx)
 			}
 		}
 	}()
+}
+
+// pruneArtefacts drops artefact bytes that have outlived their
+// retention.
+//
+// Retention is read on every pass rather than captured at start-up,
+// because it is a setting an admin changes when a disk fills up, and
+// that is exactly the moment a restart is least welcome.
+//
+// `artefact.retention` falls back to `job.retention`: an artefact
+// belongs to a job and should not outlive it. It exists separately
+// because bytes are the expensive half — keeping the ledger of what ran
+// for a year while dropping the files after a week is a normal thing to
+// want, and the reverse never is.
+func (m *Module) pruneArtefacts(ctx context.Context) {
+	retention := m.settings.Duration(model.SettingArtefactRetention)
+	if retention <= 0 {
+		retention = m.settings.Duration(model.SettingJobRetention)
+	}
+	if retention <= 0 {
+		return
+	}
+
+	swept, err := m.artefacts.PruneExpired(ctx, time.Now().Add(-retention))
+	if err != nil {
+		telemetry.CaptureError(ctx, err)
+		return
+	}
+	if swept > 0 {
+		log.Printf("[atkins] swept %d artefact(s) older than %s", swept, retention)
+	}
 }

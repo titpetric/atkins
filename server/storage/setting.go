@@ -83,6 +83,12 @@ func (s *SettingStorage) Int(name string) int64 {
 	return parsed
 }
 
+// Bytes returns a setting parsed as a size, such as 32MB.
+func (s *SettingStorage) Bytes(name string) int64 {
+	parsed, _ := model.ParseBytes(s.Get(name))
+	return parsed
+}
+
 // Duration returns a setting parsed as a duration.
 func (s *SettingStorage) Duration(name string) time.Duration {
 	parsed, _ := time.ParseDuration(s.Get(name))

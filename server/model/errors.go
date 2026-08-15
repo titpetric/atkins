@@ -60,6 +60,28 @@ var (
 	// usable private key.
 	ErrInvalidSSHKey = errors.New("not a usable ssh private key")
 
+	// ErrInvalidArtefactPath is returned when an upload names a file
+	// that could not be inside the job's directory.
+	ErrInvalidArtefactPath = errors.New("artefact path must be relative to the job directory")
+
+	// ErrArtefactTooLarge is returned when an upload runs past
+	// artefact.max_size. The bytes written so far are discarded.
+	ErrArtefactTooLarge = errors.New("artefact is larger than artefact.max_size")
+
+	// ErrTooManyArtefacts is returned when a job has already stored
+	// artefact.max_count files. It is the per-job backstop against a
+	// pipeline that uploads in a loop.
+	ErrTooManyArtefacts = errors.New("job has reached artefact.max_count")
+
+	// ErrChecksumMismatch is returned when the bytes received do not
+	// hash to the checksum the agent declared, which means the upload
+	// was truncated or altered in flight.
+	ErrChecksumMismatch = errors.New("artefact checksum does not match the uploaded bytes")
+
+	// ErrArtefactNotFound is returned when an artefact does not exist,
+	// belongs to another job, or has been swept by retention.
+	ErrArtefactNotFound = errors.New("artefact not found")
+
 	// ErrForbidden is returned when a user is authenticated but not
 	// permitted to perform the action.
 	ErrForbidden = errors.New("insufficient permissions")

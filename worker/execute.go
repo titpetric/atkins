@@ -81,6 +81,7 @@ func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
 		client.EnvRootJobID+"="+job.Job.RootID,
 		"ATKINS_AGENT_ID="+w.opts.AgentID,
 		"ATKINS_WORKSPACE="+workspace.Root,
+		client.EnvArtefacts+"="+workspace.Artefacts,
 	)
 
 	if job.Job.ParentID != "" {

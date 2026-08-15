@@ -10,12 +10,14 @@ package web
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"time"
 
 	"github.com/titpetric/platform"
 
+	"github.com/titpetric/atkins/server/api"
 	"github.com/titpetric/atkins/server/model"
 	"github.com/titpetric/atkins/server/storage"
 )
@@ -24,6 +26,7 @@ import (
 type Handlers struct {
 	jobs         *storage.JobStorage
 	jobLogs      *storage.JobLogStorage
+	artefacts    *storage.JobArtefactStorage
 	repositories *storage.RepositoryStorage
 
 	templates *template.Template
@@ -31,9 +34,10 @@ type Handlers struct {
 
 // Options is passed from the server module scope.
 type Options struct {
-	JobStorage        *storage.JobStorage
-	JobLogStorage     *storage.JobLogStorage
-	RepositoryStorage *storage.RepositoryStorage
+	JobStorage         *storage.JobStorage
+	JobLogStorage      *storage.JobLogStorage
+	JobArtefactStorage *storage.JobArtefactStorage
+	RepositoryStorage  *storage.RepositoryStorage
 }
 
 // NewHandlers returns Handlers with the page templates parsed.
@@ -46,6 +50,7 @@ func NewHandlers(opts Options) (*Handlers, error) {
 	return &Handlers{
 		jobs:         opts.JobStorage,
 		jobLogs:      opts.JobLogStorage,
+		artefacts:    opts.JobArtefactStorage,
 		repositories: opts.RepositoryStorage,
 		templates:    templates,
 	}, nil
@@ -57,9 +62,16 @@ func NewHandlers(opts Options) (*Handlers, error) {
 // that is not enumerable in practice, and the point of printing one in
 // a terminal is that pasting it into a browser just works. Run the
 // server behind your own auth if the output is sensitive.
+// The artefact download shares that trust model rather than a weaker or
+// a stronger one. A file a job produced is no more sensitive than the
+// output that produced it, and a download link on a page that needs no
+// session must not be a link that fails: a browser has no bearer token
+// to offer. `GET /api/job/{id}/artefact/{id}` is the authenticated door
+// for scripts.
 func (h *Handlers) Mount(r platform.Router) {
 	r.Get("/", h.Index)
 	r.Get("/job/{jobID}", h.Job)
+	r.Get("/job/{jobID}/artefact/{artefactID}", h.Artefact)
 }
 
 // JobPage is the view model for the job page.
@@ -68,6 +80,7 @@ type JobPage struct {
 	Repository *model.Repository
 	Children   []model.Job
 	Log        []model.JobLog
+	Artefacts  []model.JobArtefact
 
 	// Refresh is the auto-reload interval in seconds. Zero for a
 	// settled job, which never changes again.
@@ -114,11 +127,35 @@ func (h *Handlers) Job(w http.ResponseWriter, r *http.Request) {
 	if entries, err := h.jobLogs.List(ctx, job.ID); err == nil {
 		page.Log = entries
 	}
+	if artefacts, err := h.artefacts.List(ctx, job.ID); err == nil {
+		page.Artefacts = artefacts
+	}
 	if children, err := h.jobs.List(ctx, storage.ListFilter{RootID: job.RootID}); err == nil {
 		page.Children = childrenOf(children, job.ID)
 	}
 
 	h.render(w, r, "job.html", page)
+}
+
+// Artefact serves the bytes of one artefact, as a download.
+func (h *Handlers) Artefact(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	artefact, err := h.artefacts.Get(ctx, platform.URLParam(r, "jobID"), platform.URLParam(r, "artefactID"))
+	if err != nil {
+		h.fail(w, r, http.StatusNotFound, errors.New("no such artefact"))
+		return
+	}
+
+	contents, err := h.artefacts.Open(ctx, artefact)
+	if err != nil {
+		// The row outlives its bytes once retention has swept them.
+		h.fail(w, r, http.StatusNotFound, errors.New("this artefact has been removed by retention"))
+		return
+	}
+	defer contents.Close()
+
+	api.WriteArtefact(w, artefact, contents)
 }
 
 // childrenOf filters the job tree down to direct children.
@@ -158,7 +195,27 @@ func functions() template.FuncMap {
 	return template.FuncMap{
 		"stamp":    stamp,
 		"duration": duration,
+		"filesize": filesize,
 	}
+}
+
+// filesize renders a byte count the way a person reads one.
+func filesize(size int64) string {
+	const unit = 1024
+
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+
+	value := float64(size)
+	for _, suffix := range []string{"KB", "MB", "GB", "TB"} {
+		value /= unit
+		if value < unit {
+			return fmt.Sprintf("%.1f %s", value, suffix)
+		}
+	}
+
+	return fmt.Sprintf("%.1f PB", value/unit)
 }
 
 // stamp formats a nullable timestamp.

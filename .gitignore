@@ -1,5 +1,6 @@
 /coverage
 /bin
+/artefacts
 atkins.log
 atkins
 /*.test

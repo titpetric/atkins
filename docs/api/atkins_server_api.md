@@ -31,6 +31,28 @@ type AgentSSHKey struct {
 ```
 
 ```go
+// ArtefactView is how an artefact is described over the API.
+// It is a projection rather than the row: `storage_key` says where the
+// bytes sit on the server, and that is the server's business. The rule
+// is the same one SSHKeyView follows — the projection is the guard, not
+// a `json:"-"` somebody has to remember to add to a new column.
+type ArtefactView struct {
+	ID          string `json:"id"`
+	JobID       string `json:"job_id"`
+	Path        string `json:"path"`
+	Size        int64  `json:"size"`
+	ContentType string `json:"content_type"`
+	Checksum    string `json:"checksum"`
+	AgentID     string `json:"agent_id,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
+
+	// URL is where the bytes are, so a caller that listed artefacts
+	// does not have to know how to build the path.
+	URL string `json:"url"`
+}
+```
+
+```go
 // ClaimRequest is the body of /api/job/claim.
 type ClaimRequest struct {
 	// AgentID identifies the worker taking the lease.
@@ -84,6 +106,10 @@ type DispatchRequest struct {
 	// CloneDepth limits the history of the work tree the agent builds.
 	// 0, the default, is the whole history.
 	CloneDepth int64 `json:"clone_depth"`
+
+	// Artefacts are glob patterns the agent collects after the command
+	// exits, relative to the directory it ran in.
+	Artefacts []string `json:"artefacts"`
 }
 ```
 
@@ -136,6 +162,7 @@ type Handlers struct {
 	repositories *storage.RepositoryStorage
 	jobs         *storage.JobStorage
 	jobLogs      *storage.JobLogStorage
+	artefacts    *storage.JobArtefactStorage
 	rules        *storage.RepositoryRuleStorage
 	settings     *storage.SettingStorage
 	sshKeys      *storage.SSHKeyStorage
@@ -225,6 +252,7 @@ type Options struct {
 	RepositoryStorage     *storage.RepositoryStorage
 	JobStorage            *storage.JobStorage
 	JobLogStorage         *storage.JobLogStorage
+	JobArtefactStorage    *storage.JobArtefactStorage
 	RepositoryRuleStorage *storage.RepositoryRuleStorage
 	SettingStorage        *storage.SettingStorage
 	SSHKeyStorage         *storage.SSHKeyStorage
@@ -360,6 +388,11 @@ type TriggerRequest struct {
 
 	Labels []string `json:"labels"`
 
+	// Artefacts are glob patterns the agent collects after the command
+	// exits. This is what lets a cron collect `coverage/*.json` from a
+	// pipeline that knows nothing about artefacts.
+	Artefacts []string `json:"artefacts"`
+
 	// ParentID records the job that triggered this one.
 	ParentID string `json:"parent_id"`
 }
@@ -399,9 +432,18 @@ type WhoamiResponse struct {
 const DefaultTokenTTL = time.Hour
 ```
 
+```go
+// HeaderArtefactChecksum carries the SHA256 the agent computed while
+// reading the file. It is optional; when present the server compares it
+// against what actually arrived, so a truncated upload is a 400 rather
+// than an artefact nobody can use.
+const HeaderArtefactChecksum = "X-Atkins-Checksum"
+```
+
 ## Function symbols
 
 - `func NewHandlers (opts Options) *Handlers`
+- `func WriteArtefact (w http.ResponseWriter, artefact *model.JobArtefact, contents io.Reader)`
 - `func (*Handlers) AgentPolicy (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) AgentSSHKeys (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) AppendJobLog (w http.ResponseWriter, r *http.Request)`
@@ -412,12 +454,14 @@ const DefaultTokenTTL = time.Hour
 - `func (*Handlers) DeleteRule (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) DeleteSSHKey (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) Dispatch (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) DownloadArtefact (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) Enrol (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) GetJob (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) GetJobLog (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) JobCheckout (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) JobHeartbeat (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) JobStatus (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) ListArtefacts (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) ListJobs (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) ListRepositories (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) ListRules (w http.ResponseWriter, r *http.Request)`
@@ -438,6 +482,7 @@ const DefaultTokenTTL = time.Hour
 - `func (*Handlers) UpdateSSHKey (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) UpdateSetting (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) UpdateUser (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) UploadArtefact (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) Whoami (w http.ResponseWriter, r *http.Request)`
 - `func (*RequestError) Error () string`
 - `func (*RequestError) Unwrap () error`
@@ -449,6 +494,17 @@ NewHandlers returns Handlers configured from opts.
 
 ```go
 func NewHandlers(opts Options) *Handlers
+```
+
+### WriteArtefact
+
+WriteArtefact streams an artefact as a download.
+
+The web package serves the same bytes from the job page, and a
+difference between the two responses would only ever be a bug.
+
+```go
+func WriteArtefact(w http.ResponseWriter, artefact *model.JobArtefact, contents io.Reader)
 ```
 
 ### AgentPolicy
@@ -534,6 +590,18 @@ Dispatch records a job for the caller's repository and returns its ID.
 func (*Handlers) Dispatch(w http.ResponseWriter, r *http.Request)
 ```
 
+### DownloadArtefact
+
+DownloadArtefact writes the bytes of one artefact.
+
+This is the authenticated way to read an artefact, and the one a
+script should use. The job page has an unauthenticated route of its
+own, on the same terms as the output it shows.
+
+```go
+func (*Handlers) DownloadArtefact(w http.ResponseWriter, r *http.Request)
+```
+
 ### Enrol
 
 Enrol exchanges the shared enrolment token for agent credentials.
@@ -585,6 +653,14 @@ JobStatus settles a job into a terminal state.
 
 ```go
 func (*Handlers) JobStatus(w http.ResponseWriter, r *http.Request)
+```
+
+### ListArtefacts
+
+ListArtefacts returns the artefacts a job produced.
+
+```go
+func (*Handlers) ListArtefacts(w http.ResponseWriter, r *http.Request)
 ```
 
 ### ListJobs
@@ -756,6 +832,21 @@ UpdateUser changes a user's administrative flags.
 
 ```go
 func (*Handlers) UpdateUser(w http.ResponseWriter, r *http.Request)
+```
+
+### UploadArtefact
+
+UploadArtefact stores a file a job produced.
+
+The body is the file itself rather than a multipart form: an artefact
+is bytes, and a raw body streams from the agent's disk to the
+server's without either side building an envelope around it. The
+name, the media type and the checksum are small enough to be
+metadata, and travel as the `path` query parameter, `Content-Type`
+and `X-Atkins-Checksum`.
+
+```go
+func (*Handlers) UploadArtefact(w http.ResponseWriter, r *http.Request)
 ```
 
 ### Whoami

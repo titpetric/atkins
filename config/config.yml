@@ -49,6 +49,11 @@ server:
   # join.
   agent_token: ""
 
+  # Where the bytes of job artefacts are stored. A relative path is
+  # resolved against the server's working directory, beside the
+  # database.
+  artefact_dir: "artefacts"
+
   # Let anyone register. The first human account on an empty instance
   # is always allowed regardless.
   allow_registration: false

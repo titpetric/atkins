@@ -22,6 +22,11 @@ type Workspace struct {
 
 	// Checkout is what the work tree ended up at.
 	Checkout Checkout
+
+	// Artefacts is the directory the job copies files into to have them
+	// kept. It sits beside the work tree rather than inside it, so
+	// staging a file does not dirty the checkout the job is testing.
+	Artefacts string
 }
 
 // Checkout records what the agent actually put in the work tree.
@@ -73,8 +78,20 @@ func (w *Worker) prepare(ctx context.Context, job *jobContext) (*Workspace, erro
 		}
 	}
 
-	return &Workspace{Root: root, Dir: dir, Checkout: *checkout}, nil
+	// The output directory exists before the command starts, so a
+	// pipeline can copy into it without first testing whether it is
+	// there.
+	artefacts := root + artefactSuffix
+	if err := os.MkdirAll(artefacts, 0o755); err != nil {
+		return nil, fmt.Errorf("create artefact directory: %w", err)
+	}
+
+	return &Workspace{Root: root, Dir: dir, Checkout: *checkout, Artefacts: artefacts}, nil
 }
+
+// artefactSuffix names the output directory beside a job's work tree,
+// so one cleanup pass over <data>/work removes both.
+const artefactSuffix = ".artefacts"
 
 // CleanWorkingDirectory normalizes a job's working directory into a
 // clean path relative to the repository root, or "" for the root.

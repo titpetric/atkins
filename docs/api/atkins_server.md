@@ -34,7 +34,9 @@ type Module struct {
 	api  *api.Handlers
 	web  *web.Handlers
 
-	jobs *storage.JobStorage
+	jobs      *storage.JobStorage
+	artefacts *storage.JobArtefactStorage
+	settings  *storage.SettingStorage
 
 	// reclaim is the background sweep of expired agent leases.
 	cancel context.CancelFunc
@@ -62,6 +64,10 @@ type Options struct {
 	// PLATFORM_DB_ATKINS, falling back to PLATFORM_DB_DEFAULT).
 	Connection string
 
+	// ArtefactDir is the root the bytes of job artefacts are written
+	// under. Empty selects DefaultArtefactDir.
+	ArtefactDir string
+
 	// TokenTTL is the access token lifetime.
 	TokenTTL time.Duration
 
@@ -88,6 +94,13 @@ type Options struct {
 ```
 
 ## Consts
+
+```go
+// DefaultArtefactDir is where artefact bytes go when nothing says
+// otherwise: beside the database, which is where the rest of a small
+// instance's state already lives.
+const DefaultArtefactDir = "artefacts"
+```
 
 ```go
 // Name is the module name, and the name of the database connection the

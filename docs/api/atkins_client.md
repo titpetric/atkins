@@ -40,6 +40,41 @@ type AgentSSHKey struct {
 ```
 
 ```go
+// Artefact mirrors api.ArtefactView: one file a job produced.
+type Artefact struct {
+	ID          string `json:"id"`
+	JobID       string `json:"job_id"`
+	Path        string `json:"path"`
+	Size        int64  `json:"size"`
+	ContentType string `json:"content_type"`
+	Checksum    string `json:"checksum"`
+	CreatedAt   string `json:"created_at"`
+	URL         string `json:"url"`
+}
+```
+
+```go
+// ArtefactUpload is one file being pushed to the server.
+type ArtefactUpload struct {
+	// Path is the name the pipeline gave the file, relative to the
+	// directory the job ran in.
+	Path string
+
+	// ContentType is the media type, guessed from the extension.
+	ContentType string
+
+	// Checksum is the SHA256 the agent computed while reading the
+	// file. The server compares it against what arrives, so a
+	// truncated upload is refused rather than stored.
+	Checksum string
+
+	// Content is the file. It is streamed rather than buffered: an
+	// artefact is as large as the server's limit allows.
+	Content io.Reader
+}
+```
+
+```go
 // Checkout is what the client reports about the working copy a run
 // happens in. It is the whole of what the server needs to reproduce the
 // run elsewhere: which repository, where inside it, at what revision.
@@ -131,6 +166,7 @@ type DispatchRequest struct {
 	ParentID         string            `json:"parent_id,omitempty"`
 	Labels           []string          `json:"labels,omitempty"`
 	Params           map[string]any    `json:"params,omitempty"`
+	Artefacts        []string          `json:"artefacts,omitempty"`
 }
 ```
 
@@ -189,6 +225,10 @@ type Job struct {
 	Labels           string `json:"labels"`
 	Params           string `json:"params"`
 	Status           string `json:"status"`
+
+	// ArtefactPaths are the comma separated globs the agent collects
+	// after the command exits.
+	ArtefactPaths string `json:"artefact_paths"`
 }
 ```
 
@@ -327,9 +367,22 @@ const DefaultTimeout = 10 * time.Second
 ```
 
 ```go
+// HeaderArtefactChecksum carries ArtefactUpload.Checksum, mirroring
+// server/api.
+const HeaderArtefactChecksum = "X-Atkins-Checksum"
+```
+
+```go
 // MinPasswordLength mirrors what the server accepts, so a typo is
 // caught at the prompt rather than after a round trip.
 const MinPasswordLength = 8
+```
+
+```go
+// UploadTimeout bounds one artefact transfer. It is generous because an
+// artefact is measured in megabytes rather than in fields, and nothing
+// is waiting on it: the job has already finished by the time it runs.
+const UploadTimeout = 5 * time.Minute
 ```
 
 ```go
@@ -349,6 +402,16 @@ const (
 
 	// EnvJobParams is the JSON object the job was dispatched with.
 	EnvJobParams = "ATKINS_JOB_PARAMS"
+
+	// EnvArtefacts is a directory the job copies files into to have
+	// them kept. Whatever is in it when the command exits is uploaded
+	// and attached to the job.
+	//
+	// It is the declaration that needs no schema: a pipeline says what
+	// it wants kept by putting it somewhere, which works for any
+	// command in any language without atkins having to parse its
+	// output or its configuration.
+	EnvArtefacts = "ATKINS_ARTEFACTS"
 
 	// EnvServer selects which logged-in server to dispatch to when a
 	// machine has credentials for more than one.
@@ -457,6 +520,7 @@ var UserAgent = "atkins"
 - `func (*APIError) Error () string`
 - `func (*Checkout) Payload () RepositoryPayload`
 - `func (*Client) AppendLog (ctx context.Context, jobID,stream,content string) error`
+- `func (*Client) Artefacts (ctx context.Context, jobID string) ([]Artefact, error)`
 - `func (*Client) Claim (ctx context.Context, agentID string, labels []string) (*ClaimResponse, error)`
 - `func (*Client) Dispatch (ctx context.Context, req DispatchRequest) (*DispatchResponse, error)`
 - `func (*Client) Enrol (ctx context.Context, req EnrolRequest) (*Credential, error)`
@@ -471,6 +535,7 @@ var UserAgent = "atkins"
 - `func (*Client) ReportStatus (ctx context.Context, jobID string, req JobStatusRequest) error`
 - `func (*Client) SSHKeys (ctx context.Context) ([]AgentSSHKey, error)`
 - `func (*Client) Server () string`
+- `func (*Client) UploadArtefact (ctx context.Context, jobID string, upload ArtefactUpload) (*Artefact, error)`
 - `func (*Client) Username () string`
 - `func (*Credential) Expired () bool`
 - `func (*Prompter) Line (label,env string) (string, error)`
@@ -699,6 +764,14 @@ AppendLog records a chunk of job output.
 func (*Client) AppendLog(ctx context.Context, jobID, stream, content string) error
 ```
 
+### Artefacts
+
+Artefacts lists the files a job produced.
+
+```go
+func (*Client) Artefacts(ctx context.Context, jobID string) ([]Artefact, error)
+```
+
 ### Claim
 
 Claim leases the oldest pending job this agent can run.
@@ -821,6 +894,18 @@ Server returns the server URL the client talks to.
 
 ```go
 func (*Client) Server() string
+```
+
+### UploadArtefact
+
+UploadArtefact pushes one file a job produced.
+
+The body is the file itself. A multipart envelope would buy nothing
+here: there is one part, and the two fields around it fit in a query
+parameter and a header.
+
+```go
+func (*Client) UploadArtefact(ctx context.Context, jobID string, upload ArtefactUpload) (*Artefact, error)
 ```
 
 ### Username

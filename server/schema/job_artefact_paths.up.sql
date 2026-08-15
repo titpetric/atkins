@@ -1,0 +1,12 @@
+-- Add declared artefact paths to job.
+--
+-- A job says what it wants kept before it runs, so the agent can
+-- collect it after the command exits — including when the command
+-- failed, which is when the files matter most. The column holds comma
+-- separated glob patterns matched against the checkout the job ran in.
+--
+-- It travels on the job rather than in params because it governs what
+-- the agent does after the command, not what the command does: a
+-- trigger can ask for `coverage.json` from a pipeline that knows
+-- nothing about artefacts.
+ALTER TABLE job ADD COLUMN artefact_paths TEXT NOT NULL DEFAULT '';

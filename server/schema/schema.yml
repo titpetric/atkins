@@ -95,6 +95,10 @@
       type: timestamp
       comment: Updated At
       datatype: datetime
+    - name: artefact_paths
+      type: text
+      comment: Artefact Paths
+      datatype: varchar
     - name: ref
       type: text
       comment: Ref
@@ -137,6 +141,72 @@
     - name: idx_job_user_id
       columns:
         - user_id
+- name: job_artefact
+  comment: Job Artefact
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: job_id
+      type: text
+      key: MUL
+      comment: Job ID
+      datatype: char(26)
+    - name: path
+      type: text
+      key: MUL
+      comment: Path
+      datatype: varchar
+    - name: storage_key
+      type: text
+      comment: Storage Key
+      datatype: varchar
+    - name: size
+      type: integer
+      comment: Size
+      datatype: bigint
+      size: 8
+    - name: content_type
+      type: text
+      comment: Content Type
+      datatype: varchar
+    - name: checksum
+      type: text
+      comment: Checksum
+      datatype: char(64)
+    - name: agent_id
+      type: text
+      key: MUL
+      comment: Agent ID
+      datatype: varchar
+    - name: created_at
+      type: timestamp
+      key: MUL
+      comment: Created At
+      datatype: datetime
+    - name: deleted_at
+      type: timestamp
+      key: MUL
+      comment: Deleted At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_job_artefact_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_job_artefact_created_at
+      columns:
+        - created_at
+    - name: idx_job_artefact_deleted_at
+      columns:
+        - deleted_at
+    - name: idx_job_artefact_job_id_path
+      columns:
+        - job_id
+        - path
 - name: job_log
   comment: Job Log
   columns:

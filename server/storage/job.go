@@ -85,6 +85,10 @@ type JobRequest struct {
 
 	// Params is a JSON object handed to the job as ATKINS_JOB_PARAMS.
 	Params string
+
+	// Artefacts are glob patterns the agent collects after the command
+	// exits, relative to the directory it ran in.
+	Artefacts []string
 }
 
 // Create records a dispatched job.
@@ -134,7 +138,10 @@ func (s *JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, er
 		CloneDepth:       req.CloneDepth,
 		Labels:           strings.Join(req.Labels, ","),
 		Params:           params,
-		Status:           model.JobStatusPending,
+		// Patterns are normalized on the way in, so an agent reading
+		// the column never has to decide what `../../etc` means.
+		ArtefactPaths: model.JoinArtefactPatterns(req.Artefacts),
+		Status:        model.JobStatusPending,
 	}
 	job.SetCreatedAt(now)
 	job.SetUpdatedAt(now)

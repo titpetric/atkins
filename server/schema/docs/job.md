@@ -23,6 +23,7 @@ Job.
 | finished_at       | datetime |     | Finished At       |
 | created_at        | datetime | MUL | Created At        |
 | updated_at        | datetime |     | Updated At        |
+| artefact_paths    | varchar  |     | Artefact Paths    |
 | ref               | varchar  |     | Ref               |
 | commit_sha        | varchar  | MUL | Commit Sha        |
 | clone_depth       | bigint   |     | Clone Depth       |

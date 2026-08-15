@@ -129,6 +129,11 @@ type ServerConfig struct {
 	// AgentToken is the shared secret agents enrol with.
 	AgentToken string `yaml:"agent_token" json:"agent_token" env:"ATKINS_AGENT_TOKEN"`
 
+	// ArtefactDir is the root the bytes of job artefacts are written
+	// under. The database records what an artefact is; this is where
+	// the file itself goes.
+	ArtefactDir string `yaml:"artefact_dir" json:"artefact_dir" env:"ATKINS_ARTEFACT_DIR"`
+
 	AllowRegistration bool          `yaml:"allow_registration" json:"allow_registration" env:"ATKINS_ALLOW_REGISTRATION"`
 	TokenTTL          time.Duration `yaml:"token_ttl" json:"token_ttl" env:"ATKINS_TOKEN_TTL"`
 	SessionTTL        time.Duration `yaml:"session_ttl" json:"session_ttl" env:"ATKINS_SESSION_TTL"`

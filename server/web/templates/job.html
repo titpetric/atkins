@@ -89,6 +89,20 @@
   <p class="muted">No output recorded{{if not .Job.StartedAt}} — the job has not been claimed by an agent yet{{end}}.</p>
   {{end}}
 
+  {{if .Artefacts}}
+  <h2>Artefacts</h2>
+  <table>
+    <tr><th>File</th><td>Size</td><td>Type</td></tr>
+    {{range .Artefacts}}
+    <tr>
+      <th class="mono"><a href="/job/{{.JobID}}/artefact/{{.ID}}">{{.Path}}</a></th>
+      <td>{{filesize .Size}}</td>
+      <td class="mono">{{.ContentType}}</td>
+    </tr>
+    {{end}}
+  </table>
+  {{end}}
+
   {{if .Children}}
   <h2>Dispatched by this job</h2>
   <table>

@@ -3,6 +3,7 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -102,12 +103,20 @@ type agentServer struct {
 	statusSeen bool
 	checkout   client.JobCheckoutRequest
 	heartbeats int
+
+	// artefacts records what was uploaded, keyed by the path the agent
+	// declared.
+	artefacts map[string][]byte
+
+	// refuseArtefacts turns every upload into a 422, standing in for a
+	// server that has hit its per-job limit.
+	refuseArtefacts bool
 }
 
 func newAgentServer(t *testing.T, policy client.PolicyResponse) *agentServer {
 	t.Helper()
 
-	fake := &agentServer{}
+	fake := &agentServer{artefacts: map[string][]byte{}}
 
 	fake.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fake.mu.Lock()
@@ -131,6 +140,23 @@ func newAgentServer(t *testing.T, policy client.PolicyResponse) *agentServer {
 		case r.URL.Path == "/api/agent/ssh-key":
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode([]client.AgentSSHKey{})
+
+		case strings.HasSuffix(r.URL.Path, "/artefact"):
+			body, _ := io.ReadAll(r.Body)
+			if fake.refuseArtefacts {
+				http.Error(w, "job has reached artefact.max_count", http.StatusUnprocessableEntity)
+				return
+			}
+			fake.artefacts[r.URL.Query().Get("path")] = body
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(client.Artefact{
+				ID:          "artefact-1",
+				Path:        r.URL.Query().Get("path"),
+				Size:        int64(len(body)),
+				ContentType: r.Header.Get("Content-Type"),
+				Checksum:    r.Header.Get(client.HeaderArtefactChecksum),
+			})
 
 		case strings.HasSuffix(r.URL.Path, "/log"):
 			var req client.JobLogRequest
@@ -175,6 +201,18 @@ func (f *agentServer) checkedOut() client.JobCheckoutRequest {
 	defer f.mu.Unlock()
 
 	return f.checkout
+}
+
+// stored reports the artefacts the server accepted.
+func (f *agentServer) stored() map[string][]byte {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	uploaded := make(map[string][]byte, len(f.artefacts))
+	for path, content := range f.artefacts {
+		uploaded[path] = content
+	}
+	return uploaded
 }
 
 // testWorker enrols an agent against the fake server.

@@ -83,6 +83,41 @@ func TestJobPageEscapesOutput(t *testing.T) {
 	assert.Contains(t, out.String(), "&lt;script&gt;")
 }
 
+func TestJobPageListsArtefacts(t *testing.T) {
+	handlers, err := NewHandlers(Options{})
+	require.NoError(t, err)
+
+	job := &model.Job{ID: "01ARZ3NDEKTSV4RRFFQ69G5FAV", Status: model.JobStatusPassed, Command: "atkins scan"}
+
+	var out strings.Builder
+	err = handlers.templates.ExecuteTemplate(&out, "job.html", &JobPage{
+		Job: job,
+		Artefacts: []model.JobArtefact{{
+			ID:          "01J000000000000000000ART1",
+			JobID:       job.ID,
+			Path:        "reports/scan.json",
+			Size:        2048,
+			ContentType: "application/json",
+		}},
+	})
+	require.NoError(t, err)
+
+	rendered := out.String()
+	assert.Contains(t, rendered, "reports/scan.json")
+	assert.Contains(t, rendered, "2.0 KB")
+	// The link a browser can follow: no bearer token to offer, so it
+	// is the page's own route rather than the API's.
+	assert.Contains(t, rendered, "/job/"+job.ID+"/artefact/01J000000000000000000ART1")
+}
+
+func TestFilesize(t *testing.T) {
+	assert.Equal(t, "0 B", filesize(0))
+	assert.Equal(t, "512 B", filesize(512))
+	assert.Equal(t, "1.0 KB", filesize(1024))
+	assert.Equal(t, "1.5 MB", filesize(1536*1024))
+	assert.Equal(t, "2.0 GB", filesize(2*1024*1024*1024))
+}
+
 func TestStamp(t *testing.T) {
 	assert.Equal(t, "—", stamp(nil))
 
