@@ -52,6 +52,15 @@ var terminalJobStatuses = []JobStatus{
 	JobStatusCancelled,
 }
 
+// TerminalJobStatuses returns the states a job settles into. Retention
+// sweeps use it: a job that has not settled is never old enough to
+// delete, however long ago it was queued.
+func TerminalJobStatuses() []JobStatus {
+	statuses := make([]JobStatus, len(terminalJobStatuses))
+	copy(statuses, terminalJobStatuses)
+	return statuses
+}
+
 // ValidJobStatus reports whether status is a known job status.
 func ValidJobStatus(status JobStatus) bool {
 	return slices.Contains(jobStatuses, status)

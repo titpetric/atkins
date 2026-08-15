@@ -40,6 +40,15 @@ type JWT struct {
 }
 ```
 
+## Consts
+
+```go
+// ViewTokenLength is how many base64url characters of the digest a job
+// link carries: 22 characters is 132 bits, which is not guessable and
+// still fits on one terminal line next to a ULID.
+const ViewTokenLength = 22
+```
+
 ## Vars
 
 ```go
@@ -57,6 +66,8 @@ var (
 - `func (*JWT) Claims (token string) (*Claims, error)`
 - `func (*JWT) Create (userID,sessionID string, ttl time.Duration) (string, error)`
 - `func (*JWT) UserID (token string) (string, error)`
+- `func (*JWT) ValidViewToken (jobID,presented string) bool`
+- `func (*JWT) ViewToken (jobID string) string`
 
 ### NewJWT
 
@@ -89,4 +100,29 @@ UserID returns the user a token belongs to.
 
 ```go
 func (*JWT) UserID(token string) (string, error)
+```
+
+### ValidViewToken
+
+ValidViewToken reports whether presented is the view token for jobID.
+
+A server with no signing key validates nothing: it cannot mint a
+token either, so accepting one would be accepting anything.
+
+```go
+func (*JWT) ValidViewToken(jobID, presented string) bool
+```
+
+### ViewToken
+
+ViewToken returns the unguessable half of a job page URL.
+
+It is derived rather than stored: an HMAC of the job ID under the
+server's signing key. There is no column to migrate, nothing extra to
+leak from a database dump, and rotating the signing key invalidates
+every outstanding link at once — which is already the documented way
+to revoke access to an instance.
+
+```go
+func (*JWT) ViewToken(jobID string) string
 ```

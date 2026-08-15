@@ -91,6 +91,12 @@ type DispatchResponse struct {
 	RepositoryID   string `json:"repository_id"`
 	RepositorySlug string `json:"repository_slug"`
 	Status         string `json:"status"`
+
+	// ViewToken opens the job page in a browser without a session. It
+	// is present only while the instance keeps jobs private; a public
+	// one needs no token, and printing one there would put a secret in
+	// a URL that guards nothing.
+	ViewToken string `json:"view_token,omitempty"`
 }
 
 // JobStatusRequest is the body of /api/job/{jobID}/status.
@@ -208,7 +214,17 @@ func (s *Handlers) dispatch(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	platform.JSON(w, r, http.StatusCreated, DispatchResponse{
+	platform.JSON(w, r, http.StatusCreated, s.dispatchResponse(job, repository))
+	return nil
+}
+
+// dispatchResponse describes a queued job to whoever queued it.
+//
+// Dispatch, trigger and retry all answer with the same thing, because
+// from the caller's side they are the same act: a job now exists and
+// here is where to watch it.
+func (s *Handlers) dispatchResponse(job *model.Job, repository *model.Repository) DispatchResponse {
+	return DispatchResponse{
 		JobID:          job.ID,
 		ParentID:       job.ParentID,
 		RootID:         job.RootID,
@@ -216,8 +232,8 @@ func (s *Handlers) dispatch(w http.ResponseWriter, r *http.Request) error {
 		RepositoryID:   repository.ID,
 		RepositorySlug: repository.Slug,
 		Status:         job.Status,
-	})
-	return nil
+		ViewToken:      s.viewToken(job.ID),
+	}
 }
 
 // ListRepositories returns the repositories the server knows about.
@@ -250,15 +266,13 @@ func (s *Handlers) GetJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) getJob(w http.ResponseWriter, r *http.Request) error {
-	if _, _, err := s.authenticateUser(r); err != nil {
+	user, _, err := s.authenticateUser(r)
+	if err != nil {
 		return err
 	}
 
-	job, err := s.jobs.Get(r.Context(), platform.URLParam(r, "jobID"))
+	job, err := s.readableJob(r, user, platform.URLParam(r, "jobID"))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return requestError(http.StatusNotFound, errors.New("job not found"))
-		}
 		return err
 	}
 
@@ -272,7 +286,8 @@ func (s *Handlers) ListJobs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) listJobs(w http.ResponseWriter, r *http.Request) error {
-	if _, _, err := s.authenticateUser(r); err != nil {
+	user, _, err := s.authenticateUser(r)
+	if err != nil {
 		return err
 	}
 
@@ -280,6 +295,7 @@ func (s *Handlers) listJobs(w http.ResponseWriter, r *http.Request) error {
 		RepositoryID: platform.QueryParam(r, "repository_id"),
 		RootID:       platform.QueryParam(r, "root_id"),
 		Status:       platform.QueryParam(r, "status"),
+		ViewerID:     s.jobScope(user),
 	}
 	if limit, err := strconv.Atoi(platform.QueryParam(r, "limit")); err == nil {
 		filter.Limit = limit

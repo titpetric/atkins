@@ -93,6 +93,9 @@ func (s *ServerConfig) applyDefaults(defaults ServerConfig) {
 	if s.ReclaimInterval < 0 {
 		s.ReclaimInterval = defaults.ReclaimInterval
 	}
+	if s.RetentionInterval < 0 {
+		s.RetentionInterval = defaults.RetentionInterval
+	}
 }
 
 // problems reports server values that cannot work.

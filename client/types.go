@@ -74,6 +74,11 @@ type DispatchResponse struct {
 	RepositoryID   string `json:"repository_id"`
 	RepositorySlug string `json:"repository_slug"`
 	Status         string `json:"status"`
+
+	// ViewToken opens the job page in a browser without a session. A
+	// server that keeps jobs private returns one; a public one returns
+	// nothing and the plain job URL opens.
+	ViewToken string `json:"view_token,omitempty"`
 }
 
 // EnrolRequest is the body of POST /api/agent/enrol.

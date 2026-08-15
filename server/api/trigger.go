@@ -133,15 +133,7 @@ func (s *Handlers) trigger(w http.ResponseWriter, r *http.Request) error {
 		return mapJobCreateError(err)
 	}
 
-	platform.JSON(w, r, http.StatusCreated, DispatchResponse{
-		JobID:          job.ID,
-		ParentID:       job.ParentID,
-		RootID:         job.RootID,
-		Depth:          job.Depth,
-		RepositoryID:   repository.ID,
-		RepositorySlug: repository.Slug,
-		Status:         job.Status,
-	})
+	platform.JSON(w, r, http.StatusCreated, s.dispatchResponse(job, repository))
 	return nil
 }
 
@@ -160,11 +152,8 @@ func (s *Handlers) retryJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	previous, err := s.jobs.Get(r.Context(), platform.URLParam(r, "jobID"))
+	previous, err := s.readableJob(r, user, platform.URLParam(r, "jobID"))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return requestError(http.StatusNotFound, errors.New("job not found"))
-		}
 		return err
 	}
 
@@ -217,15 +206,7 @@ func (s *Handlers) retryJob(w http.ResponseWriter, r *http.Request) error {
 		return mapJobCreateError(err)
 	}
 
-	platform.JSON(w, r, http.StatusCreated, DispatchResponse{
-		JobID:          job.ID,
-		ParentID:       job.ParentID,
-		RootID:         job.RootID,
-		Depth:          job.Depth,
-		RepositoryID:   repository.ID,
-		RepositorySlug: repository.Slug,
-		Status:         job.Status,
-	})
+	platform.JSON(w, r, http.StatusCreated, s.dispatchResponse(job, repository))
 	return nil
 }
 
@@ -235,11 +216,19 @@ func (s *Handlers) CancelJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) cancelJob(w http.ResponseWriter, r *http.Request) error {
-	if _, _, err := s.authenticateUser(r); err != nil {
+	user, _, err := s.authenticateUser(r)
+	if err != nil {
 		return err
 	}
 
-	job, err := s.jobs.Finish(r.Context(), platform.URLParam(r, "jobID"), storage.StatusRequest{
+	// Cancelling is a write, but the check is the same one reading uses:
+	// a job somebody may not read is a job they may not stop.
+	target, err := s.readableJob(r, user, platform.URLParam(r, "jobID"))
+	if err != nil {
+		return err
+	}
+
+	job, err := s.jobs.Finish(r.Context(), target.ID, storage.StatusRequest{
 		Status:   model.JobStatusCancelled,
 		ExitCode: 1,
 		Error:    "cancelled",

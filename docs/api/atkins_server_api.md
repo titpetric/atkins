@@ -126,6 +126,12 @@ type DispatchResponse struct {
 	RepositoryID   string `json:"repository_id"`
 	RepositorySlug string `json:"repository_slug"`
 	Status         string `json:"status"`
+
+	// ViewToken opens the job page in a browser without a session. It
+	// is present only while the instance keeps jobs private; a public
+	// one needs no token, and printing one there would put a secret in
+	// a URL that guards nothing.
+	ViewToken string `json:"view_token,omitempty"`
 }
 ```
 

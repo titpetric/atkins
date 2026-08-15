@@ -150,6 +150,11 @@ type JobStatus = string
 ```
 
 ```go
+// JobVisibility decides who may read a job and the output it captured.
+type JobVisibility = string
+```
+
+```go
 // Migrations generated for db table `migrations`.
 type Migrations struct {
 	// Project
@@ -515,9 +520,20 @@ const (
 	// heartbeat before the server reclaims it.
 	SettingJobLeaseTTL = "job.lease_ttl"
 
-	// SettingJobRetention is how long finished jobs and their output
-	// are kept. Zero keeps them forever.
+	// SettingJobRetention is how long a finished job's row is kept.
+	// Zero keeps it forever. Deleting a job takes its output with it.
 	SettingJobRetention = "job.retention"
+
+	// SettingJobLogRetention is how long a finished job's output is
+	// kept. Zero keeps it forever. It is separate from
+	// SettingJobRetention because output is the part that grows without
+	// bound, and an outcome is worth keeping long after the lines that
+	// produced it stop being interesting.
+	SettingJobLogRetention = "job.log_retention"
+
+	// SettingJobVisibility is "private" or "public": whether a job is
+	// readable only by the user who dispatched it, or by anyone.
+	SettingJobVisibility = "job.visibility"
 
 	// SettingArtefactMaxSize bounds one uploaded artefact.
 	SettingArtefactMaxSize = "artefact.max_size"
@@ -572,6 +588,23 @@ const (
 
 	// JobStatusCancelled is a job stopped before it settled.
 	JobStatusCancelled JobStatus = "cancelled"
+)
+```
+
+```go
+// Job visibility values.
+const (
+	// VisibilityPrivate is the default. Over the API a job is readable
+	// by the user whose dispatch created it (and by anything under that
+	// job's tree); admins and agents still see everything. The job page
+	// requires the per-job token atkins prints as part of the URL.
+	VisibilityPrivate JobVisibility = "private"
+
+	// VisibilityPublic is the single-team instance the CI/CD server was
+	// first written for: every authenticated user reads every job, and
+	// the job page opens for anyone holding the URL. It is a choice an
+	// admin makes, not the state an instance starts in.
+	VisibilityPublic JobVisibility = "public"
 )
 ```
 
@@ -782,7 +815,9 @@ var (
 - `func RepositorySlug (remoteURL string) string`
 - `func SettingDefinitions () []SettingDefinition`
 - `func TerminalJobStatus (status JobStatus) bool`
+- `func TerminalJobStatuses () []JobStatus`
 - `func ValidJobStatus (status JobStatus) bool`
+- `func ValidJobVisibility (visibility JobVisibility) bool`
 - `func ValidRepositoryPolicy (policy RepositoryPolicy) bool`
 - `func WithColumns (cols []string) QueryOption`
 - `func WithLimit (start,offset int) QueryOption`
@@ -1187,12 +1222,30 @@ TerminalJobStatus reports whether status is a settled state.
 func TerminalJobStatus(status JobStatus) bool
 ```
 
+### TerminalJobStatuses
+
+TerminalJobStatuses returns the states a job settles into. Retention
+sweeps use it: a job that has not settled is never old enough to
+delete, however long ago it was queued.
+
+```go
+func TerminalJobStatuses() []JobStatus
+```
+
 ### ValidJobStatus
 
 ValidJobStatus reports whether status is a known job status.
 
 ```go
 func ValidJobStatus(status JobStatus) bool
+```
+
+### ValidJobVisibility
+
+ValidJobVisibility reports whether visibility is a known value.
+
+```go
+func ValidJobVisibility(visibility JobVisibility) bool
 ```
 
 ### ValidRepositoryPolicy

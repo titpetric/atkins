@@ -59,11 +59,20 @@ func (s *Handlers) GetJobLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) getJobLog(w http.ResponseWriter, r *http.Request) error {
-	if _, _, err := s.authenticateUser(r); err != nil {
+	user, _, err := s.authenticateUser(r)
+	if err != nil {
 		return err
 	}
 
-	entries, err := s.jobLogs.List(r.Context(), platform.URLParam(r, "jobID"))
+	// Output is the sensitive half of a job, so the job is loaded and
+	// checked before its lines are handed over — reading a log must not
+	// be a way around the scoping on reading a job.
+	job, err := s.readableJob(r, user, platform.URLParam(r, "jobID"))
+	if err != nil {
+		return err
+	}
+
+	entries, err := s.jobLogs.List(r.Context(), job.ID)
 	if err != nil {
 		return err
 	}

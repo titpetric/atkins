@@ -76,6 +76,7 @@ type ServerConfig struct {
 	MaxJobDepth       int64         `yaml:"max_job_depth" json:"max_job_depth" env:"ATKINS_MAX_JOB_DEPTH"`
 	LeaseTTL          time.Duration `yaml:"lease_ttl" json:"lease_ttl" env:"ATKINS_LEASE_TTL"`
 	ReclaimInterval   time.Duration `yaml:"reclaim_interval" json:"reclaim_interval" env:"ATKINS_RECLAIM_INTERVAL"`
+	RetentionInterval time.Duration `yaml:"retention_interval" json:"retention_interval" env:"ATKINS_RETENTION_INTERVAL"`
 }
 
 // AgentConfig is the worker that runs jobs.

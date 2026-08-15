@@ -11,7 +11,7 @@ it.
 
 ```text
 server/
-├── server.go        module lifecycle, route assembly, lease sweep
+├── server.go        module lifecycle, route assembly, background sweeps
 ├── options.go       options, built from the config package
 ├── api/             JSON handlers: decode, validate, map status, encode
 │   ├── user.go      register, login, refresh, logout, whoami
@@ -114,16 +114,37 @@ worst moment to need a redeploy.
 ## Lifecycle
 
 `Start` connects, migrates, wires storage and handlers, prepares the
-artefact root, and starts the sweep. `Mount` registers routes. `Stop`
-cancels the sweep and waits for it.
-
-The sweep is the reason an agent can die without stranding a job: a
-`running` job whose `lease_expires_at` has passed is moved to `timeout`
-and can be retried. It carries the artefact retention pass too, which
-reads its setting on every tick rather than at start-up.
+artefact root, and starts two background sweeps. `Mount` registers
+routes. `Stop` cancels both and waits for them.
 
 A root the server cannot create is fatal at start-up rather than a
 surprise on the first job that produces a file.
+
+The lease sweep is the reason an agent can die without stranding a job:
+a `running` job whose `lease_expires_at` has passed is moved to
+`timeout` and can be retried. It carries the artefact retention pass
+too, which reads its setting on every tick rather than at start-up.
+
+The retention sweep applies `job.retention` and `job.log_retention`. It
+is a second ticker rather than another statement in the first, because
+the two have nothing in common but a timer: reclaiming is one cheap
+UPDATE that has to happen within a lease of an agent dying, and
+retention walks two tables about as often as a log file is worth
+rotating. Its cadence is `Options.RetentionInterval`, a start-up flag,
+while the windows are settings — the cadence is a property of the
+machine, the windows are policy.
+
+`JobStorage.Purge` deletes in bounded batches and stops after
+`DefaultRetentionBatches` of them, reporting `Partial` so the next tick
+knows there is more. A first sweep of an instance that has been running
+for a year is therefore a series of small deletes rather than one that
+holds `job_log` for minutes. The batch for expired output is selected
+from `job_log` joined to `job`, not from `job`: selecting jobs and
+deleting their logs would keep re-reading jobs whose output was already
+gone, and a large backlog would never be worked through.
+
+Neither window touches a job that has not settled. A pending job is not
+old, it is waiting.
 
 ## Authentication and roles
 
@@ -168,6 +189,33 @@ Settings are typed and validated against a registry in
 `model/setting.go`, cached in memory by `storage.SettingStorage` because
 they are read on the dispatch path, and fall back to a registry default
 so the table is empty on a fresh instance.
+
+## Visibility
+
+`job.visibility` is `private` or `public`, and it governs two surfaces.
+
+Over the API, `private` narrows job reads to the caller: their own jobs,
+and everything under a job tree they started. The tree half is not
+decoration — a pipeline that clears `ATKINS_NO_DISPATCH` queues its
+children under the agent's credentials, so scoping on `user_id` alone
+would hide a fan-out from the person who started it. Admins and agents
+are exempt: an admin is what the flag is for, and an agent works the
+whole queue. A job the caller may not read is a 404, because "not
+yours" and "not here" must look the same.
+
+The pages have no session to check, so `private` checks a per-job token
+in the URL instead: `auth.JWT.ViewToken` is an HMAC of the job ID under
+the signing key. Deriving it rather than storing it means no column to
+migrate, nothing extra in a database dump, and one way to revoke every
+outstanding link — rotate the signing key, which already revokes every
+access token. The token rides in the URL because the requirement it has
+to keep meeting is that atkins prints one line a human pastes into a
+browser.
+
+Under `private` the index page lists nothing: no token can scope a
+listing and there is no session to scope it by, so `GET /api/job` is
+the listing. The page still answers — it is the front door, and the
+compose health check probes it.
 
 ## Deploy keys
 

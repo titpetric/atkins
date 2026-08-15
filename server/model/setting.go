@@ -25,9 +25,20 @@ const (
 	// heartbeat before the server reclaims it.
 	SettingJobLeaseTTL = "job.lease_ttl"
 
-	// SettingJobRetention is how long finished jobs and their output
-	// are kept. Zero keeps them forever.
+	// SettingJobRetention is how long a finished job's row is kept.
+	// Zero keeps it forever. Deleting a job takes its output with it.
 	SettingJobRetention = "job.retention"
+
+	// SettingJobLogRetention is how long a finished job's output is
+	// kept. Zero keeps it forever. It is separate from
+	// SettingJobRetention because output is the part that grows without
+	// bound, and an outcome is worth keeping long after the lines that
+	// produced it stop being interesting.
+	SettingJobLogRetention = "job.log_retention"
+
+	// SettingJobVisibility is "private" or "public": whether a job is
+	// readable only by the user who dispatched it, or by anyone.
+	SettingJobVisibility = "job.visibility"
 
 	// SettingArtefactMaxSize bounds one uploaded artefact.
 	SettingArtefactMaxSize = "artefact.max_size"
@@ -99,7 +110,20 @@ var settingDefinitions = []SettingDefinition{
 		Name:        SettingJobRetention,
 		Kind:        KindDuration,
 		Default:     "0",
-		Description: "How long finished jobs are kept. 0 keeps them forever.",
+		Description: "How long a finished job's record is kept. 0 keeps it forever. Deleting a job deletes its output too.",
+	},
+	{
+		Name:        SettingJobLogRetention,
+		Kind:        KindDuration,
+		Default:     "720h",
+		Description: "How long a finished job's captured output is kept. 0 keeps it forever; the job's outcome is kept either way.",
+	},
+	{
+		Name:        SettingJobVisibility,
+		Kind:        KindEnum,
+		Default:     VisibilityPrivate,
+		Values:      []string{VisibilityPrivate, VisibilityPublic},
+		Description: "Whether a job is readable only by the user who dispatched it, or by anyone with the URL.",
 	},
 	{
 		Name:        SettingArtefactMaxSize,
