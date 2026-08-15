@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -332,6 +333,12 @@ type ListFilter struct {
 	RootID       string
 	Status       model.JobStatus
 	Limit        int
+
+	// ViewerID restricts the listing to what one user may see: their
+	// own jobs, and everything under a job tree they started. Empty
+	// means the caller may see everything, which is what an admin, an
+	// agent and a public instance all are.
+	ViewerID string
 }
 
 // List returns jobs matching the filter, newest first.
@@ -358,6 +365,15 @@ func (s *JobStorage) List(ctx context.Context, filter ListFilter) ([]model.Job, 
 		where = append(where, "status = ?")
 		args = append(args, filter.Status)
 	}
+	if filter.ViewerID != "" {
+		// A job's owner is whoever dispatched it, and a job dispatched
+		// from inside a running pipeline belongs to the agent's
+		// account rather than to the human who started the pipeline.
+		// Scoping on user_id alone would therefore hide a user's own
+		// fan-out from them, so the root of the tree decides too.
+		where = append(where, `(user_id = ? OR root_id IN (SELECT id FROM `+model.JobTable+` WHERE user_id = ?))`)
+		args = append(args, filter.ViewerID, filter.ViewerID)
+	}
 
 	limit := filter.Limit
 	if limit <= 0 {
@@ -368,6 +384,38 @@ func (s *JobStorage) List(ctx context.Context, filter ListFilter) ([]model.Job, 
 	query := `SELECT * FROM ` + model.JobTable + ` WHERE ` + strings.Join(where, " AND ") + `
 		ORDER BY created_at DESC LIMIT ?`
 	return client(s.db).Select[model.Job](ctx, query, args...)
+}
+
+// VisibleTo reports whether a user may read one job.
+//
+// It is the single-job form of ListFilter.ViewerID, and answers the
+// same question: the job is theirs, or it belongs to a tree they
+// started. Callers who may see everything should not call this.
+func (s *JobStorage) VisibleTo(ctx context.Context, job *model.Job, userID string) (bool, error) {
+	if job == nil || userID == "" {
+		return false, nil
+	}
+	if job.UserID == userID {
+		return true, nil
+	}
+
+	// A root job has already been checked by its own user_id.
+	if job.RootID == "" || job.RootID == job.ID {
+		return false, nil
+	}
+
+	root, err := s.Get(ctx, job.RootID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// The root has been swept by retention. Whatever the child
+			// belonged to is gone; fall back to the child's own owner,
+			// which has already said no.
+			return false, nil
+		}
+		return false, err
+	}
+
+	return root.UserID == userID, nil
 }
 
 // agentAcceptsJob reports whether an agent advertising the given labels

@@ -36,8 +36,6 @@ const testAgentToken = "test-agent-token"
 // sqlite a 10 connection pool, and every connection to an in-memory
 // sqlite database is a separate, empty database.
 func testServer(t *testing.T) string {
-	t.Helper()
-
 	return testServerWith(t, nil)
 }
 
@@ -65,6 +63,7 @@ func testServerWith(t *testing.T, configure func(*server.Options)) string {
 	// first register call in each test exercises.
 	opts.AllowRegistration = false
 	opts.ReclaimInterval = 0
+	opts.RetentionInterval = 0
 
 	if configure != nil {
 		configure(opts)
@@ -134,6 +133,7 @@ type dispatchResponse struct {
 	RepositoryID   string `json:"repository_id"`
 	RepositorySlug string `json:"repository_slug"`
 	Status         string `json:"status"`
+	ViewToken      string `json:"view_token"`
 }
 
 // register creates the bootstrap user and returns its tokens.

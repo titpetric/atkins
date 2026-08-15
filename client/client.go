@@ -274,8 +274,17 @@ func contentTypeOrDefault(value string) string {
 
 // JobURL is where a job is watched in a browser. It is the one thing
 // atkins prints when it hands a run to a server.
-func (c *Client) JobURL(jobID string) string {
-	return c.server + "/job/" + jobID
+//
+// A server that keeps jobs private hands back a view token with the
+// job, and it belongs in the URL: the page has no session to check, and
+// the whole point of the line atkins prints is that pasting it into a
+// browser opens the run. An empty token leaves the URL as it was.
+func (c *Client) JobURL(jobID, viewToken string) string {
+	url := c.server + "/job/" + jobID
+	if viewToken == "" {
+		return url
+	}
+	return url + "?t=" + viewToken
 }
 
 // Enrol trades the shared agent token for agent credentials.

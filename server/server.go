@@ -50,7 +50,8 @@ type Module struct {
 	artefacts *storage.JobArtefactStorage
 	settings  *storage.SettingStorage
 
-	// reclaim is the background sweep of expired agent leases.
+	// cancel stops the background sweeps: expired agent leases, and
+	// retention. done waits for both.
 	cancel context.CancelFunc
 	done   sync.WaitGroup
 }
@@ -146,12 +147,20 @@ func (m *Module) Start(ctx context.Context) error {
 		JobLogStorage:      jobLogs,
 		JobArtefactStorage: m.artefacts,
 		RepositoryStorage:  repositories,
+		SettingStorage:     settings,
+		SigningKey:         m.opts.SigningKey,
 	})
 	if err != nil {
 		return err
 	}
 
-	m.startReclaim(ctx)
+	// The sweeps outlive the start context; they are bound to the
+	// module lifecycle and cancelled from Stop.
+	sweeps, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	m.cancel = cancel
+
+	m.startReclaim(sweeps)
+	m.startRetention(sweeps)
 
 	return nil
 }
@@ -163,7 +172,7 @@ func (m *Module) Mount(_ context.Context, r platform.Router) error {
 	return nil
 }
 
-// Stop halts the lease sweep and waits for it to finish.
+// Stop halts the background sweeps and waits for them to finish.
 func (m *Module) Stop(context.Context) error {
 	if m.cancel != nil {
 		m.cancel()
@@ -179,20 +188,72 @@ func (m *Module) Stop(context.Context) error {
 // amount of tidying on a timer — and because a server with one
 // background goroutine is easier to reason about than one with two.
 func (m *Module) startReclaim(ctx context.Context) {
-	if m.opts.ReclaimInterval <= 0 {
+	m.sweep(ctx, m.opts.ReclaimInterval, func(ctx context.Context) error {
+		reclaimed, err := m.jobs.ReclaimExpired(ctx)
+		if err != nil {
+			return err
+		}
+		if reclaimed > 0 {
+			log.Printf("[atkins] reclaimed %d job(s) from expired agent leases", reclaimed)
+		}
+		return nil
+	})
+}
+
+// startRetention applies job.retention and job.log_retention on a
+// ticker of its own.
+//
+// It is a separate sweep from the lease reclaim rather than another
+// statement inside it, because the two have nothing in common but a
+// timer: reclaiming is one cheap UPDATE that has to happen within a
+// lease of the agent dying, while retention walks two tables and is
+// worth doing about as often as a log file is worth rotating.
+//
+// The windows are read from the settings on every pass, so an admin
+// changing them takes effect at the next tick rather than at the next
+// restart. Passing zero for both makes the pass a no-op, which is what
+// an instance that keeps everything forever wants.
+func (m *Module) startRetention(ctx context.Context) {
+	m.sweep(ctx, m.opts.RetentionInterval, func(ctx context.Context) error {
+		result, err := m.jobs.Purge(ctx, storage.RetentionRequest{
+			Jobs: m.settings.Duration(model.SettingJobRetention),
+			Logs: m.settings.Duration(model.SettingJobLogRetention),
+		})
+
+		// A pass that failed halfway still deleted what it deleted, so
+		// report the count before the error.
+		if !result.Empty() {
+			log.Printf("[atkins] retention removed %d job(s) and %d output row(s)%s",
+				result.Jobs, result.Logs, partially(result.Partial))
+		}
+
+		return err
+	})
+}
+
+// partially annotates a retention pass that stopped short of the end of
+// its backlog, so an operator watching the log can tell a server that
+// is catching up from one that is done.
+func partially(partial bool) string {
+	if partial {
+		return ", more to come"
+	}
+	return ""
+}
+
+// sweep runs work on a ticker until the module stops. A non-positive
+// interval disables it, which is how the module tests keep background
+// writes out of their assertions.
+func (m *Module) sweep(ctx context.Context, interval time.Duration, work func(context.Context) error) {
+	if interval <= 0 {
 		return
 	}
-
-	// The sweep outlives the start context; it is bound to the module
-	// lifecycle and cancelled from Stop.
-	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	m.cancel = cancel
 
 	m.done.Add(1)
 	go func() {
 		defer m.done.Done()
 
-		ticker := time.NewTicker(m.opts.ReclaimInterval)
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
 		for {
@@ -200,13 +261,8 @@ func (m *Module) startReclaim(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				reclaimed, err := m.jobs.ReclaimExpired(ctx)
-				if err != nil {
+				if err := work(ctx); err != nil {
 					telemetry.CaptureError(ctx, err)
-					continue
-				}
-				if reclaimed > 0 {
-					log.Printf("[atkins] reclaimed %d job(s) from expired agent leases", reclaimed)
 				}
 
 				m.pruneArtefacts(ctx)

@@ -21,7 +21,7 @@ atkins          ─────────► /api/dispatch  ──┐
                            /api/job/{id}/log ◄─ streamed output
                            /api/job/{id}/artefact ◄ files it produced
                            /api/job/{id}/status ◄ terminal state
-browser ──► /job/{ULID}
+browser ──► /job/{ULID}?t=…
 ```
 
 ## Trying it
@@ -31,7 +31,7 @@ The repository ships a throwaway instance: a server and one agent, on port 3200.
 ```bash
 atkins up                                 # build and start
 atkins --register http://localhost:3200   # first account, becomes admin
-atkins                                    # prints http://localhost:3200/job/<ULID>
+atkins                                    # prints http://localhost:3200/job/<ULID>?t=<token>
 atkins down
 ```
 
@@ -90,6 +90,8 @@ Once logged in, `atkins` posts to `/api/dispatch` and prints the job URL:
 The server normalizes the remote URL into a `host/owner/name` slug, so `git@github.com:you/repo.git` and `https://github.com/you/repo` are one repository. Repositories are created on first sight; nothing has to be registered up front.
 
 The ref atkins sends is the **commit you are on**, not the branch you are on. A dispatched run belongs to the code in front of you, and a branch name would let the agent build whatever that branch had moved to by the time it claimed the job. The consequence is worth knowing: dispatching a commit you have not pushed fails, naming the ref it could not find, rather than quietly building the branch tip instead.
+
+The response carries the job's ID and, while the instance keeps jobs private, a `view_token` that opens its page in a browser. `atkins` prints the two as one URL; a script driving `/api/dispatch` or a trigger with `curl` builds it the same way.
 
 Delegation degrades to a local run rather than to an error. If the machine isn't logged in, isn't inside a git repository, or the server can't be reached, the pipeline runs here as it always did — with the reason on stderr.
 
@@ -262,9 +264,59 @@ A retry is a **new job** built from the finished one, not a reset: the previous 
 
 ## The job page
 
-`/job/{ULID}` is the URL atkins prints. It shows the status, the command, the repository, the ref the job asked for and the commit the agent resolved it to, timing, the exit code, the output the agent captured and the artefacts it uploaded, and it refreshes itself until the job settles. `/` lists recent jobs.
+`/job/{ULID}?t={token}` is the URL atkins prints. It shows the status, the command, the repository, the ref the job asked for and the commit the agent resolved it to, timing, the exit code, the output the agent captured and the artefacts it uploaded, and it refreshes itself until the job settles.
 
-The pages are readable without a session: a ULID is not enumerable in practice, and the point of printing a URL in a terminal is that pasting it into a browser works. Put the server behind your own auth if the output is sensitive.
+The page has no session to check — the browser reading it never logged in — so what a private instance checks instead is the token in the URL. It is an HMAC of the job ID under the server's signing key: nothing is stored, nothing extra leaks from a database dump, and rotating the signing key invalidates every outstanding link along with every token. Paste the whole line and the job opens; trim the query string and you get a 403 saying so. Links between jobs on the page — the parent, and the children a job dispatched — carry the token for the job they point at, so following the tree keeps working. So do the artefact download links: a file a job produced is reachable on exactly the terms its page is, no wider and no narrower.
+
+`/` lists recent jobs, and a private instance lists none: there is no token that could scope a listing and no session to scope it by. The page answers and says so — it is the front door, and a health check probing it should find a server. `GET /api/job` is the listing, and it is scoped to the caller.
+
+Both of those relax under `job.visibility`:
+
+```bash
+curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
+  -d '{"value":"public"}' "$SERVER/api/admin/setting/job.visibility"
+```
+
+A public instance is the single-team one: every authenticated user reads every job over the API, the job page opens for anyone holding the URL, `/` lists everything, and no token is issued — a secret in a URL that guards nothing is a habit worth not forming. It is a choice an admin makes, not the state a server starts in, because job output routinely contains things nobody meant to publish.
+
+Whichever way it is set, the API scoping follows the same rule:
+
+| Caller        | Sees                                                     |
+|---------------|----------------------------------------------------------|
+| admin         | every job                                                |
+| agent         | every job — a worker operates on the whole queue         |
+| user, private | their own jobs, and everything under a tree they started |
+| user, public  | every job                                                |
+
+"Everything under a tree they started" matters because a pipeline that clears `ATKINS_NO_DISPATCH` queues its children under the *agent's* credentials. Scoping on the dispatching user alone would hide a fan-out from the person who started it, so the root of the job tree decides too.
+
+A job somebody may not read is reported as `404`, not `403`: "not yours" and "not here" have to look the same, or the endpoint tells a stranger which job IDs exist. The same check governs `retry` and `cancel` — a job you may not read is one you may not stop.
+
+## Retention
+
+An instance that runs for a year grows `job` and `job_log` without bound, and `job_log` is the one that hurts: it holds every line every build printed. Two windows bound it, and they are separate on purpose — output stops being interesting long before an outcome does:
+
+```bash
+# Keep captured output for a week.
+curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
+  -d '{"value":"168h"}' "$SERVER/api/admin/setting/job.log_retention"
+
+# Keep the job records themselves for a year.
+curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
+  -d '{"value":"8760h"}' "$SERVER/api/admin/setting/job.retention"
+```
+
+`job.log_retention` deletes the output of a finished job and leaves the job: the page still says what ran, when, and whether it passed. `job.retention` deletes the record, and takes the output with it. `0` on either keeps that half forever, which is what `job.retention` defaults to.
+
+Both windows are measured from when a job **finished**. A job that has not settled is never swept, however long ago it was queued — a pending job is not old, it is waiting, and a running job whose agent died is the lease sweep's problem.
+
+Deletion happens in bounded batches, up to 500 rows at a time and 20 batches per pass, and a pass that runs out of batches leaves the rest for the next one. The first sweep of an instance that has been accumulating for a year is therefore a series of small deletes spread over a few passes rather than one that holds a table for minutes. The log says when a pass had more to do:
+
+```text
+[atkins] retention removed 0 job(s) and 10000 output row(s), more to come
+```
+
+How often the server looks is `server.retention_interval` (default `1h`), a start-up setting rather than a runtime one: the windows are policy, the cadence is a property of the machine. `0` turns the sweep off entirely.
 
 Artefact downloads from the page — `/job/{ULID}/artefact/{ULID}` — are on the same terms, because a browser has no bearer token to offer and a download link that fails is not a link. `GET /api/job/{id}/artefact/{id}` is the authenticated door, and it is the one a script should use. A file a job produced is served as an attachment with `X-Content-Type-Options: nosniff`, so an artefact named `report.html` is something to save rather than something that runs in the server's origin.
 
@@ -400,16 +452,18 @@ which rewrites `git@host:owner/repo.git` to `https://host/owner/repo.git` before
 
 Runtime configuration an admin can change without a restart:
 
-| Setting              | Default | Purpose                                             |
-|----------------------|---------|-----------------------------------------------------|
-| `repository.policy`  | `open`  | `open`, or `allowlist` to gate on rules             |
-| `registration.open`  | `false` | Let anyone register                                 |
-| `job.max_depth`      | `3`     | How deep a job may dispatch children                |
-| `job.lease_ttl`      | `15m`   | How long an agent may hold a job                    |
-| `job.retention`      | `0`     | How long finished jobs are kept; 0 is forever       |
-| `artefact.max_size`  | `32MB`  | Largest single artefact an agent may upload         |
-| `artefact.max_count` | `50`    | How many artefacts one job may keep                 |
-| `artefact.retention` | `0`     | How long artefact bytes are kept; 0 follows the job |
+| Setting              | Default   | Purpose                                                       |
+|----------------------|-----------|---------------------------------------------------------------|
+| `repository.policy`  | `open`    | `open`, or `allowlist` to gate on rules                       |
+| `registration.open`  | `false`   | Let anyone register                                           |
+| `job.max_depth`      | `3`       | How deep a job may dispatch children                          |
+| `job.lease_ttl`      | `15m`     | How long an agent may hold a job                              |
+| `job.retention`      | `0`       | How long a finished job's record is kept; 0 is forever        |
+| `job.log_retention`  | `720h`    | How long a finished job's output is kept; 0 is forever        |
+| `job.visibility`     | `private` | `private` scopes jobs to who dispatched them; `public` shares |
+| `artefact.max_size`  | `32MB`    | Largest single artefact an agent may upload                   |
+| `artefact.max_count` | `50`      | How many artefacts one job may keep                           |
+| `artefact.retention` | `0`       | How long artefact bytes are kept; 0 follows the job           |
 
 ```bash
 curl -sS -H "Authorization: Bearer $TOKEN" "$SERVER/api/admin/setting" |
@@ -444,8 +498,8 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
 | `/api/dispatch`                | POST            | user   | Record a job, returns its ID           |
 | `/api/repository`              | GET             | user   | List known repositories                |
 | `/api/repository/{id}/trigger` | POST            | user   | Queue a job by name, with params       |
-| `/api/job`                     | GET             | user   | List jobs                              |
-| `/api/job/{id}`                | GET             | user   | Read one job                           |
+| `/api/job`                     | GET             | user   | List jobs the caller may see           |
+| `/api/job/{id}`                | GET             | user   | Read one job the caller may see        |
 | `/api/job/{id}/log`            | GET             | user   | Read captured output                   |
 | `/api/job/{id}/artefact`       | GET             | user   | List the files a job produced          |
 | `/api/job/{id}/artefact/{id}`  | GET             | user   | Download one artefact                  |

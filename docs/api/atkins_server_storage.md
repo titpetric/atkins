@@ -167,6 +167,12 @@ type ListFilter struct {
 	RootID       string
 	Status       model.JobStatus
 	Limit        int
+
+	// ViewerID restricts the listing to what one user may see: their
+	// own jobs, and everything under a job tree they started. Empty
+	// means the caller may see everything, which is what an admin, an
+	// agent and a public instance all are.
+	ViewerID string
 }
 ```
 
@@ -189,6 +195,46 @@ type RepositoryRuleStorage struct {
 // RepositoryStorage persists the git repositories the server has seen.
 type RepositoryStorage struct {
 	db *sqlx.DB
+}
+```
+
+```go
+// RetentionRequest is one retention pass.
+// The two windows are independent on purpose. Output is what grows
+// without bound, and it stops being interesting long before the outcome
+// does; an instance that keeps every job forever and every log line for
+// a month is the common case.
+type RetentionRequest struct {
+	// Jobs is how long a settled job's record is kept, measured from
+	// when it finished. Zero keeps job records forever.
+	Jobs time.Duration
+
+	// Logs is how long a settled job's captured output is kept. Zero
+	// keeps output forever.
+	Logs time.Duration
+
+	// Batch is how many rows one statement removes. Zero selects
+	// DefaultRetentionBatch.
+	Batch int
+
+	// MaxBatches bounds one pass. Zero selects DefaultRetentionBatches.
+	MaxBatches int
+}
+```
+
+```go
+// RetentionResult reports what a pass removed.
+type RetentionResult struct {
+	// Jobs is how many job records were deleted.
+	Jobs int64
+
+	// Logs is how many output rows were deleted, including those that
+	// went with a deleted job.
+	Logs int64
+
+	// Partial is set when the pass stopped at MaxBatches with work
+	// still to do. The next tick continues where this one stopped.
+	Partial bool
 }
 ```
 
@@ -357,6 +403,22 @@ const (
 )
 ```
 
+```go
+// Retention defaults. They bound one pass rather than the whole
+// backlog: the first sweep of an instance that has been running for a
+// year has millions of job_log rows to remove, and a DELETE that large
+// holds locks for minutes. A pass removes at most Batch × MaxBatches
+// rows of each kind and leaves the rest for the next tick, so a server
+// catching up stays a server.
+const (
+	// DefaultRetentionBatch is how many rows one DELETE removes.
+	DefaultRetentionBatch = 500
+
+	// DefaultRetentionBatches is how many batches one pass runs.
+	DefaultRetentionBatches = 20
+)
+```
+
 ## Function symbols
 
 - `func DB (ctx context.Context, name string) (*sqlx.DB, error)`
@@ -384,8 +446,10 @@ const (
 - `func (*JobStorage) Get (ctx context.Context, id string) (*model.Job, error)`
 - `func (*JobStorage) Heartbeat (ctx context.Context, jobID,agentID string) error`
 - `func (*JobStorage) List (ctx context.Context, filter ListFilter) ([]model.Job, error)`
+- `func (*JobStorage) Purge (ctx context.Context, req RetentionRequest) (RetentionResult, error)`
 - `func (*JobStorage) ReclaimExpired (ctx context.Context) (int64, error)`
 - `func (*JobStorage) RecordCheckout (ctx context.Context, jobID string, req CheckoutRequest) error`
+- `func (*JobStorage) VisibleTo (ctx context.Context, job *model.Job, userID string) (bool, error)`
 - `func (*RepositoryRuleStorage) Allowed (ctx context.Context, slug string) (bool, error)`
 - `func (*RepositoryRuleStorage) Create (ctx context.Context, userID string, req RuleRequest) (*model.RepositoryRule, error)`
 - `func (*RepositoryRuleStorage) Delete (ctx context.Context, id string) error`
@@ -428,6 +492,7 @@ const (
 - `func (*UserStorage) GetByEmail (ctx context.Context, email string) (*model.User, error)`
 - `func (*UserStorage) List (ctx context.Context) ([]model.User, error)`
 - `func (*UserStorage) SetFlags (ctx context.Context, id string, flags Flags) (*model.User, error)`
+- `func (RetentionResult) Empty () bool`
 
 ### DB
 
@@ -669,6 +734,20 @@ List returns jobs matching the filter, newest first.
 func (*JobStorage) List(ctx context.Context, filter ListFilter) ([]model.Job, error)
 ```
 
+### Purge
+
+Purge applies the retention windows and reports what it removed.
+
+Job records go first, because deleting a job takes its output with it
+and there is no point sweeping logs that are about to disappear along
+with their job. Neither window touches a job that has not settled: a
+pending job is not old, it is waiting, and a running job that has
+lost its agent is the lease sweep's problem, not this one's.
+
+```go
+func (*JobStorage) Purge(ctx context.Context, req RetentionRequest) (RetentionResult, error)
+```
+
 ### ReclaimExpired
 
 ReclaimExpired marks running jobs whose lease has lapsed as timed out
@@ -689,6 +768,18 @@ that replaced it.
 
 ```go
 func (*JobStorage) RecordCheckout(ctx context.Context, jobID string, req CheckoutRequest) error
+```
+
+### VisibleTo
+
+VisibleTo reports whether a user may read one job.
+
+It is the single-job form of ListFilter.ViewerID, and answers the
+same question: the job is theirs, or it belongs to a tree they
+started. Callers who may see everything should not call this.
+
+```go
+func (*JobStorage) VisibleTo(ctx context.Context, job *model.Job, userID string) (bool, error)
 ```
 
 ### Allowed
@@ -1068,4 +1159,12 @@ SetFlags updates a user's administrative state.
 
 ```go
 func (*UserStorage) SetFlags(ctx context.Context, id string, flags Flags) (*model.User, error)
+```
+
+### Empty
+
+Empty reports whether the pass deleted nothing at all.
+
+```go
+func (RetentionResult) Empty() bool
 ```

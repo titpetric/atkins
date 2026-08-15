@@ -8,7 +8,7 @@
 <body>
   <header>
     <h1><span class="mono">{{.Job.Command}}</span></h1>
-    <p class="muted mono">{{.Job.ID}} · <a href="/">all jobs</a></p>
+    <p class="muted mono">{{.Job.ID}}{{if listing}} · <a href="/">all jobs</a>{{end}}</p>
   </header>
 
   <p>
@@ -72,7 +72,7 @@
     {{if .Job.ParentID}}
     <tr>
       <th>Parent job</th>
-      <td class="mono"><a href="/job/{{.Job.ParentID}}">{{.Job.ParentID}}</a></td>
+      <td class="mono"><a href="{{joblink .Job.ParentID}}">{{.Job.ParentID}}</a></td>
     </tr>
     {{end}}
   </table>
@@ -95,7 +95,7 @@
     <tr><th>File</th><td>Size</td><td>Type</td></tr>
     {{range .Artefacts}}
     <tr>
-      <th class="mono"><a href="/job/{{.JobID}}/artefact/{{.ID}}">{{.Path}}</a></th>
+      <th class="mono"><a href="{{artefactlink .JobID .ID}}">{{.Path}}</a></th>
       <td>{{filesize .Size}}</td>
       <td class="mono">{{.ContentType}}</td>
     </tr>
@@ -109,7 +109,7 @@
     <tr><th>Job</th><td>Status</td></tr>
     {{range .Children}}
     <tr>
-      <th class="mono"><a href="/job/{{.ID}}">{{.Command}}</a></th>
+      <th class="mono"><a href="{{joblink .ID}}">{{.Command}}</a></th>
       <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
     </tr>
     {{end}}

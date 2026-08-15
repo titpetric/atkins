@@ -180,6 +180,11 @@ type DispatchResponse struct {
 	RepositoryID   string `json:"repository_id"`
 	RepositorySlug string `json:"repository_slug"`
 	Status         string `json:"status"`
+
+	// ViewToken opens the job page in a browser without a session. A
+	// server that keeps jobs private returns one; a public one returns
+	// nothing and the plain job URL opens.
+	ViewToken string `json:"view_token,omitempty"`
 }
 ```
 
@@ -525,7 +530,7 @@ var UserAgent = "atkins"
 - `func (*Client) Dispatch (ctx context.Context, req DispatchRequest) (*DispatchResponse, error)`
 - `func (*Client) Enrol (ctx context.Context, req EnrolRequest) (*Credential, error)`
 - `func (*Client) Heartbeat (ctx context.Context, jobID,agentID string) error`
-- `func (*Client) JobURL (jobID string) string`
+- `func (*Client) JobURL (jobID,viewToken string) string`
 - `func (*Client) Login (ctx context.Context, req LoginRequest) (*Credential, error)`
 - `func (*Client) Logout (ctx context.Context) error`
 - `func (*Client) Policy (ctx context.Context) (*PolicyResponse, error)`
@@ -815,8 +820,13 @@ func (*Client) Heartbeat(ctx context.Context, jobID, agentID string) error
 JobURL is where a job is watched in a browser. It is the one thing
 atkins prints when it hands a run to a server.
 
+A server that keeps jobs private hands back a view token with the
+job, and it belongs in the URL: the page has no session to check, and
+the whole point of the line atkins prints is that pasting it into a
+browser opens the run. An empty token leaves the URL as it was.
+
 ```go
-func (*Client) JobURL(jobID string) string
+func (*Client) JobURL(jobID, viewToken string) string
 ```
 
 ### Login

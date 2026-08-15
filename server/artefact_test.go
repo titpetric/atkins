@@ -167,19 +167,24 @@ func TestArtefactAppearsOnTheJobPage(t *testing.T) {
 	}, &stored)
 	require.Equal(t, http.StatusCreated, status)
 
-	status, page, _ := fetch(t, url+"/job/"+job.JobID, "")
+	status, page, _ := fetch(t, url+"/job/"+job.JobID+"?t="+job.ViewToken, "")
 	require.Equal(t, http.StatusOK, status)
 	assert.Contains(t, string(page), "coverage.txt")
 
 	// The link on the page has to work in a browser, which carries no
-	// bearer token: it is governed by the same unguessable job URL the
-	// page itself is.
+	// bearer token: it is governed by the same view token the page
+	// itself is, so the link the page renders carries one.
 	download := "/job/" + job.JobID + "/artefact/" + stored.ID
 	assert.Contains(t, string(page), download)
 
-	status, body, _ := fetch(t, url+download, "")
+	status, body, _ := fetch(t, url+download+"?t="+job.ViewToken, "")
 	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, content, body)
+
+	// And no wider than the page: without the token the bytes are not
+	// served, or a private job's artefacts would be public.
+	status, _, _ = fetch(t, url+download, "")
+	assert.Equal(t, http.StatusForbidden, status)
 }
 
 func TestArtefactUploadIsAgentOnly(t *testing.T) {

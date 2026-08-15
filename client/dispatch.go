@@ -137,7 +137,7 @@ func Dispatch(ctx context.Context, opts DispatchOptions) *Dispatched {
 
 	return &Dispatched{
 		JobID:          response.JobID,
-		URL:            c.JobURL(response.JobID),
+		URL:            c.JobURL(response.JobID, response.ViewToken),
 		RepositorySlug: response.RepositorySlug,
 	}
 }

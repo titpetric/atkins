@@ -20,12 +20,18 @@
     </tr>
     {{range .Jobs}}
     <tr>
-      <th class="mono"><a href="/job/{{.ID}}">{{.Command}}</a></th>
+      <th class="mono"><a href="{{joblink .ID}}">{{.Command}}</a></th>
       <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
       <td class="muted">{{stamp .CreatedAt}}</td>
     </tr>
     {{end}}
   </table>
+  {{else if .Private}}
+  <p class="muted">
+    Job listings are private on this server. Open a job with the URL
+    <span class="mono">atkins</span> printed, or list your own over
+    <span class="mono">/api/job</span>.
+  </p>
   {{else}}
   <p class="muted">
     Nothing dispatched yet. Attach a machine with

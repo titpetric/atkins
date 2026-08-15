@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/pem"
+	"io"
 	"net/http"
 	"testing"
 
@@ -427,9 +428,39 @@ func TestJobPageRenders(t *testing.T) {
 	admin := register(t, url)
 
 	job := dispatch(t, url, admin.Token, "atkins test:build", "")
+	require.NotEmpty(t, job.ViewToken)
 
 	// The page atkins prints is readable without a session: pasting the
-	// URL into a browser has to just work.
+	// whole URL into a browser has to just work.
+	response, err := http.Get(url + "/job/" + job.JobID + "?t=" + job.ViewToken)
+	require.NoError(t, err)
+	defer response.Body.Close()
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+
+	// Without the token it does not, however good the ULID guess was.
+	response, err = http.Get(url + "/job/" + job.JobID)
+	require.NoError(t, err)
+	defer response.Body.Close()
+	assert.Equal(t, http.StatusForbidden, response.StatusCode)
+
+	response, err = http.Get(url + "/job/01ARZ3NDEKTSV4RRFFQ69G5FAV?t=" + job.ViewToken)
+	require.NoError(t, err)
+	defer response.Body.Close()
+	assert.Equal(t, http.StatusForbidden, response.StatusCode)
+}
+
+func TestJobPageOnAPublicInstance(t *testing.T) {
+	url := testServer(t)
+	admin := register(t, url)
+
+	setSetting(t, url, admin.Token, model.SettingJobVisibility, model.VisibilityPublic)
+
+	// A public instance issues no token: there is nothing for one to
+	// guard, and a secret in a URL that guards nothing is a habit worth
+	// not forming.
+	job := dispatch(t, url, admin.Token, "atkins test:build", "")
+	assert.Empty(t, job.ViewToken)
+
 	response, err := http.Get(url + "/job/" + job.JobID)
 	require.NoError(t, err)
 	defer response.Body.Close()
@@ -440,8 +471,29 @@ func TestJobPageRenders(t *testing.T) {
 	defer response.Body.Close()
 	assert.Equal(t, http.StatusNotFound, response.StatusCode)
 
+	// The index is the listing a public instance is for.
 	response, err = http.Get(url + "/")
 	require.NoError(t, err)
 	defer response.Body.Close()
 	assert.Equal(t, http.StatusOK, response.StatusCode)
+}
+
+func TestJobListingPageIsPrivateByDefault(t *testing.T) {
+	url := testServer(t)
+	admin := register(t, url)
+
+	dispatch(t, url, admin.Token, "atkins build", "")
+
+	// There is no token that could scope a listing and no session to
+	// scope it by, so a private instance lists nothing — while still
+	// answering, because this is the front door a health check probes.
+	response, err := http.Get(url + "/")
+	require.NoError(t, err)
+	defer response.Body.Close()
+	require.Equal(t, http.StatusOK, response.StatusCode)
+
+	body, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "atkins build")
+	assert.Contains(t, string(body), "private")
 }

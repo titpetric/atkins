@@ -38,7 +38,8 @@ type Module struct {
 	artefacts *storage.JobArtefactStorage
 	settings  *storage.SettingStorage
 
-	// reclaim is the background sweep of expired agent leases.
+	// cancel stops the background sweeps: expired agent leases, and
+	// retention. done waits for both.
 	cancel context.CancelFunc
 	done   sync.WaitGroup
 }
@@ -90,6 +91,14 @@ type Options struct {
 	// ReclaimInterval is how often expired leases are swept. Zero
 	// disables the sweep.
 	ReclaimInterval time.Duration
+
+	// RetentionInterval is how often job.retention and
+	// job.log_retention are applied. Zero disables the sweep. It is a
+	// start-up flag rather than a setting because it is a property of
+	// the machine — how much load it will take to keep the tables
+	// trimmed — while the windows themselves are policy an admin
+	// changes from the API.
+	RetentionInterval time.Duration
 }
 ```
 
@@ -183,7 +192,7 @@ func (*Module) Start(ctx context.Context) error
 
 ### Stop
 
-Stop halts the lease sweep and waits for it to finish.
+Stop halts the background sweeps and waits for them to finish.
 
 ```go
 func (*Module) Stop(context.Context) error

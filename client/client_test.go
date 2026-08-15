@@ -155,6 +155,7 @@ func TestDispatchAndJobURL(t *testing.T) {
 		RootID:         "01ARZ3NDEKTSV4RRFFQ69G5FAV",
 		RepositorySlug: "github.com/titpetric/atkins",
 		Status:         "pending",
+		ViewToken:      "abcdefghijklmnopqrstuv",
 	})
 
 	c := client.New(fake.URL)
@@ -168,7 +169,13 @@ func TestDispatchAndJobURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "01ARZ3NDEKTSV4RRFFQ69G5FAV", response.JobID)
 
-	assert.Equal(t, fake.URL+"/job/01ARZ3NDEKTSV4RRFFQ69G5FAV", c.JobURL(response.JobID))
+	// The URL atkins prints carries the view token the server issued,
+	// because the page it opens has no session to authenticate with.
+	assert.Equal(t, fake.URL+"/job/01ARZ3NDEKTSV4RRFFQ69G5FAV?t=abcdefghijklmnopqrstuv",
+		c.JobURL(response.JobID, response.ViewToken))
+
+	// A public server issues no token, and the plain URL is what opens.
+	assert.Equal(t, fake.URL+"/job/01ARZ3NDEKTSV4RRFFQ69G5FAV", c.JobURL(response.JobID, ""))
 
 	// The dispatch call carried the access token.
 	last := fake.requests[len(fake.requests)-1]

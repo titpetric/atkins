@@ -74,6 +74,11 @@ server:
   # How often expired leases are swept back out of `running`.
   reclaim_interval: 1m
 
+  # How often job.retention and job.log_retention are applied. The
+  # windows themselves are settings an admin changes at runtime; this
+  # is only how often the server goes looking.
+  retention_interval: 1h
+
 # Settings for `atkins worker`, the CI/CD agent.
 agent:
   # Identity in job leases. Empty means the hostname.

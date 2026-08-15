@@ -52,6 +52,14 @@ type Options struct {
 	// ReclaimInterval is how often expired leases are swept. Zero
 	// disables the sweep.
 	ReclaimInterval time.Duration
+
+	// RetentionInterval is how often job.retention and
+	// job.log_retention are applied. Zero disables the sweep. It is a
+	// start-up flag rather than a setting because it is a property of
+	// the machine — how much load it will take to keep the tables
+	// trimmed — while the windows themselves are policy an admin
+	// changes from the API.
+	RetentionInterval time.Duration
 }
 
 // Environment variable names, kept here because error messages point at
@@ -79,6 +87,7 @@ func FromConfig(cfg config.ServerConfig) *Options {
 		MaxJobDepth:       cfg.MaxJobDepth,
 		LeaseTTL:          cfg.LeaseTTL,
 		ReclaimInterval:   cfg.ReclaimInterval,
+		RetentionInterval: cfg.RetentionInterval,
 	}
 }
 

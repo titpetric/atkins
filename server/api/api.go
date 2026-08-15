@@ -10,6 +10,7 @@
 package api
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"time"
@@ -108,6 +109,68 @@ func (s *Handlers) registrationOpen() bool {
 		return true
 	}
 	return s.allowRegistration
+}
+
+// jobScope returns the user id job reads should be narrowed to, or an
+// empty string for a caller who may see every job.
+//
+// Admins see everything because that is what the flag is for, and
+// agents because a worker operates on the whole queue. Everyone else
+// sees their own jobs unless the instance has been made public, which
+// is the single-team mode the server started out in.
+func (s *Handlers) jobScope(user *model.User) string {
+	if user == nil {
+		return ""
+	}
+	if user.IsAdmin || user.IsAgent {
+		return ""
+	}
+	if s.settings != nil && s.settings.Get(model.SettingJobVisibility) == model.VisibilityPublic {
+		return ""
+	}
+	return user.ID
+}
+
+// readableJob loads a job the caller is allowed to read.
+//
+// A job the caller may not see is reported as missing rather than as
+// forbidden: "not yours" and "not here" should look the same, or the
+// endpoint tells a stranger which job IDs exist.
+func (s *Handlers) readableJob(r *http.Request, user *model.User, jobID string) (*model.Job, error) {
+	job, err := s.jobs.Get(r.Context(), jobID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, requestError(http.StatusNotFound, errJobNotFound)
+		}
+		return nil, err
+	}
+
+	scope := s.jobScope(user)
+	if scope == "" {
+		return job, nil
+	}
+
+	visible, err := s.jobs.VisibleTo(r.Context(), job, scope)
+	if err != nil {
+		return nil, err
+	}
+	if !visible {
+		return nil, requestError(http.StatusNotFound, errJobNotFound)
+	}
+
+	return job, nil
+}
+
+// errJobNotFound covers both "no such job" and "not yours".
+var errJobNotFound = errors.New("job not found")
+
+// viewToken returns the token that opens a job page without a session,
+// or an empty string on an instance whose pages are public anyway.
+func (s *Handlers) viewToken(jobID string) string {
+	if s.settings != nil && s.settings.Get(model.SettingJobVisibility) == model.VisibilityPublic {
+		return ""
+	}
+	return s.jwt.ViewToken(jobID)
 }
 
 // respond writes err as JSON, or does nothing when the handler already
