@@ -1,0 +1,104 @@
+package web
+
+// sshKeysView manages the deploy keys agents clone private repositories
+// with.
+//
+// It is handed api.SSHKeyView values, which have no private field at
+// all — the projection is the guard, not a rule about what this page
+// remembers not to print.
+templ sshKeysView(page *sshKeysPage) {
+	@layout("Deploy keys", 0) {
+		@navbar(page.Page)
+		<h2>Deploy keys</h2>
+		<p class="muted">
+			An agent clones public repositories anonymously; a private one needs a key.
+			The public half and the SHA256 fingerprint are derived on save, so a key
+			that does not parse is refused here rather than failing a job an hour later.
+			Private material is never shown on this page — only an enrolled agent
+			receives it.
+		</p>
+		<fieldset>
+			<legend>Add a key</legend>
+			<form method="post" action="/admin/ssh-key">
+				<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+				<label for="name">Name</label>
+				<input id="name" type="text" name="name" placeholder="github" required/>
+				<label for="host">Host</label>
+				<input id="host" type="text" name="host" placeholder="github.com — empty offers the key for any host"/>
+				<label for="private_key">Private key (PEM)</label>
+				<textarea
+					id="private_key"
+					name="private_key"
+					spellcheck="false"
+					required
+					placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+				></textarea>
+				<label for="known_hosts">Known hosts</label>
+				<textarea
+					id="known_hosts"
+					name="known_hosts"
+					spellcheck="false"
+					placeholder="pins the host keys the agent will accept; empty trusts on first use"
+				></textarea>
+				<p><button type="submit" class="primary">Add key</button></p>
+			</form>
+			<p class="muted">
+				The key must not be passphrase protected: an agent has nobody to ask.
+			</p>
+		</fieldset>
+		if len(page.Keys) > 0 {
+			<table>
+				<tr>
+					<th>Key</th>
+					<td>Fingerprint</td>
+					<td>State</td>
+					<td>Actions</td>
+				</tr>
+				for _, key := range page.Keys {
+					<tr>
+						<th>
+							{ key.Name }
+							<div class="muted mono">{ orDash(key.Host, "any host") }</div>
+							<div class="muted mono">{ key.PublicKey }</div>
+						</th>
+						<td class="mono">
+							{ key.Fingerprint }
+							<div class="muted">
+								if key.LastUsedAt != "" {
+									{ "last used " + key.LastUsedAt }
+								} else {
+									{ "never used" }
+								}
+							</div>
+						</td>
+						<td>
+							if key.IsActive {
+								<span class="badge badge-on">active</span>
+							} else {
+								<span class="badge badge-off">disabled</span>
+							}
+						</td>
+						<td>
+							<div class="actions">
+								<form method="post" action={ templ.URL("/admin/ssh-key/" + key.ID) } class="inline">
+									<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+									if key.IsActive {
+										<button type="submit" name="action" value="deactivate">Deactivate</button>
+									} else {
+										<button type="submit" name="action" value="activate">Activate</button>
+									}
+								</form>
+								<form method="post" action={ templ.URL("/admin/ssh-key/" + key.ID) } class="inline">
+									<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+									<button type="submit" name="action" value="remove">Remove</button>
+								</form>
+							</div>
+						</td>
+					</tr>
+				}
+			</table>
+		} else {
+			<p class="muted">No deploy keys. Agents clone over https or anonymous ssh.</p>
+		}
+	}
+}

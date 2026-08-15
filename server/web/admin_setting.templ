@@ -1,0 +1,70 @@
+package web
+
+import "github.com/titpetric/atkins/server/model"
+
+// settingsView renders the registry rather than a hand-written list, so
+// a setting added to model/setting.go appears here on its own.
+templ settingsView(page *settingsPage) {
+	@layout("Settings", 0) {
+		@navbar(page.Page)
+		<h2>Settings</h2>
+		<p class="muted">
+			Runtime configuration, changed without a restart. Every control below is
+			rendered from the registry in <span class="mono">model/setting.go</span> —
+			its kind, its default and its accepted values — so a new setting shows up
+			here on its own.
+		</p>
+		<table>
+			<tr>
+				<th>Setting</th>
+				<td>Value</td>
+				<td>Default</td>
+			</tr>
+			for _, setting := range page.Settings {
+				<tr>
+					<th class="mono">
+						{ setting.Name }
+						<div class="muted">{ setting.Description }</div>
+					</th>
+					<td>
+						<form method="post" action="/admin/setting">
+							<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+							<input type="hidden" name="name" value={ setting.Name }/>
+							switch setting.Kind {
+								case string(model.KindEnum):
+									<select name="value" aria-label={ setting.Name }>
+										for _, value := range setting.Values {
+											<option value={ value } selected?={ value == setting.Value }>{ value }</option>
+										}
+									</select>
+								case string(model.KindBool):
+									<select name="value" aria-label={ setting.Name }>
+										<option value="true" selected?={ setting.Value == "true" }>true</option>
+										<option value="false" selected?={ setting.Value != "true" }>false</option>
+									</select>
+								default:
+									<input type="text" name="value" value={ setting.Value } aria-label={ setting.Name }/>
+							}
+							<div class="actions">
+								<button type="submit" name="action" value="set" class="primary">Save</button>
+								if !setting.IsDefault {
+									<button type="submit" name="action" value="reset">Reset</button>
+								}
+							</div>
+						</form>
+					</td>
+					<td>
+						<span class="mono">{ setting.Default }</span>
+						<div>
+							if setting.IsDefault {
+								<span class="badge badge-off">default</span>
+							} else {
+								<span class="badge badge-on">overridden</span>
+							}
+						</div>
+					</td>
+				</tr>
+			}
+		</table>
+	}
+}

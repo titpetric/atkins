@@ -795,6 +795,10 @@ var (
 	// permitted to perform the action.
 	ErrForbidden = errors.New("insufficient permissions")
 
+	// ErrLastAdmin is returned when a flag change would leave the
+	// instance with no active admin, and therefore no way back in.
+	ErrLastAdmin = errors.New("refusing to remove the last active admin; promote someone else first")
+
 	// ErrInvalidAgentToken is returned when agent enrolment presents
 	// the wrong token, or the server has no enrolment token set.
 	ErrInvalidAgentToken = errors.New("invalid agent enrolment token")
@@ -807,6 +811,7 @@ var (
 - `func ArtefactPath (value string) string`
 - `func ArtefactPattern (value string) string`
 - `func ArtefactPatterns (value string) []string`
+- `func CleanWorkingDirectory (dir string) string`
 - `func JoinArtefactPatterns (patterns []string) string`
 - `func LookupSetting (name string) (SettingDefinition, bool)`
 - `func MatchArtefactPath (pattern,value string) bool`
@@ -1127,6 +1132,20 @@ filesystem.
 
 ```go
 func ArtefactPatterns(value string) []string
+```
+
+### CleanWorkingDirectory
+
+CleanWorkingDirectory normalizes a caller-supplied path into a clean
+path relative to the repository root.
+
+An agent will cd into this, so an absolute path or a `..` escape is
+dropped rather than stored: the value only ever means "somewhere
+inside this checkout". Every route that queues a job goes through
+here, because a guard on one of them is no guard at all.
+
+```go
+func CleanWorkingDirectory(dir string) string
 ```
 
 ### JoinArtefactPatterns

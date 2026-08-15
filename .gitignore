@@ -9,3 +9,7 @@ atkins
 *.cast
 *.log
 *.out
+
+# templ's literal side-files. The generated *_templ.go are committed, as
+# the mig-generated model is; these are a build artefact of them.
+*_templ.txt

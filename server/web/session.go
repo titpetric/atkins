@@ -239,10 +239,10 @@ func (h *Handlers) LoginForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.render(w, r, "login.html", &loginPage{
+	h.render(w, r, loginView(&loginPage{
 		Next:  safeNext(r.URL.Query().Get("next")),
 		Error: r.URL.Query().Get("error"),
-	})
+	}))
 }
 
 // loginPage is the view model for the login form.
@@ -272,10 +272,10 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		// Both failure modes are reported as one: the login page is
 		// reachable by anyone, and it should not answer "does this
 		// address have an account here".
-		h.render(w, r, "login.html", &loginPage{
+		h.render(w, r, loginView(&loginPage{
 			Next:  next,
 			Error: "That email and password do not match an account.",
-		})
+		}))
 		return
 	}
 

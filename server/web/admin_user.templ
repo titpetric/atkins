@@ -1,0 +1,110 @@
+package web
+
+// usersView toggles the three account flags.
+//
+// The last active admin's controls are disabled with the reason beside
+// them: the API refuses the change anyway, and a button that explains
+// itself before the click beats an error after it.
+templ usersView(page *usersPage) {
+	@layout("Users", 0) {
+		@navbar(page.Page)
+		<h2>Users</h2>
+		<p class="muted">
+			Three flags, because there are three things to decide.
+			<span class="mono">is_admin</span> opens these pages and
+			<span class="mono">/api/admin/*</span>;
+			<span class="mono">is_agent</span> may claim work and read deploy keys;
+			<span class="mono">is_active</span> gates every authenticated call at all.
+		</p>
+		<table>
+			<tr>
+				<th>Account</th>
+				<td>Admin</td>
+				<td>Active</td>
+				<td>Agent</td>
+			</tr>
+			for _, user := range page.Users {
+				<tr>
+					<th>
+						{ user.Username }
+						<div class="muted">
+							{ user.Email }
+							if user.FullName != "" {
+								{ " · " }
+								{ user.FullName }
+							}
+						</div>
+						if user.IsLastAdmin {
+							<div class="muted">
+								the last active admin — demoting or deactivating it would lock
+								everyone out, so both are refused
+							</div>
+						}
+					</th>
+					<td>
+						<form method="post" action={ templ.URL("/admin/user/" + user.ID) } class="inline">
+							<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+							<input type="hidden" name="field" value="admin"/>
+							<input type="hidden" name="value" value={ flip(user.IsAdmin) }/>
+							<button
+								type="submit"
+								disabled?={ user.IsLastAdmin }
+								if user.IsLastAdmin {
+									title="the last active admin cannot be demoted"
+								}
+							>
+								if user.IsAdmin {
+									{ "yes — revoke" }
+								} else {
+									{ "no — grant" }
+								}
+							</button>
+						</form>
+					</td>
+					<td>
+						<form method="post" action={ templ.URL("/admin/user/" + user.ID) } class="inline">
+							<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+							<input type="hidden" name="field" value="active"/>
+							<input type="hidden" name="value" value={ flip(user.IsActive) }/>
+							<button
+								type="submit"
+								disabled?={ user.IsLastAdmin }
+								if user.IsLastAdmin {
+									title="the last active admin cannot be deactivated"
+								}
+							>
+								if user.IsActive {
+									{ "yes — deactivate" }
+								} else {
+									{ "no — activate" }
+								}
+							</button>
+						</form>
+					</td>
+					<td>
+						<form method="post" action={ templ.URL("/admin/user/" + user.ID) } class="inline">
+							<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+							<input type="hidden" name="field" value="agent"/>
+							<input type="hidden" name="value" value={ flip(user.IsAgent) }/>
+							<button type="submit">
+								if user.IsAgent {
+									{ "yes — revoke" }
+								} else {
+									{ "no — grant" }
+								}
+							</button>
+						</form>
+					</td>
+				</tr>
+			}
+		</table>
+	}
+}
+
+// flip is the value a toggle posts: the opposite of what is set now.
+func flip(current bool) string {
+	if current {
+		return "false"
+	}
+	return "true"
+}

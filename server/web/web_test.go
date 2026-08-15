@@ -5,27 +5,47 @@ import (
 	"testing"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/titpetric/atkins/server/model"
 )
 
-func TestTemplatesParse(t *testing.T) {
-	// A template that doesn't parse would only surface when somebody
-	// opened the URL atkins had already printed.
-	handlers, err := NewHandlers(Options{})
-	require.NoError(t, err)
+// render runs a component the way a handler does and returns the page.
+//
+// Components are plain functions, so a render test needs no Handlers
+// and no storage — which is most of what the templ port bought.
+func render(t *testing.T, page templ.Component) string {
+	t.Helper()
 
-	for _, name := range []string{"index.html", "job.html", "error.html", "login.html"} {
-		assert.NotNil(t, handlers.templates.Lookup(name), name)
+	var out strings.Builder
+	require.NoError(t, page.Render(t.Context(), &out))
+
+	return out.String()
+}
+
+func TestPagesRender(t *testing.T) {
+	// A page that cannot render is now a compile error rather than a
+	// start-up one, so what is left to check is that each one produces
+	// a document at all.
+	pages := map[string]templ.Component{
+		"index": indexView(IndexPage{}, Links{}),
+		"job":   jobView(&JobPage{Job: &model.Job{ID: "job-1"}}, Links{}),
+		"error": errorView(404, "no such job"),
+		"login": loginView(&loginPage{}),
+	}
+
+	for name, page := range pages {
+		t.Run(name, func(t *testing.T) {
+			rendered := render(t, page)
+			assert.Contains(t, rendered, "<!doctype html>")
+			assert.Contains(t, rendered, "</html>")
+		})
 	}
 }
 
 func TestJobPageRendersEveryStatus(t *testing.T) {
-	handlers, err := NewHandlers(Options{})
-	require.NoError(t, err)
-
 	started := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	finished := started.Add(90 * time.Second)
 
@@ -47,15 +67,12 @@ func TestJobPageRendersEveryStatus(t *testing.T) {
 			job.SetStartedAt(started)
 			job.SetFinishedAt(finished)
 
-			var out strings.Builder
-			err := handlers.templates.ExecuteTemplate(&out, "job.html", &JobPage{
+			rendered := render(t, jobView(&JobPage{
 				Job:        job,
 				Repository: &model.Repository{Slug: "github.com/titpetric/atkins"},
 				Log:        []model.JobLog{{Content: "hello\n"}},
-			})
-			require.NoError(t, err)
+			}, Links{}))
 
-			rendered := out.String()
 			assert.Contains(t, rendered, "badge-"+status)
 			assert.Contains(t, rendered, "atkins test:build")
 			assert.Contains(t, rendered, "github.com/titpetric/atkins")
@@ -65,32 +82,23 @@ func TestJobPageRendersEveryStatus(t *testing.T) {
 }
 
 func TestJobPageEscapesOutput(t *testing.T) {
-	handlers, err := NewHandlers(Options{})
-	require.NoError(t, err)
-
 	job := &model.Job{ID: "job-1", Status: model.JobStatusFailed, Command: "atkins"}
 
-	var out strings.Builder
-	err = handlers.templates.ExecuteTemplate(&out, "job.html", &JobPage{
+	rendered := render(t, jobView(&JobPage{
 		Job: job,
 		Log: []model.JobLog{{Content: "<script>alert(1)</script>"}},
-	})
-	require.NoError(t, err)
+	}, Links{}))
 
 	// Job output is whatever a build printed, and it is rendered into a
 	// page anyone with the URL can open.
-	assert.NotContains(t, out.String(), "<script>alert(1)</script>")
-	assert.Contains(t, out.String(), "&lt;script&gt;")
+	assert.NotContains(t, rendered, "<script>alert(1)</script>")
+	assert.Contains(t, rendered, "&lt;script&gt;")
 }
 
 func TestJobPageListsArtefacts(t *testing.T) {
-	handlers, err := NewHandlers(Options{})
-	require.NoError(t, err)
-
 	job := &model.Job{ID: "01ARZ3NDEKTSV4RRFFQ69G5FAV", Status: model.JobStatusPassed, Command: "atkins scan"}
 
-	var out strings.Builder
-	err = handlers.templates.ExecuteTemplate(&out, "job.html", &JobPage{
+	rendered := render(t, jobView(&JobPage{
 		Job: job,
 		Artefacts: []model.JobArtefact{{
 			ID:          "01J000000000000000000ART1",
@@ -99,10 +107,8 @@ func TestJobPageListsArtefacts(t *testing.T) {
 			Size:        2048,
 			ContentType: "application/json",
 		}},
-	})
-	require.NoError(t, err)
+	}, Links{}))
 
-	rendered := out.String()
 	assert.Contains(t, rendered, "reports/scan.json")
 	assert.Contains(t, rendered, "2.0 KB")
 	// The link a browser can follow: no bearer token to offer, so it

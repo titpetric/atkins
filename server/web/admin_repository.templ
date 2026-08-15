@@ -1,0 +1,79 @@
+package web
+
+// repositoriesView lists what the server has seen and offers a trigger
+// for each repository the policy admits.
+templ repositoriesView(page *repositoriesPage, links Links) {
+	@layout("Repositories", 0) {
+		@navbar(page.Page)
+		<h2>Repositories</h2>
+		<p class="muted">
+			What the server has seen, newest first. A repository appears here the
+			first time somebody dispatches from it; nothing has to be registered.
+			Policy in force: <span class="mono">{ page.Policy }</span>.
+		</p>
+		if len(page.Repositories) > 0 {
+			<table>
+				<tr>
+					<th>Repository</th>
+					<td>Last job</td>
+					<td>Trigger</td>
+				</tr>
+				for _, repository := range page.Repositories {
+					<tr>
+						<th class="mono">
+							{ repository.Slug }
+							<div class="muted">{ repository.RemoteURL }</div>
+							if !repository.Allowed {
+								<div class="muted">not on the allowlist</div>
+							}
+						</th>
+						<td>
+							if repository.LastJob != nil {
+								<a href={ templ.URL(links.Job(repository.LastJob.ID)) } class="mono">{ repository.LastJob.Command }</a>
+								<div>
+									<span class={ "badge", "badge-" + repository.LastJob.Status }>{ repository.LastJob.Status }</span>
+									<span class="muted">{ stamp(repository.LastJob.CreatedAt) }</span>
+								</div>
+							} else {
+								<span class="muted">never built</span>
+							}
+						</td>
+						<td>
+							if repository.Allowed {
+								<form method="post" action={ templ.URL("/admin/repository/" + repository.ID + "/trigger") }>
+									<input type="hidden" name="csrf_token" value={ page.CSRF }/>
+									<input type="text" name="job" placeholder="job name, e.g. test:simple" required/>
+									<input type="text" name="ref" placeholder={ refPlaceholder(repository.DefaultBranch) }/>
+									<input type="text" name="working_directory" placeholder="directory inside the repository (default: the root)"/>
+									<p><button type="submit" class="primary">Trigger</button></p>
+								</form>
+							} else {
+								<span class="muted">the allowlist refuses this repository</span>
+							}
+						</td>
+					</tr>
+				}
+			</table>
+		} else {
+			<p class="muted">
+				Nothing dispatched yet. Attach a machine with
+				<span class="mono">atkins --login</span> and run <span class="mono">atkins</span>
+				inside a git repository.
+			</p>
+		}
+		<p class="muted">
+			A trigger queues <span class="mono">atkins &lt;job&gt;</span> against the
+			repository as the remote has it — the same thing
+			<span class="mono">POST /api/repository/{ "{id}" }/trigger</span> does for a cron
+			or a webhook receiver.
+		</p>
+	}
+}
+
+// refPlaceholder names what an empty ref field will do.
+func refPlaceholder(defaultBranch string) string {
+	if defaultBranch == "" {
+		return "ref: branch, tag or commit (default: the repository default)"
+	}
+	return "ref: branch, tag or commit (default: " + defaultBranch + ")"
+}

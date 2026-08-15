@@ -115,11 +115,11 @@ func (h *Handlers) Repositories(w http.ResponseWriter, r *http.Request, current 
 		rows = append(rows, row)
 	}
 
-	h.render(w, r, "admin_repository.html", &repositoriesPage{
+	h.render(w, r, repositoriesView(&repositoriesPage{
 		Page:         h.page(r, current, sectionRepositories),
 		Policy:       policy,
 		Repositories: rows,
-	})
+	}, h.links()))
 }
 
 // TriggerRepository queues a job against a known repository.
@@ -182,7 +182,7 @@ func (h *Handlers) TriggerRepository(w http.ResponseWriter, r *http.Request, cur
 	// the button is to watch it run. The link has to carry the view
 	// token, or a private instance refuses the operator the page for
 	// the job they just started.
-	http.Redirect(w, r, h.jobLink(job.ID), http.StatusSeeOther)
+	http.Redirect(w, r, h.links().Job(job.ID), http.StatusSeeOther)
 }
 
 // allowlistPage shows the policy and the rules that qualify it.
@@ -213,12 +213,12 @@ func (h *Handlers) Allowlist(w http.ResponseWriter, r *http.Request, current *se
 		}
 	}
 
-	h.render(w, r, "admin_allowlist.html", &allowlistPage{
+	h.render(w, r, allowlistView(&allowlistPage{
 		Page:        h.page(r, current, sectionAllowlist),
 		Policy:      h.settings.Get(model.SettingRepositoryPolicy),
 		Rules:       rules,
 		ActiveRules: active,
-	})
+	}))
 }
 
 // CreateRule adds an allowlist rule.
@@ -303,10 +303,10 @@ func (h *Handlers) Settings(w http.ResponseWriter, r *http.Request, current *ses
 		})
 	}
 
-	h.render(w, r, "admin_setting.html", &settingsPage{
+	h.render(w, r, settingsView(&settingsPage{
 		Page:     h.page(r, current, sectionSettings),
 		Settings: rows,
-	})
+	}))
 }
 
 // UpdateSetting overrides or resets one setting.
@@ -372,10 +372,10 @@ func (h *Handlers) Users(w http.ResponseWriter, r *http.Request, current *sessio
 		})
 	}
 
-	h.render(w, r, "admin_user.html", &usersPage{
+	h.render(w, r, usersView(&usersPage{
 		Page:  h.page(r, current, sectionUsers),
 		Users: rows,
-	})
+	}))
 }
 
 // UpdateUser toggles one flag on one account.
@@ -435,12 +435,12 @@ func (h *Handlers) SSHKeys(w http.ResponseWriter, r *http.Request, current *sess
 		return
 	}
 
-	h.render(w, r, "admin_ssh_key.html", &sshKeysPage{
+	h.render(w, r, sshKeysView(&sshKeysPage{
 		Page: h.page(r, current, sectionKeys),
 		// api.SSHKeyView carries no private key at all, so no template
 		// can render one however it is written.
 		Keys: api.SSHKeyViews(keys),
-	})
+	}))
 }
 
 // CreateSSHKey stores a deploy key.

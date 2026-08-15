@@ -449,6 +449,9 @@ const HeaderArtefactChecksum = "X-Atkins-Checksum"
 ## Function symbols
 
 - `func NewHandlers (opts Options) *Handlers`
+- `func NewSSHKeyView (key model.SSHKey) SSHKeyView`
+- `func NewUserView (user *model.User) UserView`
+- `func SSHKeyViews (keys []model.SSHKey) []SSHKeyView`
 - `func WriteArtefact (w http.ResponseWriter, artefact *model.JobArtefact, contents io.Reader)`
 - `func (*Handlers) AgentPolicy (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) AgentSSHKeys (w http.ResponseWriter, r *http.Request)`
@@ -500,6 +503,38 @@ NewHandlers returns Handlers configured from opts.
 
 ```go
 func NewHandlers(opts Options) *Handlers
+```
+
+### NewSSHKeyView
+
+NewSSHKeyView projects a stored key onto the operator-facing view.
+
+It is exported so the admin pages project keys the same way the API
+does. The projection is the guard against disclosing private
+material, so there must be exactly one of it.
+
+```go
+func NewSSHKeyView(key model.SSHKey) SSHKeyView
+```
+
+### NewUserView
+
+NewUserView projects a stored user.
+
+Exported so the admin pages describe an account the same way the API
+does, and so a page can no more render a password hash than a
+response can.
+
+```go
+func NewUserView(user *model.User) UserView
+```
+
+### SSHKeyViews
+
+SSHKeyViews projects a listing.
+
+```go
+func SSHKeyViews(keys []model.SSHKey) []SSHKeyView
 ```
 
 ### WriteArtefact
