@@ -150,12 +150,6 @@ type Job struct {
 	// Command
 	Command string `db:"command" json:"command"`
 
-	// Branch
-	Branch string `db:"branch" json:"branch"`
-
-	// Revision
-	Revision string `db:"revision" json:"revision"`
-
 	// Labels
 	Labels string `db:"labels" json:"labels"`
 
@@ -188,6 +182,15 @@ type Job struct {
 
 	// Updated At
 	UpdatedAt *time.Time `db:"updated_at" json:"updated_at"`
+
+	// Ref
+	Ref string `db:"ref" json:"ref"`
+
+	// Commit Sha
+	CommitSha string `db:"commit_sha" json:"commit_sha"`
+
+	// Clone Depth
+	CloneDepth int64 `db:"clone_depth" json:"clone_depth"`
 }
 
 // GetID will return the value of ID.
@@ -237,18 +240,6 @@ func (j *Job) GetCommand() string { return j.Command }
 
 // SetCommand sets Command to the provided value.
 func (j *Job) SetCommand(val string) { j.Command = val }
-
-// GetBranch will return the value of Branch.
-func (j *Job) GetBranch() string { return j.Branch }
-
-// SetBranch sets Branch to the provided value.
-func (j *Job) SetBranch(val string) { j.Branch = val }
-
-// GetRevision will return the value of Revision.
-func (j *Job) GetRevision() string { return j.Revision }
-
-// SetRevision sets Revision to the provided value.
-func (j *Job) SetRevision(val string) { j.Revision = val }
 
 // GetLabels will return the value of Labels.
 func (j *Job) GetLabels() string { return j.Labels }
@@ -316,11 +307,29 @@ func (j *Job) GetUpdatedAt() *time.Time { return j.UpdatedAt }
 // SetUpdatedAt sets UpdatedAt to the provided value.
 func (j *Job) SetUpdatedAt(stamp time.Time) { j.UpdatedAt = &stamp }
 
+// GetRef will return the value of Ref.
+func (j *Job) GetRef() string { return j.Ref }
+
+// SetRef sets Ref to the provided value.
+func (j *Job) SetRef(val string) { j.Ref = val }
+
+// GetCommitSha will return the value of CommitSha.
+func (j *Job) GetCommitSha() string { return j.CommitSha }
+
+// SetCommitSha sets CommitSha to the provided value.
+func (j *Job) SetCommitSha(val string) { j.CommitSha = val }
+
+// GetCloneDepth will return the value of CloneDepth.
+func (j *Job) GetCloneDepth() int64 { return j.CloneDepth }
+
+// SetCloneDepth sets CloneDepth to the provided value.
+func (j *Job) SetCloneDepth(val int64) { j.CloneDepth = val }
+
 // JobTable is the name of the table in the DB.
 const JobTable = "`job`"
 
 // JobFields is a list of all columns in the DB table.
-var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "branch", "revision", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at"}
+var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "ref", "commit_sha", "clone_depth"}
 
 // JobPrimaryFields are the primary key fields in the DB table.
 var JobPrimaryFields = []string{"id"}

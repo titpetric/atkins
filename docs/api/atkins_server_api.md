@@ -80,6 +80,10 @@ type DispatchRequest struct {
 
 	// Params is an arbitrary JSON object handed to the job.
 	Params map[string]any `json:"params"`
+
+	// CloneDepth limits the history of the work tree the agent builds.
+	// 0, the default, is the whole history.
+	CloneDepth int64 `json:"clone_depth"`
 }
 ```
 
@@ -135,6 +139,21 @@ type Handlers struct {
 	rules        *storage.RepositoryRuleStorage
 	settings     *storage.SettingStorage
 	sshKeys      *storage.SSHKeyStorage
+}
+```
+
+```go
+// JobCheckoutRequest is the body of /api/job/{jobID}/checkout.
+// It is the agent answering the question the job asked. A job may name a
+// tag, and a tag moves; without the commit that tag pointed at, a run
+// cannot be reproduced once it has.
+type JobCheckoutRequest struct {
+	// Ref is the effective ref, which is the one the job named unless
+	// it named none and the agent resolved the default branch.
+	Ref string `json:"ref"`
+
+	// CommitSHA is the commit the work tree was placed at.
+	CommitSHA string `json:"commit_sha"`
 }
 ```
 
@@ -248,10 +267,22 @@ type RegisterRequest struct {
 ```go
 // RepositoryPayload is the git detail a client reports about its checkout.
 type RepositoryPayload struct {
-	RemoteURL     string `json:"remote_url"`
-	Branch        string `json:"branch"`
-	Revision      string `json:"revision"`
+	RemoteURL string `json:"remote_url"`
+
+	// Ref is what to check out: a branch, a tag, a commit sha or a
+	// fully qualified refname. The atkins client sends the commit it is
+	// on, so a dispatched run builds the code in front of whoever
+	// started it.
+	Ref string `json:"ref"`
+
+	// DefaultBranch is what the agent falls back to when Ref is empty.
 	DefaultBranch string `json:"default_branch"`
+
+	// Branch and Revision are the pre-ref spelling of Ref, kept so a
+	// client or a script written against the earlier API keeps working.
+	// Deprecated: send Ref.
+	Branch   string `json:"branch,omitempty"`
+	Revision string `json:"revision,omitempty"`
 }
 ```
 
@@ -307,9 +338,19 @@ type TriggerRequest struct {
 	// WorkingDirectory is relative to the repository root.
 	WorkingDirectory string `json:"working_directory"`
 
-	// Branch and Revision pin what gets checked out. Empty lets the
-	// agent fall back to the repository's default branch, which is
-	// what a "run this nightly" trigger wants.
+	// Ref pins what gets checked out: a branch, a tag, a commit sha or
+	// a fully qualified refname. Empty lets the agent resolve the
+	// repository's default branch when the job runs, which is what a
+	// "run this nightly" trigger wants.
+	Ref string `json:"ref"`
+
+	// CloneDepth limits the history of the work tree. 0 is all of it.
+	// A fan-out over tags usually wants 1: each child builds one commit
+	// and never looks behind it.
+	CloneDepth int64 `json:"clone_depth"`
+
+	// Branch and Revision are the pre-ref spelling of Ref.
+	// Deprecated: send Ref.
 	Branch   string `json:"branch"`
 	Revision string `json:"revision"`
 
@@ -374,6 +415,7 @@ const DefaultTokenTTL = time.Hour
 - `func (*Handlers) Enrol (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) GetJob (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) GetJobLog (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) JobCheckout (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) JobHeartbeat (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) JobStatus (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) ListJobs (w http.ResponseWriter, r *http.Request)`
@@ -399,6 +441,7 @@ const DefaultTokenTTL = time.Hour
 - `func (*Handlers) Whoami (w http.ResponseWriter, r *http.Request)`
 - `func (*RequestError) Error () string`
 - `func (*RequestError) Unwrap () error`
+- `func (RepositoryPayload) CheckoutRef () string`
 
 ### NewHandlers
 
@@ -518,6 +561,14 @@ GetJobLog returns the recorded output for a job.
 
 ```go
 func (*Handlers) GetJobLog(w http.ResponseWriter, r *http.Request)
+```
+
+### JobCheckout
+
+JobCheckout records what an agent checked out for a job.
+
+```go
+func (*Handlers) JobCheckout(w http.ResponseWriter, r *http.Request)
 ```
 
 ### JobHeartbeat
@@ -730,4 +781,14 @@ Unwrap exposes the wrapped error to errors.Is/As.
 
 ```go
 func (*RequestError) Unwrap() error
+```
+
+### CheckoutRef
+
+CheckoutRef folds the deprecated branch and revision fields into the
+single ref a job records. The more specific of the two wins: a
+revision names one commit, a branch names wherever it has got to.
+
+```go
+func (RepositoryPayload) CheckoutRef() string
 ```

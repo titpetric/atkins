@@ -20,6 +20,22 @@ its own work tree under <DataDir>/work.
 ## Types
 
 ```go
+// Checkout records what the agent actually put in the work tree.
+// Ref is the effective ref: the one the job named, or the default branch
+// resolved for a job that named nothing. CommitSHA is what that ref
+// pointed at when the job ran — a tag moves, so a run recorded as
+// "v1.2.3" alone cannot be reproduced later.
+type Checkout struct {
+	Ref       string
+	CommitSHA string
+
+	// Branch is set when Ref named a branch and empty for a tag or a
+	// bare commit. A job reads it as ATKINS_BRANCH.
+	Branch string
+}
+```
+
+```go
 // Options configures an agent.
 // Values come from .atkins/config.yml with the ATKINS_* overlay already
 // applied; see FromConfig. The struct stays plain so a caller embedding
@@ -99,6 +115,9 @@ type Workspace struct {
 	// Dir is the directory the command runs in: Root joined with the
 	// job's working directory.
 	Dir string
+
+	// Checkout is what the work tree ended up at.
+	Checkout Checkout
 }
 ```
 

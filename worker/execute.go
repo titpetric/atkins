@@ -95,11 +95,21 @@ func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
 			"ATKINS_REMOTE_URL="+job.Repository.RemoteURL,
 		)
 	}
-	if job.Job.Revision != "" {
-		env = append(env, "ATKINS_REVISION="+job.Job.Revision)
+	// The checkout the agent produced, not the one the job asked for.
+	// ATKINS_REVISION stays the name it has always had and now always
+	// holds a resolved sha, so a pipeline reading it can pin an artefact
+	// to a commit even when the job named a branch or a moving tag.
+	if workspace.Checkout.Ref != "" {
+		env = append(env, "ATKINS_REF="+workspace.Checkout.Ref)
 	}
-	if job.Job.Branch != "" {
-		env = append(env, "ATKINS_BRANCH="+job.Job.Branch)
+	if sha := workspace.Checkout.CommitSHA; sha != "" {
+		env = append(env,
+			"ATKINS_COMMIT_SHA="+sha,
+			"ATKINS_REVISION="+sha,
+		)
+	}
+	if workspace.Checkout.Branch != "" {
+		env = append(env, "ATKINS_BRANCH="+workspace.Checkout.Branch)
 	}
 
 	return env

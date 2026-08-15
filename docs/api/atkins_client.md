@@ -183,11 +183,21 @@ type Job struct {
 	RepositoryID     string `json:"repository_id"`
 	WorkingDirectory string `json:"working_directory"`
 	Command          string `json:"command"`
-	Branch           string `json:"branch"`
-	Revision         string `json:"revision"`
+	Ref              string `json:"ref"`
+	CommitSHA        string `json:"commit_sha"`
+	CloneDepth       int64  `json:"clone_depth"`
 	Labels           string `json:"labels"`
 	Params           string `json:"params"`
 	Status           string `json:"status"`
+}
+```
+
+```go
+// JobCheckoutRequest is the body of POST /api/job/{jobID}/checkout: what
+// the agent actually put in the work tree.
+type JobCheckoutRequest struct {
+	Ref       string `json:"ref"`
+	CommitSHA string `json:"commit_sha"`
 }
 ```
 
@@ -272,10 +282,14 @@ type Repository struct {
 
 ```go
 // RepositoryPayload describes the checkout a run happens in.
+// Ref is what the agent checks out: a branch, a tag, a commit sha or a
+// fully qualified refname. The client fills it with the commit it is
+// sitting on, because a run dispatched from a laptop should build that
+// commit rather than whatever the branch has moved to by the time an
+// agent picks the job up.
 type RepositoryPayload struct {
 	RemoteURL     string `json:"remote_url"`
-	Branch        string `json:"branch"`
-	Revision      string `json:"revision"`
+	Ref           string `json:"ref,omitempty"`
 	DefaultBranch string `json:"default_branch"`
 }
 ```
@@ -453,6 +467,7 @@ var UserAgent = "atkins"
 - `func (*Client) Policy (ctx context.Context) (*PolicyResponse, error)`
 - `func (*Client) Refresh (ctx context.Context) error`
 - `func (*Client) Register (ctx context.Context, req RegisterRequest) (*Credential, error)`
+- `func (*Client) ReportCheckout (ctx context.Context, jobID string, req JobCheckoutRequest) error`
 - `func (*Client) ReportStatus (ctx context.Context, jobID string, req JobStatusRequest) error`
 - `func (*Client) SSHKeys (ctx context.Context) ([]AgentSSHKey, error)`
 - `func (*Client) Server () string`
@@ -667,6 +682,11 @@ func (*APIError) Error() string
 
 Payload converts the checkout into a dispatch payload.
 
+The ref is the commit rather than the branch. A dispatched run belongs
+to the code in front of the person who started it, and a branch name
+would let the agent build whatever that branch has moved to by the
+time the job is claimed.
+
 ```go
 func (*Checkout) Payload() RepositoryPayload
 ```
@@ -769,6 +789,14 @@ Register creates an account and stores the credential it returns.
 
 ```go
 func (*Client) Register(ctx context.Context, req RegisterRequest) (*Credential, error)
+```
+
+### ReportCheckout
+
+ReportCheckout records the ref and commit an agent checked out.
+
+```go
+func (*Client) ReportCheckout(ctx context.Context, jobID string, req JobCheckoutRequest) error
 ```
 
 ### ReportStatus

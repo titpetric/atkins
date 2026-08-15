@@ -46,7 +46,8 @@ func TestTriggerAcceptsAnExplicitCommand(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/repository/"+seed.RepositoryID+"/trigger", admin.Token, map[string]any{
 		"command":           "atkins -f ci/nightly.yml build",
 		"working_directory": "server",
-		"revision":          "0123456789abcdef",
+		"ref":               "refs/tags/v1.2.3",
+		"clone_depth":       1,
 	}, &triggered)
 	require.Equal(t, http.StatusCreated, status)
 
@@ -55,7 +56,60 @@ func TestTriggerAcceptsAnExplicitCommand(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "atkins -f ci/nightly.yml build", job["command"])
 	assert.Equal(t, "server", job["working_directory"])
-	assert.Equal(t, "0123456789abcdef", job["revision"])
+	assert.Equal(t, "refs/tags/v1.2.3", job["ref"])
+	assert.Equal(t, float64(1), job["clone_depth"])
+}
+
+func TestTriggerAcceptsATag(t *testing.T) {
+	url := testServer(t)
+	admin := register(t, url)
+	seed := dispatch(t, url, admin.Token, "atkins", "")
+
+	// The point of the ref field: a tag says it is a tag rather than
+	// travelling in the branch field and working by accident.
+	var triggered dispatchResponse
+	status := call(t, http.MethodPost, url+"/api/repository/"+seed.RepositoryID+"/trigger", admin.Token, map[string]any{
+		"job": "analyzeTag",
+		"ref": "v1.2.3",
+	}, &triggered)
+	require.Equal(t, http.StatusCreated, status)
+
+	var job map[string]any
+	status = call(t, http.MethodGet, url+"/api/job/"+triggered.JobID, admin.Token, nil, &job)
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, "v1.2.3", job["ref"])
+	assert.Empty(t, job["commit_sha"])
+}
+
+func TestTriggerFoldsTheDeprecatedFields(t *testing.T) {
+	url := testServer(t)
+	admin := register(t, url)
+	seed := dispatch(t, url, admin.Token, "atkins", "")
+
+	// A trigger script written against the earlier API keeps working:
+	// branch and revision fold into ref, with the revision winning as
+	// the more specific of the two.
+	for _, testcase := range []struct {
+		name    string
+		payload map[string]any
+		ref     string
+	}{
+		{"branch only", map[string]any{"job": "build", "branch": "main"}, "main"},
+		{"revision only", map[string]any{"job": "build", "revision": "0123456789abcdef"}, "0123456789abcdef"},
+		{"both", map[string]any{"job": "build", "branch": "main", "revision": "0123456789abcdef"}, "0123456789abcdef"},
+		{"neither", map[string]any{"job": "build"}, ""},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			var triggered dispatchResponse
+			status := call(t, http.MethodPost, url+"/api/repository/"+seed.RepositoryID+"/trigger", admin.Token, testcase.payload, &triggered)
+			require.Equal(t, http.StatusCreated, status)
+
+			var job map[string]any
+			status = call(t, http.MethodGet, url+"/api/job/"+triggered.JobID, admin.Token, nil, &job)
+			require.Equal(t, http.StatusOK, status)
+			assert.Equal(t, testcase.ref, job["ref"])
+		})
+	}
 }
 
 func TestTriggerNestsUnderADispatchingJob(t *testing.T) {

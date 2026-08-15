@@ -39,14 +39,6 @@
       type: text
       comment: Command
       datatype: varchar
-    - name: branch
-      type: text
-      comment: Branch
-      datatype: varchar
-    - name: revision
-      type: text
-      comment: Revision
-      datatype: varchar
     - name: labels
       type: text
       comment: Labels
@@ -103,12 +95,29 @@
       type: timestamp
       comment: Updated At
       datatype: datetime
+    - name: ref
+      type: text
+      comment: Ref
+      datatype: varchar
+    - name: commit_sha
+      type: text
+      key: MUL
+      comment: Commit Sha
+      datatype: varchar
+    - name: clone_depth
+      type: integer
+      comment: Clone Depth
+      datatype: bigint
+      size: 8
   indexes:
     - name: sqlite_autoindex_job_1
       columns:
         - id
       primary: true
       unique: true
+    - name: idx_job_commit_sha
+      columns:
+        - commit_sha
     - name: idx_job_lease_expires_at
       columns:
         - lease_expires_at

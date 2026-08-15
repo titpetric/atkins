@@ -184,6 +184,11 @@ func (c *Client) Claim(ctx context.Context, agentID string, labels []string) (*C
 	return &response, nil
 }
 
+// ReportCheckout records the ref and commit an agent checked out.
+func (c *Client) ReportCheckout(ctx context.Context, jobID string, req JobCheckoutRequest) error {
+	return c.do(ctx, http.MethodPost, "/api/job/"+jobID+"/checkout", req, nil, true)
+}
+
 // Heartbeat extends this agent's lease on a job.
 func (c *Client) Heartbeat(ctx context.Context, jobID, agentID string) error {
 	return c.do(ctx, http.MethodPost, "/api/job/"+jobID+"/heartbeat", ClaimRequest{AgentID: agentID}, nil, true)

@@ -30,12 +30,16 @@
       <td class="mono">{{if .Job.WorkingDirectory}}{{.Job.WorkingDirectory}}{{else}}.{{end}}</td>
     </tr>
     <tr>
-      <th>Branch</th>
-      <td class="mono">{{if .Job.Branch}}{{.Job.Branch}}{{else}}—{{end}}</td>
+      <th>Ref</th>
+      <td class="mono">{{if .Job.Ref}}{{.Job.Ref}}{{else}}default branch{{end}}</td>
     </tr>
     <tr>
-      <th>Revision</th>
-      <td class="mono">{{if .Job.Revision}}{{.Job.Revision}}{{else}}—{{end}}</td>
+      <th>Commit</th>
+      <td class="mono">{{if .Job.CommitSha}}{{.Job.CommitSha}}{{else}}—{{end}}</td>
+    </tr>
+    <tr>
+      <th>Clone depth</th>
+      <td class="mono">{{if .Job.CloneDepth}}{{.Job.CloneDepth}}{{else}}full history{{end}}</td>
     </tr>
     <tr>
       <th>Labels</th>

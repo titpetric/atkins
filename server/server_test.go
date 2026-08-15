@@ -146,8 +146,7 @@ func dispatch(t *testing.T, url, token, command, parentID string) dispatchRespon
 	status := call(t, http.MethodPost, url+"/api/dispatch", token, map[string]any{
 		"repository": map[string]string{
 			"remote_url": "git@github.com:titpetric/atkins.git",
-			"branch":     "main",
-			"revision":   "0123456789abcdef",
+			"ref":        "0123456789abcdef",
 		},
 		"working_directory": "docs",
 		"command":           command,
@@ -381,6 +380,65 @@ func TestClaimLeasesOnePendingJob(t *testing.T) {
 		"agent_id": "agent-2",
 	}, nil)
 	assert.Equal(t, http.StatusNoContent, status)
+}
+
+func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
+	url := testServer(t)
+	token := register(t, url)
+
+	var triggered dispatchResponse
+	seed := dispatch(t, url, token.Token, "atkins", "")
+	status := call(t, http.MethodPost, url+"/api/repository/"+seed.RepositoryID+"/trigger", token.Token, map[string]any{
+		"job": "build",
+		"ref": "v1.2.3",
+	}, &triggered)
+	require.Equal(t, http.StatusCreated, status)
+
+	// A checkout can only be reported for a job an agent is running.
+	status = call(t, http.MethodPost, url+"/api/job/"+triggered.JobID+"/checkout", token.Token, map[string]any{
+		"ref":        "v1.2.3",
+		"commit_sha": "0123456789abcdef0123456789abcdef01234567",
+	}, nil)
+	assert.Equal(t, http.StatusConflict, status)
+
+	// The seed dispatch is ahead of it in the queue, so the agent takes
+	// two jobs to reach the triggered one.
+	var claimed claimResponse
+	for range 2 {
+		status = call(t, http.MethodPost, url+"/api/job/claim", token.Token, map[string]any{
+			"agent_id": "agent-1",
+		}, &claimed)
+		require.Equal(t, http.StatusOK, status)
+	}
+	require.NotNil(t, claimed.Job)
+	require.Equal(t, triggered.JobID, claimed.Job.ID)
+
+	status = call(t, http.MethodPost, url+"/api/job/"+triggered.JobID+"/checkout", token.Token, map[string]any{
+		"ref":        "v1.2.3",
+		"commit_sha": "0123456789abcdef0123456789abcdef01234567",
+	}, nil)
+	require.Equal(t, http.StatusNoContent, status)
+
+	var job map[string]any
+	status = call(t, http.MethodGet, url+"/api/job/"+triggered.JobID, token.Token, nil, &job)
+	require.Equal(t, http.StatusOK, status)
+
+	// The tag says what was asked for; the sha says what ran, and only
+	// one of the two survives the tag being moved.
+	assert.Equal(t, "v1.2.3", job["ref"])
+	assert.Equal(t, "0123456789abcdef0123456789abcdef01234567", job["commit_sha"])
+}
+
+func TestJobCheckoutRequiresACommit(t *testing.T) {
+	url := testServer(t)
+	token := register(t, url)
+
+	job := dispatch(t, url, token.Token, "atkins build", "")
+
+	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/checkout", token.Token, map[string]any{
+		"ref": "main",
+	}, nil)
+	assert.Equal(t, http.StatusBadRequest, status)
 }
 
 func TestClaimRespectsLabels(t *testing.T) {

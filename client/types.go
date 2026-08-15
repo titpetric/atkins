@@ -40,10 +40,15 @@ type TokenResponse struct {
 }
 
 // RepositoryPayload describes the checkout a run happens in.
+//
+// Ref is what the agent checks out: a branch, a tag, a commit sha or a
+// fully qualified refname. The client fills it with the commit it is
+// sitting on, because a run dispatched from a laptop should build that
+// commit rather than whatever the branch has moved to by the time an
+// agent picks the job up.
 type RepositoryPayload struct {
 	RemoteURL     string `json:"remote_url"`
-	Branch        string `json:"branch"`
-	Revision      string `json:"revision"`
+	Ref           string `json:"ref,omitempty"`
 	DefaultBranch string `json:"default_branch"`
 }
 
@@ -128,11 +133,19 @@ type Job struct {
 	RepositoryID     string `json:"repository_id"`
 	WorkingDirectory string `json:"working_directory"`
 	Command          string `json:"command"`
-	Branch           string `json:"branch"`
-	Revision         string `json:"revision"`
+	Ref              string `json:"ref"`
+	CommitSHA        string `json:"commit_sha"`
+	CloneDepth       int64  `json:"clone_depth"`
 	Labels           string `json:"labels"`
 	Params           string `json:"params"`
 	Status           string `json:"status"`
+}
+
+// JobCheckoutRequest is the body of POST /api/job/{jobID}/checkout: what
+// the agent actually put in the work tree.
+type JobCheckoutRequest struct {
+	Ref       string `json:"ref"`
+	CommitSHA string `json:"commit_sha"`
 }
 
 // JobLogRequest is the body of POST /api/job/{jobID}/log.

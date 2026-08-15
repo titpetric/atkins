@@ -12,8 +12,6 @@ Job.
 | user_id           | char(26) | MUL | User ID           |
 | working_directory | varchar  |     | Working Directory |
 | command           | varchar  |     | Command           |
-| branch            | varchar  |     | Branch            |
-| revision          | varchar  |     | Revision          |
 | labels            | varchar  |     | Labels            |
 | params            | varchar  |     | Params            |
 | status            | varchar  | MUL | Status            |
@@ -25,3 +23,6 @@ Job.
 | finished_at       | datetime |     | Finished At       |
 | created_at        | datetime | MUL | Created At        |
 | updated_at        | datetime |     | Updated At        |
+| ref               | varchar  |     | Ref               |
+| commit_sha        | varchar  | MUL | Commit Sha        |
+| clone_depth       | bigint   |     | Clone Depth       |

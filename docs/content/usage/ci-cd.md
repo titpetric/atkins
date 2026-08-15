@@ -78,13 +78,16 @@ Once logged in, `atkins` posts to `/api/dispatch` and prints the job URL:
 
 | Field               | Value                                               |
 |---------------------|-----------------------------------------------------|
-| `repository`        | `origin` remote URL, branch and revision            |
+| `repository`        | `origin` remote URL, ref and default branch         |
 | `working_directory` | Pipeline directory, relative to the repository root |
 | `command`           | The atkins invocation, e.g. `atkins test:build`     |
 | `parent_id`         | `ATKINS_JOB_ID`, when a job dispatches further work |
 | `labels`            | Which agents may run it                             |
+| `clone_depth`       | History the agent's work tree needs; 0 is all of it |
 
 The server normalizes the remote URL into a `host/owner/name` slug, so `git@github.com:you/repo.git` and `https://github.com/you/repo` are one repository. Repositories are created on first sight; nothing has to be registered up front.
+
+The ref atkins sends is the **commit you are on**, not the branch you are on. A dispatched run belongs to the code in front of you, and a branch name would let the agent build whatever that branch had moved to by the time it claimed the job. The consequence is worth knowing: dispatching a commit you have not pushed fails, naming the ref it could not find, rather than quietly building the branch tip instead.
 
 Delegation degrades to a local run rather than to an error. If the machine isn't logged in, isn't inside a git repository, or the server can't be reached, the pipeline runs here as it always did — with the reason on stderr.
 
@@ -109,8 +112,10 @@ An agent publishes these to the command it runs:
 | `ATKINS_JOB_PARAMS`    | The JSON object the job was dispatched with |
 | `ATKINS_WORKSPACE`     | The checkout the job runs in                |
 | `ATKINS_REPOSITORY`    | Repository slug                             |
-| `ATKINS_REVISION`      | Commit that was checked out                 |
-| `ATKINS_BRANCH`        | Branch the job was dispatched from          |
+| `ATKINS_REF`           | The ref that was checked out                |
+| `ATKINS_COMMIT_SHA`    | The commit that ref resolved to             |
+| `ATKINS_REVISION`      | The same commit, under its older name       |
+| `ATKINS_BRANCH`        | Set only when the ref named a branch        |
 | `CI`                   | `true`                                      |
 
 It also sets `ATKINS_NO_DISPATCH=1`. Without it, the atkins the agent runs would see the agent's own credentials, hand the work straight back to the server, and nothing would ever execute. A pipeline that genuinely wants to queue child work clears it:
@@ -143,7 +148,7 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" "$SERVER/api/repository/$REPO
   -d '{"job": "analyze"}'
 ```
 
-`job` becomes `atkins analyze`, so a trigger payload stays a name rather than a shell string somebody has to quote. `command` overrides the whole invocation when a bare job name isn't enough. With neither `branch` nor `revision`, the agent checks out the repository's default branch — what a nightly wants.
+`job` becomes `atkins analyze`, so a trigger payload stays a name rather than a shell string somebody has to quote. `command` overrides the whole invocation when a bare job name isn't enough. With no `ref`, the agent resolves the repository's default branch when it runs the job — what a nightly wants.
 
 `params` is how a dispatching job hands each child its work. It reaches the job as `ATKINS_JOB_PARAMS`:
 
@@ -151,11 +156,49 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" "$SERVER/api/repository/$REPO
 for tag in $(git tag --list); do
   curl -sS -X POST -H "Authorization: Bearer $TOKEN" "$SERVER/api/repository/$REPO/trigger" \
     -d "$(jq -n --arg tag "$tag" --arg parent "$ATKINS_JOB_ID" \
-      '{job: "analyzeTag", parent_id: $parent, params: {tag: $tag}}')"
+      '{job: "analyzeTag", parent_id: $parent, ref: $tag, clone_depth: 1, params: {tag: $tag}}')"
 done
 ```
 
+`ref` is what the child checks out; `params` is what it is told. Here they carry the same tag, and the child gets one commit of history rather than the whole repository.
+
 Each child records `parent_id`, shares the root job's ID, and counts against `job.max_depth`.
+
+## Refs, tags and clone depth
+
+A job says what to check out in one field. `ref` takes whatever git takes:
+
+```bash
+curl -sS -X POST -H "Authorization: Bearer $TOKEN" "$SERVER/api/repository/$REPO/trigger" \
+  -d '{"job": "release", "ref": "v1.2.3", "clone_depth": 1}'
+```
+
+| `ref`              | Resolves to                                  |
+|--------------------|----------------------------------------------|
+| *(empty)*          | The repository's default branch, at run time |
+| `v1.2.3`           | That tag, then a branch of the same name     |
+| `main`             | That branch                                  |
+| `4f2a1c…`          | That commit, abbreviated or in full          |
+| `refs/tags/v1.2.3` | Exactly that ref, and nothing else           |
+| `refs/pull/7/head` | Anything else the remote carries             |
+
+A bare name is looked for as a tag first and then as a branch, which is git's own order. A fully qualified `refs/...` name is taken at its word.
+
+**A ref that does not resolve fails the job, naming the ref.** There is no fallback to the default branch: a typo in a tag name should not produce a green run of the wrong code.
+
+**The commit is recorded.** Before it runs anything the agent reports what it actually checked out, and the job page shows the ref and the commit side by side. A tag moves; a job that remembered only `v1.2.3` could not be reproduced after it did. `ATKINS_COMMIT_SHA` carries the same value into the pipeline, so an artefact can be labelled with the commit even when the job named a branch.
+
+A retry repeats the **ref**, not the commit: a retried job pointed at a branch asks for whatever that branch holds now. Put a commit in the ref to get the same code twice.
+
+### Clone depth
+
+`clone_depth` limits the history the job's work tree carries. `1` is one commit, `0` — the default — is all of it.
+
+Depth applies to the **work tree**, never to the agent's repository cache. The cache is a full mirror shared by every job for that repository, and it stays that way: a shallow cache would have to be deepened the first time a job named an older tag, and deepening repeatedly costs more than never having discarded the objects. The work tree is thrown away when the job ends, so limiting it costs nothing later.
+
+What a shallow work tree buys is a small `.git`: it matters when the job packages the tree, copies it into a docker build context, or uploads it. It does not make the clone faster — a full work tree is hardlinked out of the cache and is very nearly free, while a shallow one has to be fetched. Ask for depth when the size of `.git` matters to the job, not to save the agent time.
+
+A job with `clone_depth: 1` has no history and no tags: `git describe`, `git log` past the tip and `git merge-base` will not work, even for the tag the job itself named. `ATKINS_REF` carries that name into the job, which is what a build usually wanted `git describe` for. Fan-outs over tags are the case that wants a depth — each child builds one commit and never looks behind it.
 
 ## Retrying and cancelling
 
@@ -168,7 +211,7 @@ A retry is a **new job** built from the finished one, not a reset: the previous 
 
 ## The job page
 
-`/job/{ULID}` is the URL atkins prints. It shows the status, the command, the repository and revision, timing, the exit code, and the output the agent captured, and it refreshes itself until the job settles. `/` lists recent jobs.
+`/job/{ULID}` is the URL atkins prints. It shows the status, the command, the repository, the ref the job asked for and the commit the agent resolved it to, timing, the exit code, and the output the agent captured, and it refreshes itself until the job settles. `/` lists recent jobs.
 
 The pages are readable without a session: a ULID is not enumerable in practice, and the point of printing a URL in a terminal is that pasting it into a browser works. Put the server behind your own auth if the output is sensitive.
 
@@ -235,10 +278,13 @@ Agents don't have passwords. One shared enrolment token, given to the agent, is 
 For each claimed job the agent:
 
 1. mirrors the repository into `<data_dir>/repos/<slug>.git`, or fetches it when already cached;
-2. clones a work tree into `<data_dir>/work/<job-id>` and checks out the revision, falling back to the branch and then the default branch;
-3. runs the command in the job's working directory;
-4. streams the output back as it goes;
-5. reports `passed`, `failed` or `timeout`, and removes the work tree.
+2. resolves the job's ref against that mirror, once, into a commit — a tag that moves mid-job cannot split the run across two commits;
+3. builds a work tree in `<data_dir>/work/<job-id>` at that commit, shallow if the job asked for a depth, and reports the ref and commit back to the server;
+4. runs the command in the job's working directory;
+5. streams the output back as it goes;
+6. reports `passed`, `failed` or `timeout`, and removes the work tree.
+
+The work tree is checked out detached. A job builds one commit; leaving a branch checked out would suggest it has somewhere to push it back to.
 
 The lease is renewed every 30 seconds. A job whose lease lapses is swept back out of `running` and marked `timeout`, so a worker that disappears mid-job doesn't strand its work.
 
@@ -346,6 +392,7 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
 | `/api/job/{id}/cancel`         | POST            | user   | Settle an unfinished job               |
 | `/api/job/claim`               | POST            | agent  | Lease the oldest pending job           |
 | `/api/job/{id}/status`         | POST            | agent  | Settle a job                           |
+| `/api/job/{id}/checkout`       | POST            | agent  | Record the ref and commit it built     |
 | `/api/job/{id}/heartbeat`      | POST            | agent  | Extend the lease                       |
 | `/api/job/{id}/log`            | POST            | agent  | Append output                          |
 | `/api/agent/enrol`             | POST            | token  | Trade the shared token for credentials |

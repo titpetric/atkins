@@ -30,9 +30,19 @@ type TriggerRequest struct {
 	// WorkingDirectory is relative to the repository root.
 	WorkingDirectory string `json:"working_directory"`
 
-	// Branch and Revision pin what gets checked out. Empty lets the
-	// agent fall back to the repository's default branch, which is
-	// what a "run this nightly" trigger wants.
+	// Ref pins what gets checked out: a branch, a tag, a commit sha or
+	// a fully qualified refname. Empty lets the agent resolve the
+	// repository's default branch when the job runs, which is what a
+	// "run this nightly" trigger wants.
+	Ref string `json:"ref"`
+
+	// CloneDepth limits the history of the work tree. 0 is all of it.
+	// A fan-out over tags usually wants 1: each child builds one commit
+	// and never looks behind it.
+	CloneDepth int64 `json:"clone_depth"`
+
+	// Branch and Revision are the pre-ref spelling of Ref.
+	// Deprecated: send Ref.
 	Branch   string `json:"branch"`
 	Revision string `json:"revision"`
 
@@ -99,19 +109,17 @@ func (s *Handlers) trigger(w http.ResponseWriter, r *http.Request) error {
 		return requestError(http.StatusBadRequest, err)
 	}
 
-	branch := req.Branch
-	if branch == "" && req.Revision == "" {
-		branch = repository.DefaultBranch
-	}
-
+	// An empty ref is left empty rather than filled in with the default
+	// branch here: a nightly trigger should follow the branch, and the
+	// agent records which commit it resolved to when it runs.
 	job, err := s.jobs.Create(r.Context(), storage.JobRequest{
 		ParentID:         req.ParentID,
 		RepositoryID:     repository.ID,
 		UserID:           user.ID,
 		WorkingDirectory: cleanWorkingDirectory(req.WorkingDirectory),
 		Command:          command,
-		Branch:           branch,
-		Revision:         req.Revision,
+		Ref:              checkoutRef(req.Ref, req.Revision, req.Branch),
+		CloneDepth:       req.CloneDepth,
 		Labels:           req.Labels,
 		Params:           params,
 	})
@@ -179,14 +187,19 @@ func (s *Handlers) retryJob(w http.ResponseWriter, r *http.Request) error {
 	// The retry keeps the original's parent, so a re-run child stays
 	// under the job that dispatched it rather than becoming a root of
 	// its own.
+	//
+	// It repeats the ref rather than the commit the first attempt
+	// resolved: a retry is "run this again", and a job pointed at a
+	// branch is asking for whatever that branch holds now. Pin the
+	// commit in the ref if you want the same code twice.
 	job, err := s.jobs.Create(r.Context(), storage.JobRequest{
 		ParentID:         previous.ParentID,
 		RepositoryID:     previous.RepositoryID,
 		UserID:           user.ID,
 		WorkingDirectory: previous.WorkingDirectory,
 		Command:          previous.Command,
-		Branch:           previous.Branch,
-		Revision:         previous.Revision,
+		Ref:              previous.Ref,
+		CloneDepth:       previous.CloneDepth,
 		Labels:           splitLabels(previous.Labels),
 		Params:           previous.Params,
 	})

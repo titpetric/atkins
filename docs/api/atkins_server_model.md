@@ -35,12 +35,6 @@ type Job struct {
 	// Command
 	Command string `db:"command" json:"command"`
 
-	// Branch
-	Branch string `db:"branch" json:"branch"`
-
-	// Revision
-	Revision string `db:"revision" json:"revision"`
-
 	// Labels
 	Labels string `db:"labels" json:"labels"`
 
@@ -73,6 +67,15 @@ type Job struct {
 
 	// Updated At
 	UpdatedAt *time.Time `db:"updated_at" json:"updated_at"`
+
+	// Ref
+	Ref string `db:"ref" json:"ref"`
+
+	// Commit Sha
+	CommitSha string `db:"commit_sha" json:"commit_sha"`
+
+	// Clone Depth
+	CloneDepth int64 `db:"clone_depth" json:"clone_depth"`
 }
 ```
 
@@ -504,7 +507,7 @@ const (
 
 ```go
 // JobFields is a list of all columns in the DB table.
-var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "branch", "revision", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at"}
+var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "ref", "commit_sha", "clone_depth"}
 ```
 
 ```go
@@ -678,8 +681,9 @@ var (
 - `func WithWhere (clause string) QueryOption`
 - `func (*Job) Delete (opts ...QueryOption) string`
 - `func (*Job) GetAgentID () string`
-- `func (*Job) GetBranch () string`
+- `func (*Job) GetCloneDepth () int64`
 - `func (*Job) GetCommand () string`
+- `func (*Job) GetCommitSha () string`
 - `func (*Job) GetCreatedAt () *time.Time`
 - `func (*Job) GetDepth () int64`
 - `func (*Job) GetError () string`
@@ -690,8 +694,8 @@ var (
 - `func (*Job) GetLeaseExpiresAt () *time.Time`
 - `func (*Job) GetParams () string`
 - `func (*Job) GetParentID () string`
+- `func (*Job) GetRef () string`
 - `func (*Job) GetRepositoryID () string`
-- `func (*Job) GetRevision () string`
 - `func (*Job) GetRootID () string`
 - `func (*Job) GetStartedAt () *time.Time`
 - `func (*Job) GetStatus () string`
@@ -702,8 +706,9 @@ var (
 - `func (*Job) IsTerminal () bool`
 - `func (*Job) Select (opts ...QueryOption) string`
 - `func (*Job) SetAgentID (val string)`
-- `func (*Job) SetBranch (val string)`
+- `func (*Job) SetCloneDepth (val int64)`
 - `func (*Job) SetCommand (val string)`
+- `func (*Job) SetCommitSha (val string)`
 - `func (*Job) SetCreatedAt (stamp time.Time)`
 - `func (*Job) SetDepth (val int64)`
 - `func (*Job) SetError (val string)`
@@ -714,8 +719,8 @@ var (
 - `func (*Job) SetLeaseExpiresAt (stamp time.Time)`
 - `func (*Job) SetParams (val string)`
 - `func (*Job) SetParentID (val string)`
+- `func (*Job) SetRef (val string)`
 - `func (*Job) SetRepositoryID (val string)`
-- `func (*Job) SetRevision (val string)`
 - `func (*Job) SetRootID (val string)`
 - `func (*Job) SetStartedAt (stamp time.Time)`
 - `func (*Job) SetStatus (val string)`
@@ -1037,12 +1042,12 @@ GetAgentID will return the value of AgentID.
 func (*Job) GetAgentID() string
 ```
 
-### GetBranch
+### GetCloneDepth
 
-GetBranch will return the value of Branch.
+GetCloneDepth will return the value of CloneDepth.
 
 ```go
-func (*Job) GetBranch() string
+func (*Job) GetCloneDepth() int64
 ```
 
 ### GetCommand
@@ -1051,6 +1056,14 @@ GetCommand will return the value of Command.
 
 ```go
 func (*Job) GetCommand() string
+```
+
+### GetCommitSha
+
+GetCommitSha will return the value of CommitSha.
+
+```go
+func (*Job) GetCommitSha() string
 ```
 
 ### GetCreatedAt
@@ -1133,20 +1146,20 @@ GetParentID will return the value of ParentID.
 func (*Job) GetParentID() string
 ```
 
+### GetRef
+
+GetRef will return the value of Ref.
+
+```go
+func (*Job) GetRef() string
+```
+
 ### GetRepositoryID
 
 GetRepositoryID will return the value of RepositoryID.
 
 ```go
 func (*Job) GetRepositoryID() string
-```
-
-### GetRevision
-
-GetRevision will return the value of Revision.
-
-```go
-func (*Job) GetRevision() string
 ```
 
 ### GetRootID
@@ -1229,12 +1242,12 @@ SetAgentID sets AgentID to the provided value.
 func (*Job) SetAgentID(val string)
 ```
 
-### SetBranch
+### SetCloneDepth
 
-SetBranch sets Branch to the provided value.
+SetCloneDepth sets CloneDepth to the provided value.
 
 ```go
-func (*Job) SetBranch(val string)
+func (*Job) SetCloneDepth(val int64)
 ```
 
 ### SetCommand
@@ -1243,6 +1256,14 @@ SetCommand sets Command to the provided value.
 
 ```go
 func (*Job) SetCommand(val string)
+```
+
+### SetCommitSha
+
+SetCommitSha sets CommitSha to the provided value.
+
+```go
+func (*Job) SetCommitSha(val string)
 ```
 
 ### SetCreatedAt
@@ -1325,20 +1346,20 @@ SetParentID sets ParentID to the provided value.
 func (*Job) SetParentID(val string)
 ```
 
+### SetRef
+
+SetRef sets Ref to the provided value.
+
+```go
+func (*Job) SetRef(val string)
+```
+
 ### SetRepositoryID
 
 SetRepositoryID sets RepositoryID to the provided value.
 
 ```go
 func (*Job) SetRepositoryID(val string)
-```
-
-### SetRevision
-
-SetRevision sets Revision to the provided value.
-
-```go
-func (*Job) SetRevision(val string)
 ```
 
 ### SetRootID
