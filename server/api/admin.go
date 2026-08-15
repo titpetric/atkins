@@ -24,8 +24,12 @@ type UserView struct {
 	IsAgent  bool   `json:"is_agent"`
 }
 
-// userView projects a stored user.
-func userView(user *model.User) UserView {
+// NewUserView projects a stored user.
+//
+// Exported so the admin pages describe an account the same way the API
+// does, and so a page can no more render a password hash than a
+// response can.
+func NewUserView(user *model.User) UserView {
 	return UserView{
 		ID:       user.ID,
 		Email:    user.Email,
@@ -49,8 +53,12 @@ type SSHKeyView struct {
 	LastUsedAt  string `json:"last_used_at,omitempty"`
 }
 
-// sshKeyView projects a stored key.
-func sshKeyView(key model.SSHKey) SSHKeyView {
+// NewSSHKeyView projects a stored key onto the operator-facing view.
+//
+// It is exported so the admin pages project keys the same way the API
+// does. The projection is the guard against disclosing private
+// material, so there must be exactly one of it.
+func NewSSHKeyView(key model.SSHKey) SSHKeyView {
 	view := SSHKeyView{
 		ID:          key.ID,
 		Name:        key.Name,
@@ -63,6 +71,15 @@ func sshKeyView(key model.SSHKey) SSHKeyView {
 		view.LastUsedAt = key.LastUsedAt.UTC().Format("2006-01-02T15:04:05Z")
 	}
 	return view
+}
+
+// SSHKeyViews projects a listing.
+func SSHKeyViews(keys []model.SSHKey) []SSHKeyView {
+	views := make([]SSHKeyView, 0, len(keys))
+	for _, key := range keys {
+		views = append(views, NewSSHKeyView(key))
+	}
+	return views
 }
 
 // MountAdmin registers the administrative routes.
@@ -116,7 +133,7 @@ func (s *Handlers) listUsers(w http.ResponseWriter, r *http.Request) error {
 
 	views := make([]UserView, 0, len(users))
 	for _, user := range users {
-		views = append(views, userView(&user))
+		views = append(views, NewUserView(&user))
 	}
 
 	platform.JSON(w, r, http.StatusOK, views)
@@ -142,12 +159,14 @@ func (s *Handlers) updateUser(w http.ResponseWriter, r *http.Request) error {
 
 	// Refuse the two moves that lock everyone out: an admin removing
 	// their own last privilege, or the last admin being deactivated.
-	losingAdmin := flags.IsAdmin != nil && !*flags.IsAdmin
-	losingAccess := flags.IsActive != nil && !*flags.IsActive
-	if losingAdmin || losingAccess {
-		if err := s.guardLastAdmin(r, userID); err != nil {
-			return err
+	if err := s.users.GuardLastAdmin(r.Context(), userID, flags); err != nil {
+		switch {
+		case errors.Is(err, model.ErrLastAdmin):
+			return requestError(http.StatusConflict, err)
+		case errors.Is(err, sql.ErrNoRows):
+			return requestError(http.StatusNotFound, errors.New("user not found"))
 		}
+		return err
 	}
 
 	user, err := s.users.SetFlags(r.Context(), userID, flags)
@@ -158,32 +177,7 @@ func (s *Handlers) updateUser(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	platform.JSON(w, r, http.StatusOK, userView(user))
-	return nil
-}
-
-// guardLastAdmin refuses a change that would leave no active admin.
-func (s *Handlers) guardLastAdmin(r *http.Request, userID string) error {
-	target, err := s.users.Get(r.Context(), userID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return requestError(http.StatusNotFound, errors.New("user not found"))
-		}
-		return err
-	}
-	if !target.IsAdmin || !target.IsActive {
-		return nil
-	}
-
-	count, err := s.users.CountAdmins(r.Context())
-	if err != nil {
-		return err
-	}
-	if count <= 1 {
-		return requestError(http.StatusConflict,
-			errors.New("refusing to remove the last active admin; promote someone else first"))
-	}
-
+	platform.JSON(w, r, http.StatusOK, NewUserView(user))
 	return nil
 }
 
@@ -366,12 +360,7 @@ func (s *Handlers) listSSHKeys(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	views := make([]SSHKeyView, 0, len(keys))
-	for _, key := range keys {
-		views = append(views, sshKeyView(key))
-	}
-
-	platform.JSON(w, r, http.StatusOK, views)
+	platform.JSON(w, r, http.StatusOK, SSHKeyViews(keys))
 	return nil
 }
 
@@ -402,7 +391,7 @@ func (s *Handlers) createSSHKey(w http.ResponseWriter, r *http.Request) error {
 		return requestError(http.StatusBadRequest, err)
 	}
 
-	platform.JSON(w, r, http.StatusCreated, sshKeyView(*key))
+	platform.JSON(w, r, http.StatusCreated, NewSSHKeyView(*key))
 	return nil
 }
 

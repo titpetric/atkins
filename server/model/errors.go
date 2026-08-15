@@ -86,6 +86,10 @@ var (
 	// permitted to perform the action.
 	ErrForbidden = errors.New("insufficient permissions")
 
+	// ErrLastAdmin is returned when a flag change would leave the
+	// instance with no active admin, and therefore no way back in.
+	ErrLastAdmin = errors.New("refusing to remove the last active admin; promote someone else first")
+
 	// ErrInvalidAgentToken is returned when agent enrolment presents
 	// the wrong token, or the server has no enrolment token set.
 	ErrInvalidAgentToken = errors.New("invalid agent enrolment token")

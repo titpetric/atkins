@@ -194,8 +194,5 @@ func (s *Handlers) agentSSHKeys(w http.ResponseWriter, r *http.Request) error {
 // allowedRepository reports whether a slug may be built under the
 // policy in force.
 func (s *Handlers) allowedRepository(r *http.Request, slug string) (bool, error) {
-	if s.settings.Get(model.SettingRepositoryPolicy) != model.PolicyAllowlist {
-		return true, nil
-	}
-	return s.rules.Allowed(r.Context(), slug)
+	return s.rules.AllowedUnderPolicy(r.Context(), s.settings.Get(model.SettingRepositoryPolicy), slug)
 }

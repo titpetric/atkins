@@ -121,7 +121,7 @@ func (s *Handlers) trigger(w http.ResponseWriter, r *http.Request) error {
 		ParentID:         req.ParentID,
 		RepositoryID:     repository.ID,
 		UserID:           user.ID,
-		WorkingDirectory: cleanWorkingDirectory(req.WorkingDirectory),
+		WorkingDirectory: model.CleanWorkingDirectory(req.WorkingDirectory),
 		Command:          command,
 		Ref:              checkoutRef(req.Ref, req.Revision, req.Branch),
 		CloneDepth:       req.CloneDepth,

@@ -1,0 +1,71 @@
+{{define "admin_user.html"}}<!doctype html>
+<html lang="en">
+<head>
+  {{template "head"}}
+  <title>Users — atkins</title>
+</head>
+<body>
+  {{template "nav" .Page}}
+
+  <h2>Users</h2>
+  <p class="muted">
+    Three flags, because there are three things to decide.
+    <span class="mono">is_admin</span> opens these pages and
+    <span class="mono">/api/admin/*</span>;
+    <span class="mono">is_agent</span> may claim work and read deploy keys;
+    <span class="mono">is_active</span> gates every authenticated call at all.
+  </p>
+
+  <table>
+    <tr>
+      <th>Account</th>
+      <td>Admin</td>
+      <td>Active</td>
+      <td>Agent</td>
+    </tr>
+    {{range .Users}}
+    <tr>
+      <th>
+        {{.Username}}
+        <div class="muted">{{.Email}}{{if .FullName}} · {{.FullName}}{{end}}</div>
+        {{if .IsLastAdmin}}
+        <div class="muted">
+          the last active admin — demoting or deactivating it would lock
+          everyone out, so both are refused
+        </div>
+        {{end}}
+      </th>
+      <td>
+        <form method="post" action="/admin/user/{{.ID}}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+          <input type="hidden" name="field" value="admin">
+          <input type="hidden" name="value" value="{{if .IsAdmin}}false{{else}}true{{end}}">
+          <button type="submit" {{if .IsLastAdmin}}disabled title="the last active admin cannot be demoted"{{end}}>
+            {{if .IsAdmin}}yes — revoke{{else}}no — grant{{end}}
+          </button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/admin/user/{{.ID}}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+          <input type="hidden" name="field" value="active">
+          <input type="hidden" name="value" value="{{if .IsActive}}false{{else}}true{{end}}">
+          <button type="submit" {{if .IsLastAdmin}}disabled title="the last active admin cannot be deactivated"{{end}}>
+            {{if .IsActive}}yes — deactivate{{else}}no — activate{{end}}
+          </button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/admin/user/{{.ID}}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+          <input type="hidden" name="field" value="agent">
+          <input type="hidden" name="value" value="{{if .IsAgent}}false{{else}}true{{end}}">
+          <button type="submit">{{if .IsAgent}}yes — revoke{{else}}no — grant{{end}}</button>
+        </form>
+      </td>
+    </tr>
+    {{end}}
+  </table>
+</body>
+</html>
+{{end}}

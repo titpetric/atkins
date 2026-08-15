@@ -17,7 +17,7 @@ func TestTemplatesParse(t *testing.T) {
 	handlers, err := NewHandlers(Options{})
 	require.NoError(t, err)
 
-	for _, name := range []string{"index.html", "job.html", "error.html"} {
+	for _, name := range []string{"index.html", "job.html", "error.html", "login.html"} {
 		assert.NotNil(t, handlers.templates.Lookup(name), name)
 	}
 }

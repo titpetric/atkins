@@ -24,7 +24,10 @@ server/
 ├── model/           generated records (types.mig.go) + domain helpers
 ├── schema/          append-only migrations, one file per table
 ├── storage/         SQL, via titpetric/pdo generic methods
-└── web/             /job/{ULID} and / pages, embedded templates
+└── web/             embedded templates, no build step
+    ├── web.go       / and /job/{ULID}, open to anyone with the URL
+    ├── session.go   the session cookie, CSRF, login and logout
+    └── admin.go     /admin/*: repositories, allowlist, settings, users, keys
 ```
 
 `model` represents persisted data, not request payloads. Request and
@@ -172,6 +175,44 @@ Agents are excluded from the human user count. An agent enrolling before
 any human therefore neither claims the bootstrap admin slot nor closes
 registration behind it.
 
+The invariant that there is always one way back in lives in
+`storage.UserStorage.GuardLastAdmin`, not in a handler. Both the JSON
+API and the admin pages change these flags, and an instance that can be
+locked out through one door is locked out either way.
+
+## Browser sessions
+
+The admin pages need a session; the CLI login issues a bearer token. The
+cookie names a row in the same `session` table rather than introducing a
+second authentication system:
+
+```text
+atkins_session = <session id>.<HMAC-SHA256(signing key, "cookie\0" + id)>
+```
+
+The signature is what makes it safe to name a session in a cookie: a
+ULID is time-ordered and partly guessable, so an unsigned id would be
+an invitation. Everything else follows from the row — revoked, expired,
+user deactivated — so signing out of the browser has the same effect as
+`atkins --logout`, and rotating the signing key ends both.
+
+The cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` over TLS,
+including behind a proxy that sets `X-Forwarded-Proto`. It is not
+`Secure` over plain http, because a `Secure` cookie is never sent back
+and the instance on `localhost:3200` has to be usable.
+
+CSRF is `HMAC(signing key, "csrf\0" + session id)` in a hidden field.
+Deriving it costs no storage and no second cookie, and the purpose
+prefix means the cookie value and the CSRF token are not each other. A
+post is refused unless it carries the token, and separately unless its
+`Origin` is either absent or this host — `SameSite` covers browsers that
+honour it, the origin check covers those that don't, and the token
+covers a same-site injection that can reach the form but not read it.
+
+`/job/{ULID}` stays outside all of this. atkins prints one URL and a
+person pastes it into a browser; putting a login in front of that would
+break the only interaction the tool asks for.
+
 ## Policy
 
 `repository.policy` is `open` or `allowlist`. Under `allowlist`, a
@@ -220,9 +261,11 @@ compose health check probes it.
 ## Deploy keys
 
 `ssh_key` rows carry the private half, and it leaves this package only
-through `GET /api/agent/ssh-key`. Admin listings are projected to
-`api.SSHKeyView`, which has no private field at all — the projection is
-the guard, not a `json:"-"` tag somebody can forget to add.
+through `GET /api/agent/ssh-key`. Admin listings — the JSON one and the
+page — are projected to `api.SSHKeyView`, which has no private field at
+all. The projection is the guard, not a `json:"-"` tag somebody can
+forget to add, and a template cannot render a field that isn't there.
+`api.UserView` is the same idea for password hashes.
 
 Keys are parsed on create so a bad paste is a 400 rather than a failed
 job an hour later, and the public half and SHA256 fingerprint are

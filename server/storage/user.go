@@ -210,6 +210,39 @@ func (s *UserStorage) SetFlags(ctx context.Context, id string, flags Flags) (*mo
 	return s.Get(ctx, id)
 }
 
+// GuardLastAdmin refuses a flag change that would leave the instance
+// with no active admin.
+//
+// The invariant lives here rather than in a handler because both the
+// JSON API and the admin pages change these flags, and an instance that
+// can be locked out of itself through one door but not the other is
+// locked out either way.
+func (s *UserStorage) GuardLastAdmin(ctx context.Context, id string, flags Flags) error {
+	losingAdmin := flags.IsAdmin != nil && !*flags.IsAdmin
+	losingAccess := flags.IsActive != nil && !*flags.IsActive
+	if !losingAdmin && !losingAccess {
+		return nil
+	}
+
+	target, err := s.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !target.IsAdmin || !target.IsActive {
+		return nil
+	}
+
+	count, err := s.CountAdmins(ctx)
+	if err != nil {
+		return err
+	}
+	if count <= 1 {
+		return model.ErrLastAdmin
+	}
+
+	return nil
+}
+
 // CountAdmins returns how many active admins remain. It exists so the
 // API can refuse to remove the last one and lock everybody out.
 func (s *UserStorage) CountAdmins(ctx context.Context) (int64, error) {
