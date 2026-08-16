@@ -93,7 +93,7 @@ The server normalizes the remote URL into a `host/owner/name` slug, so `git@gith
 
 The ref atkins sends is the **commit you are on**, not the branch you are on. A dispatched run belongs to the code in front of you, and a branch name would let the agent build whatever that branch had moved to by the time it claimed the job. The consequence is worth knowing: dispatching a commit you have not pushed fails, naming the ref it could not find, rather than quietly building the branch tip instead.
 
-The response carries the job's ID and, while the instance keeps jobs private, a `view_token` that opens its page in a browser. `atkins` prints the two as one URL; a script driving `/api/dispatch` or a trigger with `curl` builds it the same way.
+The response carries the job's ID and, while the instance keeps jobs private, a `view_token` that opens its page in a browser. `atkins` prints the two as one URL; a script driving `/api/dispatch` or a trigger with `curl` builds it the same way. Losing that line is not losing the link: `GET /api/job/{id}` and `GET /api/job` return the same `view_token`, plus a ready-made `url`, to any caller allowed to read the job.
 
 Delegation degrades to a local run rather than to an error. If the machine isn't logged in, isn't inside a git repository, or the server can't be reached, the pipeline runs here as it always did — with the reason on stderr.
 
@@ -279,7 +279,7 @@ A retry is a **new job** built from the finished one, not a reset: the previous 
 
 The page has no session to check — the browser reading it never logged in — so what a private instance checks instead is the token in the URL. It is an HMAC of the job ID under the server's signing key: nothing is stored, nothing extra leaks from a database dump, and rotating the signing key invalidates every outstanding link along with every token. Paste the whole line and the job opens; trim the query string and you get a 403 saying so. Links between jobs on the page — the parent, and the children a job dispatched — carry the token for the job they point at, so following the tree keeps working. So do the artefact download links: a file a job produced is reachable on exactly the terms its page is, no wider and no narrower.
 
-`/` lists recent jobs, and a private instance lists none: there is no token that could scope a listing and no session to scope it by. The page answers and says so — it is the front door, and a health check probing it should find a server. `GET /api/job` is the listing, and it is scoped to the caller.
+`/` lists recent jobs. On a private instance the session decides what it lists: signed in, it is your own runs, with each link carrying the view token for the job it points at; signed out, it lists nothing and says where to sign in, because there is no token that could scope a listing and no session to scope it by. The page answers either way — it is the front door, and a health check probing it should find a server. `GET /api/job` is the same listing for a bearer token, scoped the same way.
 
 Both of those relax under `job.visibility`:
 

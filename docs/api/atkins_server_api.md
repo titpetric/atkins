@@ -211,6 +211,28 @@ type JobStatusRequest struct {
 ```
 
 ```go
+// JobView is a job as the API returns it: the stored row, plus how to
+// open it in a browser.
+//
+// The token is derived from the job id and the signing key rather than
+// stored, so returning it to a caller who has just been allowed to read
+// the job withholds nothing: they can already read the output and the
+// artefacts the page shows. Leaving it out only meant that whoever lost
+// the URL atkins printed could no longer open a job they own.
+type JobView struct {
+	*model.Job
+
+	// ViewToken opens the job page without a session. Empty on a public
+	// instance, which needs none.
+	ViewToken string `json:"view_token,omitempty"`
+
+	// URL is the page for this job, token and all. It is relative to
+	// this server, the way an artefact's URL is.
+	URL string `json:"url"`
+}
+```
+
+```go
 // LoginRequest is the body of /api/user/login.
 type LoginRequest struct {
 	Email    string `json:"email"`

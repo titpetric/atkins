@@ -99,6 +99,37 @@ type DispatchResponse struct {
 	ViewToken string `json:"view_token,omitempty"`
 }
 
+// JobView is a job as the API returns it: the stored row, plus how to
+// open it in a browser.
+//
+// The token is derived from the job id and the signing key rather than
+// stored, so returning it to a caller who has just been allowed to read
+// the job withholds nothing: they can already read the output and the
+// artefacts the page shows. Leaving it out only meant that whoever lost
+// the URL atkins printed could no longer open a job they own.
+type JobView struct {
+	*model.Job
+
+	// ViewToken opens the job page without a session. Empty on a public
+	// instance, which needs none.
+	ViewToken string `json:"view_token,omitempty"`
+
+	// URL is the page for this job, token and all. It is relative to
+	// this server, the way an artefact's URL is.
+	URL string `json:"url"`
+}
+
+// jobView projects a job for a caller allowed to read it.
+func (s *Handlers) jobView(job *model.Job) JobView {
+	token := s.viewToken(job.ID)
+
+	return JobView{
+		Job:       job,
+		ViewToken: token,
+		URL:       model.JobLink(job.ID, token),
+	}
+}
+
 // JobStatusRequest is the body of /api/job/{jobID}/status.
 type JobStatusRequest struct {
 	Status   string `json:"status"`
@@ -276,7 +307,7 @@ func (s *Handlers) getJob(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	platform.JSON(w, r, http.StatusOK, job)
+	platform.JSON(w, r, http.StatusOK, s.jobView(job))
 	return nil
 }
 
@@ -309,7 +340,14 @@ func (s *Handlers) listJobs(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	platform.JSON(w, r, http.StatusOK, jobs)
+	// A listing carries the same links a single read does: finding a job
+	// here and then having no way to open it is the gap this closes.
+	views := make([]JobView, 0, len(jobs))
+	for i := range jobs {
+		views = append(views, s.jobView(&jobs[i]))
+	}
+
+	platform.JSON(w, r, http.StatusOK, views)
 	return nil
 }
 

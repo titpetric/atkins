@@ -488,6 +488,13 @@ const UserTable = "`user`"
 ```
 
 ```go
+// ViewTokenParam is the query parameter carrying a job's view token.
+// One letter, because it rides along in a URL a human copies out of a
+// terminal.
+const ViewTokenParam = "t"
+```
+
+```go
 // Setting kinds.
 const (
 	KindString   SettingKind = "string"
@@ -812,6 +819,7 @@ var (
 - `func ArtefactPattern (value string) string`
 - `func ArtefactPatterns (value string) []string`
 - `func CleanWorkingDirectory (dir string) string`
+- `func JobLink (jobID,viewToken string) string`
 - `func JoinArtefactPatterns (patterns []string) string`
 - `func LookupSetting (name string) (SettingDefinition, bool)`
 - `func MatchArtefactPath (pattern,value string) bool`
@@ -1146,6 +1154,24 @@ here, because a guard on one of them is no guard at all.
 
 ```go
 func CleanWorkingDirectory(dir string) string
+```
+
+### JobLink
+
+JobLink is where a job's page lives on the server.
+
+It is here rather than in the page package because two sides build the
+same link: the pages, for every job they point at, and the API, for
+callers that read a job and want to hand a person somewhere to look.
+A link that differs between them is a link that works in one place and
+403s in the other.
+
+The path is server-relative on purpose. The server is reached through
+whatever hostname the operator put in front of it, and inventing one
+here would be a guess; the caller already knows which server it asked.
+
+```go
+func JobLink(jobID, viewToken string) string
 ```
 
 ### JoinArtefactPatterns
