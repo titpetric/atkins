@@ -33,9 +33,9 @@ import (
 )
 
 // ViewTokenParam is the query parameter carrying a job's view token.
-// One letter, because it rides along in a URL a human copies out of a
-// terminal.
-const ViewTokenParam = "t"
+// The API builds the same links, so the name lives with the model both
+// sides share.
+const ViewTokenParam = model.ViewTokenParam
 
 // Handlers serves the HTML pages.
 type Handlers struct {
@@ -182,31 +182,56 @@ type IndexPage struct {
 	// that will not change on its own.
 	Refresh int
 
-	// Private is set when the listing is withheld, so the page can say
-	// why rather than looking like an instance nobody has ever used.
+	// Private is set when the listing is withheld for want of a session,
+	// so the page can offer a way in rather than looking like an
+	// instance nobody has ever used.
 	Private bool
+
+	// Scoped is set when the listing is the signed-in user's own runs
+	// rather than everything on the instance.
+	Scoped bool
+
+	// SignedIn is set when the visitor has a session, which decides
+	// whether the page offers a sign-in link or an admin one.
+	SignedIn bool
 }
 
 // Index lists recent jobs.
 //
-// A private instance lists nothing: no per-job token can scope a
-// listing and there is no session to scope it by, so the listing lives
-// on /api/job where the caller is authenticated. The page still
-// answers, and says why — it is the server's front door, and a health
-// check probing it should find a server rather than a refusal.
+// A private instance scopes the listing to whoever is signed in, the
+// way /api/job does for a bearer token: an owner who lost the URL atkins
+// printed can find the job here and the link carries its view token. A
+// visitor with no session is told where to sign in — the page still
+// answers, because it is the server's front door and a health check
+// probing it should find a server rather than a refusal.
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
+	page := IndexPage{Refresh: 5}
+	filter := storage.ListFilter{Limit: 50}
+
 	if !h.public() {
-		h.render(w, r, indexView(IndexPage{Private: true}, h.links()))
-		return
+		current, err := h.authenticate(r)
+		if err != nil {
+			h.render(w, r, indexView(IndexPage{Private: true}, h.links()))
+			return
+		}
+
+		page.SignedIn = true
+		// An admin sees the instance and an agent works the whole queue,
+		// which is the same rule the API scopes jobs by.
+		if !current.User.IsAdmin && !current.User.IsAgent {
+			filter.ViewerID = current.User.ID
+			page.Scoped = true
+		}
 	}
 
-	jobs, err := h.jobs.List(r.Context(), storage.ListFilter{Limit: 50})
+	jobs, err := h.jobs.List(r.Context(), filter)
 	if err != nil {
 		h.fail(w, r, http.StatusInternalServerError, err)
 		return
 	}
+	page.Jobs = jobs
 
-	h.render(w, r, indexView(IndexPage{Jobs: jobs, Refresh: 5}, h.links()))
+	h.render(w, r, indexView(page, h.links()))
 }
 
 // Job renders one job: its status, the command, and captured output.
@@ -333,8 +358,11 @@ func (h *Handlers) links() Links {
 	return Links{tokens: h.tokens, public: h.public()}
 }
 
-// Listing reports whether the front page lists anything, which is also
-// whether it is worth linking to.
+// Listing reports whether the front page lists anything to a visitor
+// with no session, which is what a job page opened from a printed URL
+// has. A signed-in visitor gets a listing either way, but the markup
+// cannot tell one from the other and a link to an empty page is worse
+// than no link.
 func (l Links) Listing() bool {
 	return l.public
 }
@@ -346,7 +374,7 @@ func (l Links) Listing() bool {
 // carries the token for the job it points at, and never the token for
 // the job it came from.
 func (l Links) Job(jobID string) string {
-	return l.withToken("/job/"+jobID, jobID)
+	return model.JobLink(jobID, l.token(jobID))
 }
 
 // Artefact is where an artefact downloads from.
@@ -360,16 +388,21 @@ func (l Links) Artefact(jobID, artefactID string) string {
 // withToken appends a job's view token to a link, unless the instance
 // is public or has no signing key to derive one from.
 func (l Links) withToken(link, jobID string) string {
-	if l.public || l.tokens == nil {
-		return link
-	}
-
-	token := l.tokens.ViewToken(jobID)
+	token := l.token(jobID)
 	if token == "" {
 		return link
 	}
 
 	return link + "?" + ViewTokenParam + "=" + token
+}
+
+// token is the view token a link should carry, or empty when the
+// instance is public or has no signing key to derive one from.
+func (l Links) token(jobID string) string {
+	if l.public || l.tokens == nil {
+		return ""
+	}
+	return l.tokens.ViewToken(jobID)
 }
 
 // filesize renders a byte count the way a person reads one.

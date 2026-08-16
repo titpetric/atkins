@@ -60,9 +60,18 @@ type IndexPage struct {
 	// that will not change on its own.
 	Refresh int
 
-	// Private is set when the listing is withheld, so the page can say
-	// why rather than looking like an instance nobody has ever used.
+	// Private is set when the listing is withheld for want of a session,
+	// so the page can offer a way in rather than looking like an
+	// instance nobody has ever used.
 	Private bool
+
+	// Scoped is set when the listing is the signed-in user's own runs
+	// rather than everything on the instance.
+	Scoped bool
+
+	// SignedIn is set when the visitor has a session, which decides
+	// whether the page offers a sign-in link or an admin one.
+	SignedIn bool
 }
 ```
 
@@ -133,9 +142,9 @@ type Page struct {
 
 ```go
 // ViewTokenParam is the query parameter carrying a job's view token.
-// One letter, because it rides along in a URL a human copies out of a
-// terminal.
-const ViewTokenParam = "t"
+// The API builds the same links, so the name lives with the model both
+// sides share.
+const ViewTokenParam = model.ViewTokenParam
 ```
 
 ## Function symbols
@@ -213,11 +222,12 @@ func (*Handlers) CreateSSHKey(w http.ResponseWriter, r *http.Request, current *s
 
 Index lists recent jobs.
 
-A private instance lists nothing: no per-job token can scope a
-listing and there is no session to scope it by, so the listing lives
-on /api/job where the caller is authenticated. The page still
-answers, and says why — it is the server's front door, and a health
-check probing it should find a server rather than a refusal.
+A private instance scopes the listing to whoever is signed in, the
+way /api/job does for a bearer token: an owner who lost the URL atkins
+printed can find the job here and the link carries its view token. A
+visitor with no session is told where to sign in — the page still
+answers, because it is the server's front door and a health check
+probing it should find a server rather than a refusal.
 
 ```go
 func (*Handlers) Index(w http.ResponseWriter, r *http.Request)
@@ -383,8 +393,11 @@ func (Links) Job(jobID string) string
 
 ### Listing
 
-Listing reports whether the front page lists anything, which is also
-whether it is worth linking to.
+Listing reports whether the front page lists anything to a visitor
+with no session, which is what a job page opened from a printed URL
+has. A signed-in visitor gets a listing either way, but the markup
+cannot tell one from the other and a link to an empty page is worse
+than no link.
 
 ```go
 func (Links) Listing() bool
