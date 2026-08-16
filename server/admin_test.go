@@ -132,6 +132,42 @@ func TestOnlyAgentsClaimJobs(t *testing.T) {
 	assert.NotNil(t, claimed.Job)
 }
 
+func TestAgentRoutesRefuseAdmins(t *testing.T) {
+	url := testServer(t)
+	admin := register(t, url)
+
+	job := dispatch(t, url, admin.Token, "atkins build", "")
+
+	// An admin is not an agent: the flag is a role rather than a rank.
+	// Admitting one here would hand an admin token the private half of
+	// every deploy key, which the admin listing withholds on purpose,
+	// and let it settle jobs under an agent_id that never ran them.
+	for _, route := range []string{"/api/agent/ssh-key", "/api/agent/policy"} {
+		status := call(t, http.MethodGet, url+route, admin.Token, nil, nil)
+		assert.Equal(t, http.StatusForbidden, status, route)
+	}
+
+	status := call(t, http.MethodPost, url+"/api/job/claim", admin.Token, map[string]any{
+		"agent_id": "impostor",
+	}, nil)
+	assert.Equal(t, http.StatusForbidden, status)
+
+	status = call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/status", admin.Token, map[string]any{
+		"status": model.JobStatusPassed,
+	}, nil)
+	assert.Equal(t, http.StatusForbidden, status)
+
+	// The queue is untouched: the job is still there for a real agent.
+	agent := enrol(t, url, "agent-1")
+	var claimed claimResponse
+	status = call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
+		"agent_id": "agent-1",
+	}, &claimed)
+	require.Equal(t, http.StatusOK, status)
+	require.NotNil(t, claimed.Job)
+	assert.Equal(t, job.JobID, claimed.Job.ID)
+}
+
 func TestAdminRoutesRefuseNonAdmins(t *testing.T) {
 	url := testServer(t)
 	register(t, url)

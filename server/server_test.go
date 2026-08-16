@@ -338,11 +338,12 @@ func TestDispatchRequiresAuthentication(t *testing.T) {
 func TestJobStatusSettlesOnce(t *testing.T) {
 	url := testServer(t)
 	token := register(t, url)
+	agent := enrol(t, url, "agent-1")
 
 	job := dispatch(t, url, token.Token, "atkins", "")
 
 	var settled map[string]any
-	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/status", token.Token, map[string]any{
+	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/status", agent.Token, map[string]any{
 		"status":    model.JobStatusFailed,
 		"exit_code": 2,
 		"error":     "step failed",
@@ -352,7 +353,7 @@ func TestJobStatusSettlesOnce(t *testing.T) {
 	assert.Equal(t, float64(2), settled["exit_code"])
 
 	// A second report cannot overwrite the recorded outcome.
-	status = call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/status", token.Token, map[string]any{
+	status = call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/status", agent.Token, map[string]any{
 		"status": model.JobStatusPassed,
 	}, nil)
 	assert.Equal(t, http.StatusConflict, status)
@@ -361,10 +362,11 @@ func TestJobStatusSettlesOnce(t *testing.T) {
 func TestJobStatusRejectsNonTerminalStatus(t *testing.T) {
 	url := testServer(t)
 	token := register(t, url)
+	agent := enrol(t, url, "agent-1")
 
 	job := dispatch(t, url, token.Token, "atkins", "")
 
-	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/status", token.Token, map[string]any{
+	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/status", agent.Token, map[string]any{
 		"status": model.JobStatusRunning,
 	}, nil)
 	assert.Equal(t, http.StatusBadRequest, status)
@@ -373,11 +375,12 @@ func TestJobStatusRejectsNonTerminalStatus(t *testing.T) {
 func TestClaimLeasesOnePendingJob(t *testing.T) {
 	url := testServer(t)
 	token := register(t, url)
+	agent := enrol(t, url, "agent-1")
 
 	job := dispatch(t, url, token.Token, "atkins build", "")
 
 	var claimed claimResponse
-	status := call(t, http.MethodPost, url+"/api/job/claim", token.Token, map[string]any{
+	status := call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 		"agent_id": "agent-1",
 	}, &claimed)
 	require.Equal(t, http.StatusOK, status)
@@ -391,7 +394,7 @@ func TestClaimLeasesOnePendingJob(t *testing.T) {
 	assert.Equal(t, "github.com/titpetric/atkins", claimed.Repository.Slug)
 
 	// The queue is now empty for the next agent.
-	status = call(t, http.MethodPost, url+"/api/job/claim", token.Token, map[string]any{
+	status = call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 		"agent_id": "agent-2",
 	}, nil)
 	assert.Equal(t, http.StatusNoContent, status)
@@ -400,6 +403,7 @@ func TestClaimLeasesOnePendingJob(t *testing.T) {
 func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
 	url := testServer(t)
 	token := register(t, url)
+	agent := enrol(t, url, "agent-1")
 
 	var triggered dispatchResponse
 	seed := dispatch(t, url, token.Token, "atkins", "")
@@ -410,7 +414,7 @@ func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
 	require.Equal(t, http.StatusCreated, status)
 
 	// A checkout can only be reported for a job an agent is running.
-	status = call(t, http.MethodPost, url+"/api/job/"+triggered.JobID+"/checkout", token.Token, map[string]any{
+	status = call(t, http.MethodPost, url+"/api/job/"+triggered.JobID+"/checkout", agent.Token, map[string]any{
 		"ref":        "v1.2.3",
 		"commit_sha": "0123456789abcdef0123456789abcdef01234567",
 	}, nil)
@@ -420,7 +424,7 @@ func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
 	// two jobs to reach the triggered one.
 	var claimed claimResponse
 	for range 2 {
-		status = call(t, http.MethodPost, url+"/api/job/claim", token.Token, map[string]any{
+		status = call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 			"agent_id": "agent-1",
 		}, &claimed)
 		require.Equal(t, http.StatusOK, status)
@@ -428,7 +432,7 @@ func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
 	require.NotNil(t, claimed.Job)
 	require.Equal(t, triggered.JobID, claimed.Job.ID)
 
-	status = call(t, http.MethodPost, url+"/api/job/"+triggered.JobID+"/checkout", token.Token, map[string]any{
+	status = call(t, http.MethodPost, url+"/api/job/"+triggered.JobID+"/checkout", agent.Token, map[string]any{
 		"ref":        "v1.2.3",
 		"commit_sha": "0123456789abcdef0123456789abcdef01234567",
 	}, nil)
@@ -447,10 +451,11 @@ func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
 func TestJobCheckoutRequiresACommit(t *testing.T) {
 	url := testServer(t)
 	token := register(t, url)
+	agent := enrol(t, url, "agent-1")
 
 	job := dispatch(t, url, token.Token, "atkins build", "")
 
-	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/checkout", token.Token, map[string]any{
+	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/checkout", agent.Token, map[string]any{
 		"ref": "main",
 	}, nil)
 	assert.Equal(t, http.StatusBadRequest, status)
@@ -459,6 +464,7 @@ func TestJobCheckoutRequiresACommit(t *testing.T) {
 func TestClaimRespectsLabels(t *testing.T) {
 	url := testServer(t)
 	token := register(t, url)
+	agent := enrol(t, url, "agent-1")
 
 	var labelled dispatchResponse
 	status := call(t, http.MethodPost, url+"/api/dispatch", token.Token, map[string]any{
@@ -469,14 +475,14 @@ func TestClaimRespectsLabels(t *testing.T) {
 	require.Equal(t, http.StatusCreated, status)
 
 	// An agent missing one of the labels does not get the job.
-	status = call(t, http.MethodPost, url+"/api/job/claim", token.Token, map[string]any{
+	status = call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 		"agent_id": "amd64-agent",
 		"labels":   []string{"linux", "amd64"},
 	}, nil)
 	assert.Equal(t, http.StatusNoContent, status)
 
 	var claimed claimResponse
-	status = call(t, http.MethodPost, url+"/api/job/claim", token.Token, map[string]any{
+	status = call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 		"agent_id": "arm64-agent",
 		"labels":   []string{"linux", "arm64", "docker"},
 	}, &claimed)
@@ -488,20 +494,21 @@ func TestClaimRespectsLabels(t *testing.T) {
 func TestHeartbeatRequiresTheLeaseHolder(t *testing.T) {
 	url := testServer(t)
 	token := register(t, url)
+	agent := enrol(t, url, "agent-1")
 
 	job := dispatch(t, url, token.Token, "atkins build", "")
 
-	status := call(t, http.MethodPost, url+"/api/job/claim", token.Token, map[string]any{
+	status := call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 		"agent_id": "agent-1",
 	}, nil)
 	require.Equal(t, http.StatusOK, status)
 
-	status = call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/heartbeat", token.Token, map[string]any{
+	status = call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/heartbeat", agent.Token, map[string]any{
 		"agent_id": "agent-1",
 	}, nil)
 	assert.Equal(t, http.StatusNoContent, status)
 
-	status = call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/heartbeat", token.Token, map[string]any{
+	status = call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/heartbeat", agent.Token, map[string]any{
 		"agent_id": "impostor",
 	}, nil)
 	assert.Equal(t, http.StatusConflict, status)
