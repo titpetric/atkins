@@ -15,7 +15,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/titpetric/atkins/client"
@@ -34,6 +36,10 @@ type Worker struct {
 type jobContext struct {
 	Job        *client.Job
 	Repository *client.Repository
+
+	// Lease is the claim being renewed while the job runs. It is nil
+	// until run starts one.
+	Lease *lease
 }
 
 // New returns a Worker, authenticating against the server.
@@ -177,8 +183,12 @@ func (w *Worker) run(ctx context.Context, job *jobContext) {
 	ctx, cancel := context.WithTimeout(ctx, w.opts.JobTimeout)
 	defer cancel()
 
-	stop := w.heartbeat(ctx, job.Job.ID)
-	defer stop()
+	// Losing the lease cancels the job the same way the timeout does,
+	// which is what stops the command: a cancelled job whose build runs
+	// on to completion holds the agent's one slot for whatever a person
+	// pressed cancel to get away from.
+	job.Lease = w.heartbeat(ctx, job.Job.ID, cancel)
+	defer job.Lease.Stop()
 
 	if job.Repository == nil {
 		w.fail(ctx, job, "job has no repository")
@@ -219,6 +229,11 @@ func (w *Worker) run(ctx context.Context, job *jobContext) {
 
 	result := w.execute(ctx, job, workspace)
 
+	if job.Lease.Revoked() {
+		w.stopped(ctx, job)
+		return
+	}
+
 	status := client.StatusPassed
 	switch {
 	case result.TimedOut:
@@ -240,9 +255,34 @@ func (w *Worker) run(ctx context.Context, job *jobContext) {
 	log.Printf("[agent] job %s: %s (exit %d)", job.Job.ID, status, result.ExitCode)
 }
 
+// stopped records that the job was taken away while the agent was
+// running it.
+//
+// No status is reported. The job has already settled — cancelled by a
+// person, or reclaimed after a lease expired and handed to another
+// agent — and a late `failed` from here would overwrite the outcome
+// somebody asked for. Artefacts are not collected for the same reason:
+// a page that says cancelled should not go on growing files.
+//
+// What does go up is a line saying what happened, so a cancelled job
+// reads as cancelled rather than as a build that stopped mid-sentence.
+func (w *Worker) stopped(ctx context.Context, job *jobContext) {
+	log.Printf("[agent] job %s: stopped, the server no longer leases it to this agent", job.Job.ID)
+
+	w.appendLog(ctx, job.Job.ID, client.StreamError,
+		"the server took this job back — cancelled, or reclaimed from this agent — and the command was stopped\n")
+}
+
 // fail records an agent-side failure: something that went wrong around
 // the command rather than inside it.
 func (w *Worker) fail(ctx context.Context, job *jobContext, message string) {
+	// A job the server has taken back is not this agent's to settle,
+	// whatever went wrong on the way to running it.
+	if job.Lease.Revoked() {
+		w.stopped(ctx, job)
+		return
+	}
+
 	log.Printf("[agent] job %s failed: %s", job.Job.ID, message)
 
 	w.appendLog(ctx, job.Job.ID, client.StreamError, message+"\n")
@@ -298,9 +338,32 @@ func (w *Worker) appendLog(ctx context.Context, jobID, stream, content string) {
 	}
 }
 
-// heartbeat renews the lease until the returned function is called.
-func (w *Worker) heartbeat(ctx context.Context, jobID string) func() {
+// lease is the claim an agent holds on a job while it runs it.
+type lease struct {
+	// revoked is set when the server stops recognising the claim.
+	revoked atomic.Bool
+
+	// Stop ends the renewals and waits for them to finish.
+	Stop func()
+}
+
+// Revoked reports whether the server has taken the job back. A nil
+// lease has nothing to lose, which is what a direct call to fail in a
+// test has.
+func (l *lease) Revoked() bool {
+	return l != nil && l.revoked.Load()
+}
+
+// heartbeat renews the lease until the returned lease is stopped, and
+// calls lost when the server stops recognising it.
+//
+// A rejected heartbeat is not a network problem to retry: the server
+// has settled the job, or leased it to somebody else, and either way
+// this agent is running a command nobody is waiting for.
+func (w *Worker) heartbeat(ctx context.Context, jobID string, lost context.CancelFunc) *lease {
 	ctx, cancel := context.WithCancel(ctx)
+
+	held := &lease{}
 
 	done := make(chan struct{})
 	go func() {
@@ -314,17 +377,39 @@ func (w *Worker) heartbeat(ctx context.Context, jobID string) func() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if err := w.client.Heartbeat(ctx, jobID, w.opts.AgentID); err != nil {
-					log.Printf("[agent] heartbeat for job %s failed: %v", jobID, err)
+				err := w.client.Heartbeat(ctx, jobID, w.opts.AgentID)
+				if err == nil {
+					continue
+				}
+
+				log.Printf("[agent] heartbeat for job %s failed: %v", jobID, err)
+
+				if leaseLost(err) {
+					held.revoked.Store(true)
+					lost()
+					return
 				}
 			}
 		}
 	}()
 
-	return func() {
+	held.Stop = func() {
 		cancel()
 		<-done
 	}
+
+	return held
+}
+
+// leaseLost reports whether a heartbeat failure means the job is no
+// longer this agent's to run.
+//
+// The server answers 409 for both spellings of that — the job has
+// settled, or another agent holds it — and anything else is a bad
+// connection or a server having a moment, which the next tick retries.
+func leaseLost(err error) bool {
+	var apiErr *client.APIError
+	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusConflict
 }
 
 // reportTimeout bounds the calls that record an outcome.

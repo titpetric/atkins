@@ -273,9 +273,13 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" "$SERVER/api/job/$JOB/cancel"
 
 A retry is a **new job** built from the finished one, not a reset: the previous attempt keeps its output and its outcome, which is the point of looking at a failure after retrying it. A retried child stays under the job that dispatched it. Only finished jobs can be retried — cancel a running one first.
 
+Cancelling settles the record and stops the command. The agent finds out at its next heartbeat, which the server refuses once the job is no longer leased to it: the agent kills the command's process group, notes on the page that the job was taken back, and goes to look for the next one. It reports no outcome of its own — a cancelled job stays cancelled — and it does not upload the artefacts collected so far, because a page that says `cancelled` should not go on growing files. Worst case the build runs for one heartbeat interval (`agent.heartbeat_interval`, 30s by default) after the click.
+
 ## The job page
 
 `/job/{ULID}?t={token}` is the URL atkins prints. It shows the status, the command, the repository, the ref the job asked for and the commit the agent resolved it to, timing, the exit code, the output the agent captured and the artefacts it uploaded, and it refreshes itself until the job settles.
+
+The output keeps its colour. atkins colours its tree whether or not anything is watching, so the page translates the SGR escape sequences into spans it styles, and drops the ones that move a cursor or clear a line — a document cannot honour those, and printing them as text is how a three-line tree turns into noise. What is stored is untouched: `GET /api/job/{id}/log` returns the bytes the command wrote, escape sequences and all, for a script that would rather strip or re-colour them itself.
 
 The page has no session to check — the browser reading it never logged in — so what a private instance checks instead is the token in the URL. It is an HMAC of the job ID under the server's signing key: nothing is stored, nothing extra leaks from a database dump, and rotating the signing key invalidates every outstanding link along with every token. Paste the whole line and the job opens; trim the query string and you get a 403 saying so. Links between jobs on the page — the parent, and the children a job dispatched — carry the token for the job they point at, so following the tree keeps working. So do the artefact download links: a file a job produced is reachable on exactly the terms its page is, no wider and no narrower.
 

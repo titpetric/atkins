@@ -103,6 +103,17 @@ type Links struct {
 ```
 
 ```go
+// LogSpan is a run of output that shares one appearance.
+type LogSpan struct {
+	Text string
+
+	// Class is the space-separated class list for the run, empty for
+	// output in the page's own colour.
+	Class string
+}
+```
+
+```go
 // Options is passed from the server module scope.
 type Options struct {
 	JobStorage            *storage.JobStorage
