@@ -37,7 +37,9 @@ atkins down
 
 Nothing is mounted from the host. The agent clones the repository your checkout reports, exactly as another machine would, so a job runs against what the remote actually has rather than against your working tree. State lives in the containers and goes away with them.
 
-Settings for the instance live in `.env.docker`, shared by both services. Two of them are worth replacing before it outlives an afternoon: `ATKINS_SIGNING_KEY`, because whoever knows it can mint any token, and `ATKINS_AGENT_TOKEN`, because whoever knows it can join the queue and read the deploy keys.
+Settings for the instance live in two files: `.env.docker`, which both services load, and `.env.docker.server`, which the server alone loads. The split keeps `ATKINS_SIGNING_KEY` in the server's process, where tokens are issued, while `ATKINS_AGENT_TOKEN` reaches both services, as the agent presents it on enrolment and the server verifies it.
+
+Both values ship as development placeholders. For an instance that outlives the trial, generate replacements with `openssl rand -hex 32`, keep them in the deployment's secret store, and pass them to the services through the environment rather than through a committed file. `ATKINS_SIGNING_KEY` signs every token the server issues, admin tokens among them, and rotating it invalidates every issued token and browser session. `ATKINS_AGENT_TOKEN` admits an agent to the queue and to the deploy keys, so it deserves the same handling and a rotation whenever an agent host is decommissioned. The agent keeps the token to itself; see [what a job receives](#environment-exported-to-a-job).
 
 ## Logging in
 
@@ -121,6 +123,7 @@ An agent publishes these to the command it runs:
 | `ATKINS_COMMIT_SHA`    | The commit that ref resolved to             |
 | `ATKINS_REVISION`      | The same commit, under its older name       |
 | `ATKINS_BRANCH`        | Set only when the ref named a branch        |
+| `ATKINS_SERVER`        | The server a child job is dispatched to     |
 | `CI`                   | `true`                                      |
 
 It also sets `ATKINS_NO_DISPATCH=1`. Without it, the atkins the agent runs would see the agent's own credentials, hand the work straight back to the server, and nothing would ever execute. A pipeline that genuinely wants to queue child work clears it:
@@ -140,6 +143,14 @@ jobs:
 ```
 
 Children read `ATKINS_JOB_ID` and are recorded under it. Nesting is bounded by `job.max_depth` (3 by default), so a pipeline that dispatches itself cannot run away with the queue.
+
+### The agent's own settings
+
+The table above lists the whole of the `ATKINS_*` a command sees. The agent sanitizes its own environment before it starts the command: every `ATKINS_*` and `PLATFORM_*` variable in the agent's process is removed, and the job's variables are then set by name.
+
+The filter protects the credentials the agent runs with. `ATKINS_AGENT_TOKEN` admits its holder to the queue, to jobs dispatched for other repositories, and to the deploy keys with their private halves, which keeps a job to the repository it was dispatched for. `ATKINS_SIGNING_KEY` signs every token the server issues, and an installation with the server and the agent on one host has both values in one environment. `PLATFORM_*` is removed alongside them, as a database URL carries its own password.
+
+The rest of the environment reaches the command unchanged — `PATH`, and whatever else the agent was started with — which is how a job finds its tooling. A value a job needs is best given a name outside the `ATKINS_` namespace, and secrets a pipeline needs belong in the job's own configuration rather than in the agent's environment.
 
 ## Triggering without a checkout
 

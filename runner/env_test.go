@@ -10,6 +10,58 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
+func TestNewEnv(t *testing.T) {
+	env := NewEnv([]string{
+		"PATH=/usr/bin",
+		"EMPTY=",
+		"VALUE=with=equals",
+		"KEY=first",
+		"KEY=last",
+		"no-equals",
+		"=nameless",
+	})
+
+	assert.Equal(t, "/usr/bin", env["PATH"])
+	assert.Equal(t, "", env["EMPTY"])
+	// Everything after the first separator is the value.
+	assert.Equal(t, "with=equals", env["VALUE"])
+	// A duplicate name takes its last value, as exec does.
+	assert.Equal(t, "last", env["KEY"])
+	assert.Len(t, env, 4)
+}
+
+func TestEnvSanitized(t *testing.T) {
+	env := NewEnv([]string{
+		"PATH=/usr/bin",
+		"HOME=/root",
+		"ATKINS_AGENT_TOKEN=enrolment-secret",
+		"ATKINS_SIGNING_KEY=signing-secret",
+		"ATKINS_JOB_ID=01ARZ3NDEKTSV4RRFFQ69G5FAV",
+		"PLATFORM_DB_DEFAULT=postgres://atkins:database-secret@localhost/atkins",
+	}).Sanitized()
+
+	assert.Equal(t, Env{"PATH": "/usr/bin", "HOME": "/root"}, env)
+}
+
+func TestEnvSanitizedKeepsTheReceiver(t *testing.T) {
+	env := NewEnv([]string{"PATH=/usr/bin", "ATKINS_AGENT_TOKEN=enrolment-secret"})
+
+	sanitized := env.Sanitized()
+	sanitized["ADDED"] = "value"
+
+	// The copy is the caller's to extend; the receiver keeps what it had.
+	assert.Equal(t, "enrolment-secret", env["ATKINS_AGENT_TOKEN"])
+	assert.NotContains(t, env, "ADDED")
+}
+
+func TestEnvNil(t *testing.T) {
+	var env Env
+
+	assert.Nil(t, env.Environ())
+	assert.Nil(t, env.Sanitized())
+	assert.Empty(t, NewEnv(nil))
+}
+
 func TestProcessEnv_VarsOnly(t *testing.T) {
 	ctx := &ExecutionContext{
 		Env:       make(map[string]string),

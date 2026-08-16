@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/runner"
 )
 
 // Workspace is a checkout prepared for one job.
@@ -27,6 +30,13 @@ type Workspace struct {
 	// kept. It sits beside the work tree rather than inside it, so
 	// staging a file does not dirty the checkout the job is testing.
 	Artefacts string
+
+	// Env is what the workspace contributes to the job's environment:
+	// the paths it laid out and the checkout it produced. prepare fills
+	// it, and a caller holding the workspace may add to it before the
+	// command starts. The values here win over the ones the agent
+	// derives from the job.
+	Env runner.Env
 }
 
 // Checkout records what the agent actually put in the work tree.
@@ -86,7 +96,37 @@ func (w *Worker) prepare(ctx context.Context, job *jobContext) (*Workspace, erro
 		return nil, fmt.Errorf("create artefact directory: %w", err)
 	}
 
-	return &Workspace{Root: root, Dir: dir, Checkout: *checkout, Artefacts: artefacts}, nil
+	workspace := &Workspace{Root: root, Dir: dir, Checkout: *checkout, Artefacts: artefacts}
+	workspace.Env = workspace.environment()
+
+	return workspace, nil
+}
+
+// environment is what the workspace publishes to the job command.
+//
+// ATKINS_REVISION keeps the name it has always had and holds the same
+// resolved sha as ATKINS_COMMIT_SHA, so a pipeline reading either can
+// pin an artefact to a commit even when the job named a branch or a
+// moving tag. The checkout reported here is the one the agent produced
+// rather than the one the job asked for.
+func (w *Workspace) environment() runner.Env {
+	env := runner.Env{
+		"ATKINS_WORKSPACE":  w.Root,
+		client.EnvArtefacts: w.Artefacts,
+	}
+
+	if w.Checkout.Ref != "" {
+		env["ATKINS_REF"] = w.Checkout.Ref
+	}
+	if sha := w.Checkout.CommitSHA; sha != "" {
+		env["ATKINS_COMMIT_SHA"] = sha
+		env["ATKINS_REVISION"] = sha
+	}
+	if w.Checkout.Branch != "" {
+		env["ATKINS_BRANCH"] = w.Checkout.Branch
+	}
+
+	return env
 }
 
 // artefactSuffix names the output directory beside a job's work tree,

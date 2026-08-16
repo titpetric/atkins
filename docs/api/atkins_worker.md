@@ -123,6 +123,13 @@ type Workspace struct {
 	// kept. It sits beside the work tree rather than inside it, so
 	// staging a file does not dirty the checkout the job is testing.
 	Artefacts string
+
+	// Env is what the workspace contributes to the job's environment:
+	// the paths it laid out and the checkout it produced. prepare fills
+	// it, and a caller holding the workspace may add to it before the
+	// command starts. The values here win over the ones the agent
+	// derives from the job.
+	Env runner.Env
 }
 ```
 
