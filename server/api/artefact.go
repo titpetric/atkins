@@ -121,11 +121,21 @@ func (s *Handlers) ListArtefacts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) listArtefacts(w http.ResponseWriter, r *http.Request) error {
-	if _, _, err := s.authenticateUser(r); err != nil {
+	user, _, err := s.authenticateUser(r)
+	if err != nil {
 		return err
 	}
 
-	artefacts, err := s.artefacts.List(r.Context(), platform.URLParam(r, "jobID"))
+	// The files a job produced are read on the same terms as the job
+	// itself, so the job is loaded and scoped first. Listing is the
+	// cheapest way to learn an artefact ID, and a scoped ledger with an
+	// open index is not scoped at all.
+	job, err := s.readableJob(r, user, platform.URLParam(r, "jobID"))
+	if err != nil {
+		return err
+	}
+
+	artefacts, err := s.artefacts.List(r.Context(), job.ID)
 	if err != nil {
 		return err
 	}
@@ -149,12 +159,21 @@ func (s *Handlers) DownloadArtefact(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) downloadArtefact(w http.ResponseWriter, r *http.Request) error {
-	if _, _, err := s.authenticateUser(r); err != nil {
+	user, _, err := s.authenticateUser(r)
+	if err != nil {
+		return err
+	}
+
+	// A job the caller may not read is a 404 here too — an artefact
+	// holds the built binary, the scan output and the coverage report,
+	// which is the half of a run worth guessing an ID for.
+	job, err := s.readableJob(r, user, platform.URLParam(r, "jobID"))
+	if err != nil {
 		return err
 	}
 
 	artefact, err := s.artefacts.Get(r.Context(),
-		platform.URLParam(r, "jobID"), platform.URLParam(r, "artefactID"))
+		job.ID, platform.URLParam(r, "artefactID"))
 	if err != nil {
 		return mapArtefactError(err)
 	}
