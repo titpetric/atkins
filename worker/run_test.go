@@ -2,6 +2,7 @@ package worker
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -111,6 +112,11 @@ type agentServer struct {
 	// refuseArtefacts turns every upload into a 422, standing in for a
 	// server that has hit its per-job limit.
 	refuseArtefacts bool
+
+	// revokeLease answers every heartbeat with the 409 a server sends
+	// once the job has settled — which is what a cancel looks like from
+	// the agent's side.
+	revokeLease bool
 }
 
 func newAgentServer(t *testing.T, policy client.PolicyResponse) *agentServer {
@@ -170,6 +176,10 @@ func newAgentServer(t *testing.T, policy client.PolicyResponse) *agentServer {
 
 		case strings.HasSuffix(r.URL.Path, "/heartbeat"):
 			fake.heartbeats++
+			if fake.revokeLease {
+				http.Error(w, "job is not leased by this agent", http.StatusConflict)
+				return
+			}
 			w.WriteHeader(http.StatusNoContent)
 
 		case strings.HasSuffix(r.URL.Path, "/status"):
@@ -201,6 +211,14 @@ func (f *agentServer) checkedOut() client.JobCheckoutRequest {
 	defer f.mu.Unlock()
 
 	return f.checkout
+}
+
+// settled reports whether the agent tried to report an outcome.
+func (f *agentServer) settled() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	return f.statusSeen
 }
 
 // stored reports the artefacts the server accepted.
@@ -673,4 +691,50 @@ func TestSecondJobFetchesTheCachedRepository(t *testing.T) {
 	output, status := fake.result()
 	assert.Equal(t, client.StatusPassed, status.Status)
 	assert.Contains(t, output, "second")
+}
+
+func TestRunStopsWhenTheServerTakesTheJobBack(t *testing.T) {
+	remote := gitRepository(t).Path
+	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
+	fake.revokeLease = true
+
+	worker := testWorker(t, fake)
+	worker.opts.HeartbeatInterval = 50 * time.Millisecond
+
+	// Outside the work tree, which is removed when the job ends: the
+	// marker has to outlive the cleanup to say whether the command ran
+	// on after the job was taken away.
+	marker := filepath.Join(t.TempDir(), "late.txt")
+
+	worker.run(t.Context(), job(remote, "", "sleep 1; touch "+marker))
+
+	// A cancelled job stays cancelled. The agent must not settle a job
+	// the server has already finished, or a late `failed` overwrites the
+	// outcome somebody asked for.
+	assert.False(t, fake.settled(), "the agent reported a status for a job it no longer held")
+
+	// The page should say why it stopped, rather than ending mid-build.
+	output, _ := fake.result()
+	assert.Contains(t, output, "took this job back")
+
+	// Long enough for the command to have finished on its own. The
+	// whole point is that it did not: the process group is killed, not
+	// merely abandoned while it runs to completion.
+	time.Sleep(1500 * time.Millisecond)
+	assert.NoFileExists(t, marker, "the command outlived the job it belonged to")
+}
+
+func TestLeaseLost(t *testing.T) {
+	assert.True(t, leaseLost(&client.APIError{StatusCode: http.StatusConflict}))
+
+	// A server having a moment is not a job being taken away, and the
+	// next tick retries it.
+	assert.False(t, leaseLost(&client.APIError{StatusCode: http.StatusInternalServerError}))
+	assert.False(t, leaseLost(errors.New("connection refused")))
+	assert.False(t, leaseLost(nil))
+
+	// A nil lease has nothing to lose: fail() is called directly in
+	// tests that never started one.
+	var none *lease
+	assert.False(t, none.Revoked())
 }

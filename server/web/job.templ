@@ -110,9 +110,18 @@ templ jobView(page *JobPage, links Links) {
 		}
 		<h2>Output</h2>
 		if len(page.Log) > 0 {
+			// The colours a command wrote are rendered rather than
+			// printed: atkins colours its tree, and a page that shows
+			// the escape sequences as text is a page nobody reads. The
+			// text of each span is escaped by templ exactly as it was
+			// before — only the wrapper is new.
 			<pre>
-				for _, entry := range page.Log {
-					{ entry.Content }
+				for _, span := range logSpans(page.Log) {
+					if span.Class == "" {
+						{ span.Text }
+					} else {
+						<span class={ span.Class }>{ span.Text }</span>
+					}
 				}
 			</pre>
 		} else {

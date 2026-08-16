@@ -134,6 +134,49 @@ templ styles() {
     white-space: pre-wrap;
     word-break: break-word;
   }
+  /* Job output keeps the colours the command wrote. The palette is
+     muted against both themes rather than the terminal's own: a build
+     log is read on a page here, not in a terminal, and a saturated
+     green on white is a colour nobody can read. */
+  .ansi-bold      { font-weight: 600; }
+  .ansi-dim       { opacity: .7; }
+  .ansi-italic    { font-style: italic; }
+  .ansi-underline { text-decoration: underline; }
+
+  .ansi-fg-black   { color: #3b3b45; }
+  .ansi-fg-red     { color: #b4514f; }
+  .ansi-fg-green   { color: #4b9460; }
+  .ansi-fg-yellow  { color: #a07a1f; }
+  .ansi-fg-blue    { color: #3b6ea5; }
+  .ansi-fg-magenta { color: #9155a8; }
+  .ansi-fg-cyan    { color: #2b8087; }
+  .ansi-fg-white   { color: var(--fg); }
+  .ansi-fg-bright-black   { color: var(--muted); }
+  .ansi-fg-bright-red     { color: #d06a67; }
+  .ansi-fg-bright-green   { color: #5cb075; }
+  .ansi-fg-bright-yellow  { color: #c2962c; }
+  .ansi-fg-bright-blue    { color: #5b8cc4; }
+  .ansi-fg-bright-magenta { color: #ac6ec4; }
+  .ansi-fg-bright-cyan    { color: #359aa2; }
+  .ansi-fg-bright-white   { color: var(--fg); }
+
+  .ansi-bg-black   { background: #3b3b45; color: #f7f7f9; }
+  .ansi-bg-red     { background: #b4514f; color: #ffffff; }
+  .ansi-bg-green   { background: #4b9460; color: #ffffff; }
+  .ansi-bg-yellow  { background: #a07a1f; color: #ffffff; }
+  .ansi-bg-blue    { background: #3b6ea5; color: #ffffff; }
+  .ansi-bg-magenta { background: #9155a8; color: #ffffff; }
+  .ansi-bg-cyan    { background: #2b8087; color: #ffffff; }
+  .ansi-bg-white   { background: #e2e2e8; color: #1b1b1f; }
+  .ansi-bg-bright-black   { background: #6a6a75; color: #ffffff; }
+  .ansi-bg-bright-red     { background: #d06a67; color: #ffffff; }
+  .ansi-bg-bright-green   { background: #5cb075; color: #1b1b1f; }
+  .ansi-bg-bright-yellow  { background: #c2962c; color: #1b1b1f; }
+  .ansi-bg-bright-blue    { background: #5b8cc4; color: #ffffff; }
+  .ansi-bg-bright-magenta { background: #ac6ec4; color: #ffffff; }
+  .ansi-bg-bright-cyan    { background: #359aa2; color: #ffffff; }
+  .ansi-bg-bright-white   { background: #f7f7f9; color: #1b1b1f; }
+
   table { border-collapse: collapse; width: 100%; font-size: 14px; }
   th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { color: var(--muted); font-weight: 500; width: 11rem; }
