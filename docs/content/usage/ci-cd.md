@@ -37,7 +37,9 @@ atkins down
 
 Nothing is mounted from the host. The agent clones the repository your checkout reports, exactly as another machine would, so a job runs against what the remote actually has rather than against your working tree. State lives in the containers and goes away with them.
 
-Settings for the instance live in `.env.docker`, shared by both services. Two of them are worth replacing before it outlives an afternoon: `ATKINS_SIGNING_KEY`, because whoever knows it can mint any token, and `ATKINS_AGENT_TOKEN`, because whoever knows it can join the queue and read the deploy keys.
+Settings for the instance live in `.env.docker`, shared by both services, and in `.env.docker.server`, which the server loads and the agent does not. Two of them are worth replacing before it outlives an afternoon: `ATKINS_SIGNING_KEY`, because whoever knows it can mint any token, and `ATKINS_AGENT_TOKEN`, because whoever knows it can join the queue and read the deploy keys.
+
+The split is why the signing key sits in the server's file: the agent runs commands somebody else wrote, so it holds the enrolment token it needs and nothing more. It withholds that token from the jobs too; see [what a job does not receive](#what-a-job-does-not-receive).
 
 ## Logging in
 
@@ -121,6 +123,7 @@ An agent publishes these to the command it runs:
 | `ATKINS_COMMIT_SHA`    | The commit that ref resolved to             |
 | `ATKINS_REVISION`      | The same commit, under its older name       |
 | `ATKINS_BRANCH`        | Set only when the ref named a branch        |
+| `ATKINS_SERVER`        | The server a child job is dispatched to     |
 | `CI`                   | `true`                                      |
 
 It also sets `ATKINS_NO_DISPATCH=1`. Without it, the atkins the agent runs would see the agent's own credentials, hand the work straight back to the server, and nothing would ever execute. A pipeline that genuinely wants to queue child work clears it:
@@ -140,6 +143,14 @@ jobs:
 ```
 
 Children read `ATKINS_JOB_ID` and are recorded under it. Nesting is bounded by `job.max_depth` (3 by default), so a pipeline that dispatches itself cannot run away with the queue.
+
+### What a job does not receive
+
+The table above is the whole of the `ATKINS_*` a command sees. The agent does not hand its own environment down: every `ATKINS_*` and `PLATFORM_DB_*` setting the agent process holds is dropped, and the job's variables are put back by name.
+
+That is not tidiness. `ATKINS_AGENT_TOKEN` is the fleet-wide enrolment secret: a command that reads it can enrol from anywhere, claim jobs belonging to other repositories, and fetch deploy keys with their private halves — turning "may run one job" into "may read every key the server holds", which is what the repository allowlist exists to stop. `ATKINS_SIGNING_KEY` is worse where an install puts server and agent side by side, because it mints any token, admin included.
+
+The rest of the machine's environment — `PATH`, and whatever else the agent was started with — is passed through, since that is how a job finds its tooling. Anything a job legitimately needs is therefore best given a name outside the `ATKINS_` namespace.
 
 ## Triggering without a checkout
 

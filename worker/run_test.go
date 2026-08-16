@@ -474,6 +474,37 @@ func TestRunExportsTheJobEnvironment(t *testing.T) {
 	assert.Contains(t, output, "repo=local/demo")
 }
 
+// The agent's own credentials are not part of a job's context. Whoever
+// reads ATKINS_AGENT_TOKEN can enrol as an agent and fetch every deploy
+// key the server holds; whoever reads ATKINS_SIGNING_KEY mints admin
+// tokens. Neither may reach the command the agent runs.
+func TestRunWithholdsTheAgentCredentials(t *testing.T) {
+	t.Setenv("ATKINS_AGENT_TOKEN", "enrolment-secret")
+	t.Setenv("ATKINS_SIGNING_KEY", "signing-secret")
+	t.Setenv("PLATFORM_DB_DEFAULT", "postgres://atkins:database-secret@localhost/atkins")
+	t.Setenv("ATKINS_TOOLING", "kept")
+
+	remote := gitRepository(t).Path
+	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
+	worker := testWorker(t, fake)
+
+	worker.run(t.Context(), job(remote, "", "env | sort"))
+
+	output, status := fake.result()
+	require.Equal(t, client.StatusPassed, status.Status)
+	assert.NotContains(t, output, "enrolment-secret")
+	assert.NotContains(t, output, "signing-secret")
+	assert.NotContains(t, output, "database-secret")
+	// The whole namespace goes, not a list of known secrets, so an
+	// agent setting that gains a secret later is withheld by default.
+	assert.NotContains(t, output, "ATKINS_TOOLING")
+	// What the job is documented to receive still arrives, and so does
+	// the rest of the machine's environment.
+	assert.Contains(t, output, "ATKINS_JOB_ID=01ARZ3NDEKTSV4RRFFQ69G5FAV")
+	assert.Contains(t, output, client.EnvServer+"="+fake.URL)
+	assert.Contains(t, output, "PATH=")
+}
+
 func TestRunReportsAFailingCommand(t *testing.T) {
 	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})

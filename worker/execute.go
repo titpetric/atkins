@@ -69,12 +69,15 @@ func (w *Worker) execute(ctx context.Context, job *jobContext, workspace *Worksp
 
 // environment builds the process environment for a job command.
 //
+// The job's ATKINS_* variables are set here rather than inherited; see
+// inherited for why the agent's own are dropped first.
+//
 // ATKINS_NO_DISPATCH is the important one: without it the atkins the
 // agent runs would see the agent's own credentials, hand the work
 // straight back to the server, and nothing would ever execute. A
 // pipeline that genuinely wants to queue child jobs clears it.
 func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
-	env := append(os.Environ(),
+	env := append(inherited(),
 		client.EnvCI+"=true",
 		client.EnvNoDispatch+"=1",
 		client.EnvJobID+"="+job.Job.ID,
@@ -83,6 +86,12 @@ func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
 		"ATKINS_WORKSPACE="+workspace.Root,
 		client.EnvArtefacts+"="+workspace.Artefacts,
 	)
+
+	// The server a child job would be dispatched to. The URL is not a
+	// credential; reaching the queue still needs a login.
+	if server := w.client.Server(); server != "" {
+		env = append(env, client.EnvServer+"="+server)
+	}
 
 	if job.Job.ParentID != "" {
 		env = append(env, client.EnvParentJobID+"="+job.Job.ParentID)
@@ -111,6 +120,36 @@ func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
 	}
 	if workspace.Checkout.Branch != "" {
 		env = append(env, "ATKINS_BRANCH="+workspace.Checkout.Branch)
+	}
+
+	return env
+}
+
+// inherited is the agent's process environment with the agent's own
+// configuration removed.
+//
+// ATKINS_* is the agent's namespace before it is the job's: it carries
+// ATKINS_AGENT_TOKEN, the fleet-wide enrolment secret, and on a
+// single-host install the server's ATKINS_SIGNING_KEY as well. A job
+// that can read the first can enrol from anywhere, claim work from the
+// whole queue and fetch the deploy keys with their private halves —
+// the escalation the repository allowlist exists to prevent; one that
+// can read the second mints any token, admin included.
+//
+// So the whole namespace goes, and environment puts back the variables
+// a job is documented to receive. That way a secret the agent gains
+// later is private without anyone remembering to add it here.
+// PLATFORM_DB_* goes with it: a database URL carries its password.
+func inherited() []string {
+	environ := os.Environ()
+	env := make([]string, 0, len(environ))
+
+	for _, entry := range environ {
+		name, _, _ := strings.Cut(entry, "=")
+		if strings.HasPrefix(name, "ATKINS_") || strings.HasPrefix(name, "PLATFORM_DB_") {
+			continue
+		}
+		env = append(env, entry)
 	}
 
 	return env
