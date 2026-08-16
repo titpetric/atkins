@@ -42,7 +42,7 @@ func testStorage(t *testing.T) (*sqlx.DB, *JobStorage) {
 	require.NoError(t, err)
 	require.NoError(t, Migrate(t.Context(), db, schema.Migrations()))
 
-	return db, NewJobStorage(db, 0, 0)
+	return db, NewJobStorage(db, nil, 0, 0)
 }
 
 // seedJob writes one job with the given status and finish time, plus

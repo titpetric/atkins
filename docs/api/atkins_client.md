@@ -554,9 +554,16 @@ var UserAgent = "atkins"
 
 Command renders an argv as the command to record.
 
-argv[0] is reduced to its base name: the recorded command is re-run
-on another machine, and `/home/tit/go/bin/atkins` says more about
-this laptop than about the job.
+argv[0] is replaced with `atkins` rather than reduced to its base
+name: the recorded command is re-run on another machine, where the
+binary is called `atkins`, and what this one happens to be named is a
+fact about this laptop. A build under test as `./bin/atkins-linux-amd64`,
+the `atkins.old` the install job leaves behind, or a distro package
+named `atkins-cli` would otherwise queue a command no agent can run,
+and the job comes back as exit 127 with an empty log.
+
+A run of something other than atkins is what the explicit `command`
+override on the trigger endpoint is for.
 
 ```go
 func Command(argv []string) string
