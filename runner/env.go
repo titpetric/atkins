@@ -12,6 +12,24 @@ import (
 // Env is a map of environment variables.
 type Env map[string]string
 
+// NewEnv builds an Env from KEY=VALUE strings, the form os.Environ and
+// exec.Cmd use. The caller supplies the slice, so a process
+// environment, a captured one or a literal all read the same way.
+//
+// A later entry wins, matching what exec does with a duplicate name.
+// Entries without a name are skipped.
+func NewEnv(environ []string) Env {
+	env := make(Env, len(environ))
+	for _, entry := range environ {
+		name, value, ok := strings.Cut(entry, "=")
+		if !ok || name == "" {
+			continue
+		}
+		env[name] = value
+	}
+	return env
+}
+
 // Environ returns the environment as a slice of KEY=VALUE strings.
 func (e Env) Environ() []string {
 	if e == nil {
@@ -22,6 +40,47 @@ func (e Env) Environ() []string {
 		s = append(s, k+"="+v)
 	}
 	return s
+}
+
+// sanitizedPrefixes name the settings atkins keeps to the process that
+// was configured with them. ATKINS_ holds the credentials a server or
+// an agent runs with, among them the enrolment token and the signing
+// key, and PLATFORM_ holds the database URLs, which carry their own
+// passwords.
+var sanitizedPrefixes = []string{"ATKINS_", "PLATFORM_"}
+
+// Sanitized returns a copy of the environment with atkins' own settings
+// removed.
+//
+// It is what an agent hands to a command that arrived with a job: the
+// command keeps PATH and the rest of the machine's environment, and the
+// variables it is meant to receive are set by name afterwards. Removing
+// the prefixes wholesale keeps a setting added later with the process
+// that was configured with it.
+func (e Env) Sanitized() Env {
+	if e == nil {
+		return nil
+	}
+
+	env := make(Env, len(e))
+	for name, value := range e {
+		if sanitized(name) {
+			continue
+		}
+		env[name] = value
+	}
+
+	return env
+}
+
+// sanitized reports whether a name belongs to atkins' own settings.
+func sanitized(name string) bool {
+	for _, prefix := range sanitizedPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // mergeEnv merges environment variables from EnvDecl into the execution context.

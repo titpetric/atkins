@@ -146,9 +146,9 @@ Children read `ATKINS_JOB_ID` and are recorded under it. Nesting is bounded by `
 
 ### The agent's own settings
 
-The table above lists the whole of the `ATKINS_*` a command sees. The agent filters its own environment before it starts the command: every `ATKINS_*` and `PLATFORM_DB_*` variable in the agent's process is removed, and the job's variables are then set by name.
+The table above lists the whole of the `ATKINS_*` a command sees. The agent sanitizes its own environment before it starts the command: every `ATKINS_*` and `PLATFORM_*` variable in the agent's process is removed, and the job's variables are then set by name.
 
-The filter protects the credentials the agent runs with. `ATKINS_AGENT_TOKEN` admits its holder to the queue, to jobs dispatched for other repositories, and to the deploy keys with their private halves, which keeps a job to the repository it was dispatched for. `ATKINS_SIGNING_KEY` signs every token the server issues, and an installation with the server and the agent on one host has both values in one environment. `PLATFORM_DB_*` is filtered alongside them, as a database URL carries its own password.
+The filter protects the credentials the agent runs with. `ATKINS_AGENT_TOKEN` admits its holder to the queue, to jobs dispatched for other repositories, and to the deploy keys with their private halves, which keeps a job to the repository it was dispatched for. `ATKINS_SIGNING_KEY` signs every token the server issues, and an installation with the server and the agent on one host has both values in one environment. `PLATFORM_*` is removed alongside them, as a database URL carries its own password.
 
 The rest of the environment reaches the command unchanged — `PATH`, and whatever else the agent was started with — which is how a job finds its tooling. A value a job needs is best given a name outside the `ATKINS_` namespace, and secrets a pipeline needs belong in the job's own configuration rather than in the agent's environment.
 

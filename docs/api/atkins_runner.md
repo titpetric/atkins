@@ -307,6 +307,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func NewContextVariables (values map[string]any) *ContextVariables`
 - `func NewContextVariablesWithResolver (pending map[string]any, resolver func(string) (string, error)) *ContextVariables`
+- `func NewEnv (environ []string) Env`
 - `func NewExecError (result psexec.Result) ExecError`
 - `func NewExecutor () *Executor`
 - `func NewExecutorWithOptions (opts *Options) *Executor`
@@ -355,6 +356,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*TaskResolver) ResolveName (name string, strict bool) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveWithFallback (taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)`
 - `func (Env) Environ () []string`
+- `func (Env) Sanitized () Env`
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
 - `func (ProgressObserverFunc) OnJobProgress (ev JobProgressEvent)`
@@ -558,6 +560,19 @@ that are evaluated lazily on first access via Get().
 
 ```go
 func NewContextVariablesWithResolver(pending map[string]any, resolver func(string) (string, error)) *ContextVariables
+```
+
+### NewEnv
+
+NewEnv builds an Env from KEY=VALUE strings, the form os.Environ and
+exec.Cmd use. The caller supplies the slice, so a process
+environment, a captured one or a literal all read the same way.
+
+A later entry wins, matching what exec does with a duplicate name.
+Entries without a name are skipped.
+
+```go
+func NewEnv(environ []string) Env
 ```
 
 ### NewExecError
@@ -973,6 +988,21 @@ Environ returns the environment as a slice of KEY=VALUE strings.
 
 ```go
 func (Env) Environ() []string
+```
+
+### Sanitized
+
+Sanitized returns a copy of the environment with atkins' own settings
+removed.
+
+It is what an agent hands to a command that arrived with a job: the
+command keeps PATH and the rest of the machine's environment, and the
+variables it is meant to receive are set by name afterwards. Removing
+the prefixes wholesale keeps a setting added later with the process
+that was configured with it.
+
+```go
+func (Env) Sanitized() Env
 ```
 
 ### Error

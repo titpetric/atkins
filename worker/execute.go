@@ -71,24 +71,26 @@ func (w *Worker) execute(ctx context.Context, job *jobContext, workspace *Worksp
 
 // environment builds the process environment for a job command.
 //
-// The job's own variables are named here, the workspace contributes
-// what it laid out through Workspace.Env, and the pair is applied on
-// top of the filtered environment inherited returns. Workspace.Env is
-// applied last, so a caller that puts a value there before the command
-// starts has it reach the job.
+// The agent's process environment arrives sanitized, which is what
+// keeps the agent's credentials — the enrolment token, and the signing
+// key on a host that also runs the server — out of a command that
+// arrived with a job. The job's own variables are named here, and the
+// workspace contributes what it laid out through Workspace.Env, which
+// is applied last so a caller that puts a value there before the
+// command starts has it reach the job.
 //
 // ATKINS_NO_DISPATCH is the important one: without it the atkins the
 // agent runs would see the agent's own credentials, hand the work
 // straight back to the server, and nothing would ever execute. A
 // pipeline that genuinely wants to queue child jobs clears it.
 func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
-	env := runner.Env{
-		client.EnvCI:         "true",
-		client.EnvNoDispatch: "1",
-		client.EnvJobID:      job.Job.ID,
-		client.EnvRootJobID:  job.Job.RootID,
-		"ATKINS_AGENT_ID":    w.opts.AgentID,
-	}
+	env := runner.NewEnv(os.Environ()).Sanitized()
+
+	env[client.EnvCI] = "true"
+	env[client.EnvNoDispatch] = "1"
+	env[client.EnvJobID] = job.Job.ID
+	env[client.EnvRootJobID] = job.Job.RootID
+	env["ATKINS_AGENT_ID"] = w.opts.AgentID
 
 	// The server a child job is dispatched to. A pipeline that clears
 	// ATKINS_NO_DISPATCH still has to log in to reach the queue.
@@ -109,38 +111,7 @@ func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
 
 	maps.Copy(env, workspace.Env)
 
-	// A name set twice takes its last value, so these override anything
-	// of the same name that survived the filter.
-	return append(inherited(), env.Environ()...)
-}
-
-// inherited returns the agent's process environment with the agent's
-// own settings filtered out.
-//
-// ATKINS_* is the agent's namespace as much as the job's, and it holds
-// the agent's credentials: ATKINS_AGENT_TOKEN admits its holder to the
-// queue, to jobs dispatched for other repositories and to the deploy
-// keys with their private halves, and an installation running the
-// server beside the agent has ATKINS_SIGNING_KEY there too, which
-// signs every token the server issues. PLATFORM_DB_* is filtered for
-// the same reason, as a database URL carries its own password.
-//
-// The whole namespace is filtered and environment sets the job's
-// variables by name, so a setting the agent gains later stays with the
-// agent until someone exports it deliberately.
-func inherited() []string {
-	environ := os.Environ()
-	env := make([]string, 0, len(environ))
-
-	for _, entry := range environ {
-		name, _, _ := strings.Cut(entry, "=")
-		if strings.HasPrefix(name, "ATKINS_") || strings.HasPrefix(name, "PLATFORM_DB_") {
-			continue
-		}
-		env = append(env, entry)
-	}
-
-	return env
+	return env.Environ()
 }
 
 // logWriter batches command output and ships it to the server.
