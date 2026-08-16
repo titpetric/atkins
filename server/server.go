@@ -110,18 +110,11 @@ func (m *Module) Start(ctx context.Context) error {
 		return fmt.Errorf("atkins server: artefact directory %q: %w", artefactDir, err)
 	}
 
-	// A setting overrides the corresponding start-up flag, so an admin
-	// can change these without a restart.
-	maxDepth := m.opts.MaxJobDepth
-	if configured := settings.Int(model.SettingJobMaxDepth); configured > 0 {
-		maxDepth = configured
-	}
-	leaseTTL := m.opts.LeaseTTL
-	if configured := settings.Duration(model.SettingJobLeaseTTL); configured > 0 {
-		leaseTTL = configured
-	}
-
-	m.jobs = storage.NewJobStorage(db, maxDepth, leaseTTL)
+	// The settings store goes in rather than two values read out of it:
+	// `job.max_depth` and `job.lease_ttl` are runtime configuration, and
+	// resolving them here would mean an admin's change waited for a
+	// restart while the API reported it as already in force.
+	m.jobs = storage.NewJobStorage(db, settings, m.opts.MaxJobDepth, m.opts.LeaseTTL)
 	m.artefacts = storage.NewJobArtefactStorage(db, blobs)
 	jobLogs := storage.NewJobLogStorage(db)
 	repositories := storage.NewRepositoryStorage(db)

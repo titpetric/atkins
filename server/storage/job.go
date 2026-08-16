@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,14 @@ const defaultListLimit = 100
 type JobStorage struct {
 	db *sqlx.DB
 
+	// settings is consulted per use rather than read once here.
+	// `job.max_depth` and `job.lease_ttl` are documented as runtime
+	// configuration an admin changes without a restart, and a value
+	// captured at start-up would make that documentation false. A nil
+	// settings store leaves the configured values in charge, which is
+	// what a test constructing storage directly wants.
+	settings *SettingStorage
+
 	// maxDepth bounds how deep a job tree may nest. A pipeline that
 	// dispatches a child that dispatches a child is useful; one that
 	// does so without a floor is a fork bomb with a queue in front.
@@ -32,7 +41,8 @@ type JobStorage struct {
 	leaseTTL time.Duration
 }
 
-// Defaults applied when the corresponding JobStorage fields are zero.
+// Defaults applied when neither a stored setting nor a configured value
+// says otherwise.
 const (
 	// DefaultMaxDepth allows a dispatcher job to fan out to children
 	// and those children to fan out once more.
@@ -44,15 +54,61 @@ const (
 )
 
 // NewJobStorage returns a JobStorage backed by the given pool.
-// Zero values for maxDepth and leaseTTL select the package defaults.
-func NewJobStorage(db *sqlx.DB, maxDepth int64, leaseTTL time.Duration) *JobStorage {
-	if maxDepth <= 0 {
-		maxDepth = DefaultMaxDepth
+//
+// maxDepth and leaseTTL are the configured values, and stand in when no
+// admin has stored an override; zero selects the registry default.
+func NewJobStorage(db *sqlx.DB, settings *SettingStorage, maxDepth int64, leaseTTL time.Duration) *JobStorage {
+	return &JobStorage{db: db, settings: settings, maxDepth: maxDepth, leaseTTL: leaseTTL}
+}
+
+// MaxDepth is the nesting limit in force.
+//
+// Precedence is the same for both of these: a stored setting is an
+// admin's decision and wins; a configured value is the operator's and
+// comes next; the registry default is nobody's, and is what is left.
+func (s *JobStorage) MaxDepth() int64 {
+	if stored, ok := s.override(model.SettingJobMaxDepth); ok {
+		if parsed, err := strconv.ParseInt(stored, 10, 64); err == nil && parsed > 0 {
+			return parsed
+		}
+	} else if s.maxDepth > 0 {
+		return s.maxDepth
 	}
-	if leaseTTL <= 0 {
-		leaseTTL = DefaultLeaseTTL
+
+	if s.settings != nil {
+		if fallback := s.settings.Int(model.SettingJobMaxDepth); fallback > 0 {
+			return fallback
+		}
 	}
-	return &JobStorage{db: db, maxDepth: maxDepth, leaseTTL: leaseTTL}
+	return DefaultMaxDepth
+}
+
+// LeaseTTL is how long a claim is good for.
+func (s *JobStorage) LeaseTTL() time.Duration {
+	if stored, ok := s.override(model.SettingJobLeaseTTL); ok {
+		if parsed, err := time.ParseDuration(stored); err == nil && parsed > 0 {
+			return parsed
+		}
+	} else if s.leaseTTL > 0 {
+		return s.leaseTTL
+	}
+
+	if s.settings != nil {
+		if fallback := s.settings.Duration(model.SettingJobLeaseTTL); fallback > 0 {
+			return fallback
+		}
+	}
+	return DefaultLeaseTTL
+}
+
+// override reads a setting an admin has actually stored. A setting
+// nobody has touched reports false rather than its registry default,
+// so a default cannot outrank a configured value.
+func (s *JobStorage) override(name string) (string, bool) {
+	if s.settings == nil {
+		return "", false
+	}
+	return s.settings.Override(name)
 }
 
 // JobRequest is the input for dispatching a job.
@@ -111,7 +167,7 @@ func (s *JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, er
 			return nil, err
 		}
 		depth = parent.Depth + 1
-		if depth > s.maxDepth {
+		if depth > s.MaxDepth() {
 			return nil, model.ErrMaxDepthExceeded
 		}
 		rootID = parent.RootID
@@ -183,6 +239,7 @@ func (s *JobStorage) Claim(ctx context.Context, agentID string, labels []string)
 	}
 
 	now := time.Now()
+	lease := s.LeaseTTL()
 	for _, job := range candidates {
 		if !agentAcceptsJob(labels, job.Labels) {
 			continue
@@ -191,7 +248,7 @@ func (s *JobStorage) Claim(ctx context.Context, agentID string, labels []string)
 		update := `UPDATE ` + model.JobTable + ` SET status = ?, agent_id = ?, started_at = ?, lease_expires_at = ?, updated_at = ?
 			WHERE id = ? AND status = ?`
 		if err := db.Exec(ctx, update,
-			model.JobStatusRunning, agentID, now, now.Add(s.leaseTTL), now,
+			model.JobStatusRunning, agentID, now, now.Add(lease), now,
 			job.ID, model.JobStatusPending); err != nil {
 			return nil, fmt.Errorf("claim job: %w", err)
 		}
@@ -207,7 +264,7 @@ func (s *JobStorage) Claim(ctx context.Context, agentID string, labels []string)
 		job.Status = model.JobStatusRunning
 		job.AgentID = agentID
 		job.SetStartedAt(now)
-		job.SetLeaseExpiresAt(now.Add(s.leaseTTL))
+		job.SetLeaseExpiresAt(now.Add(lease))
 		job.SetUpdatedAt(now)
 		return &job, nil
 	}
@@ -223,7 +280,7 @@ func (s *JobStorage) Heartbeat(ctx context.Context, jobID, agentID string) error
 
 	query := `UPDATE ` + model.JobTable + ` SET lease_expires_at = ?, updated_at = ?
 		WHERE id = ? AND agent_id = ? AND status = ?`
-	if err := db.Exec(ctx, query, now.Add(s.leaseTTL), now, jobID, agentID, model.JobStatusRunning); err != nil {
+	if err := db.Exec(ctx, query, now.Add(s.LeaseTTL()), now, jobID, agentID, model.JobStatusRunning); err != nil {
 		return fmt.Errorf("heartbeat job: %w", err)
 	}
 	if db.RowsAffected() == 0 {

@@ -148,6 +148,14 @@ type JobRequest struct {
 type JobStorage struct {
 	db *sqlx.DB
 
+	// settings is consulted per use rather than read once here.
+	// `job.max_depth` and `job.lease_ttl` are documented as runtime
+	// configuration an admin changes without a restart, and a value
+	// captured at start-up would make that documentation false. A nil
+	// settings store leaves the configured values in charge, which is
+	// what a test constructing storage directly wants.
+	settings *SettingStorage
+
 	// maxDepth bounds how deep a job tree may nest. A pipeline that
 	// dispatches a child that dispatches a child is useful; one that
 	// does so without a floor is a fork bomb with a queue in front.
@@ -378,7 +386,8 @@ const Project = "atkins"
 ```
 
 ```go
-// Defaults applied when the corresponding JobStorage fields are zero.
+// Defaults applied when neither a stored setting nor a configured value
+// says otherwise.
 const (
 	// DefaultMaxDepth allows a dispatcher job to fan out to children
 	// and those children to fan out once more.
@@ -425,7 +434,7 @@ const (
 - `func Migrate (ctx context.Context, db *sqlx.DB, schema fs.FS) error`
 - `func NewJobArtefactStorage (db *sqlx.DB, blobs blob.Store) *JobArtefactStorage`
 - `func NewJobLogStorage (db *sqlx.DB) *JobLogStorage`
-- `func NewJobStorage (db *sqlx.DB, maxDepth int64, leaseTTL time.Duration) *JobStorage`
+- `func NewJobStorage (db *sqlx.DB, settings *SettingStorage, maxDepth int64, leaseTTL time.Duration) *JobStorage`
 - `func NewRepositoryRuleStorage (db *sqlx.DB) *RepositoryRuleStorage`
 - `func NewRepositoryStorage (db *sqlx.DB) *RepositoryStorage`
 - `func NewSSHKeyStorage (db *sqlx.DB) *SSHKeyStorage`
@@ -445,7 +454,9 @@ const (
 - `func (*JobStorage) Finish (ctx context.Context, jobID string, req StatusRequest) (*model.Job, error)`
 - `func (*JobStorage) Get (ctx context.Context, id string) (*model.Job, error)`
 - `func (*JobStorage) Heartbeat (ctx context.Context, jobID,agentID string) error`
+- `func (*JobStorage) LeaseTTL () time.Duration`
 - `func (*JobStorage) List (ctx context.Context, filter ListFilter) ([]model.Job, error)`
+- `func (*JobStorage) MaxDepth () int64`
 - `func (*JobStorage) Purge (ctx context.Context, req RetentionRequest) (RetentionResult, error)`
 - `func (*JobStorage) ReclaimExpired (ctx context.Context) (int64, error)`
 - `func (*JobStorage) RecordCheckout (ctx context.Context, jobID string, req CheckoutRequest) error`
@@ -482,6 +493,7 @@ const (
 - `func (*SettingStorage) Get (name string) string`
 - `func (*SettingStorage) Int (name string) int64`
 - `func (*SettingStorage) Load (ctx context.Context) error`
+- `func (*SettingStorage) Override (name string) (string, bool)`
 - `func (*SettingStorage) Reset (ctx context.Context, name string) error`
 - `func (*SettingStorage) Set (ctx context.Context, name,value,userID string) error`
 - `func (*UserStorage) Authenticate (ctx context.Context, email,password string) (*model.User, error)`
@@ -537,10 +549,12 @@ func NewJobLogStorage(db *sqlx.DB) *JobLogStorage
 ### NewJobStorage
 
 NewJobStorage returns a JobStorage backed by the given pool.
-Zero values for maxDepth and leaseTTL select the package defaults.
+
+maxDepth and leaseTTL are the configured values, and stand in when no
+admin has stored an override; zero selects the registry default.
 
 ```go
-func NewJobStorage(db *sqlx.DB, maxDepth int64, leaseTTL time.Duration) *JobStorage
+func NewJobStorage(db *sqlx.DB, settings *SettingStorage, maxDepth int64, leaseTTL time.Duration) *JobStorage
 ```
 
 ### NewRepositoryRuleStorage
@@ -728,12 +742,32 @@ the job may extend it.
 func (*JobStorage) Heartbeat(ctx context.Context, jobID, agentID string) error
 ```
 
+### LeaseTTL
+
+LeaseTTL is how long a claim is good for.
+
+```go
+func (*JobStorage) LeaseTTL() time.Duration
+```
+
 ### List
 
 List returns jobs matching the filter, newest first.
 
 ```go
 func (*JobStorage) List(ctx context.Context, filter ListFilter) ([]model.Job, error)
+```
+
+### MaxDepth
+
+MaxDepth is the nesting limit in force.
+
+Precedence is the same for both of these: a stored setting is an
+admin's decision and wins; a configured value is the operator's and
+comes next; the registry default is nobody's, and is what is left.
+
+```go
+func (*JobStorage) MaxDepth() int64
 ```
 
 ### Purge
@@ -1068,6 +1102,21 @@ Load fills the cache from the database.
 
 ```go
 func (*SettingStorage) Load(ctx context.Context) error
+```
+
+### Override
+
+Override returns the stored value for a setting, and whether an admin
+has stored one at all.
+
+It is the distinction Get deliberately hides: Get answers "what is
+this setting worth", falling back to the registry default, which is
+the wrong question when a start-up flag configures the same thing.
+A default is not a decision, and it must not outrank one written in
+the configuration file.
+
+```go
+func (*SettingStorage) Override(name string) (string, bool)
 ```
 
 ### Reset

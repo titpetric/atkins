@@ -71,6 +71,22 @@ func (s *SettingStorage) Get(name string) string {
 	return ""
 }
 
+// Override returns the stored value for a setting, and whether an admin
+// has stored one at all.
+//
+// It is the distinction Get deliberately hides: Get answers "what is
+// this setting worth", falling back to the registry default, which is
+// the wrong question when a start-up flag configures the same thing.
+// A default is not a decision, and it must not outrank one written in
+// the configuration file.
+func (s *SettingStorage) Override(name string) (string, bool) {
+	s.mu.RLock()
+	value, ok := s.cache[name]
+	s.mu.RUnlock()
+
+	return value, ok
+}
+
 // Bool returns a setting parsed as a boolean.
 func (s *SettingStorage) Bool(name string) bool {
 	parsed, _ := strconv.ParseBool(s.Get(name))
