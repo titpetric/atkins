@@ -502,7 +502,11 @@ func TestArtefactRetentionSweepsTheBytes(t *testing.T) {
 	admin := register(t, url)
 	agent := enrol(t, url, "agent-1")
 
-	setSetting(t, url, admin.Token, model.SettingArtefactRetention, "1ms")
+	// Kept long enough that no tick can take the file before the
+	// assertion below has seen it. Uploading with a 1ms window instead
+	// made "the bytes are there" a race against the ticker, one the
+	// full suite under load loses.
+	setSetting(t, url, admin.Token, model.SettingArtefactRetention, "1h")
 
 	job := dispatch(t, url, admin.Token, "atkins scan", "")
 
@@ -514,6 +518,11 @@ func TestArtefactRetentionSweepsTheBytes(t *testing.T) {
 	require.Equal(t, http.StatusCreated, status)
 
 	require.FileExists(t, filepath.Join(root, job.JobID, stored.ID))
+
+	// Retention is read on every pass, so shortening it here is what
+	// the setting is for — and it starts the window at a point the test
+	// controls rather than at the upload.
+	setSetting(t, url, admin.Token, model.SettingArtefactRetention, "1ms")
 
 	// The sweep is on a ticker, so wait for it rather than for a
 	// fixed sleep to be long enough.

@@ -201,6 +201,10 @@ func (m *Module) Stop(context.Context) error {
 // background goroutine is easier to reason about than one with two.
 func (m *Module) startReclaim(ctx context.Context) {
 	m.sweep(ctx, m.opts.ReclaimInterval, func(ctx context.Context) error {
+		// Deferred rather than sequential: a reclaim that fails is no
+		// reason to leave expired bytes on the disk for another tick.
+		defer m.pruneArtefacts(ctx)
+
 		reclaimed, err := m.jobs.ReclaimExpired(ctx)
 		if err != nil {
 			return err
@@ -276,8 +280,6 @@ func (m *Module) sweep(ctx context.Context, interval time.Duration, work func(co
 				if err := work(ctx); err != nil {
 					telemetry.CaptureError(ctx, err)
 				}
-
-				m.pruneArtefacts(ctx)
 			}
 		}
 	}()
