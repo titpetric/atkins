@@ -5,10 +5,10 @@
 #   atkins                                 # prints a job URL to open
 #   atkins down
 #
-# Both services run the same image; only the command differs. Settings
-# live in .env.docker rather than spread across two service definitions,
-# except the server's own secrets, which are in .env.docker.server so
-# they never enter the agent's environment.
+# Both services run the same image; only the command differs. Shared
+# settings live in .env.docker rather than in two service definitions,
+# and the server's own secrets live in .env.docker.server, which the
+# server alone loads.
 #
 # Nothing is mounted from the host: the agent clones the repository it
 # is asked to build into its own cache under /app/data/repos, so a job

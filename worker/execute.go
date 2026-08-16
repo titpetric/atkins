@@ -69,8 +69,8 @@ func (w *Worker) execute(ctx context.Context, job *jobContext, workspace *Worksp
 
 // environment builds the process environment for a job command.
 //
-// The job's ATKINS_* variables are set here rather than inherited; see
-// inherited for why the agent's own are dropped first.
+// The job's ATKINS_* variables are set here by name, on top of the
+// filtered environment inherited returns.
 //
 // ATKINS_NO_DISPATCH is the important one: without it the atkins the
 // agent runs would see the agent's own credentials, hand the work
@@ -87,8 +87,8 @@ func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
 		client.EnvArtefacts+"="+workspace.Artefacts,
 	)
 
-	// The server a child job would be dispatched to. The URL is not a
-	// credential; reaching the queue still needs a login.
+	// The server a child job is dispatched to. A pipeline that clears
+	// ATKINS_NO_DISPATCH still has to log in to reach the queue.
 	if server := w.client.Server(); server != "" {
 		env = append(env, client.EnvServer+"="+server)
 	}
@@ -125,21 +125,20 @@ func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
 	return env
 }
 
-// inherited is the agent's process environment with the agent's own
-// configuration removed.
+// inherited returns the agent's process environment with the agent's
+// own settings filtered out.
 //
-// ATKINS_* is the agent's namespace before it is the job's: it carries
-// ATKINS_AGENT_TOKEN, the fleet-wide enrolment secret, and on a
-// single-host install the server's ATKINS_SIGNING_KEY as well. A job
-// that can read the first can enrol from anywhere, claim work from the
-// whole queue and fetch the deploy keys with their private halves —
-// the escalation the repository allowlist exists to prevent; one that
-// can read the second mints any token, admin included.
+// ATKINS_* is the agent's namespace as much as the job's, and it holds
+// the agent's credentials: ATKINS_AGENT_TOKEN admits its holder to the
+// queue, to jobs dispatched for other repositories and to the deploy
+// keys with their private halves, and an installation running the
+// server beside the agent has ATKINS_SIGNING_KEY there too, which
+// signs every token the server issues. PLATFORM_DB_* is filtered for
+// the same reason, as a database URL carries its own password.
 //
-// So the whole namespace goes, and environment puts back the variables
-// a job is documented to receive. That way a secret the agent gains
-// later is private without anyone remembering to add it here.
-// PLATFORM_DB_* goes with it: a database URL carries its password.
+// The whole namespace is filtered and environment sets the job's
+// variables by name, so a setting the agent gains later stays with the
+// agent until someone exports it deliberately.
 func inherited() []string {
 	environ := os.Environ()
 	env := make([]string, 0, len(environ))

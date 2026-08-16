@@ -474,10 +474,10 @@ func TestRunExportsTheJobEnvironment(t *testing.T) {
 	assert.Contains(t, output, "repo=local/demo")
 }
 
-// The agent's own credentials are not part of a job's context. Whoever
-// reads ATKINS_AGENT_TOKEN can enrol as an agent and fetch every deploy
-// key the server holds; whoever reads ATKINS_SIGNING_KEY mints admin
-// tokens. Neither may reach the command the agent runs.
+// The agent keeps its credentials to itself. A holder of
+// ATKINS_AGENT_TOKEN can enrol as an agent and fetch every deploy key
+// the server holds, and a holder of ATKINS_SIGNING_KEY can sign an
+// admin token, so both stay out of the command's environment.
 func TestRunWithholdsTheAgentCredentials(t *testing.T) {
 	t.Setenv("ATKINS_AGENT_TOKEN", "enrolment-secret")
 	t.Setenv("ATKINS_SIGNING_KEY", "signing-secret")
@@ -495,11 +495,11 @@ func TestRunWithholdsTheAgentCredentials(t *testing.T) {
 	assert.NotContains(t, output, "enrolment-secret")
 	assert.NotContains(t, output, "signing-secret")
 	assert.NotContains(t, output, "database-secret")
-	// The whole namespace goes, not a list of known secrets, so an
-	// agent setting that gains a secret later is withheld by default.
+	// The filter covers the whole namespace, so an agent setting added
+	// later stays with the agent until someone exports it.
 	assert.NotContains(t, output, "ATKINS_TOOLING")
-	// What the job is documented to receive still arrives, and so does
-	// the rest of the machine's environment.
+	// The job's documented environment arrives, along with the rest of
+	// the machine's.
 	assert.Contains(t, output, "ATKINS_JOB_ID=01ARZ3NDEKTSV4RRFFQ69G5FAV")
 	assert.Contains(t, output, client.EnvServer+"="+fake.URL)
 	assert.Contains(t, output, "PATH=")
