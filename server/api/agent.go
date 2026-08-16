@@ -60,14 +60,22 @@ func (s *Handlers) MountAgent(r platform.Router) {
 	})
 }
 
-// requireAgent authenticates the caller and refuses anyone who is
-// neither an agent nor an admin.
+// requireAgent authenticates the caller and refuses anyone who is not
+// an agent.
+//
+// An admin is not admitted, deliberately. `is_agent` means what the
+// roles section says it means, and widening it for convenience would
+// undo two things built on purpose: SSHKeyView withholds private key
+// material from the admin surface, and this route hands it over; and a
+// job settled here records an `agent_id` that would then name an agent
+// that never ran it. An admin who needs to act as an agent enrols one,
+// which is a decision written down rather than a side effect.
 func (s *Handlers) requireAgent(r *http.Request) (*model.User, error) {
 	user, _, err := s.authenticateUser(r)
 	if err != nil {
 		return nil, err
 	}
-	if !user.IsAgent && !user.IsAdmin {
+	if !user.IsAgent {
 		return nil, requestError(http.StatusForbidden, model.ErrForbidden)
 	}
 	return user, nil
