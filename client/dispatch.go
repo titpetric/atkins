@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -155,20 +154,31 @@ func DispatchDisabled() bool {
 
 // Command renders an argv as the command to record.
 //
-// argv[0] is reduced to its base name: the recorded command is re-run
-// on another machine, and `/home/tit/go/bin/atkins` says more about
-// this laptop than about the job.
+// argv[0] is replaced with `atkins` rather than reduced to its base
+// name: the recorded command is re-run on another machine, where the
+// binary is called `atkins`, and what this one happens to be named is a
+// fact about this laptop. A build under test as `./bin/atkins-linux-amd64`,
+// the `atkins.old` the install job leaves behind, or a distro package
+// named `atkins-cli` would otherwise queue a command no agent can run,
+// and the job comes back as exit 127 with an empty log.
+//
+// A run of something other than atkins is what the explicit `command`
+// override on the trigger endpoint is for.
 func Command(argv []string) string {
 	if len(argv) == 0 {
-		return "atkins"
+		return commandName
 	}
 
 	command := make([]string, len(argv))
 	copy(command, argv)
-	command[0] = filepath.Base(command[0])
+	command[0] = commandName
 
 	return strings.Join(command, " ")
 }
+
+// commandName is what an agent invokes, whatever the local binary is
+// called.
+const commandName = "atkins"
 
 // Labels returns the labels constraining which agents may run this
 // machine's jobs.

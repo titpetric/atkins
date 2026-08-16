@@ -92,6 +92,15 @@ func TestLabels(t *testing.T) {
 func TestCommand(t *testing.T) {
 	assert.Equal(t, "atkins", client.Command(nil))
 	assert.Equal(t, "atkins test:build", client.Command([]string{"/usr/local/bin/atkins", "test:build"}))
+
+	// The agent runs `atkins`, so that is what the job records however
+	// the local binary is named. A build under test, the `atkins.old`
+	// the install job leaves behind or a distro's `atkins-cli` would
+	// otherwise queue a command the agent cannot find, and the job comes
+	// back as exit 127 with nothing in the log.
+	assert.Equal(t, "atkins test:build", client.Command([]string{"./bin/atkins-linux-amd64", "test:build"}))
+	assert.Equal(t, "atkins test:docs", client.Command([]string{"/tmp/atkins-main", "test:docs"}))
+	assert.Equal(t, "atkins", client.Command([]string{"/usr/local/bin/atkins.old"}))
 }
 
 func TestDispatchSkipsWithoutCredentials(t *testing.T) {
