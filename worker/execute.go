@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/runner"
 )
 
 // Result is the outcome of running a job command.
@@ -69,60 +71,47 @@ func (w *Worker) execute(ctx context.Context, job *jobContext, workspace *Worksp
 
 // environment builds the process environment for a job command.
 //
-// The job's ATKINS_* variables are set here by name, on top of the
-// filtered environment inherited returns.
+// The job's own variables are named here, the workspace contributes
+// what it laid out through Workspace.Env, and the pair is applied on
+// top of the filtered environment inherited returns. Workspace.Env is
+// applied last, so a caller that puts a value there before the command
+// starts has it reach the job.
 //
 // ATKINS_NO_DISPATCH is the important one: without it the atkins the
 // agent runs would see the agent's own credentials, hand the work
 // straight back to the server, and nothing would ever execute. A
 // pipeline that genuinely wants to queue child jobs clears it.
 func (w *Worker) environment(job *jobContext, workspace *Workspace) []string {
-	env := append(inherited(),
-		client.EnvCI+"=true",
-		client.EnvNoDispatch+"=1",
-		client.EnvJobID+"="+job.Job.ID,
-		client.EnvRootJobID+"="+job.Job.RootID,
-		"ATKINS_AGENT_ID="+w.opts.AgentID,
-		"ATKINS_WORKSPACE="+workspace.Root,
-		client.EnvArtefacts+"="+workspace.Artefacts,
-	)
+	env := runner.Env{
+		client.EnvCI:         "true",
+		client.EnvNoDispatch: "1",
+		client.EnvJobID:      job.Job.ID,
+		client.EnvRootJobID:  job.Job.RootID,
+		"ATKINS_AGENT_ID":    w.opts.AgentID,
+	}
 
 	// The server a child job is dispatched to. A pipeline that clears
 	// ATKINS_NO_DISPATCH still has to log in to reach the queue.
 	if server := w.client.Server(); server != "" {
-		env = append(env, client.EnvServer+"="+server)
+		env[client.EnvServer] = server
 	}
 
 	if job.Job.ParentID != "" {
-		env = append(env, client.EnvParentJobID+"="+job.Job.ParentID)
+		env[client.EnvParentJobID] = job.Job.ParentID
 	}
 	if params := strings.TrimSpace(job.Job.Params); params != "" && params != "{}" {
-		env = append(env, client.EnvJobParams+"="+params)
+		env[client.EnvJobParams] = params
 	}
 	if job.Repository != nil {
-		env = append(env,
-			"ATKINS_REPOSITORY="+job.Repository.Slug,
-			"ATKINS_REMOTE_URL="+job.Repository.RemoteURL,
-		)
-	}
-	// The checkout the agent produced, not the one the job asked for.
-	// ATKINS_REVISION stays the name it has always had and now always
-	// holds a resolved sha, so a pipeline reading it can pin an artefact
-	// to a commit even when the job named a branch or a moving tag.
-	if workspace.Checkout.Ref != "" {
-		env = append(env, "ATKINS_REF="+workspace.Checkout.Ref)
-	}
-	if sha := workspace.Checkout.CommitSHA; sha != "" {
-		env = append(env,
-			"ATKINS_COMMIT_SHA="+sha,
-			"ATKINS_REVISION="+sha,
-		)
-	}
-	if workspace.Checkout.Branch != "" {
-		env = append(env, "ATKINS_BRANCH="+workspace.Checkout.Branch)
+		env["ATKINS_REPOSITORY"] = job.Repository.Slug
+		env["ATKINS_REMOTE_URL"] = job.Repository.RemoteURL
 	}
 
-	return env
+	maps.Copy(env, workspace.Env)
+
+	// A name set twice takes its last value, so these override anything
+	// of the same name that survived the filter.
+	return append(inherited(), env.Environ()...)
 }
 
 // inherited returns the agent's process environment with the agent's

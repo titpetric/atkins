@@ -505,6 +505,56 @@ func TestRunWithholdsTheAgentCredentials(t *testing.T) {
 	assert.Contains(t, output, "PATH=")
 }
 
+// The workspace publishes the paths it laid out and the checkout it
+// produced, and a caller holding it can add to that set before the
+// command starts.
+func TestEnvironmentTakesTheWorkspaceValues(t *testing.T) {
+	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
+	worker := testWorker(t, fake)
+
+	workspace := &Workspace{
+		Root:      "/work/01ARZ3NDEKTSV4RRFFQ69G5FAV",
+		Dir:       "/work/01ARZ3NDEKTSV4RRFFQ69G5FAV",
+		Artefacts: "/work/01ARZ3NDEKTSV4RRFFQ69G5FAV.artefacts",
+		Checkout: Checkout{
+			Ref:       testBranch,
+			CommitSHA: "7ec9b09cd8bf543683a9513b2c416d3baea707ef",
+			Branch:    testBranch,
+		},
+	}
+	workspace.Env = workspace.environment()
+	workspace.Env["ATKINS_EXTRA"] = "injected"
+
+	env := worker.environment(job("", "", "true"), workspace)
+
+	assert.Contains(t, env, "ATKINS_WORKSPACE=/work/01ARZ3NDEKTSV4RRFFQ69G5FAV")
+	assert.Contains(t, env, "ATKINS_ARTEFACTS=/work/01ARZ3NDEKTSV4RRFFQ69G5FAV.artefacts")
+	assert.Contains(t, env, "ATKINS_REF="+testBranch)
+	assert.Contains(t, env, "ATKINS_BRANCH="+testBranch)
+	assert.Contains(t, env, "ATKINS_COMMIT_SHA=7ec9b09cd8bf543683a9513b2c416d3baea707ef")
+	// The older name for the same sha, kept for pipelines that read it.
+	assert.Contains(t, env, "ATKINS_REVISION=7ec9b09cd8bf543683a9513b2c416d3baea707ef")
+	assert.Contains(t, env, "ATKINS_EXTRA=injected")
+	// The job's own variables arrive alongside the workspace's.
+	assert.Contains(t, env, "ATKINS_JOB_ID=01ARZ3NDEKTSV4RRFFQ69G5FAV")
+}
+
+// A checkout that resolved to nothing publishes nothing, so a job sees
+// an unset variable rather than an empty one.
+func TestEnvironmentOmitsAnEmptyCheckout(t *testing.T) {
+	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
+	worker := testWorker(t, fake)
+
+	workspace := &Workspace{Root: "/work/job", Artefacts: "/work/job.artefacts"}
+	workspace.Env = workspace.environment()
+
+	env := worker.environment(job("", "", "true"), workspace)
+
+	for _, name := range []string{"ATKINS_REF=", "ATKINS_BRANCH=", "ATKINS_COMMIT_SHA=", "ATKINS_REVISION="} {
+		assert.NotContains(t, strings.Join(env, "\n"), name)
+	}
+}
+
 func TestRunReportsAFailingCommand(t *testing.T) {
 	remote := gitRepository(t).Path
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
