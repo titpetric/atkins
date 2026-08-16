@@ -385,6 +385,45 @@ func TestArtefactDownloadNeedsAuthentication(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, status)
 }
 
+func TestArtefactsAreScopedLikeTheJob(t *testing.T) {
+	url := testServer(t)
+	admin := register(t, url)
+	agent := enrol(t, url, "agent-1")
+	dev := registerUser(t, url, admin.Token, "dev@example.com", "dev")
+
+	job := dispatch(t, url, admin.Token, "atkins scan", "")
+
+	var stored artefactView
+	status := uploadArtefact(t, url, agent.Token, job.JobID, artefactUpload{
+		Path:    "scan.json",
+		Content: []byte(`{"findings": 3}`),
+	}, &stored)
+	require.Equal(t, http.StatusCreated, status)
+
+	// An account that has never seen the job is told the same thing the
+	// job endpoint tells it: nothing here. Authentication alone is not
+	// the bar, or the artefact is the way around a scoped ledger.
+	status, _, _ = fetch(t, url+"/api/job/"+job.JobID+"/artefact", dev.Token)
+	assert.Equal(t, http.StatusNotFound, status)
+
+	status, body, _ := fetch(t, url+stored.URL, dev.Token)
+	assert.Equal(t, http.StatusNotFound, status)
+	assert.NotContains(t, string(body), "findings")
+
+	// The person who dispatched it reads it as before.
+	status, body, _ = fetch(t, url+stored.URL, admin.Token)
+	require.Equal(t, http.StatusOK, status)
+	assert.JSONEq(t, `{"findings": 3}`, string(body))
+
+	// And a public instance is shared again, artefacts included.
+	setSetting(t, url, admin.Token, model.SettingJobVisibility, model.VisibilityPublic)
+
+	require.Len(t, artefacts(t, url, dev.Token, job.JobID), 1)
+
+	status, _, _ = fetch(t, url+stored.URL, dev.Token)
+	assert.Equal(t, http.StatusOK, status)
+}
+
 func TestArtefactBelongsToOneJob(t *testing.T) {
 	url := testServer(t)
 	admin := register(t, url)
