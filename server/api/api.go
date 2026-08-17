@@ -20,6 +20,7 @@ import (
 	"github.com/titpetric/atkins/server/auth"
 	"github.com/titpetric/atkins/server/model"
 	"github.com/titpetric/atkins/server/storage"
+	"github.com/titpetric/atkins/server/stream"
 )
 
 // Handlers serves the atkins server API.
@@ -41,6 +42,12 @@ type Handlers struct {
 	rules        *storage.RepositoryRuleStorage
 	settings     *storage.SettingStorage
 	sshKeys      *storage.SSHKeyStorage
+
+	// live is the running jobs' terminals. A nil hub means the module
+	// wired none, and every path through here tolerates that: output is
+	// stored either way, and a job with nowhere to publish is simply one
+	// nobody can watch live.
+	live *stream.Hub
 }
 
 // NewHandlers returns Handlers configured from opts.
@@ -64,6 +71,7 @@ func NewHandlers(opts Options) *Handlers {
 		rules:             opts.RepositoryRuleStorage,
 		settings:          opts.SettingStorage,
 		sshKeys:           opts.SSHKeyStorage,
+		live:              opts.Stream,
 	}
 }
 
@@ -91,6 +99,7 @@ func (s *Handlers) Mount(r platform.Router) {
 		r.Post("/api/job/{jobID}/heartbeat", s.JobHeartbeat)
 		r.Get("/api/job/{jobID}/log", s.GetJobLog)
 		r.Post("/api/job/{jobID}/log", s.AppendJobLog)
+		r.Get("/api/job/{jobID}/input", s.CollectJobInput)
 
 		r.Get("/api/job/{jobID}/artefact", s.ListArtefacts)
 		r.Post("/api/job/{jobID}/artefact", s.UploadArtefact)

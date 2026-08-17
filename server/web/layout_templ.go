@@ -122,120 +122,130 @@ func navbar(page Page) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<header><h1>atkins</h1><nav><a href=\"/\">Jobs</a> <a href=\"/admin/repository\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<header><h1>atkins</h1><nav><a href=\"/\">Jobs</a> <a href=\"/admin/project\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if page.Section == sectionRepositories {
+		if page.Section == sectionProjects {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " class=\"current\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, ">Repositories</a> <a href=\"/admin/allowlist\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, ">Projects</a> <a href=\"/admin/repository\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if page.Section == sectionAllowlist {
+		if page.Section == sectionRepositories {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " class=\"current\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, ">Allowlist</a> <a href=\"/admin/setting\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, ">Repositories</a> <a href=\"/admin/allowlist\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if page.Section == sectionSettings {
+		if page.Section == sectionAllowlist {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " class=\"current\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, ">Settings</a> <a href=\"/admin/user\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, ">Allowlist</a> <a href=\"/admin/setting\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if page.Section == sectionUsers {
+		if page.Section == sectionSettings {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " class=\"current\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, ">Users</a> <a href=\"/admin/ssh-key\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, ">Settings</a> <a href=\"/admin/user\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if page.Section == sectionKeys {
+		if page.Section == sectionUsers {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " class=\"current\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, ">Deploy keys</a> <span class=\"spacer\"></span><form method=\"post\" action=\"/logout\" class=\"inline\"><input type=\"hidden\" name=\"csrf_token\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, ">Users</a> <a href=\"/admin/ssh-key\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if page.Section == sectionKeys {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " class=\"current\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, ">Deploy keys</a> <span class=\"spacer\"></span><form method=\"post\" action=\"/logout\" class=\"inline\"><input type=\"hidden\" name=\"csrf_token\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(page.CSRF)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 72, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 78, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\"> <button type=\"submit\" class=\"link\">Sign out ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\"> <button type=\"submit\" class=\"link\">Sign out ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(page.User.Username)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 73, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 79, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</button></form></nav></header>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</button></form></nav></header>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if page.Notice != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<p class=\"flash flash-notice\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<p class=\"flash flash-notice\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(page.Notice)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 78, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 84, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if page.Error != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<p class=\"flash flash-error\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<p class=\"flash flash-error\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(page.Error)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 81, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `layout.templ`, Line: 87, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -271,7 +281,7 @@ func styles() templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<style>\n  :root {\n    color-scheme: light dark;\n    --bg: #ffffff;\n    --fg: #1b1b1f;\n    --muted: #6a6a75;\n    --line: #e2e2e8;\n    --panel: #f7f7f9;\n    --accent: #3b6ea5;\n  }\n  @media (prefers-color-scheme: dark) {\n    :root {\n      --bg: #16161a;\n      --fg: #e6e6ea;\n      --muted: #9a9aa5;\n      --line: #2b2b33;\n      --panel: #1e1e24;\n      --accent: #7aa7d9;\n    }\n  }\n  * { box-sizing: border-box; }\n  body {\n    margin: 0 auto;\n    padding: 2rem 1.25rem 4rem;\n    max-width: 60rem;\n    background: var(--bg);\n    color: var(--fg);\n    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif;\n  }\n  a { color: var(--accent); }\n  h1 { font-size: 1.35rem; margin: 0 0 .25rem; }\n  h2 { font-size: 1rem; margin: 2rem 0 .5rem; }\n  header { border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 1rem; }\n  .muted { color: var(--muted); }\n  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace; }\n  pre {\n    background: var(--panel);\n    border: 1px solid var(--line);\n    border-radius: 6px;\n    padding: .85rem 1rem;\n    overflow-x: auto;\n    font-size: 13px;\n    white-space: pre-wrap;\n    word-break: break-word;\n  }\n  /* Job output keeps the colours the command wrote. The palette is\n     muted against both themes rather than the terminal's own: a build\n     log is read on a page here, not in a terminal, and a saturated\n     green on white is a colour nobody can read. */\n  .ansi-bold      { font-weight: 600; }\n  .ansi-dim       { opacity: .7; }\n  .ansi-italic    { font-style: italic; }\n  .ansi-underline { text-decoration: underline; }\n\n  .ansi-fg-black   { color: #3b3b45; }\n  .ansi-fg-red     { color: #b4514f; }\n  .ansi-fg-green   { color: #4b9460; }\n  .ansi-fg-yellow  { color: #a07a1f; }\n  .ansi-fg-blue    { color: #3b6ea5; }\n  .ansi-fg-magenta { color: #9155a8; }\n  .ansi-fg-cyan    { color: #2b8087; }\n  .ansi-fg-white   { color: var(--fg); }\n  .ansi-fg-bright-black   { color: var(--muted); }\n  .ansi-fg-bright-red     { color: #d06a67; }\n  .ansi-fg-bright-green   { color: #5cb075; }\n  .ansi-fg-bright-yellow  { color: #c2962c; }\n  .ansi-fg-bright-blue    { color: #5b8cc4; }\n  .ansi-fg-bright-magenta { color: #ac6ec4; }\n  .ansi-fg-bright-cyan    { color: #359aa2; }\n  .ansi-fg-bright-white   { color: var(--fg); }\n\n  .ansi-bg-black   { background: #3b3b45; color: #f7f7f9; }\n  .ansi-bg-red     { background: #b4514f; color: #ffffff; }\n  .ansi-bg-green   { background: #4b9460; color: #ffffff; }\n  .ansi-bg-yellow  { background: #a07a1f; color: #ffffff; }\n  .ansi-bg-blue    { background: #3b6ea5; color: #ffffff; }\n  .ansi-bg-magenta { background: #9155a8; color: #ffffff; }\n  .ansi-bg-cyan    { background: #2b8087; color: #ffffff; }\n  .ansi-bg-white   { background: #e2e2e8; color: #1b1b1f; }\n  .ansi-bg-bright-black   { background: #6a6a75; color: #ffffff; }\n  .ansi-bg-bright-red     { background: #d06a67; color: #ffffff; }\n  .ansi-bg-bright-green   { background: #5cb075; color: #1b1b1f; }\n  .ansi-bg-bright-yellow  { background: #c2962c; color: #1b1b1f; }\n  .ansi-bg-bright-blue    { background: #5b8cc4; color: #ffffff; }\n  .ansi-bg-bright-magenta { background: #ac6ec4; color: #ffffff; }\n  .ansi-bg-bright-cyan    { background: #359aa2; color: #ffffff; }\n  .ansi-bg-bright-white   { background: #f7f7f9; color: #1b1b1f; }\n\n  table { border-collapse: collapse; width: 100%; font-size: 14px; }\n  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }\n  th { color: var(--muted); font-weight: 500; width: 11rem; }\n  .badge {\n    display: inline-block;\n    padding: .1rem .5rem;\n    border-radius: 999px;\n    font-size: 12px;\n    font-weight: 600;\n    border: 1px solid transparent;\n  }\n  .badge-pending   { background: #f0e6c8; color: #6b5411; }\n  .badge-running   { background: #cfe0f5; color: #1d456e; }\n  .badge-passed    { background: #cfe9d4; color: #1d5c2c; }\n  .badge-failed    { background: #f4d2d2; color: #7a2020; }\n  .badge-timeout   { background: #eddbc4; color: #74451a; }\n  .badge-cancelled { background: #e0e0e6; color: #4a4a55; }\n  .badge-on        { background: #cfe9d4; color: #1d5c2c; }\n  .badge-off       { background: #e0e0e6; color: #4a4a55; }\n\n  /* Admin pages: navigation, forms and flash messages. The controls\n     are plain HTML — a form post and a redirect — so the pages work\n     with scripting off and there is no build step to keep alive. */\n  nav { display: flex; flex-wrap: wrap; gap: .9rem; align-items: baseline; margin-top: .5rem; }\n  nav a { text-decoration: none; }\n  nav a.current { font-weight: 600; text-decoration: underline; }\n  nav .spacer { flex: 1; }\n  .flash {\n    border: 1px solid var(--line);\n    border-left-width: 4px;\n    border-radius: 4px;\n    padding: .6rem .8rem;\n    margin: 0 0 1rem;\n  }\n  .flash-notice { border-left-color: #4b9460; background: var(--panel); }\n  .flash-error  { border-left-color: #b4514f; background: var(--panel); }\n  form.inline { display: inline; }\n  fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .9rem 1rem; margin: 0 0 1.5rem; }\n  legend { color: var(--muted); padding: 0 .35rem; }\n  label { display: block; margin: .5rem 0 .15rem; color: var(--muted); font-size: 13px; }\n  input[type=text], input[type=email], input[type=password], select, textarea {\n    width: 100%;\n    max-width: 34rem;\n    padding: .35rem .5rem;\n    border: 1px solid var(--line);\n    border-radius: 4px;\n    background: var(--bg);\n    color: var(--fg);\n    font: inherit;\n    font-size: 14px;\n  }\n  textarea { min-height: 7rem; font-family: ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace; font-size: 13px; }\n  button {\n    padding: .3rem .7rem;\n    border: 1px solid var(--line);\n    border-radius: 4px;\n    background: var(--panel);\n    color: var(--fg);\n    font: inherit;\n    font-size: 13px;\n    cursor: pointer;\n  }\n  button:hover:enabled { border-color: var(--accent); color: var(--accent); }\n  button:disabled { cursor: not-allowed; opacity: .5; }\n  button.primary { border-color: var(--accent); color: var(--accent); }\n  button.link { border: 0; background: none; color: var(--accent); padding: 0; }\n  .actions { display: flex; flex-wrap: wrap; gap: .35rem; }\n  .warn { border-left-color: #b4514f; }\n</style>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<style>\n  :root {\n    color-scheme: light dark;\n    --bg: #ffffff;\n    --fg: #1b1b1f;\n    --muted: #6a6a75;\n    --line: #e2e2e8;\n    --panel: #f7f7f9;\n    --accent: #3b6ea5;\n  }\n  @media (prefers-color-scheme: dark) {\n    :root {\n      --bg: #16161a;\n      --fg: #e6e6ea;\n      --muted: #9a9aa5;\n      --line: #2b2b33;\n      --panel: #1e1e24;\n      --accent: #7aa7d9;\n    }\n  }\n  * { box-sizing: border-box; }\n  body {\n    margin: 0 auto;\n    padding: 2rem 1.25rem 4rem;\n    max-width: 60rem;\n    background: var(--bg);\n    color: var(--fg);\n    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif;\n  }\n  a { color: var(--accent); }\n  h1 { font-size: 1.35rem; margin: 0 0 .25rem; }\n  h2 { font-size: 1rem; margin: 2rem 0 .5rem; }\n  header { border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 1rem; }\n  .muted { color: var(--muted); }\n  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace; }\n  pre {\n    background: var(--panel);\n    border: 1px solid var(--line);\n    border-radius: 6px;\n    padding: .85rem 1rem;\n    overflow-x: auto;\n    font-size: 13px;\n    white-space: pre-wrap;\n    word-break: break-word;\n  }\n  /* Job output keeps the colours the command wrote. The palette is\n     muted against both themes rather than the terminal's own: a build\n     log is read on a page here, not in a terminal, and a saturated\n     green on white is a colour nobody can read. */\n  .ansi-bold      { font-weight: 600; }\n  .ansi-dim       { opacity: .7; }\n  .ansi-italic    { font-style: italic; }\n  .ansi-underline { text-decoration: underline; }\n\n  .ansi-fg-black   { color: #3b3b45; }\n  .ansi-fg-red     { color: #b4514f; }\n  .ansi-fg-green   { color: #4b9460; }\n  .ansi-fg-yellow  { color: #a07a1f; }\n  .ansi-fg-blue    { color: #3b6ea5; }\n  .ansi-fg-magenta { color: #9155a8; }\n  .ansi-fg-cyan    { color: #2b8087; }\n  .ansi-fg-white   { color: var(--fg); }\n  .ansi-fg-bright-black   { color: var(--muted); }\n  .ansi-fg-bright-red     { color: #d06a67; }\n  .ansi-fg-bright-green   { color: #5cb075; }\n  .ansi-fg-bright-yellow  { color: #c2962c; }\n  .ansi-fg-bright-blue    { color: #5b8cc4; }\n  .ansi-fg-bright-magenta { color: #ac6ec4; }\n  .ansi-fg-bright-cyan    { color: #359aa2; }\n  .ansi-fg-bright-white   { color: var(--fg); }\n\n  .ansi-bg-black   { background: #3b3b45; color: #f7f7f9; }\n  .ansi-bg-red     { background: #b4514f; color: #ffffff; }\n  .ansi-bg-green   { background: #4b9460; color: #ffffff; }\n  .ansi-bg-yellow  { background: #a07a1f; color: #ffffff; }\n  .ansi-bg-blue    { background: #3b6ea5; color: #ffffff; }\n  .ansi-bg-magenta { background: #9155a8; color: #ffffff; }\n  .ansi-bg-cyan    { background: #2b8087; color: #ffffff; }\n  .ansi-bg-white   { background: #e2e2e8; color: #1b1b1f; }\n  .ansi-bg-bright-black   { background: #6a6a75; color: #ffffff; }\n  .ansi-bg-bright-red     { background: #d06a67; color: #ffffff; }\n  .ansi-bg-bright-green   { background: #5cb075; color: #1b1b1f; }\n  .ansi-bg-bright-yellow  { background: #c2962c; color: #1b1b1f; }\n  .ansi-bg-bright-blue    { background: #5b8cc4; color: #ffffff; }\n  .ansi-bg-bright-magenta { background: #ac6ec4; color: #ffffff; }\n  .ansi-bg-bright-cyan    { background: #359aa2; color: #ffffff; }\n  .ansi-bg-bright-white   { background: #f7f7f9; color: #1b1b1f; }\n\n  table { border-collapse: collapse; width: 100%; font-size: 14px; }\n  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }\n  th { color: var(--muted); font-weight: 500; width: 11rem; }\n  .badge {\n    display: inline-block;\n    padding: .1rem .5rem;\n    border-radius: 999px;\n    font-size: 12px;\n    font-weight: 600;\n    border: 1px solid transparent;\n  }\n  .badge-pending   { background: #f0e6c8; color: #6b5411; }\n  .badge-running   { background: #cfe0f5; color: #1d456e; }\n  .badge-passed    { background: #cfe9d4; color: #1d5c2c; }\n  .badge-failed    { background: #f4d2d2; color: #7a2020; }\n  .badge-timeout   { background: #eddbc4; color: #74451a; }\n  .badge-cancelled { background: #e0e0e6; color: #4a4a55; }\n  .badge-on        { background: #cfe9d4; color: #1d5c2c; }\n  .badge-off       { background: #e0e0e6; color: #4a4a55; }\n\n  /* Admin pages: navigation, forms and flash messages. The controls\n     are plain HTML — a form post and a redirect — so the pages work\n     with scripting off and there is no build step to keep alive. */\n  nav { display: flex; flex-wrap: wrap; gap: .9rem; align-items: baseline; margin-top: .5rem; }\n  nav a { text-decoration: none; }\n  nav a.current { font-weight: 600; text-decoration: underline; }\n  nav .spacer { flex: 1; }\n  .flash {\n    border: 1px solid var(--line);\n    border-left-width: 4px;\n    border-radius: 4px;\n    padding: .6rem .8rem;\n    margin: 0 0 1rem;\n  }\n  .flash-notice { border-left-color: #4b9460; background: var(--panel); }\n  .flash-error  { border-left-color: #b4514f; background: var(--panel); }\n  form.inline { display: inline; }\n  fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .9rem 1rem; margin: 0 0 1.5rem; }\n  legend { color: var(--muted); padding: 0 .35rem; }\n  label { display: block; margin: .5rem 0 .15rem; color: var(--muted); font-size: 13px; }\n  input[type=text], input[type=email], input[type=password], select, textarea {\n    width: 100%;\n    max-width: 34rem;\n    padding: .35rem .5rem;\n    border: 1px solid var(--line);\n    border-radius: 4px;\n    background: var(--bg);\n    color: var(--fg);\n    font: inherit;\n    font-size: 14px;\n  }\n  textarea { min-height: 7rem; font-family: ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace; font-size: 13px; }\n  button {\n    padding: .3rem .7rem;\n    border: 1px solid var(--line);\n    border-radius: 4px;\n    background: var(--panel);\n    color: var(--fg);\n    font: inherit;\n    font-size: 13px;\n    cursor: pointer;\n  }\n  button:hover:enabled { border-color: var(--accent); color: var(--accent); }\n  button:disabled { cursor: not-allowed; opacity: .5; }\n  button.primary { border-color: var(--accent); color: var(--accent); }\n  button.link { border: 0; background: none; color: var(--accent); padding: 0; }\n  .actions { display: flex; flex-wrap: wrap; gap: .35rem; }\n  .warn { border-left-color: #b4514f; }\n\n  /* The pipeline picker. A <select> cannot nest past one level of\n     <optgroup> and job names nest as deep as somebody writes them, so\n     the control is a <details> holding a tree of radio buttons: a\n     dropdown assembled out of parts that work without any script. */\n  .picker {\n    max-width: 34rem;\n    border: 1px solid var(--line);\n    border-radius: 4px;\n    background: var(--bg);\n  }\n  .picker > summary {\n    padding: .35rem .5rem;\n    cursor: pointer;\n    font-size: 14px;\n    list-style-position: inside;\n  }\n  .picker[open] > summary { border-bottom: 1px solid var(--line); }\n  .tree { max-height: 24rem; overflow-y: auto; padding: .35rem .5rem .6rem; }\n  .tree-section + .tree-section { margin-top: .6rem; border-top: 1px solid var(--line); padding-top: .6rem; }\n  .tree-section-name { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }\n  .tree-level { list-style: none; margin: .15rem 0 0; padding: 0; }\n  .tree-level .tree-level { border-left: 1px solid var(--line); padding-left: .5rem; }\n  .tree-group { color: var(--muted); font-size: 13px; }\n  .tree-job {\n    display: flex;\n    align-items: baseline;\n    gap: .4rem;\n    margin: 0;\n    padding: .1rem .25rem;\n    border-radius: 3px;\n    color: var(--fg);\n    font-size: 13px;\n    cursor: pointer;\n  }\n  .tree-job:hover { background: var(--panel); }\n  .tree-job input { margin: 0; }\n  .tree-job .muted { font-size: 12px; }\n</style>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

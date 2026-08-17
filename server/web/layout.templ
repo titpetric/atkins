@@ -38,6 +38,12 @@ templ navbar(page Page) {
 		<nav>
 			<a href="/">Jobs</a>
 			<a
+				href="/admin/project"
+				if page.Section == sectionProjects {
+					class="current"
+				}
+			>Projects</a>
+			<a
 				href="/admin/repository"
 				if page.Section == sectionRepositories {
 					class="current"
@@ -245,5 +251,43 @@ templ styles() {
   button.link { border: 0; background: none; color: var(--accent); padding: 0; }
   .actions { display: flex; flex-wrap: wrap; gap: .35rem; }
   .warn { border-left-color: #b4514f; }
+
+  /* The pipeline picker. A <select> cannot nest past one level of
+     <optgroup> and job names nest as deep as somebody writes them, so
+     the control is a <details> holding a tree of radio buttons: a
+     dropdown assembled out of parts that work without any script. */
+  .picker {
+    max-width: 34rem;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--bg);
+  }
+  .picker > summary {
+    padding: .35rem .5rem;
+    cursor: pointer;
+    font-size: 14px;
+    list-style-position: inside;
+  }
+  .picker[open] > summary { border-bottom: 1px solid var(--line); }
+  .tree { max-height: 24rem; overflow-y: auto; padding: .35rem .5rem .6rem; }
+  .tree-section + .tree-section { margin-top: .6rem; border-top: 1px solid var(--line); padding-top: .6rem; }
+  .tree-section-name { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .tree-level { list-style: none; margin: .15rem 0 0; padding: 0; }
+  .tree-level .tree-level { border-left: 1px solid var(--line); padding-left: .5rem; }
+  .tree-group { color: var(--muted); font-size: 13px; }
+  .tree-job {
+    display: flex;
+    align-items: baseline;
+    gap: .4rem;
+    margin: 0;
+    padding: .1rem .25rem;
+    border-radius: 3px;
+    color: var(--fg);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .tree-job:hover { background: var(--panel); }
+  .tree-job input { margin: 0; }
+  .tree-job .muted { font-size: 12px; }
 </style>
 }

@@ -247,7 +247,7 @@ func TestLoginPageSkipsTheFormWhenSignedIn(t *testing.T) {
 
 	response := operator.hop(http.MethodGet, "/login", nil)
 	assert.Equal(t, http.StatusSeeOther, response.StatusCode)
-	assert.Contains(t, response.Header.Get("Location"), "/admin/repository")
+	assert.Contains(t, response.Header.Get("Location"), "/admin/project")
 }
 
 func TestLogoutEndsTheSession(t *testing.T) {

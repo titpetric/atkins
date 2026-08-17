@@ -59,6 +59,49 @@ func stdinHasData() bool {
 	return false
 }
 
+// lintedPipeline is one pipeline's worth of lint errors, held back so a
+// listing can report them after it has printed rather than instead of
+// printing.
+type lintedPipeline struct {
+	name   string
+	errors []runner.LintError
+}
+
+// reportListLintErrors closes a listing whose pipeline did not lint: it
+// writes the warning and returns the error that makes the command exit
+// non-zero.
+//
+// The warning goes to stderr, not stdout. `atkins --list --json` is read
+// by other programs — the CI server queues exactly that in a checkout
+// and parses what comes back — and a warning on stdout would land in the
+// middle of the document. On a terminal the two are one stream, so it
+// still reads as the last thing the listing printed.
+//
+// Failing is the point of the second half. A listing of a pipeline that
+// does not resolve is a best effort at a broken thing, and a caller that
+// only reads the exit status should not be told it went fine. What
+// changed is that the listing now exists to be read either way.
+func reportListLintErrors(linted []lintedPipeline) error {
+	if len(linted) == 0 {
+		return nil
+	}
+
+	jobs := map[string]bool{}
+	for _, p := range linted {
+		fmt.Fprintf(os.Stderr, "\n%s Pipeline '%s' has errors:\n", colors.BrightYellow("⚠ WARNING:"), p.name)
+		for _, lintErr := range p.errors {
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", lintErr.Job, lintErr.Detail)
+			jobs[p.name+":"+lintErr.Job] = true
+		}
+	}
+
+	noun, pronoun := "jobs", "they are"
+	if len(jobs) == 1 {
+		noun, pronoun = "job", "it is"
+	}
+	return fmt.Errorf("%d %s did not lint; %s listed above, but cannot run", len(jobs), noun, pronoun)
+}
+
 // Pipeline provides a cli.Command that runs the atkins command pipeline.
 func Pipeline() *cli.Command {
 	opts := NewOptions()
@@ -261,17 +304,33 @@ pipelineReady:
 	}
 
 	// Handle lint mode
+	//
+	// Both --lint and --list check the pipeline first, and they want
+	// different things from the answer. --lint is asked whether the
+	// pipeline is sound, so the first pipeline that is not ends it.
+	// --list is asked what is in the pipeline, and one job that fails to
+	// resolve is no reason to withhold the forty that do — a project
+	// referencing a skill the machine does not carry would otherwise
+	// list as nothing at all. So --list keeps the errors, lists
+	// everything, and reports them once the listing is out.
+	var listLintErrors []lintedPipeline
 	if opts.Lint || opts.List {
 		for _, pipeline := range pipelines {
 			linter := runner.NewLinterWithPipelines(pipeline, pipelines)
 			lintErrors := linter.Lint()
-			if len(lintErrors) > 0 {
-				fmt.Printf("%s Pipeline '%s' has errors:\n", colors.BrightRed("✗"), pipeline.Name)
-				for _, lintErr := range lintErrors {
-					fmt.Printf("  %s: %s\n", lintErr.Job, lintErr.Detail)
-				}
-				return io.EOF
+			if len(lintErrors) == 0 {
+				continue
 			}
+			if opts.List {
+				listLintErrors = append(listLintErrors, lintedPipeline{name: pipeline.Name, errors: lintErrors})
+				continue
+			}
+
+			fmt.Printf("%s Pipeline '%s' has errors:\n", colors.BrightRed("✗"), pipeline.Name)
+			for _, lintErr := range lintErrors {
+				fmt.Printf("  %s: %s\n", lintErr.Job, lintErr.Detail)
+			}
+			return io.EOF
 		}
 		if opts.Lint {
 			if len(pipelines) > 0 {
@@ -296,15 +355,20 @@ pipelineReady:
 			}
 		}
 
-		if opts.JSON {
-			return runner.ListPipelinesJSON(pipelines)
+		var err error
+		switch {
+		case opts.JSON:
+			err = runner.ListPipelinesJSON(pipelines)
+		case opts.YAML:
+			err = runner.ListPipelinesYAML(pipelines)
+		default:
+			fmt.Print(runner.ListPipelines(pipelines))
 		}
-		if opts.YAML {
-			return runner.ListPipelinesYAML(pipelines)
+		if err != nil {
+			return err
 		}
 
-		fmt.Print(runner.ListPipelines(pipelines))
-		return nil
+		return reportListLintErrors(listLintErrors)
 	}
 
 	// When no jobs specified, run the default job from main pipeline

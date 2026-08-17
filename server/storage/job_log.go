@@ -37,11 +37,15 @@ const (
 // should fill the page slowly rather than the database quickly.
 const MaxLogChunk = 256 * 1024
 
-// Append adds a chunk of output to a job.
+// Append adds a chunk of output to a job and returns the row it stored.
 //
 // Chunks are numbered per job so the page can render them in the order
-// the agent produced them, without relying on timestamp resolution.
-func (s *JobLogStorage) Append(ctx context.Context, jobID, stream, content string) error {
+// the agent produced them, without relying on timestamp resolution. The
+// stored row goes back to the caller because the sequence number is also
+// what a live watcher deduplicates on: it replays the table, then
+// ignores anything the live feed hands it at or below the last sequence
+// it read.
+func (s *JobLogStorage) Append(ctx context.Context, jobID, stream, content string) (*model.JobLog, error) {
 	ctx, span := telemetry.StartAuto(ctx, s.Append)
 	defer span.End()
 
@@ -54,7 +58,7 @@ func (s *JobLogStorage) Append(ctx context.Context, jobID, stream, content strin
 
 	next, err := s.nextSeq(ctx, jobID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	entry := &model.JobLog{
@@ -67,9 +71,9 @@ func (s *JobLogStorage) Append(ctx context.Context, jobID, stream, content strin
 	entry.SetCreatedAt(time.Now())
 
 	if err := client(s.db).Insert(ctx, model.JobLogTable, entry); err != nil {
-		return fmt.Errorf("append job log: %w", err)
+		return nil, fmt.Errorf("append job log: %w", err)
 	}
-	return nil
+	return entry, nil
 }
 
 // List returns the log chunks for a job, in the order they arrived.

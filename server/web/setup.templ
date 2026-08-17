@@ -1,0 +1,45 @@
+package web
+
+// setupView is the first-run form: the one page that creates an account
+// without one already existing.
+//
+// It carries no CSRF token, for the same reason the login form carries
+// none: there is no session yet to derive one from, and a forged setup
+// post creates an account the attacker then has to know the password of,
+// which is not an attack on anybody but them. What the handler does
+// check is that the instance is still empty, on the post as well as on
+// the render.
+templ setupView(page *setupPage) {
+	@layout("Set up", 0) {
+		<header>
+			<h1>atkins</h1>
+			<p class="muted">
+				This instance has no accounts yet. The first one is an
+				administrator, so this page is open exactly once.
+			</p>
+		</header>
+		if page.Error != "" {
+			<p class="flash flash-error">{ page.Error }</p>
+		}
+		<form method="post" action="/setup">
+			<fieldset>
+				<legend>Administrator</legend>
+				<label for="username">Username</label>
+				<input type="text" id="username" name="username" value={ page.Username } required autofocus autocomplete="username"/>
+				<label for="email">Email</label>
+				<input type="email" id="email" name="email" value={ page.Email } required autocomplete="email"/>
+				<label for="full_name">Full name <span class="muted">— optional</span></label>
+				<input type="text" id="full_name" name="full_name" value={ page.FullName } autocomplete="name"/>
+				<label for="password">Password <span class="muted">— at least 8 characters</span></label>
+				<input type="password" id="password" name="password" required autocomplete="new-password"/>
+				<label for="password_confirmation">Password again</label>
+				<input type="password" id="password_confirmation" name="password_confirmation" required autocomplete="new-password"/>
+			</fieldset>
+			<p class="actions"><button type="submit" class="primary">Create account and sign in</button></p>
+		</form>
+		<p class="muted">
+			This is the same account <span class="mono">atkins --login</span> uses,
+			so the machine you build from signs in with what you type here.
+		</p>
+	}
+}

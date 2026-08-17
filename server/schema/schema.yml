@@ -113,6 +113,10 @@
       comment: Clone Depth
       datatype: bigint
       size: 8
+    - name: interactive
+      type: boolean
+      comment: Interactive
+      datatype: boolean
   indexes:
     - name: sqlite_autoindex_job_1
       columns:
@@ -322,6 +326,35 @@
       type: timestamp
       key: MUL
       comment: Deleted At
+      datatype: datetime
+    - name: name
+      type: text
+      comment: Name
+      datatype: varchar
+    - name: command
+      type: text
+      comment: Command
+      datatype: varchar
+    - name: ref
+      type: text
+      comment: Ref
+      datatype: varchar
+    - name: working_directory
+      type: text
+      comment: Working Directory
+      datatype: varchar
+    - name: pipeline_job_id
+      type: text
+      key: MUL
+      comment: Pipeline Job ID
+      datatype: char(26)
+    - name: pipeline
+      type: text
+      comment: Pipeline
+      datatype: varchar
+    - name: pipeline_at
+      type: timestamp
+      comment: Pipeline At
       datatype: datetime
   indexes:
     - name: sqlite_autoindex_repository_1

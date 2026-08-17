@@ -31,6 +31,7 @@ import (
 	"github.com/titpetric/atkins/server/model"
 	"github.com/titpetric/atkins/server/schema"
 	"github.com/titpetric/atkins/server/storage"
+	"github.com/titpetric/atkins/server/stream"
 	"github.com/titpetric/atkins/server/web"
 )
 
@@ -49,6 +50,10 @@ type Module struct {
 	jobs      *storage.JobStorage
 	artefacts *storage.JobArtefactStorage
 	settings  *storage.SettingStorage
+
+	// live is the running jobs' terminals, shared by the API the agent
+	// talks to and the pages a browser watches through.
+	live *stream.Hub
 
 	// cancel stops the background sweeps: expired agent leases, and
 	// retention. done waits for both.
@@ -123,6 +128,8 @@ func (m *Module) Start(ctx context.Context) error {
 	rules := storage.NewRepositoryRuleStorage(db)
 	sshKeys := storage.NewSSHKeyStorage(db)
 
+	m.live = stream.New()
+
 	m.api = api.NewHandlers(api.Options{
 		SigningKey:            m.opts.SigningKey,
 		TokenTTL:              m.opts.TokenTTL,
@@ -137,6 +144,7 @@ func (m *Module) Start(ctx context.Context) error {
 		RepositoryRuleStorage: rules,
 		SettingStorage:        settings,
 		SSHKeyStorage:         sshKeys,
+		Stream:                m.live,
 	})
 
 	// The pages read the same storage the API does. They share the
@@ -154,6 +162,7 @@ func (m *Module) Start(ctx context.Context) error {
 		SettingStorage:        settings,
 		SSHKeyStorage:         sshKeys,
 		SigningKey:            m.opts.SigningKey,
+		Stream:                m.live,
 	})
 	if err != nil {
 		return err
@@ -195,8 +204,10 @@ func (m *Module) Stop(context.Context) error {
 func (m *Module) startReclaim(ctx context.Context) {
 	m.sweep(ctx, m.opts.ReclaimInterval, func(ctx context.Context) error {
 		// Deferred rather than sequential: a reclaim that fails is no
-		// reason to leave expired bytes on the disk for another tick.
+		// reason to leave expired bytes on the disk for another tick, or
+		// a terminal channel in the map for a job nobody settled.
 		defer m.pruneArtefacts(ctx)
+		defer m.live.Sweep(idleTerminal)
 
 		reclaimed, err := m.jobs.ReclaimExpired(ctx)
 		if err != nil {
@@ -208,6 +219,16 @@ func (m *Module) startReclaim(ctx context.Context) {
 		return nil
 	})
 }
+
+// idleTerminal is how long a live channel with nobody watching it is
+// kept before the hub forgets it.
+//
+// It is a backstop rather than a policy. A job that settles through a
+// handler closes its channel there and then; this catches the rest — a
+// job reclaimed in bulk, a terminal opened on a job that finished a
+// moment later — and the only cost of being wrong is that a browser
+// reconnecting gets a fresh channel and replays the stored output.
+const idleTerminal = 10 * time.Minute
 
 // startRetention applies job.retention and job.log_retention on a
 // ticker of its own.

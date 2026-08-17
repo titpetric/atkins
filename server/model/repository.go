@@ -34,3 +34,17 @@ func RepositorySlug(remoteURL string) string {
 
 	return strings.ToLower(slug)
 }
+
+// ProjectName is the name to show for a project nobody has named.
+//
+// It is the last segment of the slug — `atkins` out of
+// `github.com/titpetric/atkins` — which is what the repository is
+// called everywhere else. Falling back to the whole slug would put the
+// host in front of every heading on the page.
+func ProjectName(slug string) string {
+	slug = strings.TrimSpace(slug)
+	if idx := strings.LastIndex(slug, "/"); idx != -1 && idx+1 < len(slug) {
+		return slug[idx+1:]
+	}
+	return slug
+}

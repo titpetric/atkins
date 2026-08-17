@@ -151,6 +151,11 @@ type Job struct {
 	// ArtefactPaths are the comma separated globs the agent collects
 	// after the command exits.
 	ArtefactPaths string `json:"artefact_paths"`
+
+	// Interactive means the command reads a terminal. The agent gives it
+	// a pty and pumps the job's input queue into it instead of running
+	// it with no stdin at all.
+	Interactive bool `json:"interactive"`
 }
 
 // JobCheckoutRequest is the body of POST /api/job/{jobID}/checkout: what
@@ -206,6 +211,16 @@ const (
 	StreamOutput = "output"
 	StreamError  = "error"
 )
+
+// JobInputResponse is the body of GET /api/job/{jobID}/input: whatever
+// has been typed at an interactive job since the agent last collected.
+//
+// The bytes are base64 because they are bytes — arrow keys, control
+// characters, whatever a keyboard produced — and none of that survives
+// being called a JSON string.
+type JobInputResponse struct {
+	Input string `json:"input,omitempty"`
+}
 
 // JobStatusRequest is the body of POST /api/job/{jobID}/status.
 type JobStatusRequest struct {

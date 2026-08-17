@@ -48,6 +48,10 @@ type Handlers struct {
 	// cookie and CSRF HMACs are computed directly rather than as JWTs.
 	// Rotating it logs the browser out along with everything else.
 	signingKey string
+
+	// live is the running jobs' terminals: the browser reads output from
+	// it and types back into it, and the agent is on the other side.
+	live *stream.Hub
 }
 ```
 
@@ -130,6 +134,10 @@ type Options struct {
 	// the per-job view tokens, and without it the admin pages refuse
 	// every session rather than trusting an unauthenticated cookie.
 	SigningKey string
+
+	// Stream is the live half of a job: the terminal page reads output
+	// from it as it arrives and posts keystrokes back into it.
+	Stream *stream.Hub
 }
 ```
 
@@ -163,18 +171,30 @@ const ViewTokenParam = model.ViewTokenParam
 - `func NewHandlers (opts Options) (*Handlers, error)`
 - `func (*Handlers) Allowlist (w http.ResponseWriter, r *http.Request, current *session)`
 - `func (*Handlers) Artefact (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) Asset (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) CreateProject (w http.ResponseWriter, r *http.Request, current *session)`
 - `func (*Handlers) CreateRule (w http.ResponseWriter, r *http.Request, current *session)`
 - `func (*Handlers) CreateSSHKey (w http.ResponseWriter, r *http.Request, current *session)`
 - `func (*Handlers) Index (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) InputJob (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) Job (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) Login (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) LoginForm (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) Logout (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) Mount (r platform.Router)`
+- `func (*Handlers) Project (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) Projects (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) RefreshProject (w http.ResponseWriter, r *http.Request, current *session)`
 - `func (*Handlers) Repositories (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) RunProject (w http.ResponseWriter, r *http.Request, current *session)`
 - `func (*Handlers) SSHKeys (w http.ResponseWriter, r *http.Request, current *session)`
 - `func (*Handlers) Settings (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) Setup (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) SetupForm (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) StreamJob (w http.ResponseWriter, r *http.Request)`
+- `func (*Handlers) Terminal (w http.ResponseWriter, r *http.Request)`
 - `func (*Handlers) TriggerRepository (w http.ResponseWriter, r *http.Request, current *session)`
+- `func (*Handlers) UpdateProject (w http.ResponseWriter, r *http.Request, _ *session)`
 - `func (*Handlers) UpdateRule (w http.ResponseWriter, r *http.Request, _ *session)`
 - `func (*Handlers) UpdateSSHKey (w http.ResponseWriter, r *http.Request, _ *session)`
 - `func (*Handlers) UpdateSetting (w http.ResponseWriter, r *http.Request, current *session)`
@@ -183,6 +203,7 @@ const ViewTokenParam = model.ViewTokenParam
 - `func (Links) Artefact (jobID,artefactID string) string`
 - `func (Links) Job (jobID string) string`
 - `func (Links) Listing () bool`
+- `func (Links) Terminal (jobID string) string`
 
 ### NewHandlers
 
@@ -211,6 +232,28 @@ Artefact serves the bytes of one artefact, as a download.
 
 ```go
 func (*Handlers) Artefact(w http.ResponseWriter, r *http.Request)
+```
+
+### Asset
+
+Asset serves a vendored browser asset.
+
+It is a hand-written handler rather than http.FileServer over the
+embedded FS because the FS holds a README and a licence too, and a
+server should serve what it meant to serve. The allowlist is three
+entries long and says so.
+
+```go
+func (*Handlers) Asset(w http.ResponseWriter, r *http.Request)
+```
+
+### CreateProject
+
+CreateProject adds a project and queues the job that reads its
+pipeline.
+
+```go
+func (*Handlers) CreateProject(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
 ### CreateRule
@@ -242,6 +285,20 @@ probing it should find a server rather than a refusal.
 
 ```go
 func (*Handlers) Index(w http.ResponseWriter, r *http.Request)
+```
+
+### InputJob
+
+InputJob queues what somebody typed at a running job.
+
+It answers 204 whatever happens to the bytes. The queue is bounded and
+the agent may have stopped collecting a moment ago, and a terminal
+that popped up an error every time a keystroke arrived a moment too
+late would be unusable; what a person sees is the same thing they see
+in a real terminal, which is that the character did not echo.
+
+```go
+func (*Handlers) InputJob(w http.ResponseWriter, r *http.Request)
 ```
 
 ### Job
@@ -302,12 +359,55 @@ preserve by leaving them open.
 func (*Handlers) Mount(r platform.Router)
 ```
 
+### Project
+
+Project renders one project: what it is, what it can run, and what it
+has run.
+
+```go
+func (*Handlers) Project(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### Projects
+
+Projects lists what the instance has.
+
+```go
+func (*Handlers) Projects(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### RefreshProject
+
+RefreshProject re-reads a project's pipeline.
+
+It is a button because a pipeline changes when the code does, and the
+server has no way to know that it has: nothing tells it when somebody
+pushes. Pressing it is cheap — the agent has the repository cached and
+the job does nothing but list.
+
+```go
+func (*Handlers) RefreshProject(w http.ResponseWriter, r *http.Request, current *session)
+```
+
 ### Repositories
 
 Repositories lists the known repositories with their last job.
 
 ```go
 func (*Handlers) Repositories(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### RunProject
+
+RunProject queues one of the project's jobs and opens its terminal.
+
+What may be run is what the listing names. The form's job id is looked
+up in the cached tree rather than pasted into a command, which is what
+keeps this a menu of a project's own jobs instead of a box that runs
+shell on an agent.
+
+```go
+func (*Handlers) RunProject(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
 ### SSHKeys
@@ -326,6 +426,51 @@ Settings renders every registered setting with its effective value.
 func (*Handlers) Settings(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
+### Setup
+
+Setup creates the first account and signs the browser in as it.
+
+The emptiness of the user table is checked again here rather than
+trusted from the form: two people opening /setup on a new instance
+should produce one admin and one "somebody got there first", not two
+admins because both pages were rendered before either was submitted.
+
+```go
+func (*Handlers) Setup(w http.ResponseWriter, r *http.Request)
+```
+
+### SetupForm
+
+SetupForm renders the first-run form, or sends a visitor on when there
+is nothing left to set up.
+
+```go
+func (*Handlers) SetupForm(w http.ResponseWriter, r *http.Request)
+```
+
+### StreamJob
+
+StreamJob sends a job's output as it arrives.
+
+The stored rows are replayed first, so a browser that connects late —
+or reconnects — sees the run from the beginning rather than from
+whenever it happened to arrive. The sequence numbers make the join
+clean: the live feed is subscribed to before the table is read, and
+anything it offers at or below the last replayed sequence is a chunk
+the replay already covered.
+
+```go
+func (*Handlers) StreamJob(w http.ResponseWriter, r *http.Request)
+```
+
+### Terminal
+
+Terminal renders the live view of one job.
+
+```go
+func (*Handlers) Terminal(w http.ResponseWriter, r *http.Request)
+```
+
 ### TriggerRepository
 
 TriggerRepository queues a job against a known repository.
@@ -336,6 +481,14 @@ exactly the sort of thing a page is for.
 
 ```go
 func (*Handlers) TriggerRepository(w http.ResponseWriter, r *http.Request, current *session)
+```
+
+### UpdateProject
+
+UpdateProject saves the project's details.
+
+```go
+func (*Handlers) UpdateProject(w http.ResponseWriter, r *http.Request, _ *session)
 ```
 
 ### UpdateRule
@@ -412,4 +565,17 @@ than no link.
 
 ```go
 func (Links) Listing() bool
+```
+
+### Terminal
+
+Terminal is where a job is watched as it runs, token and all.
+
+It is a second page onto the same job rather than a replacement for
+the first: the job page is a document, readable after the fact and
+without scripting, and the terminal is a terminal. Both are reachable
+on the same terms, because they show the same output.
+
+```go
+func (Links) Terminal(jobID string) string
 ```

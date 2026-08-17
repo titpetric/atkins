@@ -37,6 +37,28 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 | `--logout`            |       | Log out of the CI/CD server            |
 | `--local`             |       | Run here instead of dispatching        |
 
+### Listing a pipeline that does not lint
+
+Both `--lint` and `--list` check the pipeline before they do anything with it, and they treat the answer differently.
+
+`--lint` is asked whether the pipeline is sound, so the first job that does not resolve ends it. `--list` is asked what is in the pipeline, and one broken job is no reason to withhold the rest: it lists everything, then prints the lint errors as a warning **on stderr**, and exits non-zero.
+
+The two halves are both deliberate. The warning is on stderr so that `atkins --list --json > jobs.json` still writes a document a reader can parse — the lint errors do not land in the middle of it. The exit status is still a failure, because a listing of a pipeline that does not resolve is a best effort at a broken thing, and a caller that only reads the status should not be told otherwise.
+
+```bash
+$ atkins --list --json > jobs.json
+⚠ WARNING: Pipeline 'my project' has errors:
+  test:docs: step references task 'mdox:fmt', but job "mdox:fmt" not found
+Error: 1 job did not lint; it is listed above, but cannot run
+
+$ echo $?
+1
+$ jq '[.[].cmds[]] | length' jobs.json    # the rest of the pipeline is still there
+40
+```
+
+A script that wants the listing regardless should read the file rather than the exit status, and check that it is non-empty — an `atkins` that could not list at all writes nothing.
+
 ## File Discovery
 
 By default, Atkins auto-discovers pipeline files in this order:

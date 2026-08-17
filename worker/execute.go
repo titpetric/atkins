@@ -2,8 +2,6 @@ package worker
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"maps"
 	"os"
 	"os/exec"
@@ -27,7 +25,17 @@ type Result struct {
 const killGrace = 5 * time.Second
 
 // execute runs the job command in the prepared workspace.
+//
+// A job that declared itself interactive is run on a pty with the
+// server's input queue wired to it; see interactive.go. Everything else
+// gets pipes and no stdin at all, which is what stops a build that
+// stops to ask a question from holding the agent until its lease runs
+// out.
 func (w *Worker) execute(ctx context.Context, job *jobContext, workspace *Workspace) Result {
+	if job.Job.Interactive {
+		return w.runInteractive(ctx, job, workspace)
+	}
+
 	cmd := exec.CommandContext(ctx, w.opts.Shell, "-c", job.Job.Command)
 	cmd.Dir = workspace.Dir
 	cmd.Env = w.environment(job, workspace)
@@ -45,28 +53,7 @@ func (w *Worker) execute(ctx context.Context, job *jobContext, workspace *Worksp
 	err := cmd.Run()
 	output.Close()
 
-	result := Result{}
-
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		result.TimedOut = true
-		result.ExitCode = 1
-		result.Error = fmt.Sprintf("job exceeded the %s agent timeout", w.opts.JobTimeout)
-		w.appendLog(ctx, job.Job.ID, client.StreamError, result.Error+"\n")
-		return result
-	}
-
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			result.ExitCode = exitErr.ExitCode()
-		} else {
-			result.ExitCode = 1
-			result.Error = err.Error()
-			w.appendLog(ctx, job.Job.ID, client.StreamError, err.Error()+"\n")
-		}
-	}
-
-	return result
+	return w.result(ctx, job, err)
 }
 
 // environment builds the process environment for a job command.

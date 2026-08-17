@@ -197,6 +197,10 @@ func (s *Handlers) retryJob(w http.ResponseWriter, r *http.Request) error {
 		CloneDepth:       previous.CloneDepth,
 		Labels:           splitLabels(previous.Labels),
 		Params:           previous.Params,
+		// Whether the command reads a terminal is a property of the
+		// command, and the retry runs the same one. A retried shell that
+		// came back without a keyboard would be a shell nobody can use.
+		Interactive: previous.Interactive,
 		// A retry collects what the original was asked to collect;
 		// otherwise the re-run of a failed job would come back without
 		// the files that explain it.
@@ -239,6 +243,8 @@ func (s *Handlers) cancelJob(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
+
+	s.settled(job.ID)
 
 	platform.JSON(w, r, http.StatusOK, job)
 	return nil

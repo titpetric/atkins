@@ -194,6 +194,9 @@ type Job struct {
 
 	// Clone Depth
 	CloneDepth int64 `db:"clone_depth" json:"clone_depth"`
+
+	// Interactive
+	Interactive bool `db:"interactive" json:"interactive"`
 }
 
 // GetID will return the value of ID.
@@ -334,11 +337,17 @@ func (j *Job) GetCloneDepth() int64 { return j.CloneDepth }
 // SetCloneDepth sets CloneDepth to the provided value.
 func (j *Job) SetCloneDepth(val int64) { j.CloneDepth = val }
 
+// GetInteractive will return the value of Interactive.
+func (j *Job) GetInteractive() bool { return j.Interactive }
+
+// SetInteractive sets Interactive to the provided value.
+func (j *Job) SetInteractive(val bool) { j.Interactive = val }
+
 // JobTable is the name of the table in the DB.
 const JobTable = "`job`"
 
 // JobFields is a list of all columns in the DB table.
-var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "artefact_paths", "ref", "commit_sha", "clone_depth"}
+var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "artefact_paths", "ref", "commit_sha", "clone_depth", "interactive"}
 
 // JobPrimaryFields are the primary key fields in the DB table.
 var JobPrimaryFields = []string{"id"}
@@ -591,6 +600,27 @@ type Repository struct {
 
 	// Deleted At
 	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
+
+	// Name
+	Name string `db:"name" json:"name"`
+
+	// Command
+	Command string `db:"command" json:"command"`
+
+	// Ref
+	Ref string `db:"ref" json:"ref"`
+
+	// Working Directory
+	WorkingDirectory string `db:"working_directory" json:"working_directory"`
+
+	// Pipeline Job ID
+	PipelineJobID string `db:"pipeline_job_id" json:"pipeline_job_id"`
+
+	// Pipeline
+	Pipeline string `db:"pipeline" json:"pipeline"`
+
+	// Pipeline At
+	PipelineAt *time.Time `db:"pipeline_at" json:"pipeline_at"`
 }
 
 // GetID will return the value of ID.
@@ -647,11 +677,53 @@ func (r *Repository) GetDeletedAt() *time.Time { return r.DeletedAt }
 // SetDeletedAt sets DeletedAt to the provided value.
 func (r *Repository) SetDeletedAt(stamp time.Time) { r.DeletedAt = &stamp }
 
+// GetName will return the value of Name.
+func (r *Repository) GetName() string { return r.Name }
+
+// SetName sets Name to the provided value.
+func (r *Repository) SetName(val string) { r.Name = val }
+
+// GetCommand will return the value of Command.
+func (r *Repository) GetCommand() string { return r.Command }
+
+// SetCommand sets Command to the provided value.
+func (r *Repository) SetCommand(val string) { r.Command = val }
+
+// GetRef will return the value of Ref.
+func (r *Repository) GetRef() string { return r.Ref }
+
+// SetRef sets Ref to the provided value.
+func (r *Repository) SetRef(val string) { r.Ref = val }
+
+// GetWorkingDirectory will return the value of WorkingDirectory.
+func (r *Repository) GetWorkingDirectory() string { return r.WorkingDirectory }
+
+// SetWorkingDirectory sets WorkingDirectory to the provided value.
+func (r *Repository) SetWorkingDirectory(val string) { r.WorkingDirectory = val }
+
+// GetPipelineJobID will return the value of PipelineJobID.
+func (r *Repository) GetPipelineJobID() string { return r.PipelineJobID }
+
+// SetPipelineJobID sets PipelineJobID to the provided value.
+func (r *Repository) SetPipelineJobID(val string) { r.PipelineJobID = val }
+
+// GetPipeline will return the value of Pipeline.
+func (r *Repository) GetPipeline() string { return r.Pipeline }
+
+// SetPipeline sets Pipeline to the provided value.
+func (r *Repository) SetPipeline(val string) { r.Pipeline = val }
+
+// GetPipelineAt will return the value of PipelineAt.
+func (r *Repository) GetPipelineAt() *time.Time { return r.PipelineAt }
+
+// SetPipelineAt sets PipelineAt to the provided value.
+func (r *Repository) SetPipelineAt(stamp time.Time) { r.PipelineAt = &stamp }
+
 // RepositoryTable is the name of the table in the DB.
 const RepositoryTable = "`repository`"
 
 // RepositoryFields is a list of all columns in the DB table.
-var RepositoryFields = []string{"id", "slug", "remote_url", "default_branch", "created_by_user_id", "is_active", "created_at", "updated_at", "deleted_at"}
+var RepositoryFields = []string{"id", "slug", "remote_url", "default_branch", "created_by_user_id", "is_active", "created_at", "updated_at", "deleted_at", "name", "command", "ref", "working_directory", "pipeline_job_id", "pipeline", "pipeline_at"}
 
 // RepositoryPrimaryFields are the primary key fields in the DB table.
 var RepositoryPrimaryFields = []string{"id"}

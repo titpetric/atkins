@@ -27,3 +27,4 @@ Job.
 | ref               | varchar  |     | Ref               |
 | commit_sha        | varchar  | MUL | Commit Sha        |
 | clone_depth       | bigint   |     | Clone Depth       |
+| interactive       | boolean  |     | Interactive       |

@@ -30,6 +30,7 @@ import (
 	"github.com/titpetric/atkins/server/auth"
 	"github.com/titpetric/atkins/server/model"
 	"github.com/titpetric/atkins/server/storage"
+	"github.com/titpetric/atkins/server/stream"
 )
 
 // ViewTokenParam is the query parameter carrying a job's view token.
@@ -59,6 +60,10 @@ type Handlers struct {
 	// cookie and CSRF HMACs are computed directly rather than as JWTs.
 	// Rotating it logs the browser out along with everything else.
 	signingKey string
+
+	// live is the running jobs' terminals: the browser reads output from
+	// it and types back into it, and the agent is on the other side.
+	live *stream.Hub
 }
 
 // Options is passed from the server module scope.
@@ -77,6 +82,10 @@ type Options struct {
 	// the per-job view tokens, and without it the admin pages refuse
 	// every session rather than trusting an unauthenticated cookie.
 	SigningKey string
+
+	// Stream is the live half of a job: the terminal page reads output
+	// from it as it arrives and posts keystrokes back into it.
+	Stream *stream.Hub
 }
 
 // NewHandlers returns Handlers for the page routes.
@@ -98,6 +107,7 @@ func NewHandlers(opts Options) (*Handlers, error) {
 		sshKeys:      opts.SSHKeyStorage,
 		tokens:       auth.NewJWT(opts.SigningKey),
 		signingKey:   opts.SigningKey,
+		live:         opts.Stream,
 	}
 
 	return handlers, nil
@@ -127,9 +137,29 @@ func (h *Handlers) Mount(r platform.Router) {
 	r.Get("/job/{jobID}", h.Job)
 	r.Get("/job/{jobID}/artefact/{artefactID}", h.Artefact)
 
+	// The terminal and its two channels are gated on the same view token
+	// the job page is, and for the same reason: they show the same
+	// output, and a browser opening a link somebody pasted has no
+	// session to offer.
+	r.Get("/job/{jobID}/terminal", h.Terminal)
+	r.Get("/job/{jobID}/stream", h.StreamJob)
+	r.Post("/job/{jobID}/input", h.InputJob)
+
+	r.Get("/assets/{asset}", h.Asset)
+
+	r.Get("/setup", h.SetupForm)
+	r.Post("/setup", h.Setup)
+
 	r.Get("/login", h.LoginForm)
 	r.Post("/login", h.Login)
 	r.Post("/logout", h.Logout)
+
+	r.Get("/admin/project", h.admin(h.Projects))
+	r.Post("/admin/project", h.submit(h.CreateProject))
+	r.Get("/admin/project/{repositoryID}", h.admin(h.Project))
+	r.Post("/admin/project/{repositoryID}", h.submit(h.UpdateProject))
+	r.Post("/admin/project/{repositoryID}/refresh", h.submit(h.RefreshProject))
+	r.Post("/admin/project/{repositoryID}/run", h.submit(h.RunProject))
 
 	r.Get("/admin", h.admin(h.Repositories))
 	r.Get("/admin/repository", h.admin(h.Repositories))
@@ -205,6 +235,13 @@ type IndexPage struct {
 // answers, because it is the server's front door and a health check
 // probing it should find a server rather than a refusal.
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
+	// An instance nobody can sign into has one thing worth saying, and
+	// the front door is where somebody handed a URL arrives.
+	if h.needsSetup(r) {
+		http.Redirect(w, r, "/setup", http.StatusSeeOther)
+		return
+	}
+
 	page := IndexPage{Refresh: 5}
 	filter := storage.ListFilter{Limit: 50}
 
@@ -375,6 +412,16 @@ func (l Links) Listing() bool {
 // the job it came from.
 func (l Links) Job(jobID string) string {
 	return model.JobLink(jobID, l.token(jobID))
+}
+
+// Terminal is where a job is watched as it runs, token and all.
+//
+// It is a second page onto the same job rather than a replacement for
+// the first: the job page is a document, readable after the fact and
+// without scripting, and the terminal is a terminal. Both are reachable
+// on the same terms, because they show the same output.
+func (l Links) Terminal(jobID string) string {
+	return l.withToken("/job/"+jobID+"/terminal", jobID)
 }
 
 // Artefact is where an artefact downloads from.

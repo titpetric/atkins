@@ -1,0 +1,14 @@
+-- Record whether a job's command reads from a terminal.
+--
+-- It decides two things at once, which is why it is one column rather
+-- than two. The agent gives an interactive job a pty and pumps the
+-- server's input queue into it, instead of running it with no stdin at
+-- all; and the job's page offers a terminal that types back rather than
+-- a transcript that only scrolls.
+--
+-- The value comes from the pipeline: a job declared `interactive: true`
+-- in atkins.yml is one whose steps bind stdin, and dispatching it from a
+-- browser should not quietly turn that off. A job that never asked for
+-- input is read-only on the page, which is what makes the terminal safe
+-- to leave open on a build.
+ALTER TABLE job ADD COLUMN interactive BOOLEAN NOT NULL DEFAULT 0;

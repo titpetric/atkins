@@ -22,9 +22,20 @@ templ jobView(page *JobPage, links Links) {
 		</header>
 		<p>
 			<span class={ "badge", "badge-" + page.Job.Status }>{ page.Job.Status }</span>
+			if page.Job.Interactive {
+				<span class="badge badge-on">interactive</span>
+			}
 			if page.Refresh > 0 {
 				<span class="muted">· this page refreshes every { strconv.Itoa(page.Refresh) }s</span>
 			}
+			// This page prints what a command wrote and drops the
+			// sequences that move a cursor, which is right for reading a
+			// run and wrong for watching one: atkins redraws its tree in
+			// place. The terminal is where that redraw happens.
+			<span class="muted">
+				{ " · " }
+				<a href={ templ.URL(links.Terminal(page.Job.ID)) }>open a terminal</a>
+			</span>
 		</p>
 		<table>
 			<tr>

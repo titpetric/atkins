@@ -6,6 +6,9 @@ import (
 	"net/http"
 
 	"github.com/titpetric/platform"
+
+	"github.com/titpetric/atkins/server/model"
+	"github.com/titpetric/atkins/server/stream"
 )
 
 // JobLogRequest is the body of POST /api/job/{jobID}/log.
@@ -45,12 +48,31 @@ func (s *Handlers) appendJobLog(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if err := s.jobLogs.Append(r.Context(), jobID, req.Stream, req.Content); err != nil {
+	entry, err := s.jobLogs.Append(r.Context(), jobID, req.Stream, req.Content)
+	if err != nil {
 		return err
 	}
 
+	// Stored first, then published. A watcher that arrives between the
+	// two replays the row from the table; one that arrives the other way
+	// round would miss it in both places.
+	s.publish(entry)
+
 	w.WriteHeader(http.StatusNoContent)
 	return nil
+}
+
+// publish hands a stored chunk to whoever is watching the job live.
+func (s *Handlers) publish(entry *model.JobLog) {
+	if s.live == nil || entry == nil {
+		return
+	}
+
+	s.live.Publish(entry.JobID, stream.Chunk{
+		Seq:     entry.Seq,
+		Stream:  entry.Stream,
+		Content: entry.Content,
+	})
 }
 
 // GetJobLog returns the recorded output for a job.

@@ -79,6 +79,9 @@ type Job struct {
 
 	// Clone Depth
 	CloneDepth int64 `db:"clone_depth" json:"clone_depth"`
+
+	// Interactive
+	Interactive bool `db:"interactive" json:"interactive"`
 }
 ```
 
@@ -225,6 +228,27 @@ type Repository struct {
 
 	// Deleted At
 	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
+
+	// Name
+	Name string `db:"name" json:"name"`
+
+	// Command
+	Command string `db:"command" json:"command"`
+
+	// Ref
+	Ref string `db:"ref" json:"ref"`
+
+	// Working Directory
+	WorkingDirectory string `db:"working_directory" json:"working_directory"`
+
+	// Pipeline Job ID
+	PipelineJobID string `db:"pipeline_job_id" json:"pipeline_job_id"`
+
+	// Pipeline
+	Pipeline string `db:"pipeline" json:"pipeline"`
+
+	// Pipeline At
+	PipelineAt *time.Time `db:"pipeline_at" json:"pipeline_at"`
 }
 ```
 
@@ -629,7 +653,7 @@ var JobArtefactPrimaryFields = []string{"id"}
 
 ```go
 // JobFields is a list of all columns in the DB table.
-var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "artefact_paths", "ref", "commit_sha", "clone_depth"}
+var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "artefact_paths", "ref", "commit_sha", "clone_depth", "interactive"}
 ```
 
 ```go
@@ -659,7 +683,7 @@ var MigrationsPrimaryFields = []string{"project", "filename"}
 
 ```go
 // RepositoryFields is a list of all columns in the DB table.
-var RepositoryFields = []string{"id", "slug", "remote_url", "default_branch", "created_by_user_id", "is_active", "created_at", "updated_at", "deleted_at"}
+var RepositoryFields = []string{"id", "slug", "remote_url", "default_branch", "created_by_user_id", "is_active", "created_at", "updated_at", "deleted_at", "name", "command", "ref", "working_directory", "pipeline_job_id", "pipeline", "pipeline_at"}
 ```
 
 ```go
@@ -825,6 +849,7 @@ var (
 - `func MatchArtefactPath (pattern,value string) bool`
 - `func MatchRepository (pattern,slug string) bool`
 - `func ParseBytes (value string) (int64, error)`
+- `func ProjectName (slug string) string`
 - `func RepositorySlug (remoteURL string) string`
 - `func SettingDefinitions () []SettingDefinition`
 - `func TerminalJobStatus (status JobStatus) bool`
@@ -850,6 +875,7 @@ var (
 - `func (*Job) GetExitCode () int64`
 - `func (*Job) GetFinishedAt () *time.Time`
 - `func (*Job) GetID () string`
+- `func (*Job) GetInteractive () bool`
 - `func (*Job) GetLabels () string`
 - `func (*Job) GetLeaseExpiresAt () *time.Time`
 - `func (*Job) GetParams () string`
@@ -876,6 +902,7 @@ var (
 - `func (*Job) SetExitCode (val int64)`
 - `func (*Job) SetFinishedAt (stamp time.Time)`
 - `func (*Job) SetID (val string)`
+- `func (*Job) SetInteractive (val bool)`
 - `func (*Job) SetLabels (val string)`
 - `func (*Job) SetLeaseExpiresAt (stamp time.Time)`
 - `func (*Job) SetParams (val string)`
@@ -949,26 +976,40 @@ var (
 - `func (*QueryConfig) WithTable (name string) QueryOption`
 - `func (*QueryConfig) WithWhere (clause string) QueryOption`
 - `func (*Repository) Delete (opts ...QueryOption) string`
+- `func (*Repository) GetCommand () string`
 - `func (*Repository) GetCreatedAt () *time.Time`
 - `func (*Repository) GetCreatedByUserID () string`
 - `func (*Repository) GetDefaultBranch () string`
 - `func (*Repository) GetDeletedAt () *time.Time`
 - `func (*Repository) GetID () string`
 - `func (*Repository) GetIsActive () bool`
+- `func (*Repository) GetName () string`
+- `func (*Repository) GetPipeline () string`
+- `func (*Repository) GetPipelineAt () *time.Time`
+- `func (*Repository) GetPipelineJobID () string`
+- `func (*Repository) GetRef () string`
 - `func (*Repository) GetRemoteURL () string`
 - `func (*Repository) GetSlug () string`
 - `func (*Repository) GetUpdatedAt () *time.Time`
+- `func (*Repository) GetWorkingDirectory () string`
 - `func (*Repository) Insert (opts ...QueryOption) string`
 - `func (*Repository) Select (opts ...QueryOption) string`
+- `func (*Repository) SetCommand (val string)`
 - `func (*Repository) SetCreatedAt (stamp time.Time)`
 - `func (*Repository) SetCreatedByUserID (val string)`
 - `func (*Repository) SetDefaultBranch (val string)`
 - `func (*Repository) SetDeletedAt (stamp time.Time)`
 - `func (*Repository) SetID (val string)`
 - `func (*Repository) SetIsActive (val bool)`
+- `func (*Repository) SetName (val string)`
+- `func (*Repository) SetPipeline (val string)`
+- `func (*Repository) SetPipelineAt (stamp time.Time)`
+- `func (*Repository) SetPipelineJobID (val string)`
+- `func (*Repository) SetRef (val string)`
 - `func (*Repository) SetRemoteURL (val string)`
 - `func (*Repository) SetSlug (val string)`
 - `func (*Repository) SetUpdatedAt (stamp time.Time)`
+- `func (*Repository) SetWorkingDirectory (val string)`
 - `func (*Repository) Update (opts ...QueryOption) string`
 - `func (*RepositoryRule) Delete (opts ...QueryOption) string`
 - `func (*RepositoryRule) GetCreatedAt () *time.Time`
@@ -1236,6 +1277,19 @@ a disk, and disks are measured the way `ls -lh` measures them.
 func ParseBytes(value string) (int64, error)
 ```
 
+### ProjectName
+
+ProjectName is the name to show for a project nobody has named.
+
+It is the last segment of the slug — `atkins` out of
+`github.com/titpetric/atkins` — which is what the repository is
+called everywhere else. Falling back to the whole slug would put the
+host in front of every heading on the page.
+
+```go
+func ProjectName(slug string) string
+```
+
 ### RepositorySlug
 
 RepositorySlug normalizes a git remote URL into a stable identity of
@@ -1445,6 +1499,14 @@ GetID will return the value of ID.
 func (*Job) GetID() string
 ```
 
+### GetInteractive
+
+GetInteractive will return the value of Interactive.
+
+```go
+func (*Job) GetInteractive() bool
+```
+
 ### GetLabels
 
 GetLabels will return the value of Labels.
@@ -1651,6 +1713,14 @@ SetID sets ID to the provided value.
 
 ```go
 func (*Job) SetID(val string)
+```
+
+### SetInteractive
+
+SetInteractive sets Interactive to the provided value.
+
+```go
+func (*Job) SetInteractive(val bool)
 ```
 
 ### SetLabels
@@ -2237,6 +2307,14 @@ Delete starts building a DELETE query.
 func (*Repository) Delete(opts ...QueryOption) string
 ```
 
+### GetCommand
+
+GetCommand will return the value of Command.
+
+```go
+func (*Repository) GetCommand() string
+```
+
 ### GetCreatedAt
 
 GetCreatedAt will return the value of CreatedAt.
@@ -2285,6 +2363,46 @@ GetIsActive will return the value of IsActive.
 func (*Repository) GetIsActive() bool
 ```
 
+### GetName
+
+GetName will return the value of Name.
+
+```go
+func (*Repository) GetName() string
+```
+
+### GetPipeline
+
+GetPipeline will return the value of Pipeline.
+
+```go
+func (*Repository) GetPipeline() string
+```
+
+### GetPipelineAt
+
+GetPipelineAt will return the value of PipelineAt.
+
+```go
+func (*Repository) GetPipelineAt() *time.Time
+```
+
+### GetPipelineJobID
+
+GetPipelineJobID will return the value of PipelineJobID.
+
+```go
+func (*Repository) GetPipelineJobID() string
+```
+
+### GetRef
+
+GetRef will return the value of Ref.
+
+```go
+func (*Repository) GetRef() string
+```
+
 ### GetRemoteURL
 
 GetRemoteURL will return the value of RemoteURL.
@@ -2309,6 +2427,14 @@ GetUpdatedAt will return the value of UpdatedAt.
 func (*Repository) GetUpdatedAt() *time.Time
 ```
 
+### GetWorkingDirectory
+
+GetWorkingDirectory will return the value of WorkingDirectory.
+
+```go
+func (*Repository) GetWorkingDirectory() string
+```
+
 ### Insert
 
 Insert starts building an INSERT INTO query.
@@ -2323,6 +2449,14 @@ Select starts building a SELECT query.
 
 ```go
 func (*Repository) Select(opts ...QueryOption) string
+```
+
+### SetCommand
+
+SetCommand sets Command to the provided value.
+
+```go
+func (*Repository) SetCommand(val string)
 ```
 
 ### SetCreatedAt
@@ -2373,6 +2507,46 @@ SetIsActive sets IsActive to the provided value.
 func (*Repository) SetIsActive(val bool)
 ```
 
+### SetName
+
+SetName sets Name to the provided value.
+
+```go
+func (*Repository) SetName(val string)
+```
+
+### SetPipeline
+
+SetPipeline sets Pipeline to the provided value.
+
+```go
+func (*Repository) SetPipeline(val string)
+```
+
+### SetPipelineAt
+
+SetPipelineAt sets PipelineAt to the provided value.
+
+```go
+func (*Repository) SetPipelineAt(stamp time.Time)
+```
+
+### SetPipelineJobID
+
+SetPipelineJobID sets PipelineJobID to the provided value.
+
+```go
+func (*Repository) SetPipelineJobID(val string)
+```
+
+### SetRef
+
+SetRef sets Ref to the provided value.
+
+```go
+func (*Repository) SetRef(val string)
+```
+
 ### SetRemoteURL
 
 SetRemoteURL sets RemoteURL to the provided value.
@@ -2395,6 +2569,14 @@ SetUpdatedAt sets UpdatedAt to the provided value.
 
 ```go
 func (*Repository) SetUpdatedAt(stamp time.Time)
+```
+
+### SetWorkingDirectory
+
+SetWorkingDirectory sets WorkingDirectory to the provided value.
+
+```go
+func (*Repository) SetWorkingDirectory(val string)
 ```
 
 ### Update

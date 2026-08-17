@@ -426,8 +426,19 @@ func (s *Handlers) jobStatus(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	s.settled(job.ID)
+
 	platform.JSON(w, r, http.StatusOK, job)
 	return nil
+}
+
+// settled tells the live channel the job is over, so a terminal open on
+// it stops waiting rather than sitting on a page that will never change
+// again.
+func (s *Handlers) settled(jobID string) {
+	if s.live != nil {
+		s.live.Close(jobID)
+	}
 }
 
 // JobCheckout records what an agent checked out for a job.

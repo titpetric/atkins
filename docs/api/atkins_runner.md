@@ -161,6 +161,21 @@ type OutputItem struct {
 	ID   string `json:"id" yaml:"id"`
 	Desc string `json:"desc,omitempty" yaml:"desc,omitempty"`
 	Cmd  string `json:"cmd" yaml:"cmd"`
+
+	// Interactive reports that the job binds stdin: either the job
+	// declares `interactive: true` or one of its steps does.
+	//
+	// It is in the listing because the listing is what another program
+	// reads to decide how to run a job. The CI server dispatches from
+	// this and gives an interactive job a terminal that types back,
+	// where everything else gets a transcript that only scrolls.
+	Interactive bool `json:"interactive,omitempty" yaml:"interactive,omitempty"`
+
+	// DependsOn are the jobs that run before this one. The pipeline has
+	// carried them on model.Job all along; the listing did not, so a
+	// caller reading the listing could not tell what a target drags in
+	// with it.
+	DependsOn []string `json:"depends_on,omitempty" yaml:"depends_on,omitempty"`
 }
 ```
 

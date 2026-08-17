@@ -16,6 +16,7 @@ import (
 
 // Section names, used to mark the current entry in the navigation.
 const (
+	sectionProjects     = "project"
 	sectionRepositories = "repository"
 	sectionAllowlist    = "allowlist"
 	sectionSettings     = "setting"

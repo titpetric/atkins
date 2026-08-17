@@ -30,7 +30,12 @@ The repository ships a throwaway instance: a server and one agent, on port 3200.
 
 ```bash
 atkins up                                 # build and start
-atkins --register http://localhost:3200   # first account, becomes admin
+```
+
+Then open http://localhost:3200/setup and claim it — the first account is the administrator. From a checkout:
+
+```bash
+atkins --register http://localhost:3200   # the same bootstrap, from a terminal
 atkins                                    # prints http://localhost:3200/job/<ULID>?t=<token>
 atkins down
 ```
@@ -40,6 +45,89 @@ Nothing is mounted from the host. The agent clones the repository your checkout 
 Settings for the instance live in two files: `.env.docker`, which both services load, and `.env.docker.server`, which the server alone loads. The split keeps `ATKINS_SIGNING_KEY` in the server's process, where tokens are issued, while `ATKINS_AGENT_TOKEN` reaches both services, as the agent presents it on enrolment and the server verifies it.
 
 Both values ship as development placeholders. For an instance that outlives the trial, generate replacements with `openssl rand -hex 32`, keep them in the deployment's secret store, and pass them to the services through the environment rather than through a committed file. `ATKINS_SIGNING_KEY` signs every token the server issues, admin tokens among them, and rotating it invalidates every issued token and browser session. `ATKINS_AGENT_TOKEN` admits an agent to the queue and to the deploy keys, so it deserves the same handling and a rotation whenever an agent host is decommissioned. The agent keeps the token to itself; see [what a job receives](#environment-exported-to-a-job).
+
+## Setting up a new instance
+
+A server nobody has an account on has nothing to show anybody, and until this release the way through that was `atkins --register`, from a machine with the CLI on it. `/setup` is the same bootstrap through the front door:
+
+```text
+http://localhost:3200/setup
+```
+
+It exists only while the user table is empty. It asks for a username, an email and a password, creates the account — the first one is an administrator, by the same rule registration bootstraps under — signs the browser in, and closes behind itself. Once an account exists the page redirects to `/login`, and so does a post to it.
+
+While an instance is empty, `/`, `/login` and every admin page send a visitor there, so a URL somebody was handed leads to the one thing worth doing. An agent enrolling first does not close it: agents are not people, and one starting before anybody has claimed the instance must not take the slot.
+
+The account is the account. `atkins --login https://host` from a laptop signs in with what was typed there; there is no separate web password.
+
+## Projects
+
+`/admin/project` is a repository with a name on it, and the other direction from the rest of the server. Everywhere else a repository is *discovered* — a slug derived from whatever remote a dispatch reported — which is right for a machine already building something and useless to somebody holding a clone URL and nothing running yet.
+
+Adding one takes an address, a name, and the defaults its runs start from:
+
+| Field         | What it does                                                                                                                                   |
+|---------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| Clone address | The remote. Its slug is still the identity, so a project added here and a repository discovered from a dispatch of the same remote are one row |
+| Name          | What it is called on the pages. Empty takes the tail of the slug                                                                               |
+| Arguments     | The default invocation, e.g. `atkins test:simple`                                                                                              |
+| Ref           | Which ref to build. Empty resolves the default branch when a job runs                                                                          |
+| Directory     | Where in the work tree the pipeline file lives                                                                                                 |
+
+Adding a project whose remote is already known re-describes it rather than refusing: the slug has not changed, and what is being supplied is the name and the defaults a discovered row never had.
+
+### The pipeline tree
+
+Adding a project queues one job:
+
+```bash
+atkins --list --json > "$ATKINS_ARTEFACTS/pipeline.json"
+```
+
+An agent checks the project out and runs it, and the file it uploads is the project's job listing. The server reads the tree out of that artefact once, caches it on the repository, and renders it as the menu on the project page — nested, because job names nest: `test:cover` is `cover` under `test`.
+
+A job the agent cannot resolve — a `task:` step naming a skill the agent does not carry, most often — does not cost you the rest of the tree. [`--list` lists what resolved](./cli-flags#listing-a-pipeline-that-does-not-lint) and warns about what did not, so the listing job passes on the strength of the file it wrote, and the warning is in its log, which the project page links to. A listing job that fails is one that produced nothing at all: no checkout, no pipeline file, no `atkins`.
+
+Nothing on the server reads `atkins.yml`. Giving the server a checkout would mean giving it the clone cache, the deploy keys and the allowlist a second time, and a listing produced anywhere but an agent is a listing of a different checkout. The cost is that the tree arrives a moment later than the project does — the page says so while it waits — and that it goes stale when the pipeline changes, which the **Read it again** button is for. Nothing tells the server when somebody pushes.
+
+The picker is a `<details>` holding a tree of radio buttons rather than a `<select>`, which cannot nest past one level of `<optgroup>`. It works with scripting off; what a few lines of inline script add is the two things a native dropdown does that these do not — name the current choice on the closed control, and close when one is made.
+
+**What may be run is what the listing names.** The chosen id is looked up in the cached tree rather than pasted into a command, so the page is a menu of a project's own jobs rather than a box that runs shell on an agent. The allowlist governs a run started here exactly as it governs a dispatch, and it is checked again on the post — a hidden button is not a check.
+
+## Watching a job in a terminal
+
+`/job/{ULID}/terminal?t={token}` is a real terminal emulator on a running job, alongside the document at `/job/{ULID}`. Both are reachable on the same terms, because they show the same output.
+
+They exist separately because they answer different questions. The job page is a document: no scripting, readable years later, printable, and it *drops* the escape sequences that move a cursor because a document has no cursor. atkins draws its tree by moving the cursor and clearing lines, so that page shows a build's final text and the terminal shows the build.
+
+Output arrives by server-sent events. The stored rows are replayed first, so a browser that connects late — or reconnects — sees the run from the beginning; the sequence numbers make the join clean, so nothing is duplicated or lost between the replay and the live feed. Escape sequences go through untouched: this is where they mean something.
+
+The emulator is [xterm.js](https://xtermjs.org), committed under `server/web/assets` and served from `/assets/`. No CDN and no build step, for the same reason the templates are compiled: a server should build and run from a checkout and a Go toolchain, and a page that fetches a third party every time it opens is a page that breaks on a private network.
+
+### Typing at a job
+
+A job whose pipeline declares `interactive: true` gets a keyboard. Everything else is read only.
+
+```yaml
+jobs:
+  shell:
+    desc: "A shell on the agent"
+    interactive: true
+    steps:
+      - bash
+```
+
+The flag is the job's own, so it travels with the listing: `atkins --list --json` reports `"interactive": true` for a job that declares it, or that has a step which does. The browser dispatches with what the listing said, never with what a form posted — a build that never reads stdin cannot be handed a keyboard by a crafted request.
+
+For a job that has one, the agent runs the command on a pty rather than on pipes, and pumps the server's input queue into it. Keystrokes are posted from the page, queued in memory on the server, and collected by the agent's long poll: a keypress reaches the process in about the time it takes to cross the network twice. Output for an interactive job is flushed every 100ms instead of every two seconds, because two seconds before a keystroke echoes is not a terminal.
+
+The pty is also why the output looks right. A command with a pipe for output knows it is not talking to a terminal and behaves accordingly — no colour, no progress that overwrites itself — so a shell without one would be a shell with the interesting half turned off.
+
+The queue is per-process and in memory. Two servers behind one load balancer would need the agent and the browser to land on the same one; keystrokes are worth nothing a second after they were typed, so they are not worth a table.
+
+The session ends when the command does. A `bash` with nothing typed at it runs until `agent.job_timeout`, and the terminal says so when the job settles.
+
+**A shell in a browser is a shell.** It is not a new capability — an agent already runs whatever command a job carries — but it is a more convenient one, and it is worth knowing that it needs an admin session or the job's view token, and that the agent removes its own credentials from the environment first, exactly as it does for any other job.
 
 ## Logging in
 
@@ -341,13 +429,14 @@ Everything under `/admin` is the operator's face on `/api/admin/*`, and it needs
 
 | Page                | What it does                                                                  |
 |---------------------|-------------------------------------------------------------------------------|
+| `/admin/project`    | Projects, the form that adds one, and each project's pipeline and runs        |
 | `/admin/repository` | What the server has seen, with each repository's last job, and a trigger form |
 | `/admin/allowlist`  | List, add, enable, disable and remove rules, with the policy in force         |
 | `/admin/setting`    | Every setting with its effective value, default, and whether it is overridden |
 | `/admin/user`       | Accounts and their `is_admin` / `is_active` / `is_agent` flags                |
 | `/admin/ssh-key`    | Deploy keys with fingerprints: add, deactivate, remove                        |
 
-Sign in at `/login` with the same account `atkins --login` uses — there is no separate web password. The first account on a fresh instance becomes an administrator, so `atkins --register <server>` is how you get in.
+Sign in at `/login` with the same account `atkins --login` uses — there is no separate web password. The first account on a fresh instance becomes an administrator, so `/setup` or `atkins --register <server>` is how you get in.
 
 ### The session
 
@@ -553,6 +642,7 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
 | `/api/job/{id}/checkout`       | POST            | agent  | Record the ref and commit it built     |
 | `/api/job/{id}/heartbeat`      | POST            | agent  | Extend the lease                       |
 | `/api/job/{id}/log`            | POST            | agent  | Append output                          |
+| `/api/job/{id}/input`          | GET             | agent  | Collect keystrokes, long-polled        |
 | `/api/job/{id}/artefact`       | POST            | agent  | Upload a file, `?path=` names it       |
 | `/api/agent/enrol`             | POST            | token  | Trade the shared token for credentials |
 | `/api/agent/policy`            | GET             | agent  | The repository policy to enforce       |
@@ -570,8 +660,13 @@ Authentication is `Authorization: Bearer <token>`. Access tokens live an hour an
 |----------------------------------|----------|--------|--------------------------------------|
 | `/`                              | GET      | anyone | Recent jobs                          |
 | `/job/{ULID}`                    | GET      | anyone | One run, and its output              |
+| `/job/{ULID}/terminal`           | GET      | anyone | One run, in a terminal emulator      |
+| `/job/{ULID}/stream`             | GET      | anyone | That run's output, as it arrives     |
+| `/job/{ULID}/input`              | POST     | anyone | Keystrokes, for an interactive job   |
+| `/setup`                         | GET/POST | anyone | Claim an instance that has no users  |
 | `/login`                         | GET/POST | anyone | Sign in, setting the session cookie  |
 | `/logout`                        | POST     | user   | Revoke the session, clear the cookie |
+| `/admin/project[/{id}]`          | GET/POST | admin  | Projects, their pipelines and runs   |
 | `/admin/repository`              | GET      | admin  | Repositories and their last job      |
 | `/admin/repository/{id}/trigger` | POST     | admin  | Queue a job by name                  |
 | `/admin/allowlist[/{id}]`        | GET/POST | admin  | Manage allowlist rules               |

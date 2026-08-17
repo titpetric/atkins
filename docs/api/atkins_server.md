@@ -38,6 +38,10 @@ type Module struct {
 	artefacts *storage.JobArtefactStorage
 	settings  *storage.SettingStorage
 
+	// live is the running jobs' terminals, shared by the API the agent
+	// talks to and the pages a browser watches through.
+	live *stream.Hub
+
 	// cancel stops the background sweeps: expired agent leases, and
 	// retention. done waits for both.
 	cancel context.CancelFunc

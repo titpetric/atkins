@@ -22,7 +22,16 @@ func setProcessGroup(cmd *exec.Cmd) {
 		if cmd.Process == nil {
 			return nil
 		}
-		// Negative pid: the process group, not just the leader.
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		return killProcessGroup(cmd.Process.Pid)
 	}
+}
+
+// killProcessGroup stops the group a process leads.
+//
+// It is separate from setProcessGroup because an interactive job does
+// not use that: pty.Start puts the command in a session of its own, so
+// the group already exists and only the killing is wanted.
+func killProcessGroup(pid int) error {
+	// Negative pid: the process group, not just the leader.
+	return syscall.Kill(-pid, syscall.SIGKILL)
 }

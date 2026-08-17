@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/titpetric/atkins/server/storage"
+	"github.com/titpetric/atkins/server/stream"
 )
 
 // Options is passed from the server module scope. Every field has a
@@ -37,6 +38,12 @@ type Options struct {
 	RepositoryRuleStorage *storage.RepositoryRuleStorage
 	SettingStorage        *storage.SettingStorage
 	SSHKeyStorage         *storage.SSHKeyStorage
+
+	// Stream carries a running job's terminal: output on its way to the
+	// browsers watching, keystrokes on their way to the agent. It is
+	// shared with the pages, which is the point — the browser talks to
+	// one side of it and the agent to the other.
+	Stream *stream.Hub
 }
 
 // DefaultTokenTTL is the access token lifetime. It is short because the

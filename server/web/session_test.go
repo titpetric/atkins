@@ -122,12 +122,12 @@ func TestParseFormAcceptsSameOriginAndNoOrigin(t *testing.T) {
 
 func TestSafeNextStaysOnThisServer(t *testing.T) {
 	assert.Equal(t, "/admin/user", safeNext("/admin/user"))
-	assert.Equal(t, "/admin/repository", safeNext(""))
+	assert.Equal(t, "/admin/project", safeNext(""))
 
 	// An open redirect on a login page is how a phishing link borrows a
 	// domain's good name.
-	assert.Equal(t, "/admin/repository", safeNext("//evil.example.com/"))
-	assert.Equal(t, "/admin/repository", safeNext("https://evil.example.com/"))
+	assert.Equal(t, "/admin/project", safeNext("//evil.example.com/"))
+	assert.Equal(t, "/admin/project", safeNext("https://evil.example.com/"))
 }
 
 func TestIsTLS(t *testing.T) {

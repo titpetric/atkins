@@ -169,6 +169,10 @@ func (h *Handlers) admin(next pageHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		current, err := h.authenticate(r)
 		if err != nil {
+			if h.needsSetup(r) {
+				http.Redirect(w, r, "/setup", http.StatusSeeOther)
+				return
+			}
 			http.Redirect(w, r, "/login?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
 			return
 		}
@@ -215,27 +219,50 @@ func (h *Handlers) submit(next pageHandler) http.HandlerFunc {
 }
 
 // parseForm reads a bounded form body and refuses a cross-origin post.
-//
-// The origin check is "reject a mismatch" rather than "require a
-// match": curl and older browsers send no Origin at all, and a request
-// with no Origin is not a cross-site one.
 func (h *Handlers) parseForm(w http.ResponseWriter, r *http.Request) error {
-	if origin := r.Header.Get("Origin"); origin != "" {
-		parsed, err := url.Parse(origin)
-		if err != nil || !strings.EqualFold(parsed.Host, r.Host) {
-			return errors.New("cross-origin form submission refused")
-		}
+	if err := h.sameOrigin(r); err != nil {
+		return err
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
 	return r.ParseForm()
 }
 
+// sameOrigin refuses a post that came from somewhere else.
+//
+// The check is "reject a mismatch" rather than "require a match": curl
+// and older browsers send no Origin at all, and a request with no Origin
+// is not a cross-site one.
+//
+// It is separate from parseForm because not everything posted here is a
+// form. The terminal posts keystrokes as a body, and it wants this
+// guard without wanting the form parser.
+func (h *Handlers) sameOrigin(r *http.Request) error {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return nil
+	}
+
+	parsed, err := url.Parse(origin)
+	if err != nil || !strings.EqualFold(parsed.Host, r.Host) {
+		return errors.New("cross-origin form submission refused")
+	}
+
+	return nil
+}
+
 // LoginForm renders the login page.
 func (h *Handlers) LoginForm(w http.ResponseWriter, r *http.Request) {
 	// Already signed in: nothing to ask for.
 	if current, err := h.authenticate(r); err == nil && current.User.IsAdmin {
-		http.Redirect(w, r, "/admin/repository", http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/project", http.StatusSeeOther)
+		return
+	}
+
+	// Nothing to sign in as yet. Asking for credentials that cannot
+	// exist is a dead end; /setup is the way through.
+	if h.needsSetup(r) {
+		http.Redirect(w, r, "/setup", http.StatusSeeOther)
 		return
 	}
 
@@ -324,7 +351,7 @@ func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
 // good name.
 func safeNext(next string) string {
 	if next == "" || !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") {
-		return "/admin/repository"
+		return "/admin/project"
 	}
 	return next
 }

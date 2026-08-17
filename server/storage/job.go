@@ -146,6 +146,15 @@ type JobRequest struct {
 	// Artefacts are glob patterns the agent collects after the command
 	// exits, relative to the directory it ran in.
 	Artefacts []string
+
+	// Interactive gives the command a terminal and a keyboard: the agent
+	// runs it on a pty and pumps the job's input queue into it, and the
+	// job's page offers a terminal that types back.
+	//
+	// It comes from the pipeline — a job declared `interactive: true` —
+	// rather than from whoever dispatches, so a build that never reads
+	// stdin cannot be handed a keyboard by a crafted request.
+	Interactive bool
 }
 
 // Create records a dispatched job.
@@ -198,6 +207,7 @@ func (s *JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, er
 		// Patterns are normalized on the way in, so an agent reading
 		// the column never has to decide what `../../etc` means.
 		ArtefactPaths: model.JoinArtefactPatterns(req.Artefacts),
+		Interactive:   req.Interactive,
 		Status:        model.JobStatusPending,
 	}
 	job.SetCreatedAt(now)

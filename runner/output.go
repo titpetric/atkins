@@ -16,6 +16,21 @@ type OutputItem struct {
 	ID   string `json:"id" yaml:"id"`
 	Desc string `json:"desc,omitempty" yaml:"desc,omitempty"`
 	Cmd  string `json:"cmd" yaml:"cmd"`
+
+	// Interactive reports that the job binds stdin: either the job
+	// declares `interactive: true` or one of its steps does.
+	//
+	// It is in the listing because the listing is what another program
+	// reads to decide how to run a job. The CI server dispatches from
+	// this and gives an interactive job a terminal that types back,
+	// where everything else gets a transcript that only scrolls.
+	Interactive bool `json:"interactive,omitempty" yaml:"interactive,omitempty"`
+
+	// DependsOn are the jobs that run before this one. The pipeline has
+	// carried them on model.Job all along; the listing did not, so a
+	// caller reading the listing could not tell what a target drags in
+	// with it.
+	DependsOn []string `json:"depends_on,omitempty" yaml:"depends_on,omitempty"`
 }
 
 // OutputSection represents a pipeline section in the list output.
@@ -98,9 +113,11 @@ func buildPipelineSection(p *model.Pipeline, prefix string) OutputSection {
 		}
 
 		cmds = append(cmds, OutputItem{
-			ID:   id,
-			Desc: job.Desc,
-			Cmd:  "atkins " + id,
+			ID:          id,
+			Desc:        job.Desc,
+			Cmd:         "atkins " + id,
+			Interactive: bindsStdin(job),
+			DependsOn:   job.DependsOn,
 		})
 	}
 
@@ -108,6 +125,35 @@ func buildPipelineSection(p *model.Pipeline, prefix string) OutputSection {
 		Desc: p.Name,
 		Cmds: cmds,
 	}
+}
+
+// bindsStdin reports whether running a job connects a terminal to it.
+//
+// A job says so for all of its steps, or one step says so for itself,
+// and the executor treats the two the same way — see the isInteractive
+// check in executor_command.go. The listing answers the question a
+// caller actually has, which is "will this want a keyboard", not "which
+// of the two places was it written in".
+//
+// It does not follow `task:` steps into the jobs they invoke. A job
+// whose interactivity is somewhere down a chain of tasks is one nobody
+// can read either, and guessing at it here would mean resolving names
+// the listing does not otherwise resolve.
+func bindsStdin(job *model.Job) bool {
+	if job == nil {
+		return false
+	}
+	if job.Interactive {
+		return true
+	}
+
+	for _, step := range job.Children() {
+		if step != nil && step.Interactive {
+			return true
+		}
+	}
+
+	return false
 }
 
 // buildAliasesSection builds the aliases section.
@@ -118,10 +164,11 @@ func buildAliasesSection(skills []*model.Pipeline) OutputSection {
 		jobs := p.GetJobs()
 
 		// Skill ID alone is an alias to skill:default if default job exists
-		if _, hasDefault := jobs["default"]; hasDefault {
+		if fallback, hasDefault := jobs["default"]; hasDefault {
 			cmds = append(cmds, OutputItem{
-				ID:  p.ID,
-				Cmd: "atkins " + p.ID,
+				ID:          p.ID,
+				Cmd:         "atkins " + p.ID,
+				Interactive: bindsStdin(fallback),
 			})
 		}
 
@@ -136,6 +183,9 @@ func buildAliasesSection(skills []*model.Pipeline) OutputSection {
 					ID:   alias,
 					Desc: fmt.Sprintf("invokes %s", target),
 					Cmd:  "atkins " + alias,
+					// An alias runs the job it names, so it wants the same
+					// terminal the job does.
+					Interactive: bindsStdin(job),
 				})
 			}
 		}

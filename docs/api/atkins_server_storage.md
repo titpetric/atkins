@@ -140,6 +140,15 @@ type JobRequest struct {
 	// Artefacts are glob patterns the agent collects after the command
 	// exits, relative to the directory it ran in.
 	Artefacts []string
+
+	// Interactive gives the command a terminal and a keyboard: the agent
+	// runs it on a pty and pumps the job's input queue into it, and the
+	// job's page offers a terminal that types back.
+	//
+	// It comes from the pipeline — a job declared `interactive: true` —
+	// rather than from whoever dispatches, so a build that never reads
+	// stdin cannot be handed a keyboard by a crafted request.
+	Interactive bool
 }
 ```
 
@@ -181,6 +190,40 @@ type ListFilter struct {
 	// means the caller may see everything, which is what an admin, an
 	// agent and a public instance all are.
 	ViewerID string
+}
+```
+
+```go
+// ProjectRequest is what a person fills in to add a project: a clone
+// address, a name for it, and the defaults its runs start from.
+//
+// It is the other direction from Ensure. A repository discovered from a
+// dispatch knows only what the checkout reported; a project somebody
+// typed in has a name, and usually an opinion about which job to run.
+type ProjectRequest struct {
+	// Name is what the project is called on the pages. Empty falls back
+	// to the last segment of the slug, so the field can be left alone.
+	Name string
+
+	// RemoteURL is the clone address. The slug derived from it is still
+	// the identity: a project added here and a repository discovered
+	// from a dispatch of the same remote are one row.
+	RemoteURL string
+
+	DefaultBranch string
+
+	// Command is the default invocation for a run — the "which pipeline,
+	// with which arguments" of the add form. Empty leaves the choice to
+	// whoever presses run.
+	Command string
+
+	// Ref is the default ref to build. Empty means the repository's
+	// default branch, resolved by the agent when the job runs.
+	Ref string
+
+	// WorkingDirectory is where in the work tree the pipeline lives, for
+	// a repository carrying more than one project.
+	WorkingDirectory string
 }
 ```
 
@@ -447,7 +490,7 @@ const (
 - `func (*JobArtefactStorage) List (ctx context.Context, jobID string) ([]model.JobArtefact, error)`
 - `func (*JobArtefactStorage) Open (ctx context.Context, artefact *model.JobArtefact) (io.ReadCloser, error)`
 - `func (*JobArtefactStorage) PruneExpired (ctx context.Context, cutoff time.Time) (int64, error)`
-- `func (*JobLogStorage) Append (ctx context.Context, jobID,stream,content string) error`
+- `func (*JobLogStorage) Append (ctx context.Context, jobID,stream,content string) (*model.JobLog, error)`
 - `func (*JobLogStorage) List (ctx context.Context, jobID string) ([]model.JobLog, error)`
 - `func (*JobStorage) Claim (ctx context.Context, agentID string, labels []string) (*model.Job, error)`
 - `func (*JobStorage) Create (ctx context.Context, req JobRequest) (*model.Job, error)`
@@ -469,10 +512,14 @@ const (
 - `func (*RepositoryRuleStorage) List (ctx context.Context) ([]model.RepositoryRule, error)`
 - `func (*RepositoryRuleStorage) ListActive (ctx context.Context) ([]model.RepositoryRule, error)`
 - `func (*RepositoryRuleStorage) SetActive (ctx context.Context, id string, active bool) error`
+- `func (*RepositoryStorage) CreateProject (ctx context.Context, userID string, req ProjectRequest) (*model.Repository, error)`
 - `func (*RepositoryStorage) Ensure (ctx context.Context, userID string, req RepositoryRequest) (*model.Repository, error)`
 - `func (*RepositoryStorage) Get (ctx context.Context, id string) (*model.Repository, error)`
 - `func (*RepositoryStorage) GetBySlug (ctx context.Context, slug string) (*model.Repository, error)`
 - `func (*RepositoryStorage) List (ctx context.Context, limit int) ([]model.Repository, error)`
+- `func (*RepositoryStorage) SetPipeline (ctx context.Context, id,listing string) error`
+- `func (*RepositoryStorage) SetPipelineJob (ctx context.Context, id,jobID string) error`
+- `func (*RepositoryStorage) UpdateProject (ctx context.Context, id string, req ProjectRequest) (*model.Repository, error)`
 - `func (*SSHKeyStorage) Create (ctx context.Context, userID string, req SSHKeyRequest) (*model.SSHKey, error)`
 - `func (*SSHKeyStorage) Delete (ctx context.Context, id string) error`
 - `func (*SSHKeyStorage) List (ctx context.Context) ([]model.SSHKey, error)`
@@ -671,13 +718,17 @@ func (*JobArtefactStorage) PruneExpired(ctx context.Context, cutoff time.Time) (
 
 ### Append
 
-Append adds a chunk of output to a job.
+Append adds a chunk of output to a job and returns the row it stored.
 
 Chunks are numbered per job so the page can render them in the order
-the agent produced them, without relying on timestamp resolution.
+the agent produced them, without relying on timestamp resolution. The
+stored row goes back to the caller because the sequence number is also
+what a live watcher deduplicates on: it replays the table, then
+ignores anything the live feed hands it at or below the last sequence
+it read.
 
 ```go
-func (*JobLogStorage) Append(ctx context.Context, jobID, stream, content string) error
+func (*JobLogStorage) Append(ctx context.Context, jobID, stream, content string) (*model.JobLog, error)
 ```
 
 ### List
@@ -893,6 +944,20 @@ SetActive enables or disables a rule without deleting it.
 func (*RepositoryRuleStorage) SetActive(ctx context.Context, id string, active bool) error
 ```
 
+### CreateProject
+
+CreateProject records a project, or re-describes a repository the
+server had already seen.
+
+Adding a project whose remote is already known is an update rather
+than a conflict. The slug is the identity and it has not changed; what
+the person is doing is giving a row that arrived from a dispatch the
+name and the defaults it never had.
+
+```go
+func (*RepositoryStorage) CreateProject(ctx context.Context, userID string, req ProjectRequest) (*model.Repository, error)
+```
+
 ### Ensure
 
 Ensure returns the repository for the given remote, creating it on
@@ -929,6 +994,45 @@ List returns live repositories, newest first.
 
 ```go
 func (*RepositoryStorage) List(ctx context.Context, limit int) ([]model.Repository, error)
+```
+
+### SetPipeline
+
+SetPipeline caches the listing a pipeline job produced.
+
+It is stored rather than read from the artefact on every page load
+because the artefact is swept by retention and the tree is not: a
+project whose listing has aged out should still offer its jobs.
+
+```go
+func (*RepositoryStorage) SetPipeline(ctx context.Context, id, listing string) error
+```
+
+### SetPipelineJob
+
+SetPipelineJob records which job is going to produce the project's
+listing, and forgets the listing it replaces.
+
+Clearing the cache here rather than when the new one lands is what
+makes the page honest while the job is still queued: a tree from the
+previous commit shown beside a refresh in progress is the tree
+somebody will pick a stale job name out of.
+
+```go
+func (*RepositoryStorage) SetPipelineJob(ctx context.Context, id, jobID string) error
+```
+
+### UpdateProject
+
+UpdateProject rewrites the fields a person supplies, leaving the ones
+they left blank alone.
+
+The remote is deliberately not among them. Repointing a project at a
+different remote under the same slug is not a rename, it is a
+different project wearing this one's job history.
+
+```go
+func (*RepositoryStorage) UpdateProject(ctx context.Context, id string, req ProjectRequest) (*model.Repository, error)
 ```
 
 ### Create

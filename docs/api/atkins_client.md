@@ -234,6 +234,11 @@ type Job struct {
 	// ArtefactPaths are the comma separated globs the agent collects
 	// after the command exits.
 	ArtefactPaths string `json:"artefact_paths"`
+
+	// Interactive means the command reads a terminal. The agent gives it
+	// a pty and pumps the job's input queue into it instead of running
+	// it with no stdin at all.
+	Interactive bool `json:"interactive"`
 }
 ```
 
@@ -243,6 +248,18 @@ type Job struct {
 type JobCheckoutRequest struct {
 	Ref       string `json:"ref"`
 	CommitSHA string `json:"commit_sha"`
+}
+```
+
+```go
+// JobInputResponse is the body of GET /api/job/{jobID}/input: whatever
+// has been typed at an interactive job since the agent last collected.
+//
+// The bytes are base64 because they are bytes — arrow keys, control
+// characters, whatever a keyboard produced — and none of that survives
+// being called a JSON string.
+type JobInputResponse struct {
+	Input string `json:"input,omitempty"`
 }
 ```
 
@@ -375,6 +392,16 @@ const DefaultTimeout = 10 * time.Second
 // HeaderArtefactChecksum carries ArtefactUpload.Checksum, mirroring
 // server/api.
 const HeaderArtefactChecksum = "X-Atkins-Checksum"
+```
+
+```go
+// InputTimeout bounds one collection of keystrokes.
+// The server holds the request open until something is typed or its own
+// wait is up, so this only has to be longer than that. It is not the
+// dispatch timeout: nothing is waiting on this call, and a client
+// timeout shorter than the server's poll would turn every idle terminal
+// into an error in the agent's log.
+const InputTimeout = 45 * time.Second
 ```
 
 ```go
@@ -527,6 +554,7 @@ var UserAgent = "atkins"
 - `func (*Client) AppendLog (ctx context.Context, jobID,stream,content string) error`
 - `func (*Client) Artefacts (ctx context.Context, jobID string) ([]Artefact, error)`
 - `func (*Client) Claim (ctx context.Context, agentID string, labels []string) (*ClaimResponse, error)`
+- `func (*Client) CollectInput (ctx context.Context, jobID,agentID string) ([]byte, error)`
 - `func (*Client) Dispatch (ctx context.Context, req DispatchRequest) (*DispatchResponse, error)`
 - `func (*Client) Enrol (ctx context.Context, req EnrolRequest) (*Credential, error)`
 - `func (*Client) Heartbeat (ctx context.Context, jobID,agentID string) error`
@@ -793,6 +821,19 @@ is the normal outcome of a poll and not a condition worth logging.
 
 ```go
 func (*Client) Claim(ctx context.Context, agentID string, labels []string) (*ClaimResponse, error)
+```
+
+### CollectInput
+
+CollectInput returns what has been typed at an interactive job.
+
+The call long-polls: it returns as soon as a keystroke arrives, or
+empty when the server's wait is up. An agent running an interactive
+job calls it in a loop, which is what makes a keypress in a browser
+reach the process in the time it takes to cross the network.
+
+```go
+func (*Client) CollectInput(ctx context.Context, jobID, agentID string) ([]byte, error)
 ```
 
 ### Dispatch

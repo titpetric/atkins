@@ -14,6 +14,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -206,6 +207,61 @@ func (c *Client) AppendLog(ctx context.Context, jobID, stream, content string) e
 		Stream:  stream,
 		Content: content,
 	}, nil, true)
+}
+
+// InputTimeout bounds one collection of keystrokes.
+//
+// The server holds the request open until something is typed or its own
+// wait is up, so this only has to be longer than that. It is not the
+// dispatch timeout: nothing is waiting on this call, and a client
+// timeout shorter than the server's poll would turn every idle terminal
+// into an error in the agent's log.
+const InputTimeout = 45 * time.Second
+
+// CollectInput returns what has been typed at an interactive job.
+//
+// The call long-polls: it returns as soon as a keystroke arrives, or
+// empty when the server's wait is up. An agent running an interactive
+// job calls it in a loop, which is what makes a keypress in a browser
+// reach the process in the time it takes to cross the network.
+func (c *Client) CollectInput(ctx context.Context, jobID, agentID string) ([]byte, error) {
+	authorization, err := c.authorization(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	target := c.server + "/api/job/" + jobID + "/input?agent_id=" + url.QueryEscape(agentID)
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("User-Agent", UserAgent)
+	request.Header.Set("Authorization", authorization)
+
+	// Not c.http: its timeout is sized for the dispatch call on the hot
+	// path of every run, and a request deliberately held open is not
+	// that request.
+	response, err := (&http.Client{Timeout: InputTimeout}).Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode >= http.StatusBadRequest {
+		return nil, decodeAPIError(response)
+	}
+
+	var collected JobInputResponse
+	if err := json.NewDecoder(response.Body).Decode(&collected); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	if collected.Input == "" {
+		return nil, nil
+	}
+
+	return base64.StdEncoding.DecodeString(collected.Input)
 }
 
 // UploadArtefact pushes one file a job produced.

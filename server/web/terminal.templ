@@ -1,0 +1,186 @@
+package web
+
+// terminalView is the live view of a job: a real terminal emulator, fed
+// by server-sent events.
+//
+// It is deliberately not the job page. That one is a document — no
+// script, no emulator, readable years later and printable — and this one
+// is a window onto a process. Linking them both ways is what lets
+// somebody watch a build here and then read it there.
+templ terminalView(page *terminalPage) {
+	@terminalLayout(page) {
+		<header>
+			<h1>atkins</h1>
+			<nav>
+				<a href="/">Jobs</a>
+				<a href={ templ.URL(page.Link) }>Job page</a>
+				<span class="spacer"></span>
+				<span class={ "badge", "badge-" + page.Job.Status } data-status>{ page.Job.Status }</span>
+				if page.Interactive {
+					<span class="badge badge-on">interactive</span>
+				} else {
+					<span class="badge badge-off">read only</span>
+				}
+			</nav>
+			<p class="muted mono">
+				{ page.Job.Command }
+				if page.Repository != nil {
+					<span class="muted">— { page.Repository.Slug }</span>
+				}
+			</p>
+		</header>
+		<div id="terminal" class="terminal"></div>
+		<p class="muted" data-hint>
+			if page.Interactive {
+				This job binds stdin, so the terminal types back. Click it and
+				type; the keystrokes go to the process the agent is running.
+			} else {
+				This job does not read stdin, so the terminal is read only. A
+				job declares <span class="mono">interactive: true</span> in its
+				pipeline to get a keyboard here.
+			}
+		</p>
+		@terminalScript(page)
+	}
+}
+
+// terminalLayout is the shell for the terminal page.
+//
+// It is its own layout rather than the shared one because it needs two
+// things that page does not: the emulator's stylesheet, and a body that
+// fills the window instead of a column of text. The shared stylesheet
+// comes along for the badges and the header, which are the same here as
+// everywhere.
+templ terminalLayout(page *terminalPage) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ page.Job.Command } — atkins</title>
+			<link rel="stylesheet" href="/assets/xterm.css"/>
+			@styles()
+			@terminalStyles()
+			<script src="/assets/xterm.js"></script>
+			<script src="/assets/xterm-addon-fit.js"></script>
+		</head>
+		<body class="terminal-page">
+			{ children... }
+		</body>
+	</html>
+}
+
+// terminalStyles is what the emulator needs on top of the shared sheet.
+templ terminalStyles() {
+	<style>
+  body.terminal-page { max-width: none; padding: 1rem 1rem 1.5rem; }
+  .terminal {
+    height: 72vh;
+    min-height: 20rem;
+    padding: .6rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    /* The emulator paints its own background, and it is a terminal's
+       background rather than the page's: light-on-dark whichever way
+       the rest of the page is going. */
+    background: #16161a;
+  }
+  .terminal .xterm { height: 100%; }
+</style>
+}
+
+// terminalScript wires the emulator to the two endpoints.
+//
+// Output arrives as server-sent events and is written to the emulator
+// verbatim — escape sequences and all, which is the point: this is where
+// a cursor move means something. Input, when the job asked for any, goes
+// back as posts.
+//
+// EventSource reconnects by itself, and the stream replays from the
+// beginning when it does, so the emulator is reset before a replay
+// rather than having the run appended to itself.
+templ terminalScript(page *terminalPage) {
+	@terminalConfig(page)
+	<script type="module">
+	  const config = JSON.parse(document.getElementById('terminal-config').textContent);
+
+	  const term = new Terminal({
+	    convertEol: true,
+	    cursorBlink: config.interactive,
+	    disableStdin: !config.interactive,
+	    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+	    fontSize: 13,
+	    scrollback: 20000,
+	    theme: { background: '#16161a', foreground: '#e6e6ea' },
+	  });
+
+	  const fit = new FitAddon.FitAddon();
+	  term.loadAddon(fit);
+	  term.open(document.getElementById('terminal'));
+	  fit.fit();
+
+	  window.addEventListener('resize', () => fit.fit());
+
+	  // A reconnecting EventSource replays the run from the start, so the
+	  // emulator is cleared when a replay begins rather than having the
+	  // same output written to it twice.
+	  let started = false;
+
+	  const stream = new EventSource(config.stream);
+
+	  stream.addEventListener('open', () => {
+	    if (started) term.reset();
+	    started = true;
+	  });
+
+	  stream.addEventListener('output', (event) => {
+	    term.write(JSON.parse(event.data).content);
+	  });
+
+	  stream.addEventListener('end', (event) => {
+	    stream.close();
+
+	    // The status the page was rendered with is the status it had when
+	    // it was rendered. Reloading is how it gets the exit code, the
+	    // artefacts and the rest of what a settled job has.
+	    if (event.data) {
+	      const badge = document.querySelector('[data-status]');
+	      if (badge) {
+	        badge.textContent = event.data;
+	        badge.className = 'badge badge-' + event.data;
+	      }
+	    }
+	    term.write('\r\n\x1b[90m— the job has finished —\x1b[0m\r\n');
+	  });
+
+	  if (config.interactive) {
+	    term.onData((data) => {
+	      // Keystrokes are fire and forget. A character that arrives after
+	      // the process stopped reading is a character that did not echo,
+	      // which is what happens in a real terminal too.
+	      fetch(config.input, {
+	        method: 'POST',
+	        headers: { 'Content-Type': 'text/plain' },
+	        body: data,
+	      }).catch(() => {});
+	    });
+
+	    term.focus();
+	  }
+	</script>
+}
+
+// terminalConfig hands the script its URLs.
+//
+// It is a JSON script block rather than interpolation into the script
+// itself: a value written into JavaScript is escaped for JavaScript, and
+// getting that wrong is how a job's own command ends up executing in
+// somebody's browser. Inside a application/json block templ escapes it
+// as data, and the script parses it as data.
+templ terminalConfig(page *terminalPage) {
+	@templ.JSONScript("terminal-config", map[string]any{
+		"stream":      page.Stream,
+		"input":       page.Input,
+		"interactive": page.Interactive,
+	})
+}
