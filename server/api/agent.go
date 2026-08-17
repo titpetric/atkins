@@ -65,11 +65,13 @@ func (s *Handlers) MountAgent(r platform.Router) {
 //
 // An admin is not admitted, deliberately. `is_agent` means what the
 // roles section says it means, and widening it for convenience would
-// undo two things built on purpose: SSHKeyView withholds private key
-// material from the admin surface, and this route hands it over; and a
-// job settled here records an `agent_id` that would then name an agent
-// that never ran it. An admin who needs to act as an agent enrols one,
-// which is a decision written down rather than a side effect.
+// undo something built on purpose: SSHKeyView withholds private key
+// material from the admin surface, and these routes hand it over. An
+// admin who needs to act as an agent enrols one, which is a decision
+// written down rather than a side effect.
+//
+// Reporting on a job asks a narrower question than this one — who ran
+// it — and reportableJob answers it.
 func (s *Handlers) requireAgent(r *http.Request) (*model.User, error) {
 	user, _, err := s.authenticateUser(r)
 	if err != nil {

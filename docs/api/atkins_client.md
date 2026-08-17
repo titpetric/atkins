@@ -617,8 +617,6 @@ var (
 - `func (*Prompter) Password (label string) (string, error)`
 - `func (*Recorder) Cancelled (ctx context.Context)`
 - `func (*Recorder) Finish (ctx context.Context, exitCode int, runErr error)`
-- `func (*Recorder) JobID () string`
-- `func (*Recorder) Log (ctx context.Context, content string)`
 - `func (*Recorder) URL () string`
 - `func (*Recorder) Write (p []byte) (int, error)`
 - `func (*Store) Get (server string) (*Credential, bool)`
@@ -1081,22 +1079,6 @@ recorded run and the terminal it ran in never disagree.
 
 ```go
 func (*Recorder) Finish(ctx context.Context, exitCode int, runErr error)
-```
-
-### JobID
-
-JobID is the server's ID for this run, empty when unrecorded.
-
-```go
-func (*Recorder) JobID() string
-```
-
-### Log
-
-Log appends content to the job log immediately.
-
-```go
-func (*Recorder) Log(ctx context.Context, content string)
 ```
 
 ### URL

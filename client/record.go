@@ -122,18 +122,10 @@ func Record(ctx context.Context, opts RecordOptions) *Recorder {
 	// The commit is recorded the way an agent records what it checked
 	// out, so a job page says which code the log came from.
 	recorder.reportCheckout(ctx, checkout)
-	recorder.Log(ctx, header(checkout, command, agentID))
+	recorder.appendLog(ctx, header(checkout, command, agentID))
 	recorder.heartbeat(ctx)
 
 	return recorder
-}
-
-// JobID is the server's ID for this run, empty when unrecorded.
-func (r *Recorder) JobID() string {
-	if r == nil {
-		return ""
-	}
-	return r.jobID
 }
 
 // URL is where the run is watched in a browser, empty when unrecorded.
@@ -159,9 +151,9 @@ func (r *Recorder) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// Log appends content to the job log immediately.
-func (r *Recorder) Log(ctx context.Context, content string) {
-	if r == nil || content == "" {
+// appendLog ships content to the job log immediately.
+func (r *Recorder) appendLog(ctx context.Context, content string) {
+	if content == "" {
 		return
 	}
 
@@ -186,17 +178,6 @@ func (r *Recorder) Finish(ctx context.Context, exitCode int, runErr error) {
 		return
 	}
 
-	if r.stop != nil {
-		r.stop()
-	}
-
-	r.mu.Lock()
-	transcript := r.buffer.String()
-	r.buffer.Reset()
-	r.mu.Unlock()
-
-	r.Log(ctx, transcript)
-
 	// A pipeline that reported a failure without an exit code — the
 	// shell sees zero, the run did not work — is recorded as failed.
 	// The job page saying passed is the one reading nobody can correct.
@@ -210,16 +191,11 @@ func (r *Recorder) Finish(ctx context.Context, exitCode int, runErr error) {
 		message = runErr.Error()
 	}
 
-	callCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), configuredTimeout())
-	defer cancel()
-
-	if err := r.client.ReportStatus(callCtx, r.jobID, JobStatusRequest{
+	r.settle(ctx, JobStatusRequest{
 		Status:   status,
 		ExitCode: int64(exitCode),
 		Error:    message,
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "atkins: settling job %s failed: %v\n", r.jobID, err)
-	}
+	})
 }
 
 // Cancelled settles the job as cancelled, for a run the user stopped.
@@ -228,6 +204,18 @@ func (r *Recorder) Cancelled(ctx context.Context) {
 		return
 	}
 
+	r.settle(ctx, JobStatusRequest{
+		Status:   StatusCancelled,
+		ExitCode: 1,
+		Error:    "cancelled",
+	})
+}
+
+// settle stops the lease renewals, ships what was buffered and reports
+// the outcome. It runs on a context of its own: a run cancelled with
+// ctrl-C has to file that it was, and the context it was cancelled with
+// would abandon the report along with the run.
+func (r *Recorder) settle(ctx context.Context, status JobStatusRequest) {
 	if r.stop != nil {
 		r.stop()
 	}
@@ -237,16 +225,12 @@ func (r *Recorder) Cancelled(ctx context.Context) {
 	r.buffer.Reset()
 	r.mu.Unlock()
 
-	r.Log(ctx, transcript)
+	r.appendLog(ctx, transcript)
 
 	callCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), configuredTimeout())
 	defer cancel()
 
-	if err := r.client.ReportStatus(callCtx, r.jobID, JobStatusRequest{
-		Status:   StatusCancelled,
-		ExitCode: 1,
-		Error:    "cancelled",
-	}); err != nil {
+	if err := r.client.ReportStatus(callCtx, r.jobID, status); err != nil {
 		fmt.Fprintf(os.Stderr, "atkins: settling job %s failed: %v\n", r.jobID, err)
 	}
 }

@@ -432,6 +432,8 @@ func runPipelines(
 	allPipelines []*model.Pipeline,
 	recorder *client.Recorder,
 ) (int, error) {
+	// Left nil when nothing is recording, so an unrecorded run doesn't
+	// render a tree into a writer that throws it away.
 	var transcript io.Writer
 	if recorder != nil {
 		transcript = recorder

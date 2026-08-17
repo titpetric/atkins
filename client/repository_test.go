@@ -214,13 +214,11 @@ func TestRecordSkipsWithoutCredentials(t *testing.T) {
 	// And every method tolerates that, so a caller has no branch to
 	// write around it.
 	assert.Empty(t, recorder.URL())
-	assert.Empty(t, recorder.JobID())
 
 	written, err := recorder.Write([]byte("output nobody records\n"))
 	require.NoError(t, err)
 	assert.Equal(t, 22, written)
 
-	recorder.Log(t.Context(), "and none of this either")
 	recorder.Finish(t.Context(), 0, nil)
 	recorder.Cancelled(t.Context())
 }
