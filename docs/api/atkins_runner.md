@@ -274,12 +274,9 @@ type VendorResult struct {
 	// Used are the skills this repository has a use for.
 	Used []*VendorSkill
 
-	// Installed are the IDs written to (or already identical in) TargetDir.
+	// Installed are the IDs written to TargetDir. It stays empty on a
+	// dry run; Pending says what a write would have done.
 	Installed []string
-
-	// Skipped are the IDs left alone because the repository carries its
-	// own, different, copy of that skill.
-	Skipped []string
 }
 ```
 
@@ -299,7 +296,24 @@ type VendorSkill struct {
 	// Reason records why the skill is used here, e.g. the path that
 	// satisfied its when: block, or the pipeline that references it.
 	Reason string
+
+	// Status is what installing this skill would do, set for used skills.
+	Status VendorStatus
+
+	// Added and Removed are the line counts installing this skill would
+	// add to and remove from the vendored copy.
+	Added   int
+	Removed int
+
+	// Diff is the unified diff from the vendored copy to the source,
+	// empty when there is nothing to change.
+	Diff string
 }
+```
+
+```go
+// VendorStatus is what installing a skill would do to the repository.
+type VendorStatus string
 ```
 
 ```go
@@ -331,6 +345,20 @@ const (
 	JobProgressPassed  JobProgressStatus = "passed"
 	JobProgressFailed  JobProgressStatus = "failed"
 	JobProgressSkipped JobProgressStatus = "skipped"
+)
+```
+
+```go
+const (
+	// VendorNew means the repository doesn't carry the skill yet.
+	VendorNew VendorStatus = "new"
+
+	// VendorCurrent means an identical copy is already vendored.
+	VendorCurrent VendorStatus = "up to date"
+
+	// VendorChanged means the vendored copy differs from the source and
+	// would be overwritten.
+	VendorChanged VendorStatus = "changed"
 )
 ```
 
@@ -367,6 +395,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func ListPipelinesYAML (pipelines []*model.Pipeline) error`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
 - `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
+- `func MatchWhenPattern (dir,pattern string) (string, bool)`
 - `func MergeSkillVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func NewContextVariables (values map[string]any) *ContextVariables`
@@ -420,6 +449,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*TaskResolver) Resolve (taskName string) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveName (name string, strict bool) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveWithFallback (taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)`
+- `func (*VendorResult) Pending () []string`
 - `func (*Vendorer) Install (result *VendorResult) error`
 - `func (*Vendorer) Plan () (*VendorResult, error)`
 - `func (*Vendorer) Run () (*VendorResult, error)`
@@ -598,6 +628,20 @@ Returns the parsed pipeline(s) and any error.
 
 ```go
 func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error)
+```
+
+### MatchWhenPattern
+
+MatchWhenPattern reports whether a `when: files:` pattern resolves to
+something inside dir, and what it resolved to.
+
+A pattern carrying a glob meta character is expanded, so a skill can
+activate on the contents of a folder rather than its name:
+`schema/*.up.sql` matches a folder of migrations, while `schema/`
+matches any folder of that name.
+
+```go
+func MatchWhenPattern(dir, pattern string) (string, bool)
 ```
 
 ### MergeSkillVariables
@@ -1067,13 +1111,21 @@ resolver is used.
 func (*TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)
 ```
 
+### Pending
+
+Pending returns the IDs a write would create or overwrite, leaving
+out the skills already vendored unchanged.
+
+```go
+func (*VendorResult) Pending() []string
+```
+
 ### Install
 
-Install copies the selected skills into TargetDir, creating it when
-it doesn't exist. A skill the repository already carries under the
-same name, with different contents, is left alone: a project skill
-takes precedence over a global one at load time, and overwriting it
-would throw away the project's own copy.
+Install copies the selected skills into TargetDir, creating it when it
+doesn't exist, and overwrites a vendored copy that has drifted from
+its source. Vendored skills are tracked files like any other, so
+reverting an unwanted change is the user's call, not this command's.
 
 ```go
 func (*Vendorer) Install(result *VendorResult) error
@@ -1096,6 +1148,9 @@ func (*Vendorer) Plan() (*VendorResult, error)
 ### Run
 
 Run plans the vendoring and installs what it selected.
+
+Plan on its own is the dry run: it reports the same selection without
+touching the repository.
 
 ```go
 func (*Vendorer) Run() (*VendorResult, error)

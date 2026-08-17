@@ -31,7 +31,8 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 | `--version`           | `-v`  | Print version and build information    |
 | `--working-directory` | `-w`  | Change directory before running        |
 | `--jail`              |       | Restrict to project scope only         |
-| `--vendor`            |       | Copy used skills into `.atkins/skills` |
+| `--vendor`            |       | List the skills this repository uses   |
+| `--write`             |       | With `--vendor`, write them            |
 | `--config`            |       | Open the configuration menu            |
 | `--login`             |       | Log in to a CI/CD server               |
 | `--register`          |       | Register an account on a CI/CD server  |
@@ -208,7 +209,7 @@ With `--jail`:
 
 ## Vendoring Skills
 
-Copy the skills this repository uses out of `$HOME/.atkins/skills` and into `.atkins/skills` next to `.git`:
+Report the skills this repository uses from `$HOME/.atkins/skills`, and what copying them into `.atkins/skills` next to `.git` would change:
 
 ```bash
 atkins --vendor
@@ -217,10 +218,20 @@ atkins --vendor
 ```text
 Found 7 local skills.
 Found usage for 3 skills.
-Installed: docker, go, mdox.
+  + docker  +45 -0 (new)
+  ✓ go      (up to date)
+  ~ mdox    +4 -1 (changed)
+Would install: docker, mdox.
+Run atkins --vendor --write to write them.
 ```
 
-The copies are ordinary repository content, so a clone or a CI agent gets the same jobs without a personal skills directory. `--vendor` and `--jail` cannot be combined: jail mode excludes the directory vendoring reads from. See [Skills](./skills#vendoring) for the selection rules.
+Nothing is written until `--write`, which creates the missing skills and overwrites a vendored copy that has drifted:
+
+```bash
+atkins --vendor --write
+```
+
+`--debug` adds the reason each skill was selected and the diff behind the line counts. The copies are ordinary repository content, so a clone or a CI agent gets the same jobs without a personal skills directory. `--vendor` and `--jail` cannot be combined: jail mode excludes the directory vendoring reads from. See [Skills](./skills#vendoring) for the selection rules.
 
 ## Configuration
 

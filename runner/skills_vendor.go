@@ -8,7 +8,24 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pmezard/go-difflib/difflib"
+
 	"github.com/titpetric/atkins/model"
+)
+
+// VendorStatus is what installing a skill would do to the repository.
+type VendorStatus string
+
+const (
+	// VendorNew means the repository doesn't carry the skill yet.
+	VendorNew VendorStatus = "new"
+
+	// VendorCurrent means an identical copy is already vendored.
+	VendorCurrent VendorStatus = "up to date"
+
+	// VendorChanged means the vendored copy differs from the source and
+	// would be overwritten.
+	VendorChanged VendorStatus = "changed"
 )
 
 // VendorSkill is a candidate skill file, with the reason it was picked
@@ -26,6 +43,18 @@ type VendorSkill struct {
 	// Reason records why the skill is used here, e.g. the path that
 	// satisfied its when: block, or the pipeline that references it.
 	Reason string
+
+	// Status is what installing this skill would do, set for used skills.
+	Status VendorStatus
+
+	// Added and Removed are the line counts installing this skill would
+	// add to and remove from the vendored copy.
+	Added   int
+	Removed int
+
+	// Diff is the unified diff from the vendored copy to the source,
+	// empty when there is nothing to change.
+	Diff string
 }
 
 // VendorResult reports what a vendoring run found, matched and wrote.
@@ -42,12 +71,21 @@ type VendorResult struct {
 	// Used are the skills this repository has a use for.
 	Used []*VendorSkill
 
-	// Installed are the IDs written to (or already identical in) TargetDir.
+	// Installed are the IDs written to TargetDir. It stays empty on a
+	// dry run; Pending says what a write would have done.
 	Installed []string
+}
 
-	// Skipped are the IDs left alone because the repository carries its
-	// own, different, copy of that skill.
-	Skipped []string
+// Pending returns the IDs a write would create or overwrite, leaving
+// out the skills already vendored unchanged.
+func (r *VendorResult) Pending() []string {
+	var pending []string
+	for _, skill := range r.Used {
+		if skill.Status != VendorCurrent {
+			pending = append(pending, skill.ID)
+		}
+	}
+	return pending
 }
 
 // vendorSkipDirs are directory names not descended into when looking for
@@ -113,6 +151,9 @@ func FindRepositoryRoot(startDir string) (string, error) {
 }
 
 // Run plans the vendoring and installs what it selected.
+//
+// Plan on its own is the dry run: it reports the same selection without
+// touching the repository.
 func (v *Vendorer) Run() (*VendorResult, error) {
 	result, err := v.Plan()
 	if err != nil {
@@ -211,22 +252,97 @@ func (v *Vendorer) Plan() (*VendorResult, error) {
 	}
 
 	for _, candidate := range candidates {
-		if reason, ok := used[candidate.ID]; ok {
-			candidate.Reason = reason
-			result.Used = append(result.Used, candidate)
+		reason, ok := used[candidate.ID]
+		if !ok {
+			continue
 		}
+
+		candidate.Reason = reason
+		v.compare(candidate)
+		result.Used = append(result.Used, candidate)
 	}
 
 	return result, nil
 }
 
-// Install copies the selected skills into TargetDir, creating it when
-// it doesn't exist. A skill the repository already carries under the
-// same name, with different contents, is left alone: a project skill
-// takes precedence over a global one at load time, and overwriting it
-// would throw away the project's own copy.
+// compare diffs a skill against the copy the repository carries, and
+// records what installing it would change.
+func (v *Vendorer) compare(skill *VendorSkill) {
+	target := filepath.Join(v.TargetDir, filepath.Base(skill.Path))
+
+	existing, readErr := os.ReadFile(target)
+
+	data, err := os.ReadFile(skill.Path)
+	if err != nil {
+		// Install reports the read error properly; treat it as work to do.
+		skill.Status = VendorChanged
+		return
+	}
+
+	from, to := diffLines(existing), diffLines(data)
+
+	switch {
+	case readErr != nil:
+		// Nothing to diff against, so the whole file is the addition.
+		skill.Status = VendorNew
+		skill.Added = len(to)
+		return
+	case bytes.Equal(existing, data):
+		skill.Status = VendorCurrent
+		return
+	default:
+		skill.Status = VendorChanged
+	}
+
+	for _, op := range difflib.NewMatcher(from, to).GetOpCodes() {
+		switch op.Tag {
+		case 'r':
+			skill.Removed += op.I2 - op.I1
+			skill.Added += op.J2 - op.J1
+		case 'd':
+			skill.Removed += op.I2 - op.I1
+		case 'i':
+			skill.Added += op.J2 - op.J1
+		}
+	}
+
+	fromLabel := target
+	if rel, err := filepath.Rel(v.Root, target); err == nil {
+		fromLabel = rel
+	}
+
+	// A diff that can't be rendered is not worth failing over; the line
+	// counts above are what the caller reports either way.
+	skill.Diff, _ = difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+		A:        from,
+		B:        to,
+		FromFile: fromLabel,
+		ToFile:   skill.Path,
+		Context:  3,
+	})
+}
+
+// diffLines splits a file into lines that each keep their newline, with
+// no phantom line for the trailing one.
+func diffLines(data []byte) []string {
+	if len(data) == 0 {
+		return nil
+	}
+
+	lines := strings.SplitAfter(string(data), "\n")
+	if last := len(lines) - 1; lines[last] == "" {
+		return lines[:last]
+	}
+
+	return lines
+}
+
+// Install copies the selected skills into TargetDir, creating it when it
+// doesn't exist, and overwrites a vendored copy that has drifted from
+// its source. Vendored skills are tracked files like any other, so
+// reverting an unwanted change is the user's call, not this command's.
 func (v *Vendorer) Install(result *VendorResult) error {
-	if len(result.Used) == 0 {
+	if len(result.Pending()) == 0 {
 		return nil
 	}
 
@@ -235,24 +351,20 @@ func (v *Vendorer) Install(result *VendorResult) error {
 	}
 
 	for _, skill := range result.Used {
+		if skill.Status == VendorCurrent {
+			continue
+		}
+
 		data, err := os.ReadFile(skill.Path)
 		if err != nil {
 			return fmt.Errorf("failed to read skill %s: %w", skill.Path, err)
 		}
 
 		target := filepath.Join(v.TargetDir, filepath.Base(skill.Path))
-		if existing, err := os.ReadFile(target); err == nil {
-			if !bytes.Equal(existing, data) {
-				result.Skipped = append(result.Skipped, skill.ID)
-				continue
-			}
-			result.Installed = append(result.Installed, skill.ID)
-			continue
-		}
-
 		if err := os.WriteFile(target, data, 0o644); err != nil {
 			return fmt.Errorf("failed to write skill %s: %w", target, err)
 		}
+
 		result.Installed = append(result.Installed, skill.ID)
 	}
 
@@ -343,8 +455,8 @@ func (v *Vendorer) matchWhen(pipeline *model.Pipeline, dirs []string) (reason st
 		if !filepath.IsAbs(pattern) {
 			continue
 		}
-		if _, err := os.Stat(pattern); err == nil {
-			return pattern, true
+		if match, ok := MatchWhenPattern("", pattern); ok {
+			return match, true
 		}
 	}
 
@@ -354,14 +466,14 @@ func (v *Vendorer) matchWhen(pipeline *model.Pipeline, dirs []string) (reason st
 				continue
 			}
 
-			candidate := filepath.Join(dir, pattern)
-			if _, err := os.Stat(candidate); err != nil {
+			match, ok := MatchWhenPattern(dir, pattern)
+			if !ok {
 				continue
 			}
-			if rel, err := filepath.Rel(v.Root, candidate); err == nil {
+			if rel, err := filepath.Rel(v.Root, match); err == nil {
 				return rel, true
 			}
-			return candidate, true
+			return match, true
 		}
 	}
 

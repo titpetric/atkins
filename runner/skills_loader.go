@@ -156,8 +156,8 @@ func (l *SkillsLoader) FindFile(patterns []string, startDir string) (matchDir st
 	// First, check absolute paths (no traversal needed)
 	for _, pattern := range patterns {
 		if filepath.IsAbs(pattern) {
-			if _, err := os.Stat(pattern); err == nil {
-				return filepath.Dir(pattern), true
+			if match, ok := MatchWhenPattern("", pattern); ok {
+				return filepath.Dir(match), true
 			}
 		}
 	}
@@ -170,8 +170,7 @@ func (l *SkillsLoader) FindFile(patterns []string, startDir string) (matchDir st
 				continue // Already handled above
 			}
 
-			candidate := filepath.Join(current, pattern)
-			if _, err := os.Stat(candidate); err == nil {
+			if _, ok := MatchWhenPattern(current, pattern); ok {
 				return current, true
 			}
 		}
@@ -183,4 +182,31 @@ func (l *SkillsLoader) FindFile(patterns []string, startDir string) (matchDir st
 		}
 		current = parent
 	}
+}
+
+// MatchWhenPattern reports whether a `when: files:` pattern resolves to
+// something inside dir, and what it resolved to.
+//
+// A pattern carrying a glob meta character is expanded, so a skill can
+// activate on the contents of a folder rather than its name:
+// `schema/*.up.sql` matches a folder of migrations, while `schema/`
+// matches any folder of that name.
+func MatchWhenPattern(dir, pattern string) (match string, found bool) {
+	candidate := filepath.Join(dir, pattern)
+
+	if !strings.ContainsAny(pattern, "*?[") {
+		if _, err := os.Stat(candidate); err != nil {
+			return "", false
+		}
+		return candidate, true
+	}
+
+	// Glob reports only a malformed pattern as an error, which is the
+	// skill author's problem to see as "never matches".
+	matches, err := filepath.Glob(candidate)
+	if err != nil || len(matches) == 0 {
+		return "", false
+	}
+
+	return matches[0], true
 }

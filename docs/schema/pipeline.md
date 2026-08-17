@@ -117,7 +117,7 @@ jobs:
       - run: go build ./...
 ```
 
-The `when.files` condition activates this skill when `go.mod` exists.
+The `when.files` condition activates this skill when `go.mod` exists. Entries carrying `*`, `?` or `[...]` are expanded as globs, so `schema/*.up.sql` activates on a folder of migrations rather than on any folder named `schema`.
 
 ## Multi-Document Pipelines
 

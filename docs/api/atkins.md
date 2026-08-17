@@ -38,7 +38,9 @@ type Options struct {
 	Config bool
 
 	// Vendor copies the skills this repository uses into .atkins/skills.
+	// It reports the selection and writes nothing unless Write is set.
 	Vendor bool
+	Write  bool
 
 	FlagSet *cli.FlagSet
 }

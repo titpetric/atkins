@@ -3,6 +3,7 @@ package runner_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -63,6 +64,16 @@ jobs:
       - run: docker build .
 `
 
+const migrationSkill = `name: SQL Migrations
+when:
+  files:
+    - schema/*.up.sql
+jobs:
+  migrate:
+    steps:
+      - run: mig migrate
+`
+
 // TestFindRepositoryRoot covers locating the folder that holds .git.
 func TestFindRepositoryRoot(t *testing.T) {
 	t.Run("finds root from a subdirectory", func(t *testing.T) {
@@ -114,6 +125,28 @@ func TestVendorerPlan(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, []string{"schema"}, vendorIDs(result.Used))
 		assert.Equal(t, filepath.Join("modules", "users", "schema"), result.Used[0].Reason)
+	})
+
+	t.Run("matches a glob in when: files", func(t *testing.T) {
+		root, source := vendorFixture(t)
+		writeFile(t, filepath.Join(source, "schema.yml"), migrationSkill)
+		writeFile(t, filepath.Join(root, "server", "schema", "user.up.sql"), "CREATE TABLE user (id INT);\n")
+
+		result, err := runner.NewVendorer(source, root).Plan()
+		require.NoError(t, err)
+		assert.Equal(t, []string{"schema"}, vendorIDs(result.Used))
+		assert.Equal(t, filepath.Join("server", "schema", "user.up.sql"), result.Used[0].Reason)
+	})
+
+	t.Run("leaves a glob in when: files unmatched by an empty folder", func(t *testing.T) {
+		root, source := vendorFixture(t)
+		writeFile(t, filepath.Join(source, "schema.yml"), migrationSkill)
+		require.NoError(t, os.MkdirAll(filepath.Join(root, "docs", "schema"), 0o755))
+		writeFile(t, filepath.Join(root, "docs", "schema", "jobs.md"), "# Jobs\n")
+
+		result, err := runner.NewVendorer(source, root).Plan()
+		require.NoError(t, err)
+		assert.Empty(t, result.Used)
 	})
 
 	t.Run("skips directories the walk excludes", func(t *testing.T) {
@@ -200,6 +233,77 @@ func TestVendorerPlan(t *testing.T) {
 	})
 }
 
+// TestVendorerPlanDiff covers the status and line counts a dry run reports.
+func TestVendorerPlanDiff(t *testing.T) {
+	t.Run("counts a new skill as all additions", func(t *testing.T) {
+		root, source := vendorFixture(t)
+		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
+		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
+
+		result, err := runner.NewVendorer(source, root).Plan()
+		require.NoError(t, err)
+		require.Len(t, result.Used, 1)
+
+		skill := result.Used[0]
+		assert.Equal(t, runner.VendorNew, skill.Status)
+		assert.Equal(t, 8, skill.Added)
+		assert.Equal(t, 0, skill.Removed)
+		assert.Empty(t, skill.Diff)
+		assert.Equal(t, []string{"go"}, result.Pending())
+	})
+
+	t.Run("reports an identical copy as up to date", func(t *testing.T) {
+		root, source := vendorFixture(t)
+		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
+		writeFile(t, filepath.Join(root, ".atkins", "skills", "go.yml"), goSkill)
+		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
+
+		result, err := runner.NewVendorer(source, root).Plan()
+		require.NoError(t, err)
+		require.Len(t, result.Used, 1)
+
+		skill := result.Used[0]
+		assert.Equal(t, runner.VendorCurrent, skill.Status)
+		assert.Zero(t, skill.Added)
+		assert.Zero(t, skill.Removed)
+		assert.Empty(t, skill.Diff)
+		assert.Empty(t, result.Pending())
+	})
+
+	t.Run("counts the lines a changed copy differs by", func(t *testing.T) {
+		root, source := vendorFixture(t)
+		local := strings.Replace(goSkill, "      - run: go build ./...\n", "      - run: go build ./cmd/...\n      - run: go vet ./...\n", 1)
+		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
+		writeFile(t, filepath.Join(root, ".atkins", "skills", "go.yml"), local)
+		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
+
+		result, err := runner.NewVendorer(source, root).Plan()
+		require.NoError(t, err)
+		require.Len(t, result.Used, 1)
+
+		skill := result.Used[0]
+		assert.Equal(t, runner.VendorChanged, skill.Status)
+		assert.Equal(t, 1, skill.Added)
+		assert.Equal(t, 2, skill.Removed)
+		assert.Contains(t, skill.Diff, "+      - run: go build ./...")
+		assert.Contains(t, skill.Diff, "-      - run: go vet ./...")
+		assert.Contains(t, skill.Diff, filepath.Join(".atkins", "skills", "go.yml"))
+	})
+
+	t.Run("writes nothing", func(t *testing.T) {
+		root, source := vendorFixture(t)
+		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
+		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
+
+		result, err := runner.NewVendorer(source, root).Plan()
+		require.NoError(t, err)
+		assert.Empty(t, result.Installed)
+
+		_, err = os.Stat(filepath.Join(root, ".atkins"))
+		assert.True(t, os.IsNotExist(err))
+	})
+}
+
 // TestVendorerRun covers writing the selected skills into the repository.
 func TestVendorerRun(t *testing.T) {
 	t.Run("creates .atkins/skills and copies the file", func(t *testing.T) {
@@ -210,14 +314,13 @@ func TestVendorerRun(t *testing.T) {
 		result, err := runner.NewVendorer(source, root).Run()
 		require.NoError(t, err)
 		assert.Equal(t, []string{"go"}, result.Installed)
-		assert.Empty(t, result.Skipped)
 
 		vendored, err := os.ReadFile(filepath.Join(root, ".atkins", "skills", "go.yml"))
 		require.NoError(t, err)
 		assert.Equal(t, goSkill, string(vendored))
 	})
 
-	t.Run("is idempotent", func(t *testing.T) {
+	t.Run("writes nothing on a second run", func(t *testing.T) {
 		root, source := vendorFixture(t)
 		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
@@ -227,11 +330,11 @@ func TestVendorerRun(t *testing.T) {
 
 		result, err := runner.NewVendorer(source, root).Run()
 		require.NoError(t, err)
-		assert.Equal(t, []string{"go"}, result.Installed)
-		assert.Empty(t, result.Skipped)
+		assert.Empty(t, result.Installed)
+		assert.Empty(t, result.Pending())
 	})
 
-	t.Run("leaves a local skill of the same name alone", func(t *testing.T) {
+	t.Run("overwrites a vendored copy that has drifted", func(t *testing.T) {
 		root, source := vendorFixture(t)
 		local := "name: Project go\nwhen:\n  files:\n    - go.mod\njobs:\n  build:\n    steps:\n      - run: go build ./cmd/...\n"
 		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
@@ -240,12 +343,11 @@ func TestVendorerRun(t *testing.T) {
 
 		result, err := runner.NewVendorer(source, root).Run()
 		require.NoError(t, err)
-		assert.Empty(t, result.Installed)
-		assert.Equal(t, []string{"go"}, result.Skipped)
+		assert.Equal(t, []string{"go"}, result.Installed)
 
-		kept, err := os.ReadFile(filepath.Join(root, ".atkins", "skills", "go.yml"))
+		vendored, err := os.ReadFile(filepath.Join(root, ".atkins", "skills", "go.yml"))
 		require.NoError(t, err)
-		assert.Equal(t, local, string(kept))
+		assert.Equal(t, goSkill, string(vendored))
 	})
 
 	t.Run("writes nothing when no skill is used", func(t *testing.T) {
