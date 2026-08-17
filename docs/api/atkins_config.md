@@ -57,9 +57,14 @@ type ClientConfig struct {
 	// Labels constrain which agents may run this machine's jobs.
 	Labels []string `yaml:"labels" json:"labels" env:"ATKINS_LABELS"`
 
-	// Dispatch hands runs to the server when logged in. Off means
-	// always run locally.
+	// Dispatch hands every run to an agent instead of running it here.
+	// Off, the default, is what `--dispatch` turns on for one run.
 	Dispatch bool `yaml:"dispatch" json:"dispatch" env:"ATKINS_DISPATCH"`
+
+	// Record logs local runs on the server when logged in: the run
+	// happens here and the job page holds its output and outcome. Off
+	// means a logged-in machine records nothing, the same as `--local`.
+	Record bool `yaml:"record" json:"record" env:"ATKINS_RECORD"`
 
 	// Timeout bounds an API call before the run falls back to local.
 	Timeout time.Duration `yaml:"timeout" json:"timeout" env:"ATKINS_TIMEOUT"`

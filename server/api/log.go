@@ -1,8 +1,6 @@
 package api
 
 import (
-	"database/sql"
-	"errors"
 	"net/http"
 
 	"github.com/titpetric/platform"
@@ -23,8 +21,10 @@ func (s *Handlers) AppendJobLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) appendJobLog(w http.ResponseWriter, r *http.Request) error {
-	// Output is written by the agent that ran the job.
-	if _, err := s.requireAgent(r); err != nil {
+	// Output is written by whoever ran the job: the agent that claimed
+	// it, or the machine that ran it locally and owns the record.
+	job, err := s.reportableJob(r, platform.URLParam(r, "jobID"))
+	if err != nil {
 		return err
 	}
 
@@ -37,15 +37,7 @@ func (s *Handlers) appendJobLog(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	jobID := platform.URLParam(r, "jobID")
-	if _, err := s.jobs.Get(r.Context(), jobID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return requestError(http.StatusNotFound, errors.New("job not found"))
-		}
-		return err
-	}
-
-	if err := s.jobLogs.Append(r.Context(), jobID, req.Stream, req.Content); err != nil {
+	if err := s.jobLogs.Append(r.Context(), job.ID, req.Stream, req.Content); err != nil {
 		return err
 	}
 

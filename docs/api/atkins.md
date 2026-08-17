@@ -27,11 +27,13 @@ type Options struct {
 	Exec             string
 
 	// CI/CD client flags. Login and Register take the server URL;
-	// Logout applies to the server last logged in to. Local runs here
-	// instead of handing the job to the server.
+	// Logout applies to the server last logged in to. Dispatch hands
+	// the run to an agent instead of running it here, and Local runs
+	// here without recording anything on the server.
 	Login    string
 	Register string
 	Logout   bool
+	Dispatch bool
 	Local    bool
 
 	// Config opens the configuration menu for .atkins/config.yml.

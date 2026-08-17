@@ -19,7 +19,10 @@ func TestDefaultIsComplete(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, config.Version, cfg.Version)
-	assert.True(t, cfg.Client.Dispatch)
+	// Dispatch is the one default that is off: logging in records what
+	// this machine runs, it does not move where it runs.
+	assert.False(t, cfg.Client.Dispatch)
+	assert.True(t, cfg.Client.Record)
 	assert.Positive(t, cfg.Client.Timeout)
 
 	assert.NotEmpty(t, cfg.Server.Addr)

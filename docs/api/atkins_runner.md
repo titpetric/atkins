@@ -193,6 +193,12 @@ type PipelineOptions struct {
 	YAML         bool
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
 	Progress     ProgressObserver  // Optional observer for job progress events
+
+	// Transcript receives the finished tree, the same rendering the
+	// terminal is left with. It is how a caller records the run
+	// somewhere else — a CI job log — without changing what a person
+	// watching it sees.
+	Transcript io.Writer
 }
 ```
 

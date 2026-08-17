@@ -49,6 +49,15 @@ type DispatchRequest struct {
 	// Artefacts are glob patterns the agent collects after the command
 	// exits, relative to the directory it ran in.
 	Artefacts []string `json:"artefacts"`
+
+	// Agent names the machine already running this command. Set, the
+	// job is recorded as running there instead of queued for an agent
+	// to claim, and the caller reports its log and its outcome.
+	//
+	// It is how a run on somebody's laptop is on the server at all: the
+	// pipeline executes where it was started, and the history does not
+	// depend on whether that machine could hand the work over.
+	Agent string `json:"agent"`
 }
 
 // RepositoryPayload is the git detail a client reports about its checkout.
@@ -234,6 +243,7 @@ func (s *Handlers) dispatch(w http.ResponseWriter, r *http.Request) error {
 		Labels:           req.Labels,
 		Params:           params,
 		Artefacts:        req.Artefacts,
+		AgentID:          strings.TrimSpace(req.Agent),
 	})
 	if err != nil {
 		switch {
@@ -398,9 +408,10 @@ func (s *Handlers) JobStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) jobStatus(w http.ResponseWriter, r *http.Request) error {
-	// The agent that ran the job reports it; an admin may settle one
-	// by hand to cancel it.
-	if _, err := s.requireAgent(r); err != nil {
+	// Whoever ran the job reports it: the agent that claimed it, or the
+	// machine that ran it locally and owns the record.
+	target, err := s.reportableJob(r, platform.URLParam(r, "jobID"))
+	if err != nil {
 		return err
 	}
 
@@ -412,7 +423,7 @@ func (s *Handlers) jobStatus(w http.ResponseWriter, r *http.Request) error {
 		return requestError(http.StatusBadRequest, errors.New("status must be one of: passed, failed, timeout, cancelled"))
 	}
 
-	job, err := s.jobs.Finish(r.Context(), platform.URLParam(r, "jobID"), storage.StatusRequest{
+	job, err := s.jobs.Finish(r.Context(), target.ID, storage.StatusRequest{
 		Status:   req.Status,
 		ExitCode: req.ExitCode,
 		Error:    req.Error,
@@ -430,13 +441,14 @@ func (s *Handlers) jobStatus(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// JobCheckout records what an agent checked out for a job.
+// JobCheckout records what the machine running a job checked out.
 func (s *Handlers) JobCheckout(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, r, s.jobCheckout(w, r))
 }
 
 func (s *Handlers) jobCheckout(w http.ResponseWriter, r *http.Request) error {
-	if _, err := s.requireAgent(r); err != nil {
+	target, err := s.reportableJob(r, platform.URLParam(r, "jobID"))
+	if err != nil {
 		return err
 	}
 
@@ -450,7 +462,7 @@ func (s *Handlers) jobCheckout(w http.ResponseWriter, r *http.Request) error {
 		return requestError(http.StatusBadRequest, errors.New("commit_sha is required"))
 	}
 
-	if err := s.jobs.RecordCheckout(r.Context(), platform.URLParam(r, "jobID"), storage.CheckoutRequest{
+	if err := s.jobs.RecordCheckout(r.Context(), target.ID, storage.CheckoutRequest{
 		Ref:       strings.TrimSpace(req.Ref),
 		CommitSHA: commit,
 	}); err != nil {
@@ -464,13 +476,14 @@ func (s *Handlers) jobCheckout(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// JobHeartbeat extends the lease the calling agent holds on a job.
+// JobHeartbeat extends the lease held on a job by whoever is running it.
 func (s *Handlers) JobHeartbeat(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, r, s.jobHeartbeat(w, r))
 }
 
 func (s *Handlers) jobHeartbeat(w http.ResponseWriter, r *http.Request) error {
-	if _, err := s.requireAgent(r); err != nil {
+	target, err := s.reportableJob(r, platform.URLParam(r, "jobID"))
+	if err != nil {
 		return err
 	}
 
@@ -482,7 +495,7 @@ func (s *Handlers) jobHeartbeat(w http.ResponseWriter, r *http.Request) error {
 		return requestError(http.StatusBadRequest, errors.New("agent_id is required"))
 	}
 
-	if err := s.jobs.Heartbeat(r.Context(), platform.URLParam(r, "jobID"), req.AgentID); err != nil {
+	if err := s.jobs.Heartbeat(r.Context(), target.ID, req.AgentID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return requestError(http.StatusConflict, errors.New("job is not leased by this agent"))
 		}
