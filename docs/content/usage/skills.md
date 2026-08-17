@@ -51,6 +51,14 @@ Skills are YAML pipeline files with a `when:` block for conditional activation:
 
 The `when:` block controls when a skill is available. Multiple files use OR logic - any match activates the skill. File patterns search upward from the current directory.
 
+A pattern carrying `*`, `?` or `[...]` is expanded as a glob, so a skill can activate on what a folder holds rather than on its name:
+
+```yaml
+when:
+  files:
+    - schema/*.up.sql    # a folder of migrations, not any folder called schema
+```
+
 ## Skill Namespacing
 
 Skills automatically namespace their jobs:
@@ -297,6 +305,60 @@ Useful for:
 - Reproducible CI builds
 - Avoiding personal customizations
 - Testing project-only configurations
+
+## Vendoring
+
+Global skills live on one machine. A pipeline that leans on `~/.atkins/skills/compose.yml` runs on the laptop it was written on and fails on a clean clone, and a CI agent is exactly the machine with no personal skills directory.
+
+`--vendor` reports the skills a repository uses and what copying them would change:
+
+```bash
+atkins --vendor
+```
+
+```text
+Found 7 local skills.
+Found usage for 3 skills.
+  + docker  +45 -0 (new)
+  ✓ go      (up to date)
+  ~ mdox    +4 -1 (changed)
+Would install: docker, mdox.
+Run atkins --vendor --write to write them.
+```
+
+A skill already vendored unchanged gets a checkmark; one that would be created or overwritten gets the lines the write adds and removes. `--debug` adds the reason each skill was selected, and the diff behind the counts.
+
+Nothing is written until `--write`:
+
+```bash
+atkins --vendor --write
+```
+
+```text
+Found 7 local skills.
+Found usage for 3 skills.
+  + docker  +45 -0 (new)
+  ✓ go      (up to date)
+  ~ mdox    +4 -1 (changed)
+Installed: docker, mdox.
+```
+
+Skills are written to `.atkins/skills/` next to `.git`, so they apply to the whole repository, and the folder is created if it doesn't exist yet. The copies are ordinary repository content: commit them like any other dependency, and an update is a re-run and a diff.
+
+A vendored copy that has drifted from its source is overwritten. Skills are tracked files, so reverting a change you wanted to keep is `git checkout` — which is why the dry run shows the diff first.
+
+### Selection Rules
+
+A skill is vendored when any of these hold:
+
+- Its `when:` block matches a path anywhere in the repository. The search descends the tree rather than climbing it, so a `schema/*.up.sql` file in a submodule selects the schema skill, the same way it activates there.
+- It has no `when:` block, which makes it active everywhere.
+- A pipeline in the repository names one of its jobs through `task:` or `depends_on:`. A reference to `docker:build` selects the docker skill even without a `docker/Dockerfile`.
+- A skill already selected names one of its jobs. A release skill calling `:docker:build` brings the docker skill with it.
+
+Dot directories and `node_modules`, `vendor`, `testdata`, `bin`, `dist` and `coverage` are not descended into.
+
+`--vendor` cannot be combined with `--jail`, which excludes the `$HOME/.atkins/skills` that vendoring reads from.
 
 ## Listing Skills
 

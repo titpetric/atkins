@@ -154,6 +154,55 @@ func TestFindFile(t *testing.T) {
 		assert.True(t, found)
 		assert.Equal(t, tmpDir, matchDir)
 	})
+
+	t.Run("expands a glob pattern", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		schemaDir := filepath.Join(tmpDir, "schema")
+		require.NoError(t, os.MkdirAll(schemaDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(schemaDir, "user.up.sql"), []byte(""), 0o644))
+
+		loader := runner.NewSkillsLoader(tmpDir, tmpDir)
+		matchDir, found := loader.FindFile([]string{"schema/*.up.sql"}, tmpDir)
+		assert.True(t, found)
+		assert.Equal(t, tmpDir, matchDir)
+	})
+
+	t.Run("leaves a glob pattern unmatched when nothing fits", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		schemaDir := filepath.Join(tmpDir, "schema")
+		require.NoError(t, os.MkdirAll(schemaDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(schemaDir, "docs.md"), []byte(""), 0o644))
+
+		loader := runner.NewSkillsLoader(tmpDir, tmpDir)
+		_, found := loader.FindFile([]string{"schema/*.up.sql"}, tmpDir)
+		assert.False(t, found)
+	})
+}
+
+// TestMatchWhenPattern tests resolving a single when: files pattern.
+func TestMatchWhenPattern(t *testing.T) {
+	tmpDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "schema"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "schema", "user.up.sql"), []byte(""), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(""), 0o644))
+
+	for _, tc := range []struct {
+		pattern string
+		match   string
+	}{
+		{pattern: "go.mod", match: filepath.Join(tmpDir, "go.mod")},
+		{pattern: "schema/", match: filepath.Join(tmpDir, "schema")},
+		{pattern: "schema/*.up.sql", match: filepath.Join(tmpDir, "schema", "user.up.sql")},
+		{pattern: "schema/*.down.sql", match: ""},
+		{pattern: "Dockerfile", match: ""},
+		{pattern: "*.mod", match: filepath.Join(tmpDir, "go.mod")},
+	} {
+		t.Run(tc.pattern, func(t *testing.T) {
+			match, found := runner.MatchWhenPattern(tmpDir, tc.pattern)
+			assert.Equal(t, tc.match != "", found)
+			assert.Equal(t, tc.match, match)
+		})
+	}
 }
 
 // TestSkillsLoader tests the SkillsLoader for loading and evaluating skills.

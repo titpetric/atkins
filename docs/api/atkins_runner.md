@@ -259,6 +259,83 @@ type VarPromise struct {
 }
 ```
 
+```go
+// VendorResult reports what a vendoring run found, matched and wrote.
+type VendorResult struct {
+	// SourceDir is the skills directory that was read.
+	SourceDir string
+
+	// TargetDir is the repository directory that was written to.
+	TargetDir string
+
+	// Found are all skills available in SourceDir.
+	Found []*VendorSkill
+
+	// Used are the skills this repository has a use for.
+	Used []*VendorSkill
+
+	// Installed are the IDs written to TargetDir. It stays empty on a
+	// dry run; Pending says what a write would have done.
+	Installed []string
+}
+```
+
+```go
+// VendorSkill is a candidate skill file, with the reason it was picked
+// for vendoring once it has been matched against a repository.
+type VendorSkill struct {
+	// ID is the skill namespace, taken from the file name.
+	ID string
+
+	// Path is the absolute path of the source skill file.
+	Path string
+
+	// Pipeline is the parsed skill.
+	Pipeline *model.Pipeline
+
+	// Reason records why the skill is used here, e.g. the path that
+	// satisfied its when: block, or the pipeline that references it.
+	Reason string
+
+	// Status is what installing this skill would do, set for used skills.
+	Status VendorStatus
+
+	// Added and Removed are the line counts installing this skill would
+	// add to and remove from the vendored copy.
+	Added   int
+	Removed int
+
+	// Diff is the unified diff from the vendored copy to the source,
+	// empty when there is nothing to change.
+	Diff string
+}
+```
+
+```go
+// VendorStatus is what installing a skill would do to the repository.
+type VendorStatus string
+```
+
+```go
+// Vendorer copies the skills a repository uses out of a shared skills
+// directory and into the repository itself, so a clone or a CI agent
+// gets the same jobs without a personal $HOME/.atkins/skills.
+type Vendorer struct {
+	// SourceDir is the skills directory to vendor from, typically
+	// $HOME/.atkins/skills.
+	SourceDir string
+
+	// Root is the repository root, the folder holding .git.
+	Root string
+
+	// TargetDir is where skills are written, Root/.atkins/skills.
+	TargetDir string
+
+	// SkipDirs are directory names not descended into.
+	SkipDirs []string
+}
+```
+
 ## Consts
 
 ```go
@@ -268,6 +345,20 @@ const (
 	JobProgressPassed  JobProgressStatus = "passed"
 	JobProgressFailed  JobProgressStatus = "failed"
 	JobProgressSkipped JobProgressStatus = "skipped"
+)
+```
+
+```go
+const (
+	// VendorNew means the repository doesn't carry the skill yet.
+	VendorNew VendorStatus = "new"
+
+	// VendorCurrent means an identical copy is already vendored.
+	VendorCurrent VendorStatus = "up to date"
+
+	// VendorChanged means the vendored copy differs from the source and
+	// would be overwritten.
+	VendorChanged VendorStatus = "changed"
 )
 ```
 
@@ -293,6 +384,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func EvaluateIf (ctx *ExecutionContext) (bool, error)`
 - `func EvaluateJobIf (ctx *ExecutionContext) (bool, error)`
 - `func ExpandFor (ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)`
+- `func FindRepositoryRoot (startDir string) (string, error)`
 - `func GetDependencies (dependsOn any) []string`
 - `func InterpolateCommand (cmd string, ctx *ExecutionContext) (string, error)`
 - `func InterpolateMap (ctx *ExecutionContext, m map[string]any) error`
@@ -303,6 +395,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func ListPipelinesYAML (pipelines []*model.Pipeline) error`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
 - `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
+- `func MatchWhenPattern (dir,pattern string) (string, bool)`
 - `func MergeSkillVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func NewContextVariables (values map[string]any) *ContextVariables`
@@ -318,6 +411,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func NewSkillResolver (pipeline *model.Pipeline) *TaskResolver`
 - `func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader`
 - `func NewTaskResolver (pipelines []*model.Pipeline) *TaskResolver`
+- `func NewVendorer (sourceDir,root string) *Vendorer`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
@@ -355,6 +449,10 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*TaskResolver) Resolve (taskName string) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveName (name string, strict bool) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveWithFallback (taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)`
+- `func (*VendorResult) Pending () []string`
+- `func (*Vendorer) Install (result *VendorResult) error`
+- `func (*Vendorer) Plan () (*VendorResult, error)`
+- `func (*Vendorer) Run () (*VendorResult, error)`
 - `func (Env) Environ () []string`
 - `func (Env) Sanitized () Env`
 - `func (ExecError) Error () string`
@@ -439,6 +537,15 @@ When multiple iterators are provided, computes the cartesian product.
 func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)
 ```
 
+### FindRepositoryRoot
+
+FindRepositoryRoot returns the folder holding .git, starting at
+startDir and traversing parent directories.
+
+```go
+func FindRepositoryRoot(startDir string) (string, error)
+```
+
 ### GetDependencies
 
 GetDependencies converts depends_on field (string or []string) to a slice of job names.
@@ -521,6 +628,20 @@ Returns the parsed pipeline(s) and any error.
 
 ```go
 func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error)
+```
+
+### MatchWhenPattern
+
+MatchWhenPattern reports whether a `when: files:` pattern resolves to
+something inside dir, and what it resolved to.
+
+A pattern carrying a glob meta character is expanded, so a skill can
+activate on the contents of a folder rather than its name:
+`schema/*.up.sql` matches a folder of migrations, while `schema/`
+matches any folder of that name.
+
+```go
+func MatchWhenPattern(dir, pattern string) (string, bool)
 ```
 
 ### MergeSkillVariables
@@ -655,6 +776,14 @@ NewTaskResolver will provide a task resolver for a set of pipelines.
 
 ```go
 func NewTaskResolver(pipelines []*model.Pipeline) *TaskResolver
+```
+
+### NewVendorer
+
+NewVendorer creates a vendorer writing into root/.atkins/skills.
+
+```go
+func NewVendorer(sourceDir, root string) *Vendorer
 ```
 
 ### ProcessDecl
@@ -980,6 +1109,51 @@ resolver is used.
 
 ```go
 func (*TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)
+```
+
+### Pending
+
+Pending returns the IDs a write would create or overwrite, leaving
+out the skills already vendored unchanged.
+
+```go
+func (*VendorResult) Pending() []string
+```
+
+### Install
+
+Install copies the selected skills into TargetDir, creating it when it
+doesn't exist, and overwrites a vendored copy that has drifted from
+its source. Vendored skills are tracked files like any other, so
+reverting an unwanted change is the user's call, not this command's.
+
+```go
+func (*Vendorer) Install(result *VendorResult) error
+```
+
+### Plan
+
+Plan reads the source skills and decides which of them this
+repository uses, without writing anything.
+
+A skill is used when its when: block matches a path anywhere in the
+repository, when it has no when: block at all (it is active
+everywhere), or when a pipeline in the repository - or another
+selected skill - references one of its jobs.
+
+```go
+func (*Vendorer) Plan() (*VendorResult, error)
+```
+
+### Run
+
+Run plans the vendoring and installs what it selected.
+
+Plan on its own is the dry run: it reports the same selection without
+touching the repository.
+
+```go
+func (*Vendorer) Run() (*VendorResult, error)
 ```
 
 ### Environ
