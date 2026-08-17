@@ -98,10 +98,13 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 	client.Configure(settings.Client)
 
 	// These flags take over the whole invocation: they open the
-	// configuration menu or authenticate against a server, and exit.
+	// configuration menu, vendor skills into the repository, or
+	// authenticate against a server, and exit.
 	switch {
 	case opts.Config:
 		return runConfig(cwd)
+	case opts.Vendor:
+		return runVendor(cwd, opts)
 	case opts.Login != "":
 		return client.RunLogin(ctx, opts.Login)
 	case opts.Register != "":

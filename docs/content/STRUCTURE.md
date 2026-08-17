@@ -66,11 +66,11 @@ For loops and iteration. Covers loop syntax, required variables, and task invoca
 
 ### Skills
 
-Modular pipeline components. Covers skill locations (project and global), conditional activation with `when:`, namespacing, aliases, default jobs, cross-skill references, skill variables, and example skills (Go, Docker, Node.js).
+Modular pipeline components. Covers skill locations (project and global), conditional activation with `when:`, namespacing, aliases, default jobs, cross-skill references, skill variables, example skills (Go, Docker, Node.js), and vendoring global skills into a repository with `--vendor`.
 
 ### CLI Flags
 
-Command-line options reference. Covers all flags (`--file`, `--list`, `--lint`, `--json`, `--yaml`, `--final`, `--log`, `--debug`, `--working-directory`, `--jail`), file discovery order, running and listing jobs, output modes, and stdin input.
+Command-line options reference. Covers all flags (`--file`, `--list`, `--lint`, `--json`, `--yaml`, `--final`, `--log`, `--debug`, `--working-directory`, `--jail`, `--vendor`), file discovery order, running and listing jobs, output modes, and stdin input.
 
 ### Job Targeting
 

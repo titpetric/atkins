@@ -37,6 +37,9 @@ type Options struct {
 	// Config opens the configuration menu for .atkins/config.yml.
 	Config bool
 
+	// Vendor copies the skills this repository uses into .atkins/skills.
+	Vendor bool
+
 	FlagSet *cli.FlagSet
 }
 ```

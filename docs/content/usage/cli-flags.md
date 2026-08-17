@@ -31,6 +31,7 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 | `--version`           | `-v`  | Print version and build information    |
 | `--working-directory` | `-w`  | Change directory before running        |
 | `--jail`              |       | Restrict to project scope only         |
+| `--vendor`            |       | Copy used skills into `.atkins/skills` |
 | `--config`            |       | Open the configuration menu            |
 | `--login`             |       | Log in to a CI/CD server               |
 | `--register`          |       | Register an account on a CI/CD server  |
@@ -204,6 +205,22 @@ Without `--jail`:
 With `--jail`:
 - Only loads from `.atkins/skills/`
 - Ignores global skills
+
+## Vendoring Skills
+
+Copy the skills this repository uses out of `$HOME/.atkins/skills` and into `.atkins/skills` next to `.git`:
+
+```bash
+atkins --vendor
+```
+
+```text
+Found 7 local skills.
+Found usage for 3 skills.
+Installed: docker, go, mdox.
+```
+
+The copies are ordinary repository content, so a clone or a CI agent gets the same jobs without a personal skills directory. `--vendor` and `--jail` cannot be combined: jail mode excludes the directory vendoring reads from. See [Skills](./skills#vendoring) for the selection rules.
 
 ## Configuration
 

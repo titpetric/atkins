@@ -298,6 +298,47 @@ Useful for:
 - Avoiding personal customizations
 - Testing project-only configurations
 
+## Vendoring
+
+Global skills live on one machine. A pipeline that leans on `~/.atkins/skills/compose.yml` runs on the laptop it was written on and fails on a clean clone, and a CI agent is exactly the machine with no personal skills directory.
+
+`--vendor` copies the skills a repository uses into the repository:
+
+```bash
+atkins --vendor
+```
+
+```text
+Found 7 local skills.
+Found usage for 3 skills.
+Installed: docker, go, mdox.
+```
+
+Skills are written to `.atkins/skills/` next to `.git`, so they apply to the whole repository, and the folder is created if it doesn't exist yet. The copies are ordinary repository content: commit them like any other dependency, and an update is a re-run and a diff.
+
+### Selection Rules
+
+A skill is vendored when any of these hold:
+
+- Its `when:` block matches a path anywhere in the repository. The search descends the tree rather than climbing it, so a `schema/` folder in a submodule selects the schema skill, the same way it activates there.
+- It has no `when:` block, which makes it active everywhere.
+- A pipeline in the repository names one of its jobs through `task:` or `depends_on:`. A reference to `docker:build` selects the docker skill even without a `docker/Dockerfile`.
+- A skill already selected names one of its jobs. A release skill calling `:docker:build` brings the docker skill with it.
+
+Dot directories and `node_modules`, `vendor`, `testdata`, `bin`, `dist` and `coverage` are not descended into.
+
+### Local Copies Win
+
+If `.atkins/skills/` already carries a skill of the same name with different contents, it is left alone and reported:
+
+```text
+Skipped: go (.atkins/skills carries its own copy).
+```
+
+Project skills take precedence over global ones at load time, so a local copy that has drifted is a deliberate override. To re-vendor it, delete the local file first.
+
+`--vendor` cannot be combined with `--jail`, which excludes the `$HOME/.atkins/skills` that vendoring reads from.
+
 ## Listing Skills
 
 View all active skills and their jobs:

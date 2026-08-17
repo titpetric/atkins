@@ -30,6 +30,9 @@ type Options struct {
 	// Config opens the configuration menu for .atkins/config.yml.
 	Config bool
 
+	// Vendor copies the skills this repository uses into .atkins/skills.
+	Vendor bool
+
 	FlagSet *cli.FlagSet
 }
 
@@ -56,6 +59,7 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.BoolVar(&o.Logout, "logout", false, "Log out of the atkins CI/CD server")
 	fs.BoolVar(&o.Local, "local", false, "Run here instead of dispatching to the CI/CD server")
 	fs.BoolVar(&o.Config, "config", false, "Open the configuration menu for .atkins/config.yml")
+	fs.BoolVar(&o.Vendor, "vendor", false, "Copy the skills this repository uses into .atkins/skills")
 
 	o.FlagSet = fs
 }

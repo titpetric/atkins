@@ -259,6 +259,69 @@ type VarPromise struct {
 }
 ```
 
+```go
+// VendorResult reports what a vendoring run found, matched and wrote.
+type VendorResult struct {
+	// SourceDir is the skills directory that was read.
+	SourceDir string
+
+	// TargetDir is the repository directory that was written to.
+	TargetDir string
+
+	// Found are all skills available in SourceDir.
+	Found []*VendorSkill
+
+	// Used are the skills this repository has a use for.
+	Used []*VendorSkill
+
+	// Installed are the IDs written to (or already identical in) TargetDir.
+	Installed []string
+
+	// Skipped are the IDs left alone because the repository carries its
+	// own, different, copy of that skill.
+	Skipped []string
+}
+```
+
+```go
+// VendorSkill is a candidate skill file, with the reason it was picked
+// for vendoring once it has been matched against a repository.
+type VendorSkill struct {
+	// ID is the skill namespace, taken from the file name.
+	ID string
+
+	// Path is the absolute path of the source skill file.
+	Path string
+
+	// Pipeline is the parsed skill.
+	Pipeline *model.Pipeline
+
+	// Reason records why the skill is used here, e.g. the path that
+	// satisfied its when: block, or the pipeline that references it.
+	Reason string
+}
+```
+
+```go
+// Vendorer copies the skills a repository uses out of a shared skills
+// directory and into the repository itself, so a clone or a CI agent
+// gets the same jobs without a personal $HOME/.atkins/skills.
+type Vendorer struct {
+	// SourceDir is the skills directory to vendor from, typically
+	// $HOME/.atkins/skills.
+	SourceDir string
+
+	// Root is the repository root, the folder holding .git.
+	Root string
+
+	// TargetDir is where skills are written, Root/.atkins/skills.
+	TargetDir string
+
+	// SkipDirs are directory names not descended into.
+	SkipDirs []string
+}
+```
+
 ## Consts
 
 ```go
@@ -293,6 +356,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func EvaluateIf (ctx *ExecutionContext) (bool, error)`
 - `func EvaluateJobIf (ctx *ExecutionContext) (bool, error)`
 - `func ExpandFor (ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)`
+- `func FindRepositoryRoot (startDir string) (string, error)`
 - `func GetDependencies (dependsOn any) []string`
 - `func InterpolateCommand (cmd string, ctx *ExecutionContext) (string, error)`
 - `func InterpolateMap (ctx *ExecutionContext, m map[string]any) error`
@@ -318,6 +382,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func NewSkillResolver (pipeline *model.Pipeline) *TaskResolver`
 - `func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader`
 - `func NewTaskResolver (pipelines []*model.Pipeline) *TaskResolver`
+- `func NewVendorer (sourceDir,root string) *Vendorer`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
@@ -355,6 +420,9 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*TaskResolver) Resolve (taskName string) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveName (name string, strict bool) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveWithFallback (taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)`
+- `func (*Vendorer) Install (result *VendorResult) error`
+- `func (*Vendorer) Plan () (*VendorResult, error)`
+- `func (*Vendorer) Run () (*VendorResult, error)`
 - `func (Env) Environ () []string`
 - `func (Env) Sanitized () Env`
 - `func (ExecError) Error () string`
@@ -437,6 +505,15 @@ When multiple iterators are provided, computes the cartesian product.
 
 ```go
 func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)
+```
+
+### FindRepositoryRoot
+
+FindRepositoryRoot returns the folder holding .git, starting at
+startDir and traversing parent directories.
+
+```go
+func FindRepositoryRoot(startDir string) (string, error)
 ```
 
 ### GetDependencies
@@ -655,6 +732,14 @@ NewTaskResolver will provide a task resolver for a set of pipelines.
 
 ```go
 func NewTaskResolver(pipelines []*model.Pipeline) *TaskResolver
+```
+
+### NewVendorer
+
+NewVendorer creates a vendorer writing into root/.atkins/skills.
+
+```go
+func NewVendorer(sourceDir, root string) *Vendorer
 ```
 
 ### ProcessDecl
@@ -980,6 +1065,40 @@ resolver is used.
 
 ```go
 func (*TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)
+```
+
+### Install
+
+Install copies the selected skills into TargetDir, creating it when
+it doesn't exist. A skill the repository already carries under the
+same name, with different contents, is left alone: a project skill
+takes precedence over a global one at load time, and overwriting it
+would throw away the project's own copy.
+
+```go
+func (*Vendorer) Install(result *VendorResult) error
+```
+
+### Plan
+
+Plan reads the source skills and decides which of them this
+repository uses, without writing anything.
+
+A skill is used when its when: block matches a path anywhere in the
+repository, when it has no when: block at all (it is active
+everywhere), or when a pipeline in the repository - or another
+selected skill - references one of its jobs.
+
+```go
+func (*Vendorer) Plan() (*VendorResult, error)
+```
+
+### Run
+
+Run plans the vendoring and installs what it selected.
+
+```go
+func (*Vendorer) Run() (*VendorResult, error)
 ```
 
 ### Environ
