@@ -71,8 +71,8 @@ func TestMenuQuitDiscardsUnsavedChanges(t *testing.T) {
 func TestMenuRefusesAnInvalidValue(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 
-	// Field 5 is client.timeout, a duration.
-	output := runMenu(t, path, "5\nnot-a-duration\nq\n")
+	// Field 6 is client.timeout, a duration.
+	output := runMenu(t, path, "6\nnot-a-duration\nq\n")
 
 	assert.Contains(t, output, "must be a duration")
 }
@@ -99,9 +99,9 @@ func TestMenuMarksEnvironmentOverrides(t *testing.T) {
 func TestMenuWriteRefusesAnInvalidDocument(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 
-	// server.addr without a port cannot work; writing must not
-	// silently persist it.
-	output := runMenu(t, path, "6\nlocalhost\nw\nq\ny\n")
+	// Field 7 is server.addr, which without a port cannot work; writing
+	// must not silently persist it.
+	output := runMenu(t, path, "7\nlocalhost\nw\nq\ny\n")
 
 	assert.Contains(t, output, "must include a port")
 	assert.NoFileExists(t, path)

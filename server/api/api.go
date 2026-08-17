@@ -164,6 +164,53 @@ func (s *Handlers) readableJob(r *http.Request, user *model.User, jobID string) 
 // errJobNotFound covers both "no such job" and "not yours".
 var errJobNotFound = errors.New("job not found")
 
+// reportableJob loads a job the caller may report on: append output to
+// it, renew its lease, record its checkout, settle it.
+//
+// An agent may report on any job, because the queue is its whole
+// business. Everybody else may report on a job of their own that is
+// already running, which is the local run: the pipeline executes on the
+// machine that started it and reports what an agent would have
+// reported, from an ordinary account with no agent credentials.
+//
+// Two limits keep that from being a wider power than it looks. Ownership
+// is required outright rather than through readability, so making an
+// instance public does not hand every user everybody else's jobs. And a
+// pending job is refused: nobody has started it, the report would be
+// fiction, and cancelling is the way to stop work that hasn't begun.
+func (s *Handlers) reportableJob(r *http.Request, jobID string) (*model.Job, error) {
+	user, _, err := s.authenticateUser(r)
+	if err != nil {
+		return nil, err
+	}
+
+	job, err := s.jobs.Get(r.Context(), jobID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, requestError(http.StatusNotFound, errJobNotFound)
+		}
+		return nil, err
+	}
+
+	if user.IsAgent {
+		return job, nil
+	}
+
+	owned, err := s.jobs.VisibleTo(r.Context(), job, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if !owned {
+		return nil, requestError(http.StatusNotFound, errJobNotFound)
+	}
+
+	if job.Status == model.JobStatusPending {
+		return nil, requestError(http.StatusForbidden, model.ErrForbidden)
+	}
+
+	return job, nil
+}
+
 // viewToken returns the token that opens a job page without a session,
 // or an empty string on an instance whose pages are public anyway.
 func (s *Handlers) viewToken(jobID string) string {

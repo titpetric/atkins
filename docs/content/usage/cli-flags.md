@@ -18,26 +18,51 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 
 ## Flag Reference
 
-| Flag                  | Short | Description                            |
-|-----------------------|-------|----------------------------------------|
-| `--file`              | `-f`  | Path to pipeline file                  |
-| `--list`              | `-l`  | List available jobs                    |
-| `--lint`              |       | Validate pipeline syntax               |
-| `--json`              | `-j`  | Output in JSON format                  |
-| `--yaml`              | `-y`  | Output in YAML format                  |
-| `--final`             |       | Show only final tree (no live updates) |
-| `--log`               |       | Log execution to file                  |
-| `--debug`             |       | Enable debug output                    |
-| `--version`           | `-v`  | Print version and build information    |
-| `--working-directory` | `-w`  | Change directory before running        |
-| `--jail`              |       | Restrict to project scope only         |
-| `--vendor`            |       | List the skills this repository uses   |
-| `--write`             |       | With `--vendor`, write them            |
-| `--config`            |       | Open the configuration menu            |
-| `--login`             |       | Log in to a CI/CD server               |
-| `--register`          |       | Register an account on a CI/CD server  |
-| `--logout`            |       | Log out of the CI/CD server            |
-| `--local`             |       | Run here instead of dispatching        |
+### Choosing what runs
+
+| Flag                  | Short | Description                                                 |
+|-----------------------|-------|-------------------------------------------------------------|
+| `--file`              | `-f`  | Pipeline file to use, instead of the discovered one         |
+| `--working-directory` | `-w`  | Change to this directory before running                     |
+| `--jail`              |       | Load skills from the project only, ignoring `$HOME/.atkins` |
+| `--list`              | `-l`  | List the jobs and dependencies instead of running them      |
+| `--lint`              |       | Check the pipeline for errors and exit                      |
+
+### Output
+
+| Flag        | Short | Description                                       |
+|-------------|-------|---------------------------------------------------|
+| `--json`    | `-j`  | Emit the run, or the listing, as JSON             |
+| `--yaml`    | `-y`  | Emit the run, or the listing, as YAML             |
+| `--final`   |       | Print the tree once at the end, without redrawing |
+| `--log`     |       | Write an execution log to this file               |
+| `--debug`   |       | Print interpolation, evaluation and timing detail |
+| `--version` | `-v`  | Print the version and build information           |
+
+### CI/CD server
+
+| Flag         | Description                                                     |
+|--------------|-----------------------------------------------------------------|
+| `--login`    | Log in to a server, e.g. `--login https://ci.example.com`       |
+| `--register` | Create an account on a server and log in                        |
+| `--logout`   | Detach this machine from the server it last logged in to        |
+| `--dispatch` | Hand this run to an agent; refuses a dirty or unpushed checkout |
+| `--local`    | Run here without recording the run on the server                |
+
+### Project setup
+
+| Flag       | Description                                                        |
+|------------|--------------------------------------------------------------------|
+| `--config` | Open the configuration menu over `.atkins/config.yml`              |
+| `--vendor` | Report the skills this repository uses from `$HOME/.atkins/skills` |
+| `--write`  | With `--vendor`, write them into `.atkins/skills`                  |
+
+### Agent
+
+| Flag      | Short | Description                               |
+|-----------|-------|-------------------------------------------|
+| `--agent` |       | Start the interactive agent REPL          |
+| `--exec`  | `-x`  | Run one prompt through the agent and exit |
 
 ## File Discovery
 
@@ -233,6 +258,15 @@ atkins --vendor --write
 
 `--debug` adds the reason each skill was selected and the diff behind the line counts. The copies are ordinary repository content, so a clone or a CI agent gets the same jobs without a personal skills directory. `--vendor` and `--jail` cannot be combined: jail mode excludes the directory vendoring reads from. See [Skills](./skills#vendoring) for the selection rules.
 
+## Agent REPL
+
+```bash
+atkins --agent                    # interactive
+atkins -x "run the tests"         # one prompt, then exit
+```
+
+The agent reads the pipelines and skills this project resolves to and drives them for you. It is the same job resolution the flags above use; nothing is available to it that `atkins -l` doesn't show.
+
 ## Configuration
 
 ```bash
@@ -258,7 +292,13 @@ atkins --logout
 
 Credentials are stored per server in `~/.atkins/credentials.json` (mode `0600`).
 
-Once logged in, `atkins` **hands runs to the server** instead of running them: it prints one job URL and exits, and an agent runs the pipeline against a fresh checkout. To run here instead:
+Once logged in, `atkins` still runs the pipeline **here** and records the run on the server: the job page ends up with the transcript, the commit and the exit code an agent would have reported. To hand a run to an agent instead:
+
+```bash
+atkins --dispatch     # prints one job URL and exits
+```
+
+`--dispatch` refuses a dirty or unpushed work tree, since an agent builds the commit rather than your disk. To run here and record nothing:
 
 ```bash
 atkins --local        # this run only

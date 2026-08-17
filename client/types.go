@@ -63,6 +63,13 @@ type DispatchRequest struct {
 	Labels           []string          `json:"labels,omitempty"`
 	Params           map[string]any    `json:"params,omitempty"`
 	Artefacts        []string          `json:"artefacts,omitempty"`
+
+	// Agent names the machine already running the job. Set, the job is
+	// recorded as running there instead of queued for an agent to
+	// claim: it is how a run that happens on a laptop still appears on
+	// the server, with the log and the outcome an agent would have
+	// reported.
+	Agent string `json:"agent,omitempty"`
 }
 
 // DispatchResponse is returned by POST /api/dispatch.

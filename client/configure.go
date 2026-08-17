@@ -35,7 +35,7 @@ func Settings() config.ClientConfig {
 	defer settings.mu.RUnlock()
 
 	if !settings.set {
-		return config.ClientConfig{Dispatch: true, Timeout: DefaultTimeout}
+		return config.ClientConfig{Record: true, Timeout: DefaultTimeout}
 	}
 	return settings.value
 }

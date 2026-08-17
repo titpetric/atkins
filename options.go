@@ -20,11 +20,13 @@ type Options struct {
 	Exec             string
 
 	// CI/CD client flags. Login and Register take the server URL;
-	// Logout applies to the server last logged in to. Local runs here
-	// instead of handing the job to the server.
+	// Logout applies to the server last logged in to. Dispatch hands
+	// the run to an agent instead of running it here, and Local runs
+	// here without recording anything on the server.
 	Login    string
 	Register string
 	Logout   bool
+	Dispatch bool
 	Local    bool
 
 	// Config opens the configuration menu for .atkins/config.yml.
@@ -59,7 +61,8 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.StringVar(&o.Login, "login", "", "Log in to an atkins CI/CD server, e.g. --login https://ci.example.com")
 	fs.StringVar(&o.Register, "register", "", "Register an account on an atkins CI/CD server and log in")
 	fs.BoolVar(&o.Logout, "logout", false, "Log out of the atkins CI/CD server")
-	fs.BoolVar(&o.Local, "local", false, "Run here instead of dispatching to the CI/CD server")
+	fs.BoolVar(&o.Dispatch, "dispatch", false, "Hand this run to a CI/CD agent instead of running it here")
+	fs.BoolVar(&o.Local, "local", false, "Run here without recording the run on the CI/CD server")
 	fs.BoolVar(&o.Config, "config", false, "Open the configuration menu for .atkins/config.yml")
 	fs.BoolVar(&o.Vendor, "vendor", false, "List the skills this repository uses from $HOME/.atkins/skills")
 	fs.BoolVar(&o.Write, "write", false, "With --vendor, write the skills into .atkins/skills")

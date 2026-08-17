@@ -28,6 +28,12 @@ func loadSkillPipelines(workspaceDir string, startDir string, opts *Options) ([]
 	return loader.Load()
 }
 
+// pipelineJobs is one pipeline and the jobs resolved onto it.
+type pipelineJobs struct {
+	pipeline *model.Pipeline
+	jobs     []string
+}
+
 // stdinHasData checks if stdin has data available without blocking.
 // Returns true if stdin is piped/redirected with data available.
 func stdinHasData() bool {
@@ -316,10 +322,6 @@ pipelineReady:
 	}
 
 	// Resolve all jobs and group by pipeline
-	type pipelineJobs struct {
-		pipeline *model.Pipeline
-		jobs     []string
-	}
 	pipelineJobsMap := make(map[*model.Pipeline]*pipelineJobs)
 	var pipelineOrder []*model.Pipeline
 	resolver := runner.NewTaskResolver(pipelines)
@@ -369,16 +371,75 @@ pipelineReady:
 		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, resolvedName)
 	}
 
-	// Hand the run to the CI/CD server when this machine is logged in
-	// to one and the run happens inside a git repository. An agent
-	// checks the repository out and runs the command there, so all
-	// that's left here is where to watch it.
-	if dispatched := client.Dispatch(ctx, client.DispatchOptions{Local: opts.Local}); dispatched != nil {
+	// Handing the run to an agent is asked for rather than assumed:
+	// logging in records what this machine runs, it does not move where
+	// it runs. An agent checks the repository out and runs the command
+	// there, so all that's left here is where to watch it.
+	//
+	// An agent exports ATKINS_NO_DISPATCH for the command it runs, and
+	// that outranks the flag: the job it is running was recorded with
+	// the whole command line, `--dispatch` and all, and honouring it
+	// there would hand the work straight back to the queue.
+	if (opts.Dispatch || client.Settings().Dispatch) && !client.DispatchDisabled() {
+		dispatched, err := client.Dispatch(ctx, client.DispatchOptions{})
+		if err != nil {
+			return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
+		}
+
 		fmt.Println(dispatched.URL)
 		return nil
 	}
 
-	// Run each pipeline with its collected jobs
+	// The run happens here, and the server ends up with the job an
+	// agent would have produced. The link is printed before the run so
+	// it can be handed to somebody while the pipeline is still going.
+	var recorder *client.Recorder
+	if !opts.Local {
+		recorder = client.Record(ctx, client.RecordOptions{})
+		if url := recorder.URL(); url != "" {
+			fmt.Printf("%s %s\n", colors.Dim("recording:"), url)
+		}
+	}
+
+	exitCode, runErr := runPipelines(ctx, opts, pipelineOrder, pipelineJobsMap, allPipelines, recorder)
+
+	// A run stopped by hand is not a run that failed, and the record
+	// should not read as one.
+	if ctx.Err() != nil {
+		recorder.Cancelled(ctx)
+	} else {
+		recorder.Finish(ctx, exitCode, runErr)
+	}
+
+	if exitCode != 0 {
+		os.Exit(exitCode)
+	}
+
+	return nil
+}
+
+// runPipelines runs each pipeline with its collected jobs and returns
+// the exit code the shell should see.
+//
+// The exit is the caller's to perform rather than this function's: a
+// recorded run has an outcome to report to the server, and os.Exit from
+// here would file none of it.
+func runPipelines(
+	ctx context.Context,
+	opts *Options,
+	pipelineOrder []*model.Pipeline,
+	pipelineJobsMap map[*model.Pipeline]*pipelineJobs,
+	allPipelines []*model.Pipeline,
+	recorder *client.Recorder,
+) (int, error) {
+	var transcript io.Writer
+	if recorder != nil {
+		transcript = recorder
+	}
+
+	exitCode := 0
+	var runErr error
+
 	for _, pipeline := range pipelineOrder {
 		pj := pipelineJobsMap[pipeline]
 		err := runner.RunPipeline(ctx, pipeline, runner.PipelineOptions{
@@ -390,36 +451,43 @@ pipelineReady:
 			JSON:         opts.JSON,
 			YAML:         opts.YAML,
 			AllPipelines: allPipelines,
+			Transcript:   transcript,
 		})
-		if err != nil {
-			exitCode := 1
-			failedPipeline := pipeline.Name
+		if err == nil {
+			continue
+		}
 
-			var errorLog runner.ExecError
-			if errors.As(err, &errorLog) {
-				if errorLog.Len() > 0 {
-					fmt.Fprintf(os.Stderr, "\nAn error occurred in %q pipeline:\n\n", failedPipeline)
-					fmt.Fprintf(os.Stderr, "  Exit code: %d\n", errorLog.LastExitCode)
-					fmt.Fprintf(os.Stderr, "  Error output:\n")
-					for _, line := range strings.Split(errorLog.Output, "\n") {
-						if line != "" {
-							fmt.Fprintf(os.Stderr, "    %s\n", line)
-						}
+		runErr = err
+		exitCode = 1
+		failedPipeline := pipeline.Name
+
+		var errorLog runner.ExecError
+		if errors.As(err, &errorLog) {
+			if errorLog.Len() > 0 {
+				fmt.Fprintf(os.Stderr, "\nAn error occurred in %q pipeline:\n\n", failedPipeline)
+				fmt.Fprintf(os.Stderr, "  Exit code: %d\n", errorLog.LastExitCode)
+				fmt.Fprintf(os.Stderr, "  Error output:\n")
+				for _, line := range strings.Split(errorLog.Output, "\n") {
+					if line != "" {
+						fmt.Fprintf(os.Stderr, "    %s\n", line)
 					}
 				}
-				exitCode = errorLog.LastExitCode
-			} else {
-				fmt.Fprintf(os.Stderr, "\nAn error occurred in %q pipeline:\n", failedPipeline)
-				fmt.Fprintf(os.Stderr, "  %s\n", err.Error())
 			}
+			exitCode = errorLog.LastExitCode
+		} else {
+			fmt.Fprintf(os.Stderr, "\nAn error occurred in %q pipeline:\n", failedPipeline)
+			fmt.Fprintf(os.Stderr, "  %s\n", err.Error())
+		}
 
-			if exitCode != 0 {
-				os.Exit(exitCode)
-			}
+		// An exit code of zero is a failure the pipeline reported
+		// without one, and the remaining pipelines still run; that is
+		// the behaviour every earlier release had.
+		if exitCode != 0 {
+			return exitCode, runErr
 		}
 	}
 
-	return nil
+	return exitCode, runErr
 }
 
 // runAgent starts the interactive agent REPL.

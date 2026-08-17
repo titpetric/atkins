@@ -70,7 +70,55 @@ Modular pipeline components. Covers skill locations (project and global), condit
 
 ### CLI Flags
 
-Command-line options reference. Covers all flags (`--file`, `--list`, `--lint`, `--json`, `--yaml`, `--final`, `--log`, `--debug`, `--working-directory`, `--jail`, `--vendor`, `--write`), file discovery order, running and listing jobs, output modes, and stdin input.
+Command-line options reference: file discovery order, running and listing jobs, output modes, and stdin input.
+
+**Choosing what runs**
+
+| Flag                  | Short | Description                                                 |
+|-----------------------|-------|-------------------------------------------------------------|
+| `--file`              | `-f`  | Pipeline file to use, instead of the discovered one         |
+| `--working-directory` | `-w`  | Change to this directory before running                     |
+| `--jail`              |       | Load skills from the project only, ignoring `$HOME/.atkins` |
+| `--list`              | `-l`  | List the jobs and dependencies instead of running them      |
+| `--lint`              |       | Check the pipeline for errors and exit                      |
+
+**Output**
+
+| Flag        | Short | Description                                             |
+|-------------|-------|---------------------------------------------------------|
+| `--json`    | `-j`  | Emit the run, or the listing, as JSON                   |
+| `--yaml`    | `-y`  | Emit the run, or the listing, as YAML                   |
+| `--final`   |       | Print the tree once at the end rather than redrawing it |
+| `--log`     |       | Write an execution log to this file                     |
+| `--debug`   |       | Print interpolation, evaluation and timing detail       |
+| `--version` | `-v`  | Print the version and build information                 |
+
+**CI/CD server**
+
+| Flag         | Description                                                     |
+|--------------|-----------------------------------------------------------------|
+| `--login`    | Log in to a server, e.g. `--login https://ci.example.com`       |
+| `--register` | Create an account on a server and log in                        |
+| `--logout`   | Detach this machine from the server it last logged in to        |
+| `--dispatch` | Hand this run to an agent; refuses a dirty or unpushed checkout |
+| `--local`    | Run here without recording the run on the server                |
+
+**Project setup**
+
+| Flag       | Description                                                        |
+|------------|--------------------------------------------------------------------|
+| `--config` | Open the configuration menu over `.atkins/config.yml`              |
+| `--vendor` | Report the skills this repository uses from `$HOME/.atkins/skills` |
+| `--write`  | With `--vendor`, write them into `.atkins/skills`                  |
+
+**Agent**
+
+| Flag      | Short | Description                               |
+|-----------|-------|-------------------------------------------|
+| `--agent` |       | Start the interactive agent REPL          |
+| `--exec`  | `-x`  | Run one prompt through the agent and exit |
+
+`atkins server` and `atkins worker` take their own flags; see [CI/CD Server](./usage/ci-cd.md).
 
 ### Job Targeting
 
@@ -86,7 +134,7 @@ Machine-readable output for tooling integration. Covers list and execution outpu
 
 ### CI/CD Server
 
-Distributed job dispatch. Covers the throwaway compose instance, attaching a machine with `atkins --login`, creating an account with `atkins --register`, credential storage and non-interactive login, what each run dispatches (repository, working directory, command) and the job URL it prints, the job page, the environment an agent exports to a job, nested dispatch and depth limits, `.atkins/config.yml` and the `atkins --config` menu, running `atkins server` and `atkins worker`, the repository allowlist, deploy keys, runtime settings, user roles, and the HTTP API.
+Distributed job dispatch. Covers the throwaway compose instance, attaching a machine with `atkins --login`, creating an account with `atkins --register`, credential storage and non-interactive login, how a logged-in machine records the run it performs locally, handing a run to an agent with `atkins --dispatch` and the clean-checkout it requires, what each run dispatches (repository, working directory, command) and the job URL it prints, the job page, the environment an agent exports to a job, nested dispatch and depth limits, `.atkins/config.yml` and the `atkins --config` menu, running `atkins server` and `atkins worker`, the repository allowlist, deploy keys, runtime settings, user roles, and the HTTP API.
 
 ## Migrating
 

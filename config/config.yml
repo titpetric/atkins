@@ -22,9 +22,15 @@ client:
   # empty list runs anywhere.
   labels: []
 
-  # Hand runs to the server when logged in. With this off, atkins
-  # always runs locally, the same as `--local`.
-  dispatch: true
+  # Hand every run to an agent instead of running it here. With this
+  # off, atkins runs the pipeline locally and `--dispatch` hands over a
+  # single run.
+  dispatch: false
+
+  # Log local runs on the server when logged in: the run happens here,
+  # and the job page holds its output and its outcome. With this off a
+  # logged-in machine records nothing, the same as `--local`.
+  record: true
 
   # How long to wait on an API call before giving up and running
   # locally.

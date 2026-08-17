@@ -12,6 +12,15 @@ import (
 // there is nothing for another machine to check out.
 var ErrNotARepository = errors.New("not inside a git repository")
 
+// Errors reported when a checkout cannot be reproduced elsewhere.
+var (
+	// ErrDirtyCheckout is a work tree with uncommitted changes.
+	ErrDirtyCheckout = errors.New("the working tree has uncommitted changes")
+
+	// ErrUnpushedCheckout is a commit no remote has.
+	ErrUnpushedCheckout = errors.New("HEAD has not been pushed to a remote")
+)
+
 // Checkout is what the client reports about the working copy a run
 // happens in. It is the whole of what the server needs to reproduce the
 // run elsewhere: which repository, where inside it, at what revision.
@@ -29,6 +38,31 @@ type Checkout struct {
 	Branch        string
 	Revision      string
 	DefaultBranch string
+
+	// Dirty reports uncommitted changes in the work tree, tracked or
+	// not. A local run of a dirty tree is ordinary; a dispatched one
+	// would build something else.
+	Dirty bool
+
+	// Unpushed reports that no remote has HEAD, so nothing can clone it.
+	Unpushed bool
+}
+
+// Publishable reports whether another machine could reproduce this
+// checkout from the repository's remote.
+//
+// A dispatched run names the commit it was started from, so a tree that
+// only exists on this disk queues a job that fails in `git checkout`
+// minutes later. The refusal belongs here, where the fix — commit and
+// push, or run locally — is still in front of the person.
+func (c *Checkout) Publishable() error {
+	switch {
+	case c.Dirty:
+		return ErrDirtyCheckout
+	case c.Unpushed:
+		return ErrUnpushedCheckout
+	}
+	return nil
 }
 
 // Payload converts the checkout into a dispatch payload.
@@ -67,6 +101,8 @@ func DetectCheckout(dir string) (*Checkout, error) {
 		Branch:        git(dir, "rev-parse", "--abbrev-ref", "HEAD"),
 		Revision:      git(dir, "rev-parse", "HEAD"),
 		DefaultBranch: detectDefaultBranch(dir),
+		Dirty:         git(dir, "status", "--porcelain") != "",
+		Unpushed:      detectUnpushed(dir),
 	}
 	if checkout.RemoteURL == "" {
 		return nil, ErrNotARepository
@@ -93,6 +129,20 @@ func detectRemoteURL(dir string) string {
 	}
 
 	return ""
+}
+
+// detectUnpushed reports whether HEAD is missing from every remote.
+//
+// The question is which commit, not which branch: a commit reachable
+// from any remote ref can be cloned, whatever the local branch is
+// called and whether or not it tracks anything.
+func detectUnpushed(dir string) bool {
+	// A repository with no commits has nothing to push and nothing to
+	// dispatch; the empty revision is what reports that.
+	if git(dir, "rev-parse", "HEAD") == "" {
+		return false
+	}
+	return git(dir, "rev-list", "-n", "1", "HEAD", "--not", "--remotes") != ""
 }
 
 // detectDefaultBranch reads origin's HEAD, e.g. `origin/main`. It is

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -79,29 +80,30 @@ type DispatchOptions struct {
 
 	// Server overrides which logged-in server to dispatch to.
 	Server string
-
-	// Local forces the run to happen here, as if the machine were not
-	// logged in.
-	Local bool
 }
+
+// ErrDispatchDisabled is returned when the environment forbids handing
+// the run over: an agent sets it for the command it runs, which is what
+// stops a job from dispatching itself forever.
+var ErrDispatchDisabled = errors.New(EnvNoDispatch + " is set")
 
 // Dispatch hands the current run to the CI/CD server this machine is
 // logged in to, and returns where to watch it.
 //
-// It returns nil whenever the run belongs here instead: no credential,
-// not inside a git repository, dispatch disabled, or the server could
-// not be reached. Delegation is a convenience, and losing it should
-// degrade to the behaviour of an unattached machine rather than to an
-// error.
-func Dispatch(ctx context.Context, opts DispatchOptions) *Dispatched {
-	if opts.Local || !Settings().Dispatch || DispatchDisabled() {
-		return nil
+// Handing a run over is asked for — by --dispatch, or by
+// `client.dispatch` in the configuration — so every reason it can't
+// happen is an error rather than a quiet local run. The one that isn't
+// worth stopping over is a repository nobody can clone, and that is
+// refused before the job exists: an unpushed commit dispatches a job
+// that dies in `git checkout` on a machine nobody is watching.
+func Dispatch(ctx context.Context, opts DispatchOptions) (*Dispatched, error) {
+	if DispatchDisabled() {
+		return nil, ErrDispatchDisabled
 	}
 
 	c, err := Open(configuredServer(opts.Server))
 	if err != nil {
-		// Not logged in is the common case for a laptop; say nothing.
-		return nil
+		return nil, fmt.Errorf("not logged in to an atkins server: %w", err)
 	}
 
 	directory := opts.Directory
@@ -111,7 +113,15 @@ func Dispatch(ctx context.Context, opts DispatchOptions) *Dispatched {
 
 	checkout, err := DetectCheckout(directory)
 	if err != nil {
-		return nil
+		return nil, err
+	}
+	switch err := checkout.Publishable(); {
+	case errors.Is(err, ErrDirtyCheckout):
+		return nil, fmt.Errorf("%w: an agent would build %s, which does not have them", err, shortRevision(checkout.Revision))
+	case errors.Is(err, ErrUnpushedCheckout):
+		return nil, fmt.Errorf("%w: an agent clones the repository, and %s is only on this machine", err, shortRevision(checkout.Revision))
+	case err != nil:
+		return nil, err
 	}
 
 	command := opts.Command
@@ -130,15 +140,26 @@ func Dispatch(ctx context.Context, opts DispatchOptions) *Dispatched {
 		Labels:           Labels(),
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "atkins: dispatch to %s failed, running locally: %v\n", c.Server(), err)
-		return nil
+		return nil, fmt.Errorf("dispatch to %s failed: %w", c.Server(), err)
 	}
 
 	return &Dispatched{
 		JobID:          response.JobID,
 		URL:            c.JobURL(response.JobID, response.ViewToken),
 		RepositorySlug: response.RepositorySlug,
+	}, nil
+}
+
+// shortRevision abbreviates a commit for a message, leaving anything
+// that isn't a full sha alone.
+func shortRevision(revision string) string {
+	if len(revision) > 12 {
+		return revision[:12]
 	}
+	if revision == "" {
+		return "HEAD"
+	}
+	return revision
 }
 
 // DispatchDisabled reports whether ATKINS_NO_DISPATCH is set to a

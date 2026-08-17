@@ -13,7 +13,8 @@ With atkins you can:
 - provide project or system skills via `.atkins/skills`
 - run individual pipelines as executables
 - attach to a CI/CD server with `atkins --login https://domain`, so every
-  run records a job that agents can pick up
+  run you make locally is recorded as a job, and `atkins --dispatch` hands
+  one to an agent instead
 
 It's driven by yaml syntax, and supports shell interpolation with `$(...)`, and
 yaml friendly variable interpolation: `name: ${{app.name}}`.

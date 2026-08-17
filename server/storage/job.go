@@ -146,6 +146,16 @@ type JobRequest struct {
 	// Artefacts are glob patterns the agent collects after the command
 	// exits, relative to the directory it ran in.
 	Artefacts []string
+
+	// AgentID names the machine already running the job. Set, the job
+	// is created running and leased to it rather than pending: it is a
+	// run happening somewhere the queue cannot reach — `atkins` on a
+	// laptop — which reports its own log and outcome.
+	//
+	// The lease is what makes that safe to trust. A local run that dies
+	// without reporting stops renewing, and the server reclaims it as a
+	// timeout exactly as it does for an agent that disappears.
+	AgentID string
 }
 
 // Create records a dispatched job.
@@ -202,6 +212,15 @@ func (s *JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, er
 	}
 	job.SetCreatedAt(now)
 	job.SetUpdatedAt(now)
+
+	// A job that names its runner is already under way; there is no
+	// queue step for it to wait in.
+	if req.AgentID != "" {
+		job.Status = model.JobStatusRunning
+		job.AgentID = req.AgentID
+		job.SetStartedAt(now)
+		job.SetLeaseExpiresAt(now.Add(s.LeaseTTL()))
+	}
 
 	if err := client(s.db).Insert(ctx, model.JobTable, job); err != nil {
 		return nil, fmt.Errorf("create job: %w", err)

@@ -110,6 +110,15 @@ type DispatchRequest struct {
 	// Artefacts are glob patterns the agent collects after the command
 	// exits, relative to the directory it ran in.
 	Artefacts []string `json:"artefacts"`
+
+	// Agent names the machine already running this command. Set, the
+	// job is recorded as running there instead of queued for an agent
+	// to claim, and the caller reports its log and its outcome.
+	//
+	// It is how a run on somebody's laptop is on the server at all: the
+	// pipeline executes where it was started, and the history does not
+	// depend on whether that machine could hand the work over.
+	Agent string `json:"agent"`
 }
 ```
 
@@ -696,7 +705,7 @@ func (*Handlers) GetJobLog(w http.ResponseWriter, r *http.Request)
 
 ### JobCheckout
 
-JobCheckout records what an agent checked out for a job.
+JobCheckout records what the machine running a job checked out.
 
 ```go
 func (*Handlers) JobCheckout(w http.ResponseWriter, r *http.Request)
@@ -704,7 +713,7 @@ func (*Handlers) JobCheckout(w http.ResponseWriter, r *http.Request)
 
 ### JobHeartbeat
 
-JobHeartbeat extends the lease the calling agent holds on a job.
+JobHeartbeat extends the lease held on a job by whoever is running it.
 
 ```go
 func (*Handlers) JobHeartbeat(w http.ResponseWriter, r *http.Request)

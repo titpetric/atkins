@@ -4,7 +4,7 @@ subtitle: Distributed job dispatch with atkins --login
 layout: page
 ---
 
-Atkins can attach to a CI/CD server. Once a machine is logged in, `atkins` stops running the pipeline itself: it records the run as a job, prints one URL, and exits. An agent checks the repository out somewhere else and runs it there.
+Atkins can attach to a CI/CD server. Logging in changes what is **recorded**, not where a run happens: `atkins` still runs the pipeline on the machine you typed it on, and the server ends up with the job an agent would have produced — the same command, checkout, output and exit code. `atkins --dispatch` is the opt-in that hands a run to an agent instead.
 
 The design keeps atkins in charge. The server is a queue and a ledger; it does not decide what a pipeline does. Three things travel with every run — the git repository, the directory inside its work tree, and the atkins command — which is everything another machine needs to reproduce it.
 
@@ -12,7 +12,13 @@ The design keeps atkins in charge. The server is a queue and a ledger; it does n
 laptop                     server (:3200)            agent (container)
 ------                     --------------            -----------------
 atkins --login  ─────────► /api/user/login
-atkins          ─────────► /api/dispatch  ──┐
+
+atkins          ─────────► /api/dispatch  (agent: this machine)
+   runs here                              │  job starts running
+                           /api/job/{id}/log ◄─ the run's transcript
+                           /api/job/{id}/status ◄ terminal state
+
+atkins --dispatch ───────► /api/dispatch  ──┐
    prints job URL, exits                    │  job queued
                                             ▼
                            /api/job/claim ◄──── poll
@@ -31,7 +37,8 @@ The repository ships a throwaway instance: a server and one agent, on port 3200.
 ```bash
 atkins up                                 # build and start
 atkins --register http://localhost:3200   # first account, becomes admin
-atkins                                    # prints http://localhost:3200/job/<ULID>?t=<token>
+atkins                                    # runs here, recorded at http://localhost:3200/job/<ULID>?t=<token>
+atkins --dispatch                         # queues it for the agent instead
 atkins down
 ```
 
@@ -75,36 +82,67 @@ Set the credentials in the environment and no prompt is shown. This is how a con
 | `ATKINS_USERNAME` | Username, `--register` only |
 | `ATKINS_PASSWORD` | Password, skips the prompt  |
 
+## What a run records
+
+A logged-in machine posts every run to `/api/dispatch` and goes on to run the pipeline itself. The job is created **running**, leased to this machine rather than queued, and the same terminal that draws the tree reports the outcome:
+
+```bash
+$ atkins test
+recording: http://localhost:3200/job/01J8…?t=…
+Atkins project tests, build
+└─ test:simple - Simple go test with gotestsum ✓
+```
+
+What lands on the job page is the finished tree, the commit it ran against, the exit code the shell saw, and how long it took. A run stopped with ctrl-C is recorded as cancelled; one that dies with the terminal stops renewing its lease and is reclaimed as a timeout, the same way a lost agent's job is.
+
+The transcript arrives when the run finishes rather than line by line, so a page opened mid-run says which machine is running what and fills in at the end. Artefacts are not collected from a local run — nothing here has an `ATKINS_ARTEFACTS` directory to sweep.
+
+To run without recording anything:
+
+```bash
+atkins --local                 # this run only
+```
+
+Setting `client.record: false` in the configuration turns recording off for good, and a machine that never logged in has nothing to record to.
+
 ## What a run dispatches
 
-Once logged in, `atkins` posts to `/api/dispatch` and prints the job URL:
+`atkins --dispatch` hands the run to an agent instead of running it here, and prints the job URL:
 
-| Field               | Value                                               |
-|---------------------|-----------------------------------------------------|
-| `repository`        | `origin` remote URL, ref and default branch         |
-| `working_directory` | Pipeline directory, relative to the repository root |
-| `command`           | The atkins invocation, e.g. `atkins test:build`     |
-| `parent_id`         | `ATKINS_JOB_ID`, when a job dispatches further work |
-| `labels`            | Which agents may run it                             |
-| `clone_depth`       | History the agent's work tree needs; 0 is all of it |
-| `artefacts`         | Globs the agent collects when the command exits     |
+| Field               | Value                                                        |
+|---------------------|--------------------------------------------------------------|
+| `repository`        | `origin` remote URL, ref and default branch                  |
+| `working_directory` | Pipeline directory, relative to the repository root          |
+| `command`           | The atkins invocation, e.g. `atkins test:build`              |
+| `parent_id`         | `ATKINS_JOB_ID`, when a job dispatches further work          |
+| `labels`            | Which agents may run it                                      |
+| `clone_depth`       | History the agent's work tree needs; 0 is all of it          |
+| `artefacts`         | Globs the agent collects when the command exits              |
+| `agent`             | Set only by a recorded local run: the machine running it now |
 
 The server normalizes the remote URL into a `host/owner/name` slug, so `git@github.com:you/repo.git` and `https://github.com/you/repo` are one repository. Repositories are created on first sight; nothing has to be registered up front.
 
-The ref atkins sends is the **commit you are on**, not the branch you are on. A dispatched run belongs to the code in front of you, and a branch name would let the agent build whatever that branch had moved to by the time it claimed the job. The consequence is worth knowing: dispatching a commit you have not pushed fails, naming the ref it could not find, rather than quietly building the branch tip instead.
+The ref atkins sends is the **commit you are on**, not the branch you are on. A dispatched run belongs to the code in front of you, and a branch name would let the agent build whatever that branch had moved to by the time it claimed the job.
+
+That is why `--dispatch` inspects the work tree before it queues anything:
+
+```text
+$ atkins --dispatch test
+ERROR: the working tree has uncommitted changes: an agent would build 41c9d0e2a7b1, which does not have them
+
+$ atkins --dispatch test
+ERROR: HEAD has not been pushed to a remote: an agent clones the repository, and 41c9d0e2a7b1 is only on this machine
+```
+
+Both are refused here, where committing and pushing is still in front of you, rather than minutes later as a job that died in `git checkout`. The test is on the commit rather than the branch: a commit any remote has can be cloned, whether or not the local branch tracks anything.
 
 The response carries the job's ID and, while the instance keeps jobs private, a `view_token` that opens its page in a browser. `atkins` prints the two as one URL; a script driving `/api/dispatch` or a trigger with `curl` builds it the same way. Losing that line is not losing the link: `GET /api/job/{id}` and `GET /api/job` return the same `view_token`, plus a ready-made `url`, to any caller allowed to read the job.
 
-Delegation degrades to a local run rather than to an error. If the machine isn't logged in, isn't inside a git repository, or the server can't be reached, the pipeline runs here as it always did — with the reason on stderr.
+`--dispatch` fails rather than degrading. A machine that isn't logged in, isn't inside a git repository or can't reach the server was asked to hand a run over and couldn't, and quietly running it here instead is how a person ends up watching a queue nothing was ever queued on. Recording is the opposite: it is bookkeeping, so it drops out silently rather than costing the run it was meant to describe.
 
-To run locally on purpose:
+Setting `client.dispatch: true` in the configuration makes dispatch the default for a machine, as if every run carried the flag.
 
-```bash
-atkins --local              # this run only
-ATKINS_NO_DISPATCH=1 atkins # same, for a script
-```
-
-Setting `client.dispatch: false` in the configuration turns delegation off for good.
+`ATKINS_NO_DISPATCH=1` outranks both, and an agent sets it for the command it runs. Without it the atkins the agent runs would hand the work straight back to the server, and a job recorded as `atkins --dispatch test` would bounce forever; the guard is why that job runs where it was claimed instead.
 
 ### Environment exported to a job
 
@@ -375,7 +413,8 @@ opens a menu over the project document, creating it from the built-in defaults i
 client:
   server: https://ci.example.com
   labels: [linux, amd64]
-  dispatch: true
+  dispatch: false
+  record: true
 
 server:
   addr: ":3200"
@@ -549,10 +588,10 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
 | `/api/job/{id}/retry`          | POST            | user   | Queue a copy of a finished job         |
 | `/api/job/{id}/cancel`         | POST            | user   | Settle an unfinished job               |
 | `/api/job/claim`               | POST            | agent  | Lease the oldest pending job           |
-| `/api/job/{id}/status`         | POST            | agent  | Settle a job                           |
-| `/api/job/{id}/checkout`       | POST            | agent  | Record the ref and commit it built     |
-| `/api/job/{id}/heartbeat`      | POST            | agent  | Extend the lease                       |
-| `/api/job/{id}/log`            | POST            | agent  | Append output                          |
+| `/api/job/{id}/status`         | POST            | runner | Settle a job                           |
+| `/api/job/{id}/checkout`       | POST            | runner | Record the ref and commit it built     |
+| `/api/job/{id}/heartbeat`      | POST            | runner | Extend the lease                       |
+| `/api/job/{id}/log`            | POST            | runner | Append output                          |
 | `/api/job/{id}/artefact`       | POST            | agent  | Upload a file, `?path=` names it       |
 | `/api/agent/enrol`             | POST            | token  | Trade the shared token for credentials |
 | `/api/agent/policy`            | GET             | agent  | The repository policy to enforce       |
@@ -563,6 +602,8 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" \
 | `/api/admin/ssh-key[/{id}]`    | GET/POST/DELETE | admin  | Manage deploy keys                     |
 
 Authentication is `Authorization: Bearer <token>`. Access tokens live an hour and carry the session they came from, so logout takes effect immediately rather than when the token expires. Refresh tokens are single-use and rotate on every refresh, which makes a leaked one detectable: the legitimate client's next refresh fails.
+
+**runner** in the table is whoever is running the job: an agent, for anything it claimed, or the owner of a job that is already running, which is the machine recording a local run. Ownership is required outright rather than through readability, so making an instance public does not hand every user everybody else's runs to settle, and a *pending* job is refused — nobody has started it, so a report on it would be fiction and `/cancel` is the way to stop it.
 
 ## Pages
 

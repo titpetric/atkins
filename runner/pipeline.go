@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"slices"
@@ -33,6 +34,12 @@ type PipelineOptions struct {
 	YAML         bool
 	AllPipelines []*model.Pipeline // All loaded pipelines for cross-pipeline task references
 	Progress     ProgressObserver  // Optional observer for job progress events
+
+	// Transcript receives the finished tree, the same rendering the
+	// terminal is left with. It is how a caller records the run
+	// somewhere else — a CI job log — without changing what a person
+	// watching it sees.
+	Transcript io.Writer
 }
 
 // Pipeline holds pipeline execution logic.
@@ -527,6 +534,8 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 				display.RenderFinal(root)
 			}
 
+			p.writeTranscript(root)
+
 			// Write event log on failure
 			writeEventLog(logger, root, err)
 
@@ -554,6 +563,8 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		display.RenderFinal(root)
 	}
 
+	p.writeTranscript(root)
+
 	// Write event log
 	writeEventLog(logger, root, runErr)
 
@@ -570,6 +581,21 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	}
 
 	return runErr
+}
+
+// writeTranscript hands the finished tree to the caller's writer.
+//
+// It renders the same thing RenderFinal prints, colours included, so a
+// job page reads like the terminal the run happened in rather than like
+// a second, plainer account of it.
+func (p *Pipeline) writeTranscript(root *treeview.Node) {
+	if p.opts.Transcript == nil {
+		return
+	}
+
+	// A transcript nobody could write is not worth interrupting a run
+	// that has already finished.
+	_, _ = fmt.Fprint(p.opts.Transcript, treeview.NewRenderer().Render(root))
 }
 
 // writeEventLog writes the final event log to the file.

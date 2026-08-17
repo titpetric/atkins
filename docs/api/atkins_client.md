@@ -92,6 +92,14 @@ type Checkout struct {
 	Branch        string
 	Revision      string
 	DefaultBranch string
+
+	// Dirty reports uncommitted changes in the work tree, tracked or
+	// not. A local run of a dirty tree is ordinary; a dispatched one
+	// would build something else.
+	Dirty bool
+
+	// Unpushed reports that no remote has HEAD, so nothing can clone it.
+	Unpushed bool
 }
 ```
 
@@ -150,10 +158,6 @@ type DispatchOptions struct {
 
 	// Server overrides which logged-in server to dispatch to.
 	Server string
-
-	// Local forces the run to happen here, as if the machine were not
-	// logged in.
-	Local bool
 }
 ```
 
@@ -167,6 +171,13 @@ type DispatchRequest struct {
 	Labels           []string          `json:"labels,omitempty"`
 	Params           map[string]any    `json:"params,omitempty"`
 	Artefacts        []string          `json:"artefacts,omitempty"`
+
+	// Agent names the machine already running the job. Set, the job is
+	// recorded as running there instead of queued for an agent to
+	// claim: it is how a run that happens on a laptop still appears on
+	// the server, with the log and the outcome an agent would have
+	// reported.
+	Agent string `json:"agent,omitempty"`
 }
 ```
 
@@ -295,6 +306,45 @@ type Prompter struct {
 
 	// fd is the file descriptor used for the no-echo password read.
 	fd int
+}
+```
+
+```go
+// RecordOptions describes the local run being logged.
+type RecordOptions struct {
+	// Directory is where atkins was invoked. Empty means the process
+	// working directory.
+	Directory string
+
+	// Command is the atkins invocation. Empty means os.Args.
+	Command string
+
+	// Server overrides which logged-in server to record on.
+	Server string
+}
+```
+
+```go
+// Recorder is a run happening here that is logged on a CI/CD server.
+// It is the other half of dispatch: the pipeline executes on this
+// machine, as it does on a machine that never logged in, and the server
+// ends up with the job an agent would have produced — the same command,
+// checkout, output, exit code and duration. A history of what a team
+// runs should not depend on where the tooling happens to be installed.
+//
+// A nil *Recorder is the unrecorded run, and every method tolerates it,
+// so the caller has no branch to write.
+type Recorder struct {
+	client  *Client
+	jobID   string
+	url     string
+	agentID string
+
+	mu     sync.Mutex
+	buffer strings.Builder
+
+	// stop ends the lease renewals.
+	stop func()
 }
 ```
 
@@ -478,6 +528,13 @@ const (
 ## Vars
 
 ```go
+// ErrDispatchDisabled is returned when the environment forbids handing
+// the run over: an agent sets it for the command it runs, which is what
+// stops a job from dispatching itself forever.
+var ErrDispatchDisabled = errors.New(EnvNoDispatch + " is set")
+```
+
+```go
 // ErrNoTerminal is returned when a password is needed but stdin isn't a
 // terminal and no environment override was provided.
 var ErrNoTerminal = errors.New("stdin is not a terminal: set ATKINS_PASSWORD to log in non-interactively")
@@ -502,13 +559,24 @@ var ErrNotLoggedIn = errors.New("not logged in: run `atkins --login <url>`")
 var UserAgent = "atkins"
 ```
 
+```go
+// Errors reported when a checkout cannot be reproduced elsewhere.
+var (
+	// ErrDirtyCheckout is a work tree with uncommitted changes.
+	ErrDirtyCheckout = errors.New("the working tree has uncommitted changes")
+
+	// ErrUnpushedCheckout is a commit no remote has.
+	ErrUnpushedCheckout = errors.New("HEAD has not been pushed to a remote")
+)
+```
+
 ## Function symbols
 
 - `func Command (argv []string) string`
 - `func Configure (value config.ClientConfig)`
 - `func CredentialsPath () (string, error)`
 - `func DetectCheckout (dir string) (*Checkout, error)`
-- `func Dispatch (ctx context.Context, opts DispatchOptions) *Dispatched`
+- `func Dispatch (ctx context.Context, opts DispatchOptions) (*Dispatched, error)`
 - `func DispatchDisabled () bool`
 - `func Labels () []string`
 - `func LoadStore () (*Store, error)`
@@ -517,6 +585,7 @@ var UserAgent = "atkins"
 - `func NewPrompterFrom (in io.Reader, out io.Writer) *Prompter`
 - `func NormalizeServer (server string) string`
 - `func Open (server string) (*Client, error)`
+- `func Record (ctx context.Context, opts RecordOptions) *Recorder`
 - `func RunLogin (ctx context.Context, server string) error`
 - `func RunLogout (ctx context.Context, server string) error`
 - `func RunRegister (ctx context.Context, server string) error`
@@ -524,6 +593,7 @@ var UserAgent = "atkins"
 - `func SplitLabels (value string) []string`
 - `func (*APIError) Error () string`
 - `func (*Checkout) Payload () RepositoryPayload`
+- `func (*Checkout) Publishable () error`
 - `func (*Client) AppendLog (ctx context.Context, jobID,stream,content string) error`
 - `func (*Client) Artefacts (ctx context.Context, jobID string) ([]Artefact, error)`
 - `func (*Client) Claim (ctx context.Context, agentID string, labels []string) (*ClaimResponse, error)`
@@ -545,6 +615,12 @@ var UserAgent = "atkins"
 - `func (*Credential) Expired () bool`
 - `func (*Prompter) Line (label,env string) (string, error)`
 - `func (*Prompter) Password (label string) (string, error)`
+- `func (*Recorder) Cancelled (ctx context.Context)`
+- `func (*Recorder) Finish (ctx context.Context, exitCode int, runErr error)`
+- `func (*Recorder) JobID () string`
+- `func (*Recorder) Log (ctx context.Context, content string)`
+- `func (*Recorder) URL () string`
+- `func (*Recorder) Write (p []byte) (int, error)`
 - `func (*Store) Get (server string) (*Credential, bool)`
 - `func (*Store) Remove (server string)`
 - `func (*Store) Save () error`
@@ -607,14 +683,15 @@ func DetectCheckout(dir string) (*Checkout, error)
 Dispatch hands the current run to the CI/CD server this machine is
 logged in to, and returns where to watch it.
 
-It returns nil whenever the run belongs here instead: no credential,
-not inside a git repository, dispatch disabled, or the server could
-not be reached. Delegation is a convenience, and losing it should
-degrade to the behaviour of an unattached machine rather than to an
-error.
+Handing a run over is asked for — by --dispatch, or by
+`client.dispatch` in the configuration — so every reason it can't
+happen is an error rather than a quiet local run. The one that isn't
+worth stopping over is a repository nobody can clone, and that is
+refused before the job exists: an unpushed commit dispatches a job
+that dies in `git checkout` on a machine nobody is watching.
 
 ```go
-func Dispatch(ctx context.Context, opts DispatchOptions) *Dispatched
+func Dispatch(ctx context.Context, opts DispatchOptions) (*Dispatched, error)
 ```
 
 ### DispatchDisabled
@@ -698,6 +775,19 @@ server" rather than as a failure.
 func Open(server string) (*Client, error)
 ```
 
+### Record
+
+Record opens a job for a run about to happen here.
+
+It returns nil when there is nothing to record against: no
+credential, no git repository, recording turned off, or a server that
+can't be reached. Recording is bookkeeping, and losing it must not
+cost the run — unlike dispatch, which is the run.
+
+```go
+func Record(ctx context.Context, opts RecordOptions) *Recorder
+```
+
 ### RunLogin
 
 RunLogin drives `atkins --login https://domain`.
@@ -766,6 +856,20 @@ time the job is claimed.
 
 ```go
 func (*Checkout) Payload() RepositoryPayload
+```
+
+### Publishable
+
+Publishable reports whether another machine could reproduce this
+checkout from the repository's remote.
+
+A dispatched run names the commit it was started from, so a tree that
+only exists on this disk queues a job that fails in `git checkout`
+minutes later. The refusal belongs here, where the fix — commit and
+push, or run locally — is still in front of the person.
+
+```go
+func (*Checkout) Publishable() error
 ```
 
 ### AppendLog
@@ -958,6 +1062,59 @@ Password prompts for a secret without echoing it.
 
 ```go
 func (*Prompter) Password(label string) (string, error)
+```
+
+### Cancelled
+
+Cancelled settles the job as cancelled, for a run the user stopped.
+
+```go
+func (*Recorder) Cancelled(ctx context.Context)
+```
+
+### Finish
+
+Finish flushes what was written and settles the job.
+
+The status is derived from the same exit code the shell sees, so a
+recorded run and the terminal it ran in never disagree.
+
+```go
+func (*Recorder) Finish(ctx context.Context, exitCode int, runErr error)
+```
+
+### JobID
+
+JobID is the server's ID for this run, empty when unrecorded.
+
+```go
+func (*Recorder) JobID() string
+```
+
+### Log
+
+Log appends content to the job log immediately.
+
+```go
+func (*Recorder) Log(ctx context.Context, content string)
+```
+
+### URL
+
+URL is where the run is watched in a browser, empty when unrecorded.
+
+```go
+func (*Recorder) URL() string
+```
+
+### Write
+
+Write buffers output for the job log. It makes a Recorder an
+io.Writer, which is what lets the runner hand it a transcript without
+knowing what a job is.
+
+```go
+func (*Recorder) Write(p []byte) (int, error)
 ```
 
 ### Get
