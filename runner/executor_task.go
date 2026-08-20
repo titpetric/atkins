@@ -15,12 +15,30 @@ import (
 	"github.com/titpetric/atkins/treeview"
 )
 
-// executeTaskStep executes a task/job from within a step
-// Supports both simple task invocation and for loop task invocation with loop variables
+// executeTaskStep executes the task/job references of a step. A step may
+// name several jobs in one task: field (`task: lint test build`); they run
+// in sequence and the step fails on the first one that fails.
 func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
+	tasks := step.Tasks()
+	if len(tasks) == 0 {
+		stepNode.SetStatus(treeview.StatusPassed)
+		return nil
+	}
+
+	for _, taskRef := range tasks {
+		if err := e.executeTaskRef(ctx, execCtx, step, taskRef, stepNode); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// executeTaskRef executes a single task/job reference from within a step.
+// Supports both simple task invocation and for loop task invocation with loop variables
+func (e *Executor) executeTaskRef(ctx context.Context, execCtx *ExecutionContext, step *model.Step, taskRef string, stepNode *treeview.Node) error {
 	defer execCtx.Render()
 
-	resolved, err := execCtx.Resolve(step.Task)
+	resolved, err := execCtx.Resolve(taskRef)
 	if err != nil {
 		stepNode.SetStatus(treeview.StatusFailed)
 		return err
@@ -52,7 +70,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 
 		// Create a synthetic step to execute the dependency as a task
 		depStep := &model.Step{Task: depName}
-		if err := e.executeTaskStep(ctx, execCtx, depStep, stepNode); err != nil {
+		if err := e.executeTaskRef(ctx, execCtx, depStep, depName, stepNode); err != nil {
 			return err
 		}
 	}
@@ -71,7 +89,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 	if !step.For.IsEmpty() {
 		// Handle task invocation with for loop
 		// Don't add task node as child here - iteration nodes will be added instead
-		return e.executeTaskStepWithLoop(ctx, execCtx, step, stepNode, taskJob, taskJobNode, targetPipeline)
+		return e.executeTaskStepWithLoop(ctx, execCtx, step, taskRef, stepNode, taskJob, taskJobNode, targetPipeline)
 	}
 
 	// Add task node as child of step node so it appears expanded in the tree
@@ -211,7 +229,7 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 }
 
 // executeTaskStepWithLoop executes a task multiple times via a for loop with loop variables
-func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node, taskJob *model.Job, taskJobNode *treeview.TreeNode, targetPipeline *model.Pipeline) error {
+func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, taskRef string, stepNode *treeview.Node, taskJob *model.Job, taskJobNode *treeview.TreeNode, targetPipeline *model.Pipeline) error {
 	defer execCtx.Render()
 
 	if err := prepareStepLoopVariables(execCtx, step); err != nil {
@@ -262,11 +280,11 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 		iterID := fmt.Sprintf("jobs.%s.steps.%d", jobName, iterSeqIndex)
 
 		// Create a descriptive name showing the task and key variable values
-		iterName := step.Task
+		iterName := taskRef
 		if item := iterCtx.Variables.Get("item"); item != nil {
-			iterName = fmt.Sprintf("%s (item: %v)", step.Task, item)
+			iterName = fmt.Sprintf("%s (item: %v)", taskRef, item)
 		} else if path := iterCtx.Variables.Get("path"); path != nil {
-			iterName = fmt.Sprintf("%s (path: %v)", step.Task, path)
+			iterName = fmt.Sprintf("%s (path: %v)", taskRef, path)
 		}
 
 		// If step has a description, use that as the node name (after interpolation)

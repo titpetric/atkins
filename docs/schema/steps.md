@@ -112,6 +112,23 @@ jobs:
       - run: go build ./...
 ```
 
+### Multiple Tasks Per Step
+
+A single `task:` may name several jobs separated by whitespace. They run in
+sequence and the step fails on the first job that fails, so this is equivalent
+to writing one `task:` step per job:
+
+```yaml
+jobs:
+  all:
+    steps:
+      - task: lint test build
+```
+
+Names may repeat (`task: build build`), and each name is resolved
+independently, so namespaced and `:`-prefixed references can be mixed
+(`task: go:lint :build test`).
+
 ### Cross-Pipeline References
 
 Reference tasks from other pipelines using `:` prefix:

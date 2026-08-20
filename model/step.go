@@ -114,6 +114,14 @@ func (s *Step) Label(showPrefix bool) *Label {
 	}
 }
 
+// Tasks returns the job names referenced by the step's task: field.
+// A single task: value may name several jobs separated by whitespace
+// (`task: lint test build`), which run in sequence and are equivalent to
+// one task: step per job. Returns an empty slice for command steps.
+func (s *Step) Tasks() []string {
+	return strings.Fields(s.Task)
+}
+
 // Commands returns all executable commands from this step as a slice.
 // For steps with a single command (Run/Cmd), returns a slice with one element.
 // For steps with multiple commands (Cmds), returns the full slice.

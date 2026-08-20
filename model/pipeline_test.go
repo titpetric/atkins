@@ -366,6 +366,29 @@ func TestStepString_WithTask(t *testing.T) {
 	assert.Equal(t, "task: build", step.String())
 }
 
+// TestStepTasks tests splitting a task: reference into individual job names
+func TestStepTasks(t *testing.T) {
+	tests := []struct {
+		name     string
+		task     string
+		expected []string
+	}{
+		{"empty", "", []string{}},
+		{"single", "build", []string{"build"}},
+		{"multiple", "step1 step2 step3", []string{"step1", "step2", "step3"}},
+		{"repeated", "build build", []string{"build", "build"}},
+		{"extra whitespace", "  lint\ttest  ", []string{"lint", "test"}},
+		{"namespaced", "demo:hello :demo:bye", []string{"demo:hello", ":demo:bye"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			step := &model.Step{Task: tt.task}
+			assert.Equal(t, tt.expected, step.Tasks())
+		})
+	}
+}
+
 // TestStepString_Priority tests Step.String() field priority
 func TestStepString_Priority(t *testing.T) {
 	// Task has highest priority

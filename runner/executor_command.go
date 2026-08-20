@@ -215,17 +215,22 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		return NewExecError(result)
 	}
 
-	// Set output on node only after command completes successfully
+	// Set output on node only after command completes successfully.
+	// Both branches reuse the output captured by the run above; running the
+	// command a second time here would repeat its side effects.
 	if execCtx.CurrentStep != nil {
+		captured := result.Output()
+		if writer != nil {
+			captured = writer.String()
+		}
+
 		// For echo commands, update the step node label with the output
 		if IsEchoCommand(interpolated) {
-			echoOutput, echoErr := evaluateEchoCommand(ctx, execCtx.Env, execCtx.Dir, interpolated)
-			if echoErr == nil && echoOutput != "" {
+			if echoOutput := strings.TrimSpace(captured); echoOutput != "" {
 				execCtx.CurrentStep.Name = echoOutput
 			}
 		} else if writer != nil {
-			rawOutput := writer.String()
-			lines, sanitizeErr := Sanitize(rawOutput)
+			lines, sanitizeErr := Sanitize(captured)
 			if sanitizeErr != nil {
 				return fmt.Errorf("failed to sanitize output: %w", sanitizeErr)
 			}
@@ -242,19 +247,6 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 func IsEchoCommand(cmd string) bool {
 	trimmed := strings.TrimSpace(cmd)
 	return strings.HasPrefix(trimmed, "echo ") && !strings.Contains(trimmed, "\n")
-}
-
-// evaluateEchoCommand executes an echo command and returns its output for use as a label
-func evaluateEchoCommand(ctx context.Context, env Env, dir string, cmd string) (string, error) {
-	exec := psexec.NewWithOptions(&psexec.Options{
-		DefaultDir: dir,
-		DefaultEnv: env.Environ(),
-	})
-	result := exec.Run(ctx, exec.ShellCommand(cmd))
-	if !result.Success() {
-		return "", NewExecError(result)
-	}
-	return strings.TrimSpace(result.Output()), nil
 }
 
 // interpolateVariables interpolates all string variables in a map using $(exec) and ${{ var }} syntax.

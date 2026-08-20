@@ -1037,6 +1037,82 @@ func TestInvokedTask_SkipsWhenSubshellConditionFalse(t *testing.T) {
 	assert.ErrorIs(t, statErr, os.ErrNotExist)
 }
 
+func TestEchoStep_RunsOnce(t *testing.T) {
+	// Echo steps have their stdout promoted to the tree label. That output
+	// comes from the single run of the command; re-running it to read the
+	// output would apply the redirect twice.
+	tmpDir := t.TempDir()
+	pipeline := &model.Pipeline{
+		Name: "echo once",
+		Dir:  tmpDir,
+		Jobs: map[string]*model.Job{
+			"echoer": {
+				Name:  "echoer",
+				Steps: []*model.Step{{Run: "echo appended >> log"}},
+			},
+		},
+	}
+
+	err := runner.RunPipeline(t.Context(), pipeline, runner.PipelineOptions{
+		Jobs:         []string{"echoer"},
+		Silent:       true,
+		AllPipelines: []*model.Pipeline{pipeline},
+	})
+	assert.NoError(t, err)
+
+	log, readErr := os.ReadFile(tmpDir + "/log")
+	assert.NoError(t, readErr)
+	assert.Equal(t, "appended\n", string(log))
+}
+
+func TestTaskStep_MultipleTaskNames(t *testing.T) {
+	newPipeline := func(dir, task string) *model.Pipeline {
+		return &model.Pipeline{
+			Name: "multi task",
+			Dir:  dir,
+			Jobs: map[string]*model.Job{
+				"caller": {
+					Name:  "caller",
+					Steps: []*model.Step{{Task: task}},
+				},
+				"one":  {Name: "one", Steps: []*model.Step{{Run: "printf 'one\\n' >> log"}}},
+				"two":  {Name: "two", Steps: []*model.Step{{Run: "printf 'two\\n' >> log"}}},
+				"boom": {Name: "boom", Steps: []*model.Step{{Run: "exit 3"}}},
+			},
+		}
+	}
+
+	run := func(t *testing.T, task string) (string, error) {
+		t.Helper()
+
+		tmpDir := t.TempDir()
+		pipeline := newPipeline(tmpDir, task)
+		err := runner.RunPipeline(t.Context(), pipeline, runner.PipelineOptions{
+			Jobs:         []string{"caller"},
+			Silent:       true,
+			AllPipelines: []*model.Pipeline{pipeline},
+		})
+
+		log, readErr := os.ReadFile(tmpDir + "/log")
+		if readErr != nil {
+			return "", err
+		}
+		return string(log), err
+	}
+
+	t.Run("runs each named task in order", func(t *testing.T) {
+		log, err := run(t, "one two one")
+		assert.NoError(t, err)
+		assert.Equal(t, "one\ntwo\none\n", log)
+	})
+
+	t.Run("stops at the first failing task", func(t *testing.T) {
+		log, err := run(t, "one boom two")
+		assert.Error(t, err)
+		assert.Equal(t, "one\n", log)
+	})
+}
+
 func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
 	t.Run("CurrentStep should be set to iteration node during execution", func(t *testing.T) {
 		// This tests the fix for BUG 1: output should go to the correct iteration node,

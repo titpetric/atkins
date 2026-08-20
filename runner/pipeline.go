@@ -243,8 +243,8 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 
 		// Recursively find all task references
 		for _, step := range job.Children() {
-			if step.Task != "" {
-				if err := findInvokedJobs(step.Task, canonicalName); err != nil {
+			for _, taskRef := range step.Tasks() {
+				if err := findInvokedJobs(taskRef, canonicalName); err != nil {
 					return err
 				}
 			}
@@ -357,24 +357,28 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			if step.Task == "" || !step.For.IsEmpty() || i >= len(stepChildren) {
 				continue
 			}
-			taskJob := allJobs[step.Task]
-			if taskJob == nil {
-				taskJob = crossPipelineJobs[step.Task]
-			}
-			if taskJob == nil {
-				continue
-			}
-			// Pre-attach depends_on dependency nodes to the step node
-			// (the executor does the same at runtime via synthetic depStep calls)
-			for _, depName := range GetDependencies(taskJob.DependsOn) {
-				if depNode := jobNodes[depName]; depNode != nil {
-					stepChildren[i].AddChild(depNode.Node)
+			// A step may reference several jobs (`task: lint test build`);
+			// each is attached under the same step node, in order.
+			for _, taskRef := range step.Tasks() {
+				taskJob := allJobs[taskRef]
+				if taskJob == nil {
+					taskJob = crossPipelineJobs[taskRef]
 				}
-			}
-			// Pre-attach the task's own job node
-			if taskNode := jobNodes[step.Task]; taskNode != nil {
-				stepChildren[i].AddChild(taskNode.Node)
-				preAttachTaskSteps(step.Task)
+				if taskJob == nil {
+					continue
+				}
+				// Pre-attach depends_on dependency nodes to the step node
+				// (the executor does the same at runtime via synthetic depStep calls)
+				for _, depName := range GetDependencies(taskJob.DependsOn) {
+					if depNode := jobNodes[depName]; depNode != nil {
+						stepChildren[i].AddChild(depNode.Node)
+					}
+				}
+				// Pre-attach the task's own job node
+				if taskNode := jobNodes[taskRef]; taskNode != nil {
+					stepChildren[i].AddChild(taskNode.Node)
+					preAttachTaskSteps(taskRef)
+				}
 			}
 		}
 	}

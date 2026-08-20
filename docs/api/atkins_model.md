@@ -242,6 +242,7 @@ type VariableStorage interface {
 - `func (*Step) IsDeferred () bool`
 - `func (*Step) Label (showPrefix bool) *Label`
 - `func (*Step) String () string`
+- `func (*Step) Tasks () []string`
 - `func (*Step) UnmarshalYAML (node *yaml.Node) error`
 - `func (Conditionals) IsEmpty () bool`
 - `func (Conditionals) String () string`
@@ -506,6 +507,17 @@ String returns a string representation of the step.
 
 ```go
 func (*Step) String() string
+```
+
+### Tasks
+
+Tasks returns the job names referenced by the step's task: field.
+A single task: value may name several jobs separated by whitespace
+(`task: lint test build`), which run in sequence and are equivalent to
+one task: step per job. Returns an empty slice for command steps.
+
+```go
+func (*Step) Tasks() []string
 ```
 
 ### UnmarshalYAML

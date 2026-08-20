@@ -93,8 +93,11 @@ func (l *Linter) validateTaskInvocations() {
 
 		// Check each step for task references
 		for _, step := range job.Children() {
-			if step != nil && step.Task != "" {
-				if err := l.validateTaskReference(step.Task); err != nil {
+			if step == nil {
+				continue
+			}
+			for _, taskRef := range step.Tasks() {
+				if err := l.validateTaskReference(taskRef); err != nil {
 					l.errors = append(l.errors, LintError{
 						Job:    jobName,
 						Issue:  "missing task reference",

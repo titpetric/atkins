@@ -9,7 +9,7 @@ vars:
   image: titpetric/atkins
   build:
     goarch: [arm64, amd64]
-  tests: ["detach", "depends_on", "root_jobs"]
+  tests: ["detach", "depends_on", "root_jobs", "echo_twice"]
 
 env:
   vars:

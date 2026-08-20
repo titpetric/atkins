@@ -1,0 +1,32 @@
+#!/usr/bin/env atkins
+id: "echo_twice"
+name: "Steps starting with 'echo ' run once"
+
+# A step whose command starts with "echo " has its stdout promoted to the
+# tree label. That output is read from the single run of the command; an
+# earlier version re-ran the command to harvest it, which applied the
+# redirect below twice and reported from-echo: 2.
+#
+# Expected: from-echo: 1, from-printf: 1
+
+vars:
+  log: /tmp/atkins-echo-twice.log
+
+jobs:
+  default:
+    desc: "Append to a log with echo and with printf, then count the lines"
+    steps:
+      - name: "reset the log"
+        run: rm -f ${{ log }}
+
+      - name: "append with echo"
+        run: echo from-echo >> ${{ log }}
+
+      - name: "append with printf"
+        run: printf 'from-printf\n' >> ${{ log }}
+
+      - name: "count what landed in the log"
+        run: >-
+          printf 'from-echo: %s, from-printf: %s\n'
+          "$(grep -c from-echo ${{ log }})"
+          "$(grep -c from-printf ${{ log }})"
