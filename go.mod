@@ -1,6 +1,6 @@
 module github.com/titpetric/atkins
 
-go 1.27rc1
+go 1.27.0
 
 require (
 	charm.land/bubbles/v2 v2.1.1
@@ -8,7 +8,7 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/creack/pty v1.1.24
 	github.com/expr-lang/expr v1.17.8
-	github.com/go-bridget/mig v0.4.4
+	github.com/go-bridget/mig v0.5.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/oklog/ulid/v2 v2.1.2
@@ -80,6 +80,6 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 	modernc.org/libc v1.75.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.12.0 // indirect
-	modernc.org/sqlite v1.56.0 // indirect
+	modernc.org/memory v1.12.1 // indirect
+	modernc.org/sqlite v1.57.0 // indirect
 )
