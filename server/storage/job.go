@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/model"
@@ -164,7 +164,7 @@ type JobRequest struct {
 // the client: a job that lies about its depth would sidestep the
 // runaway-dispatch limit.
 func (s *JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Create)
+	ctx, span := oida.StartAuto(ctx, s.Create, oida.KindDatabase)
 	defer span.End()
 
 	id := ulid.String()
@@ -242,7 +242,7 @@ func (s *JobStorage) Get(ctx context.Context, id string) (*model.Job, error) {
 // `status = 'pending'`, so two agents racing for the same row produce
 // one winner and one empty poll rather than a job running twice.
 func (s *JobStorage) Claim(ctx context.Context, agentID string, labels []string) (*model.Job, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Claim)
+	ctx, span := oida.StartAuto(ctx, s.Claim, oida.KindDatabase)
 	defer span.End()
 
 	db := client(s.db)
@@ -324,7 +324,7 @@ type CheckoutRequest struct {
 // whose lease was already swept cannot rewrite the checkout of the run
 // that replaced it.
 func (s *JobStorage) RecordCheckout(ctx context.Context, jobID string, req CheckoutRequest) error {
-	ctx, span := telemetry.StartAuto(ctx, s.RecordCheckout)
+	ctx, span := oida.StartAuto(ctx, s.RecordCheckout, oida.KindDatabase)
 	defer span.End()
 
 	now := time.Now()
@@ -356,7 +356,7 @@ type StatusRequest struct {
 // report from a timed-out agent can't overwrite the outcome the server
 // already recorded.
 func (s *JobStorage) Finish(ctx context.Context, jobID string, req StatusRequest) (*model.Job, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Finish)
+	ctx, span := oida.StartAuto(ctx, s.Finish, oida.KindDatabase)
 	defer span.End()
 
 	if !model.TerminalJobStatus(req.Status) {
@@ -385,7 +385,7 @@ func (s *JobStorage) Finish(ctx context.Context, jobID string, req StatusRequest
 // and returns how many were reclaimed. The server runs this on a ticker
 // so an agent that disappears mid-job doesn't strand its work.
 func (s *JobStorage) ReclaimExpired(ctx context.Context) (int64, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.ReclaimExpired)
+	ctx, span := oida.StartAuto(ctx, s.ReclaimExpired, oida.KindDatabase)
 	defer span.End()
 
 	now := time.Now()
@@ -419,7 +419,7 @@ type ListFilter struct {
 
 // List returns jobs matching the filter, newest first.
 func (s *JobStorage) List(ctx context.Context, filter ListFilter) ([]model.Job, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.List)
+	ctx, span := oida.StartAuto(ctx, s.List, oida.KindDatabase)
 	defer span.End()
 
 	where := []string{"1 = 1"}

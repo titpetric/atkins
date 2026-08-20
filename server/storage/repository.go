@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/model"
@@ -38,7 +38,7 @@ type RepositoryRequest struct {
 // register a repository before using it. The slug is the identity, so
 // the same repository cloned over ssh and https is one row.
 func (s *RepositoryStorage) Ensure(ctx context.Context, userID string, req RepositoryRequest) (*model.Repository, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Ensure)
+	ctx, span := oida.StartAuto(ctx, s.Ensure, oida.KindDatabase)
 	defer span.End()
 
 	slug := model.RepositorySlug(req.RemoteURL)
@@ -93,7 +93,7 @@ func (s *RepositoryStorage) Get(ctx context.Context, id string) (*model.Reposito
 
 // List returns live repositories, newest first.
 func (s *RepositoryStorage) List(ctx context.Context, limit int) ([]model.Repository, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.List)
+	ctx, span := oida.StartAuto(ctx, s.List, oida.KindDatabase)
 	defer span.End()
 
 	if limit <= 0 {

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/model"
@@ -50,7 +50,7 @@ type SessionRequest struct {
 
 // Create issues a new session with a fresh refresh token.
 func (s *SessionStorage) Create(ctx context.Context, userID string, req SessionRequest) (*model.Session, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Create)
+	ctx, span := oida.StartAuto(ctx, s.Create, oida.KindDatabase)
 	defer span.End()
 
 	token, err := newRefreshToken()
@@ -83,7 +83,7 @@ func (s *SessionStorage) Create(ctx context.Context, userID string, req SessionR
 // A revoked or expired session is reported as such rather than as a
 // missing row, so the client can tell "log in again" from "bad token".
 func (s *SessionStorage) GetByRefreshToken(ctx context.Context, token string) (*model.Session, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.GetByRefreshToken)
+	ctx, span := oida.StartAuto(ctx, s.GetByRefreshToken, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.SessionTable + ` WHERE refresh_token = ?`
@@ -108,7 +108,7 @@ func (s *SessionStorage) GetByRefreshToken(ctx context.Context, token string) (*
 // is single-use, so a leaked one is detectable (the legitimate client's
 // next refresh fails) and short-lived.
 func (s *SessionStorage) Rotate(ctx context.Context, sessionID string) (*model.Session, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Rotate)
+	ctx, span := oida.StartAuto(ctx, s.Rotate, oida.KindDatabase)
 	defer span.End()
 
 	token, err := newRefreshToken()
@@ -140,7 +140,7 @@ func (s *SessionStorage) Get(ctx context.Context, id string) (*model.Session, er
 // Revoke marks a session as logged out. Revoking an already-revoked or
 // unknown session is not an error: logout is idempotent.
 func (s *SessionStorage) Revoke(ctx context.Context, sessionID string) error {
-	ctx, span := telemetry.StartAuto(ctx, s.Revoke)
+	ctx, span := oida.StartAuto(ctx, s.Revoke, oida.KindDatabase)
 	defer span.End()
 
 	now := time.Now()
@@ -153,7 +153,7 @@ func (s *SessionStorage) Revoke(ctx context.Context, sessionID string) error {
 
 // RevokeByRefreshToken revokes the session holding the given token.
 func (s *SessionStorage) RevokeByRefreshToken(ctx context.Context, token string) error {
-	ctx, span := telemetry.StartAuto(ctx, s.RevokeByRefreshToken)
+	ctx, span := oida.StartAuto(ctx, s.RevokeByRefreshToken, oida.KindDatabase)
 	defer span.End()
 
 	now := time.Now()

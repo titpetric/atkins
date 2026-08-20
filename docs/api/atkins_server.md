@@ -38,6 +38,11 @@ type Module struct {
 	artefacts *storage.JobArtefactStorage
 	settings  *storage.SettingStorage
 
+	// tracer records the background sweeps. It is the platform's
+	// recorder when the host enabled telemetry, and nil otherwise;
+	// every oida entry point tolerates a nil one.
+	tracer *oida.Tracer
+
 	// cancel stops the background sweeps: expired agent leases, and
 	// retention. done waits for both.
 	cancel context.CancelFunc

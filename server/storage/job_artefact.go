@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/blob"
@@ -72,7 +72,7 @@ type ArtefactRequest struct {
 // from two steps — should leave one scan.json rather than two, and the
 // count limit should not be spent on duplicates.
 func (s *JobArtefactStorage) Create(ctx context.Context, req ArtefactRequest) (*model.JobArtefact, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Create)
+	ctx, span := oida.StartAuto(ctx, s.Create, oida.KindDatabase)
 	defer span.End()
 
 	path := model.ArtefactPath(req.Path)
@@ -144,7 +144,7 @@ func (s *JobArtefactStorage) Create(ctx context.Context, req ArtefactRequest) (*
 
 // List returns the artefacts of a job whose bytes are still there.
 func (s *JobArtefactStorage) List(ctx context.Context, jobID string) ([]model.JobArtefact, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.List)
+	ctx, span := oida.StartAuto(ctx, s.List, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.JobArtefactTable + ` WHERE job_id = ? AND deleted_at IS NULL ORDER BY path ASC`
@@ -202,7 +202,7 @@ func (s *JobArtefactStorage) Count(ctx context.Context, jobID string) (int64, er
 // makes the removal auditable: "swept by retention" and "never uploaded"
 // are different answers to why a file isn't there.
 func (s *JobArtefactStorage) PruneExpired(ctx context.Context, cutoff time.Time) (int64, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.PruneExpired)
+	ctx, span := oida.StartAuto(ctx, s.PruneExpired, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.JobArtefactTable + `

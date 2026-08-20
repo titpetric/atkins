@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform/pkg/ulid"
 	"golang.org/x/crypto/ssh"
 
@@ -50,7 +50,7 @@ type SSHKeyRequest struct {
 // Create stores a key, deriving its public half and fingerprint so an
 // operator never has to paste those separately.
 func (s *SSHKeyStorage) Create(ctx context.Context, userID string, req SSHKeyRequest) (*model.SSHKey, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Create)
+	ctx, span := oida.StartAuto(ctx, s.Create, oida.KindDatabase)
 	defer span.End()
 
 	name := strings.TrimSpace(req.Name)
@@ -91,7 +91,7 @@ func (s *SSHKeyStorage) Create(ctx context.Context, userID string, req SSHKeyReq
 // List returns the keys, newest first, including private material.
 // Callers rendering these to a user must project them first.
 func (s *SSHKeyStorage) List(ctx context.Context) ([]model.SSHKey, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.List)
+	ctx, span := oida.StartAuto(ctx, s.List, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.SSHKeyTable + ` WHERE deleted_at IS NULL ORDER BY created_at DESC`
@@ -100,7 +100,7 @@ func (s *SSHKeyStorage) List(ctx context.Context) ([]model.SSHKey, error) {
 
 // ListForAgent returns the active keys an agent should install.
 func (s *SSHKeyStorage) ListForAgent(ctx context.Context) ([]model.SSHKey, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.ListForAgent)
+	ctx, span := oida.StartAuto(ctx, s.ListForAgent, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.SSHKeyTable + ` WHERE deleted_at IS NULL AND is_active = 1 ORDER BY host ASC, created_at ASC`
@@ -122,7 +122,7 @@ func (s *SSHKeyStorage) SetActive(ctx context.Context, id string, active bool) e
 
 // Delete soft-deletes a key.
 func (s *SSHKeyStorage) Delete(ctx context.Context, id string) error {
-	ctx, span := telemetry.StartAuto(ctx, s.Delete)
+	ctx, span := oida.StartAuto(ctx, s.Delete, oida.KindDatabase)
 	defer span.End()
 
 	now := time.Now()

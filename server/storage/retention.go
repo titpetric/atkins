@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 
 	"github.com/titpetric/atkins/server/model"
 )
@@ -86,7 +86,7 @@ func (r RetentionRequest) withDefaults() RetentionRequest {
 // pending job is not old, it is waiting, and a running job that has
 // lost its agent is the lease sweep's problem, not this one's.
 func (s *JobStorage) Purge(ctx context.Context, req RetentionRequest) (RetentionResult, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Purge)
+	ctx, span := oida.StartAuto(ctx, s.Purge, oida.KindDatabase)
 	defer span.End()
 
 	req = req.withDefaults()

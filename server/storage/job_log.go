@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/model"
@@ -42,7 +42,7 @@ const MaxLogChunk = 256 * 1024
 // Chunks are numbered per job so the page can render them in the order
 // the agent produced them, without relying on timestamp resolution.
 func (s *JobLogStorage) Append(ctx context.Context, jobID, stream, content string) error {
-	ctx, span := telemetry.StartAuto(ctx, s.Append)
+	ctx, span := oida.StartAuto(ctx, s.Append, oida.KindDatabase)
 	defer span.End()
 
 	if stream != StreamError {
@@ -74,7 +74,7 @@ func (s *JobLogStorage) Append(ctx context.Context, jobID, stream, content strin
 
 // List returns the log chunks for a job, in the order they arrived.
 func (s *JobLogStorage) List(ctx context.Context, jobID string) ([]model.JobLog, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.List)
+	ctx, span := oida.StartAuto(ctx, s.List, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.JobLogTable + ` WHERE job_id = ? ORDER BY seq ASC`

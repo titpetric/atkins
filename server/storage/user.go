@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform/pkg/ulid"
 	"golang.org/x/crypto/bcrypt"
 
@@ -50,7 +50,7 @@ type CreateRequest struct {
 // instance has nobody to grant the first grant, so the bootstrap has to
 // come from somewhere.
 func (s *UserStorage) Create(ctx context.Context, req CreateRequest) (*model.User, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Create)
+	ctx, span := oida.StartAuto(ctx, s.Create, oida.KindDatabase)
 	defer span.End()
 
 	email := strings.ToLower(strings.TrimSpace(req.Email))
@@ -68,7 +68,7 @@ func (s *UserStorage) Create(ctx context.Context, req CreateRequest) (*model.Use
 		return nil, fmt.Errorf("check username: %w", err)
 	}
 
-	_, hashSpan := telemetry.Start(ctx, "bcrypt.GenerateFromPassword")
+	_, hashSpan := oida.Start(ctx, "bcrypt.GenerateFromPassword")
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	hashSpan.End()
 	if err != nil {
@@ -106,7 +106,7 @@ func (s *UserStorage) Create(ctx context.Context, req CreateRequest) (*model.Use
 // an explicitly deactivated account, which is worth telling the caller
 // about since retrying the password won't help.
 func (s *UserStorage) Authenticate(ctx context.Context, email, password string) (*model.User, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Authenticate)
+	ctx, span := oida.StartAuto(ctx, s.Authenticate, oida.KindDatabase)
 	defer span.End()
 
 	user, err := s.GetByEmail(ctx, strings.ToLower(strings.TrimSpace(email)))
@@ -132,7 +132,7 @@ func (s *UserStorage) Authenticate(ctx context.Context, email, password string) 
 
 // Get returns a user by ID. Soft-deleted users are not returned.
 func (s *UserStorage) Get(ctx context.Context, id string) (*model.User, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Get)
+	ctx, span := oida.StartAuto(ctx, s.Get, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.UserTable + ` WHERE id = ? AND deleted_at IS NULL`
@@ -141,7 +141,7 @@ func (s *UserStorage) Get(ctx context.Context, id string) (*model.User, error) {
 
 // GetByEmail returns a user by email. Soft-deleted users are not returned.
 func (s *UserStorage) GetByEmail(ctx context.Context, email string) (*model.User, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.GetByEmail)
+	ctx, span := oida.StartAuto(ctx, s.GetByEmail, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.UserTable + ` WHERE email = ? AND deleted_at IS NULL`
@@ -155,7 +155,7 @@ func (s *UserStorage) getByUsername(ctx context.Context, username string) (*mode
 
 // List returns live users, newest first.
 func (s *UserStorage) List(ctx context.Context) ([]model.User, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.List)
+	ctx, span := oida.StartAuto(ctx, s.List, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.UserTable + ` WHERE deleted_at IS NULL ORDER BY created_at ASC`
@@ -173,7 +173,7 @@ type Flags struct {
 
 // SetFlags updates a user's administrative state.
 func (s *UserStorage) SetFlags(ctx context.Context, id string, flags Flags) (*model.User, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.SetFlags)
+	ctx, span := oida.StartAuto(ctx, s.SetFlags, oida.KindDatabase)
 	defer span.End()
 
 	assignments := []string{}
@@ -264,7 +264,7 @@ func (s *UserStorage) CountAdmins(ctx context.Context) (int64, error) {
 // password, so the account gets a random one it never learns: there is
 // no password login path for an agent to leak.
 func (s *UserStorage) EnsureAgent(ctx context.Context, agentID string) (*model.User, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.EnsureAgent)
+	ctx, span := oida.StartAuto(ctx, s.EnsureAgent, oida.KindDatabase)
 	defer span.End()
 
 	username := "agent-" + strings.TrimSpace(agentID)
@@ -313,7 +313,7 @@ func (s *UserStorage) EnsureAgent(ctx context.Context, agentID string) (*model.U
 // registration is the bootstrap one, and an agent enrolling first
 // should neither claim that slot nor close the door behind it.
 func (s *UserStorage) Count(ctx context.Context) (int64, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Count)
+	ctx, span := oida.StartAuto(ctx, s.Count, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT COUNT(*) AS count FROM ` + model.UserTable + ` WHERE deleted_at IS NULL AND is_agent = 0`

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/model"
@@ -34,7 +34,7 @@ type RuleRequest struct {
 
 // Create adds an allowlist rule.
 func (s *RepositoryRuleStorage) Create(ctx context.Context, userID string, req RuleRequest) (*model.RepositoryRule, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Create)
+	ctx, span := oida.StartAuto(ctx, s.Create, oida.KindDatabase)
 	defer span.End()
 
 	pattern := strings.ToLower(strings.TrimSpace(req.Pattern))
@@ -68,7 +68,7 @@ func (s *RepositoryRuleStorage) Get(ctx context.Context, id string) (*model.Repo
 
 // List returns the rules, newest first.
 func (s *RepositoryRuleStorage) List(ctx context.Context) ([]model.RepositoryRule, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.List)
+	ctx, span := oida.StartAuto(ctx, s.List, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.RepositoryRuleTable + ` WHERE deleted_at IS NULL ORDER BY created_at DESC`
@@ -83,7 +83,7 @@ func (s *RepositoryRuleStorage) ListActive(ctx context.Context) ([]model.Reposit
 
 // SetActive enables or disables a rule without deleting it.
 func (s *RepositoryRuleStorage) SetActive(ctx context.Context, id string, active bool) error {
-	ctx, span := telemetry.StartAuto(ctx, s.SetActive)
+	ctx, span := oida.StartAuto(ctx, s.SetActive, oida.KindDatabase)
 	defer span.End()
 
 	db := client(s.db)
@@ -99,7 +99,7 @@ func (s *RepositoryRuleStorage) SetActive(ctx context.Context, id string, active
 
 // Delete soft-deletes a rule.
 func (s *RepositoryRuleStorage) Delete(ctx context.Context, id string) error {
-	ctx, span := telemetry.StartAuto(ctx, s.Delete)
+	ctx, span := oida.StartAuto(ctx, s.Delete, oida.KindDatabase)
 	defer span.End()
 
 	now := time.Now()
@@ -135,7 +135,7 @@ func (s *RepositoryRuleStorage) AllowedUnderPolicy(ctx context.Context, policy m
 // turns the policy on without writing a rule has asked for nothing to
 // run.
 func (s *RepositoryRuleStorage) Allowed(ctx context.Context, slug string) (bool, error) {
-	ctx, span := telemetry.StartAuto(ctx, s.Allowed)
+	ctx, span := oida.StartAuto(ctx, s.Allowed, oida.KindDatabase)
 	defer span.End()
 
 	rules, err := s.ListActive(ctx)

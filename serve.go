@@ -95,7 +95,19 @@ func runServer(ctx context.Context, opts *ServerOptions) error {
 	}
 	platform.SetupConnections(os.Environ())
 
-	svc := platform.New(&platform.Options{ServerAddr: config.Addr})
+	// NewOptions rather than a literal: it carries the telemetry
+	// defaults and reads PLATFORM_TELEMETRY_*, and an Options built by
+	// hand leaves the recorder at its zero value, which is off. The
+	// listen address is the one atkins resolved, not the platform's.
+	options := platform.NewOptions()
+	options.ServerAddr = config.Addr
+
+	// The dashboard labels its traces with the service name, and the
+	// platform's default names the framework rather than the service
+	// running on it.
+	options.Telemetry.ServiceName = "atkins"
+
+	svc := platform.New(options)
 	svc.Register(server.NewModule(server.FromConfig(config)))
 
 	if err := svc.Start(ctx); err != nil {

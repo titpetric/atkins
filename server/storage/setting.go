@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/titpetric/platform/pkg/telemetry"
+	"github.com/titpetric/oida"
 
 	"github.com/titpetric/atkins/server/model"
 )
@@ -34,7 +34,7 @@ func NewSettingStorage(db *sqlx.DB) *SettingStorage {
 
 // Load fills the cache from the database.
 func (s *SettingStorage) Load(ctx context.Context) error {
-	ctx, span := telemetry.StartAuto(ctx, s.Load)
+	ctx, span := oida.StartAuto(ctx, s.Load, oida.KindDatabase)
 	defer span.End()
 
 	query := `SELECT * FROM ` + model.SettingTable
@@ -148,7 +148,7 @@ type SettingValue struct {
 
 // Set stores an override after validating it against the registry.
 func (s *SettingStorage) Set(ctx context.Context, name, value, userID string) error {
-	ctx, span := telemetry.StartAuto(ctx, s.Set)
+	ctx, span := oida.StartAuto(ctx, s.Set, oida.KindDatabase)
 	defer span.End()
 
 	definition, ok := model.LookupSetting(name)
@@ -186,7 +186,7 @@ func (s *SettingStorage) Set(ctx context.Context, name, value, userID string) er
 
 // Reset drops an override, returning the setting to its default.
 func (s *SettingStorage) Reset(ctx context.Context, name string) error {
-	ctx, span := telemetry.StartAuto(ctx, s.Reset)
+	ctx, span := oida.StartAuto(ctx, s.Reset, oida.KindDatabase)
 	defer span.End()
 
 	if _, ok := model.LookupSetting(name); !ok {

@@ -12,11 +12,13 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	_ "github.com/titpetric/platform/pkg/drivers"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform"
 
 	"github.com/titpetric/atkins/server"
@@ -533,4 +535,49 @@ func TestModuleRequiresSigningKey(t *testing.T) {
 	svc.Register(server.NewModule(&server.Options{}))
 
 	assert.Error(t, svc.Start(context.Background()))
+}
+
+// TestModuleRecordsSweeps pins the sweeps onto the host's recorder.
+//
+// A sweep runs on a ticker rather than on a request, so nothing upstream
+// opens a trace for it, and the storage spans it makes would be dropped
+// without the module finding the platform's tracer itself. Recording an
+// unmounted background trace is easy to lose in a refactor and invisible
+// until someone opens the dashboard, so it is asserted here.
+func TestModuleRecordsSweeps(t *testing.T) {
+	connection := "atkins_test_" + strconv.Itoa(int(connectionSeq.Add(1)))
+	dsn := "sqlite://file:" + filepath.Join(t.TempDir(), "atkins.db")
+	t.Setenv("PLATFORM_DB_"+strings.ToUpper(connection), dsn)
+	platform.SetupConnections(os.Environ())
+
+	opts := server.NewOptions()
+	opts.Connection = connection
+	opts.SigningKey = "test-signing-key"
+	opts.ArtefactDir = filepath.Join(t.TempDir(), "artefacts")
+	// Short enough that a tick lands inside the test, and the reclaim
+	// sweep is the cheap one: an UPDATE over an empty table.
+	opts.ReclaimInterval = 10 * time.Millisecond
+	opts.RetentionInterval = 0
+
+	options := platform.NewTestOptions()
+	options.Telemetry = oida.NewOptions()
+	options.Telemetry.Enabled = true
+
+	svc := platform.New(options)
+	svc.Register(server.NewModule(opts))
+
+	require.NoError(t, svc.Start(context.Background()))
+	defer svc.Stop()
+
+	var telemetry *platform.TelemetryModule
+	require.True(t, svc.Find(&telemetry))
+
+	require.Eventually(t, func() bool {
+		for _, trace := range telemetry.Tracer().Traces() {
+			if trace.Name == "atkins.reclaim" {
+				return true
+			}
+		}
+		return false
+	}, 2*time.Second, 10*time.Millisecond)
 }

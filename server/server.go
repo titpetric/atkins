@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/titpetric/oida"
 	"github.com/titpetric/platform"
-	"github.com/titpetric/platform/pkg/telemetry"
 
 	"github.com/titpetric/atkins/server/api"
 	"github.com/titpetric/atkins/server/blob"
@@ -49,6 +49,11 @@ type Module struct {
 	jobs      *storage.JobStorage
 	artefacts *storage.JobArtefactStorage
 	settings  *storage.SettingStorage
+
+	// tracer records the background sweeps. It is the platform's
+	// recorder when the host enabled telemetry, and nil otherwise;
+	// every oida entry point tolerates a nil one.
+	tracer *oida.Tracer
 
 	// cancel stops the background sweeps: expired agent leases, and
 	// retention. done waits for both.
@@ -82,6 +87,8 @@ func (m *Module) Start(ctx context.Context) error {
 	if m.opts.SigningKey == "" {
 		return errors.New("atkins server: " + EnvSigningKey + " is required to sign access tokens")
 	}
+
+	m.tracer = telemetryTracer(ctx)
 
 	db, err := storage.DB(ctx, m.opts.Connection)
 	if err != nil {
@@ -193,7 +200,7 @@ func (m *Module) Stop(context.Context) error {
 // amount of tidying on a timer — and because a server with one
 // background goroutine is easier to reason about than one with two.
 func (m *Module) startReclaim(ctx context.Context) {
-	m.sweep(ctx, m.opts.ReclaimInterval, func(ctx context.Context) error {
+	m.sweep(ctx, "atkins.reclaim", m.opts.ReclaimInterval, func(ctx context.Context) error {
 		// Deferred rather than sequential: a reclaim that fails is no
 		// reason to leave expired bytes on the disk for another tick.
 		defer m.pruneArtefacts(ctx)
@@ -223,7 +230,7 @@ func (m *Module) startReclaim(ctx context.Context) {
 // restart. Passing zero for both makes the pass a no-op, which is what
 // an instance that keeps everything forever wants.
 func (m *Module) startRetention(ctx context.Context) {
-	m.sweep(ctx, m.opts.RetentionInterval, func(ctx context.Context) error {
+	m.sweep(ctx, "atkins.retention", m.opts.RetentionInterval, func(ctx context.Context) error {
 		result, err := m.jobs.Purge(ctx, storage.RetentionRequest{
 			Jobs: m.settings.Duration(model.SettingJobRetention),
 			Logs: m.settings.Duration(model.SettingJobLogRetention),
@@ -250,10 +257,16 @@ func partially(partial bool) string {
 	return ""
 }
 
-// sweep runs work on a ticker until the module stops. A non-positive
-// interval disables it, which is how the module tests keep background
-// writes out of their assertions.
-func (m *Module) sweep(ctx context.Context, interval time.Duration, work func(context.Context) error) {
+// sweep runs work named name on a ticker until the module stops. A
+// non-positive interval disables it, which is how the module tests keep
+// background writes out of their assertions.
+//
+// Each tick runs inside a trace of its own. A sweep does not arrive over
+// the network, so nothing upstream opens one, and without it the storage
+// spans underneath would have nothing to record onto. The error a tick
+// returns is recorded on that trace and goes nowhere else: a ticker has
+// no caller to return it to.
+func (m *Module) sweep(ctx context.Context, name string, interval time.Duration, work func(context.Context) error) {
 	if interval <= 0 {
 		return
 	}
@@ -270,12 +283,27 @@ func (m *Module) sweep(ctx context.Context, interval time.Duration, work func(co
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if err := work(ctx); err != nil {
-					telemetry.CaptureError(ctx, err)
-				}
+				_ = m.tracer.Observe(ctx, name, work)
 			}
 		}
 	}()
+}
+
+// telemetryTracer returns the recorder the platform hosting the module
+// registered, or nil when the host records nothing. The module records
+// onto the host's tracer rather than the process wide default, so a test
+// starting two servers keeps their traces apart.
+func telemetryTracer(ctx context.Context) *oida.Tracer {
+	host := platform.FromContext(ctx)
+	if host == nil {
+		return nil
+	}
+
+	var module *platform.TelemetryModule
+	if !host.Find(&module) {
+		return nil
+	}
+	return module.Tracer()
 }
 
 // pruneArtefacts drops artefact bytes that have outlived their
@@ -301,7 +329,7 @@ func (m *Module) pruneArtefacts(ctx context.Context) {
 
 	swept, err := m.artefacts.PruneExpired(ctx, time.Now().Add(-retention))
 	if err != nil {
-		telemetry.CaptureError(ctx, err)
+		oida.RecordError(ctx, err)
 		return
 	}
 	if swept > 0 {
