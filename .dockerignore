@@ -9,7 +9,6 @@ coverage
 docs
 examples
 tests
-scripts/FlameGraph
 
 # Built artefacts and recordings that would otherwise dominate the
 # context: the checked-in binary alone is ~11MB.

@@ -63,10 +63,10 @@ jobs:
       # goimports-reviser merges, and generating afterwards would leave
       # the committed files permanently one `fmt` behind.
       - task: templ
-      - goimports -w .
-      - goimports-reviser -set-alias -format -imports-order "std,blanked,general,company,project" -excludes "scripts/" ./...
-      - gofumpt -w .
-      - go mod tidy
+      # go:fmt is goimports, gofumpt and go mod tidy. go:fmt:revise has to run
+      # after it and not before: goimports would re-sort the import groups the
+      # reviser just arranged back into its own three-group layout.
+      - task: go:fmt go:fmt:revise
       - go-fsck lint ./... || true
 
   test:simple:
