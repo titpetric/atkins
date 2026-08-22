@@ -1,0 +1,78 @@
+name: Go build and test
+
+when:
+  files:
+    - go.mod
+
+vars:
+  name: $(basename $(realpath -s .))
+  semver: $(git tag --sort=version:refname | tail -n 1 || true)
+  image: titpetric/${{name}}
+
+env:
+  vars:
+    CGO_ENABLED: 0
+    GIT_TAG: $(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+    GIT_COMMIT: $(git rev-parse HEAD 2>/dev/null || true)
+    GIT_TIME: $(git log -1 --format="format:%aI" 2>/dev/null || true)
+    GIT_BRANCH: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    GIT_MODIFIED: $(git status --porcelain 2>/dev/null | wc -l)
+
+jobs:
+  build:
+    desc: "Build app"
+    vars:
+      matrix:
+        goos: [linux]
+        goarch: [amd64]
+    steps:
+      - for:
+          - goos in matrix.goos
+          - goarch in matrix.goarch
+        env:
+          vars:
+            GOOS: ${{ goos }}
+            GOARCH: ${{ goarch }}
+            buildPath: $(if [ -f main.go ]; then echo .; elif [ -d cmd ]; then find cmd -maxdepth 2 -name 'main.go' -printf './%h\n' | head -1; else echo .; fi)
+        detach: true
+        run: go build -trimpath -ldflags="-X 'main.Version=${GIT_TAG}' -X 'main.Commit=${GIT_COMMIT}' -X 'main.CommitTime=${GIT_TIME}' -X 'main.Branch=${GIT_BRANCH}' -X 'main.Modified=${GIT_MODIFIED}'" -o bin/${{name}}-${GOOS}-${GOARCH} ${{buildPath}}
+
+  fmt:
+    desc: "Format the code"
+    steps:
+      - goimports -w .
+      - gofumpt -w .
+      - go mod tidy
+
+  fmt:revise:
+    desc: "Revise goimports formatting"
+    steps:
+      - goimports-reviser -set-alias -format -imports-order "std,blanked,general,company,project" -excludes "scripts/" ./...
+
+  lint:
+    desc: "Lint the code"
+    passthru: true
+    tty: true
+    steps:
+      - gofsck ./... || true
+      - go-fsck lint ./... || true
+      - golangci-lint run ./... --issues-exit-code 0 || true
+
+  default:
+    desc: "Go lifecycle"
+    depends_on: [generate, fmt, lint, test, build]
+
+  generate:
+    desc: "Run go generate/fix"
+    passthru: true
+    tty: true
+    steps:
+      - go generate ./...
+      - go fix ./...
+
+  test:
+    desc: "Run tests"
+    passthru: true
+    tty: true
+    steps:
+      - gotestsum ./... -- -count 1 -cover

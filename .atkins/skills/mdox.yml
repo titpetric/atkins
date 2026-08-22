@@ -1,0 +1,39 @@
+when:
+  files:
+    - .vale.ini
+    - docs/
+    - README.md
+
+tasks:
+  default:
+    desc: "Run mdox to check markdowns"
+    cmds:
+      - task: lint
+
+  fmt:
+    desc: "Run mdox to format markdowns"
+    passthru: true
+    cmds:
+      - if: $(test -d docs)
+        cmd: mdox fmt --soft-wraps ${{ files }} || true
+        vars:
+          files: $(find ./docs -name '*.md' 2>/dev/null | xargs --no-run-if-empty echo || true)
+      - if: $(test -f README.md)
+        cmd: mdox fmt --soft-wraps README.md
+
+  lint:
+    desc: "Run vale to lint language"
+    passthru: true
+    vars:
+      files: $(find ./docs -name '*.md' 2>/dev/null | xargs --no-run-if-empty echo || true)
+    cmds:
+      - if: $(test -d docs)
+        cmd: mdox fmt --check --soft-wraps ${{ files }}
+      - if: $(test -f .vale.ini)
+        cmd: docker run --rm -v $PWD/docs:/docs -w /docs jdkato/vale .
+
+  setup:
+    desc: "Install bwplotka/mdox"
+    interactive: true
+    cmds:
+      - go install github.com/bwplotka/mdox@latest

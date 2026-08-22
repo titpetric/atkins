@@ -1,0 +1,53 @@
+name: Create a GitHub release
+
+when:
+  files:
+    - .github/
+    - docker/Dockerfile
+
+vars:
+  name: $(basename $(realpath -s .))
+  semver: $(git tag --sort=version:refname | tail -n 1)
+  image: titpetric/${{name}}
+  build:
+    goos: [linux]
+    goarch: [amd64]
+
+jobs:
+  default:
+    passthru: true
+    desc: "Print latest release tag"
+    steps:
+      - run: echo "Latest git tag ${{semver}}"
+      - task: build
+      - task: test
+
+  build:
+    desc: "Build assets required for release"
+    passthru: true
+    steps:
+      - task: docker:build
+
+  test:
+    desc: "Run tests required for release"
+    passthru: true
+    steps:
+      - task: docker:test
+
+  publish:
+    desc: "Publish release assets"
+    aliases: [publish]
+    steps:
+      - if: semver != ""
+        task: publish:github
+      - task: docker:push
+
+  publish:github:
+    desc: "Create a GitHub release"
+    steps:
+      - run: echo "Last release [${{semver}}]"
+      - gh release create ${{ semver }} --title ${{semver}} --notes "Release ${{semver}}" || true
+      - for:
+          - goos in ${{build.goos}}
+          - goarch in ${{build.goarch}}
+        run: gh release upload --clobber ${{ semver }} ./bin/${{name}}-${{goos}}-${{goarch}}

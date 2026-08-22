@@ -1,0 +1,43 @@
+name: Docker compose lifecycle
+
+when:
+  files:
+    - compose.yml
+    - docker-compose.yml
+
+jobs:
+  up:
+    desc: "Bring up env"
+    passthru: true
+    steps:
+      - docker compose up -d --remove-orphans --wait
+
+  down:
+    desc: "Stop env"
+    passthru: true
+    steps:
+      - docker compose down --remove-orphans
+
+  build:
+    desc: "Build env (if build: in compose)"
+    passthru: true
+    steps:
+      - docker compose build
+
+  pull:
+    desc: "Pull env images"
+    passthru: true
+    steps:
+      - docker compose pull
+
+  ps:
+    desc: "Show env status"
+    passthru: true
+    steps:
+      - docker compose ps
+
+  logs:
+    desc: "Tail env logs"
+    passthru: true
+    steps:
+      - docker compose logs -f --tail=200

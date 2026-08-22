@@ -1,0 +1,45 @@
+name: Docker build and push
+
+when:
+  files:
+    - docker/Dockerfile
+
+vars:
+  name: $(basename $(realpath -s .))
+  semver: $(git tag --sort=version:refname | tail -n 1)
+  image: titpetric/${{name}}
+
+jobs:
+  build:
+    desc: "Build Docker image"
+    passthru: true
+    steps:
+      - if: semver != ""
+        cmd:
+          docker buildx build --platform linux/amd64 --no-cache --build-arg NAME=${{name}} -t ${{image}}:${{semver}} -f docker/Dockerfile .
+      - cmd:
+          docker buildx build --platform linux/amd64 --no-cache --build-arg NAME=${{name}} -t ${{image}}:latest -f docker/Dockerfile .
+
+  push:
+    desc: "Push Docker image"
+    passthru: true
+    steps:
+      - run: docker push ${{image}}:latest
+      # Only push the tag when HEAD is exactly the tagged commit; if the local
+      # tree is ahead of ${{semver}}, the tag would point at unreleased code.
+      - if:
+          - semver != ""
+          - $(test "$(git rev-parse --verify -q ${{semver}}^{commit})" = "$(git rev-parse --verify -q HEAD)")
+        run: docker push ${{image}}:${{semver}}
+
+  test:
+    desc: "Test Docker image"
+    passthru: true
+    if: $(test -f docker/Dockerfile.test)
+    steps:
+      - if: $(test -f docker/Dockerfile.test)
+        cmd:
+          docker buildx build --platform linux/amd64 --no-cache --build-arg NAME=${{name}} --build-arg DOCKER_IMAGE=${{image}} -t ${{image}}-test -f docker/Dockerfile.test .
+      - if: $(test -f docker/Dockerfile.test)
+        cmd:
+          docker run --rm ${{image}}-test --help

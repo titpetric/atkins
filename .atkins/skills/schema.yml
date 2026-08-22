@@ -1,0 +1,24 @@
+name: SQL Migrations (mig)
+
+when:
+  files:
+    - schema/*.up.sql
+
+vars:
+  name: $(basename $(realpath -s .))
+
+jobs:
+  migrate:
+    desc: "Run module migrations"
+    aliases: [migrate]
+    passthru: true
+    env:
+      vars:
+        MIG_DB_DSN: "sqlite://file:${{name}}.db"
+    steps:
+      - defer: rm ${{name}}.db -f
+      - mig migrate --project ${{name}} --path ./schema --apply
+      - mig lint
+      - mig docs --output=./schema/docs
+      - mig docs --output=./schema --yaml --output-file schema.yml
+      - mig gen --go.fill-json --output=./model
