@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/titpetric/atkins/agent/ai"
 	"github.com/titpetric/atkins/agent/router"
 	"github.com/titpetric/atkins/agent/view"
 	"github.com/titpetric/atkins/colors"
@@ -112,6 +113,10 @@ type Model struct {
 	// Confirmation state for fuzzy matching
 	pendingConfirm *router.Route
 
+	// Confirmation state for AI-suggested atkins commands
+	pendingAICmds [][]string // argv per command, awaiting y/n
+	pendingAIRaw  []string   // display form, e.g. "atkins release"
+
 	// Prompt mode (language or shell)
 	promptMode PromptMode
 
@@ -152,6 +157,7 @@ func NewModel(agent *Agent, version string) Model {
 		progressSpinner: ps,
 		runLogIdx:       -1,
 	}
+	m.router.SetAIEnabled(ai.Available())
 	m.appendGreeting()
 	return m
 }
@@ -519,6 +525,78 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appendLog("info", "")
 		m.state = StateIdle
 		return m, nil
+
+	case AIStartMsg:
+		m.state = StateExecuting
+		m.appendLog("info", colors.Dim("Asking claude..."))
+
+		ctx, cancel := context.WithCancel(context.Background())
+		m.execCtx = ctx
+		m.execCancel = cancel
+
+		return m, tea.Batch(m.spinner.Tick, m.runAI(ctx, msg.Input))
+
+	case AIDoneMsg:
+		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
+		m.execCtx = nil
+		m.execCancel = nil
+
+		if cancelled {
+			m.appendLog("info", colors.BrightYellow("Cancelled"))
+			m.appendLog("info", "")
+			m.state = StateIdle
+			return m, nil
+		}
+
+		if msg.Err != nil {
+			m.appendLog("error", msg.Err.Error())
+			m.appendLog("info", "")
+			m.state = StateIdle
+			return m, nil
+		}
+
+		if len(msg.Cmds) > 0 {
+			display := make([]string, len(msg.Cmds))
+			for i, argv := range msg.Cmds {
+				display[i] = strings.Join(argv, " ")
+			}
+			m.pendingAICmds = msg.Cmds
+			m.pendingAIRaw = display
+			m.appendLog("info", fmt.Sprintf("AI suggests: %s %s",
+				colors.BrightGreen(strings.Join(display, " && ")), "[y/n]"))
+			m.state = StateIdle
+			return m, nil
+		}
+
+		if msg.Resp != nil && msg.Resp.Message != "" {
+			m.appendLog("info", msg.Resp.Message)
+			m.appendLog("info", "")
+			m.state = StateIdle
+			return m, nil
+		}
+
+		m.appendLog("error", "AI returned an empty response")
+		m.appendLog("info", "")
+		m.state = StateIdle
+		return m, nil
+
+	case AICmdsDoneMsg:
+		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
+		m.execCtx = nil
+		m.execCancel = nil
+
+		if output := strings.TrimRight(msg.Output, "\n"); output != "" {
+			m.appendLog("output", output)
+		}
+		if cancelled {
+			m.appendLog("info", colors.BrightYellow("Cancelled"))
+		} else if msg.Err != nil {
+			m.appendLog("error", colors.BrightRed("failed")+": "+msg.Err.Error())
+		}
+		m.gitStats = detectGitStats(m.cwd)
+		m.appendLog("info", "")
+		m.state = StateIdle
+		return m, nil
 	}
 
 	// Forward all other messages to the spinners
@@ -695,6 +773,27 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Handle pending confirmation (AI-suggested atkins commands)
+	if m.pendingAICmds != nil {
+		argvs := m.pendingAICmds
+		display := m.pendingAIRaw
+		m.pendingAICmds = nil
+		m.pendingAIRaw = nil
+
+		lower := strings.ToLower(input)
+		if lower == "y" || lower == "yes" {
+			ctx, cancel := context.WithCancel(context.Background())
+			m.execCtx = ctx
+			m.execCancel = cancel
+			m.state = StateExecuting
+			m.appendLog("shell-cmd", "$ "+strings.Join(display, " && "))
+			return m, m.runAtkinsCmds(ctx, argvs)
+		}
+		m.appendLog("info", colors.Dim("Cancelled"))
+		m.appendLog("info", "")
+		return m, nil
+	}
+
 	// Handle pending confirmation (fuzzy match)
 	if m.pendingConfirm != nil {
 		confirm := m.pendingConfirm
@@ -840,6 +939,12 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		m.router.SetLastCommand(input, false)
 		return m, func() tea.Msg {
 			return ShellStartMsg{Command: route.ShellCmd}
+		}
+
+	case router.RouteAI:
+		m.appendLog("prompt", "> "+input)
+		return m, func() tea.Msg {
+			return AIStartMsg{Input: input}
 		}
 
 	default:

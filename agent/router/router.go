@@ -32,6 +32,17 @@ type Router struct {
 	// Context for retry/again
 	lastInput  string // Last input for retry
 	lastFailed bool   // Whether last command failed
+
+	// aiEnabled gates the RouteAI fallback. It defaults to false so a
+	// freshly constructed Router never depends on what's on PATH; callers
+	// that want the fallback opt in explicitly via SetAIEnabled.
+	aiEnabled bool
+}
+
+// SetAIEnabled enables or disables the RouteAI fallback for inputs that no
+// local matching (alias, slash command, task, fuzzy) can resolve.
+func (r *Router) SetAIEnabled(enabled bool) {
+	r.aiEnabled = enabled
 }
 
 // NewRouter creates a new router with all dependencies.
@@ -228,15 +239,23 @@ func (r *Router) Route(input string) *Route {
 		return route
 	}
 
-	// Step 15: Try fuzzy matching for typos
-	if suggestion := r.fuzzyMatchSkill(input); suggestion != "" {
+	// Step 15: Try fuzzy matching for typos, scoring both the raw input
+	// and its stripped keywords so multi-word phrases with a typo
+	// ("run go tets") still get corrected, not just single mistyped words.
+	if suggestion := r.fuzzyMatchSkill(input, keywords); suggestion != "" {
 		route.Type = RouteConfirm
 		route.Original = input
 		route.Suggestion = suggestion
 		return route
 	}
 
-	// No match found
+	// Step 16: No local match found - hand off to the AI fallback if one
+	// was opted into (see SetAIEnabled); otherwise unknown as before.
+	if r.aiEnabled {
+		route.Type = RouteAI
+		return route
+	}
+
 	route.Type = RouteUnknown
 	return route
 }

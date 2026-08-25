@@ -60,6 +60,7 @@ If you mistype a command, the agent suggests corrections and asks for confirmati
 |---------|---------|-------------|
 | `/list` | | List available skills and jobs |
 | `/run <task>` | | Run a specific task |
+| `/ai <question>` | | Ask the AI fallback directly (see below) |
 | `/aliases` | | List defined aliases |
 | `/cd <path>` | | Change working directory |
 | `/help` | `/h`, `/?` | Show help |
@@ -70,6 +71,35 @@ If you mistype a command, the agent suggests corrections and asks for confirmati
 | `/quit` | `/q`, `/exit` | Exit |
 
 Slash commands can also be invoked using natural language. Typing `list`, `list tasks`, `tasks`, or `skills` all invoke `/list`. Typing `history` invokes `/history` and `help` invokes `/help`.
+
+## AI Fallback
+
+The agent requires no LLM for everything above. But when local matching finds
+nothing at all - no alias, no task, no fuzzy typo suggestion - and the
+`claude` CLI is on `PATH`, the input is handed to `claude -p` as a
+last resort instead of just saying "Unknown command". Without `claude` on
+`PATH`, behavior is unchanged.
+
+You can also invoke it directly regardless of what local matching would have
+found, with `/ai <question>` (or the bare natural-language form, `ai
+<question>`).
+
+The prompt sent to `claude -p` includes your input, the same job listing
+`atkins -l` prints, and the raw `atkins.yml` for the current project, and
+asks for a JSON reply shaped like `{"cmds": ["atkins", "atkins release"]}`
+(one or more commands to run) or `{"message": "what you did"}` (e.g. when it
+edited files instead).
+
+Any suggested command must invoke `atkins` itself - `{"cmds": [...]}`
+entries that don't start with `atkins` are rejected outright, no
+confirmation offered. Commands run as direct argv against the atkins
+binary (never through a shell), so there's no shell-metacharacter injection
+surface even if a suggested command contains characters like `;` or `|`.
+
+In the interactive REPL, valid `atkins`-only commands are shown for
+confirmation - type `y` to run them, anything else cancels. Non-interactive
+`-x` mode (and `/ai` run via `-x`) executes them directly, consistent with
+`-x` already being the scripted/automation entry point.
 
 ## Shell Commands
 

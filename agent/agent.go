@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/titpetric/atkins/agent/ai"
 	agentrouter "github.com/titpetric/atkins/agent/router"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
@@ -117,6 +118,7 @@ func (a *Agent) Exec(ctx context.Context, prompt, version string) error {
 	// Use centralized router and executor
 	registry := DefaultRegistry()
 	rtr := agentrouter.NewRouter(a.resolver, a.pipelines, registry)
+	rtr.SetAIEnabled(ai.Available())
 	route := rtr.Route(prompt)
 
 	out := NewStdOutput()

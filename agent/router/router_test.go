@@ -514,3 +514,52 @@ func TestRouter_FuzzyMatch(t *testing.T) {
 		assert.Contains(t, route.Suggestion, "build")
 	}
 }
+
+func TestRouter_FuzzyMatch_MultiWordPhrase(t *testing.T) {
+	pipelines := createTestPipelines()
+	rtr := createTestRouter(t, pipelines)
+
+	// "buld" (edit distance 1 from "build") only scores above the 60%
+	// threshold on its own - scored as the whole raw string "please buld"
+	// it falls far short, so this only passes once fuzzy matching also
+	// tries each stripped keyword individually. ("please" is a filler
+	// word, not a registered slash command, so it doesn't take the
+	// natural-language-slash-command path the way "run" would.)
+	route := rtr.Route("please buld")
+	require.Equal(t, router.RouteConfirm, route.Type)
+	assert.Contains(t, route.Suggestion, "build")
+}
+
+func TestRouter_FuzzyMatch_TokenizedJobName(t *testing.T) {
+	pipelines := []*model.Pipeline{
+		{
+			ID: "test",
+			Jobs: map[string]*model.Job{
+				"cover": {Name: "cover"},
+			},
+		},
+	}
+	rtr := createTestRouter(t, pipelines)
+
+	// "coverage" is a prefix-fuzzy match for the "cover" token of
+	// "test:cover", but only once the job name is split on ':' and the
+	// filler-stripped keyword "coverage" is tried on its own - the whole
+	// raw string "show me the coverage" doesn't score close to "cover".
+	route := rtr.Route("show me the coverage")
+	require.Equal(t, router.RouteConfirm, route.Type)
+	assert.Contains(t, route.Suggestion, "cover")
+}
+
+func TestRouter_RouteAI_Fallback(t *testing.T) {
+	rtr := createTestRouter(t, nil)
+
+	// AI fallback defaults to disabled, so an unmatchable input still
+	// falls through to RouteUnknown until a caller opts in.
+	route := rtr.Route("xyzzy123notacommand")
+	assert.Equal(t, router.RouteUnknown, route.Type)
+
+	rtr.SetAIEnabled(true)
+	route = rtr.Route("xyzzy123notacommand")
+	assert.Equal(t, router.RouteAI, route.Type)
+	assert.Equal(t, "xyzzy123notacommand", route.Raw)
+}

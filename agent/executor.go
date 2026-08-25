@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/titpetric/atkins/agent/ai"
 	"github.com/titpetric/atkins/agent/aliases"
 	"github.com/titpetric/atkins/agent/router"
 	"github.com/titpetric/atkins/colors"
@@ -86,6 +87,9 @@ func (e *Executor) ExecuteRoute(route *router.Route) error {
 
 	case router.RouteShell:
 		return e.ExecuteShell(route.ShellCmd)
+
+	case router.RouteAI:
+		return e.executeAI(route.Raw)
 
 	case router.RouteHelp:
 		e.out.Info(UsageText())
@@ -205,9 +209,61 @@ func (e *Executor) handleSlashCommand(route *router.Route) error {
 	case "aliases", "alias":
 		e.printAliases(e.router.Aliases())
 		return nil
+	case "ai":
+		args := strings.TrimSpace(route.Args)
+		if args == "" {
+			return fmt.Errorf("usage: /ai <question>")
+		}
+		return e.executeAI(args)
 	default:
 		return fmt.Errorf("slash command /%s is only available in interactive mode", route.Command)
 	}
+}
+
+// executeAI asks claude what to do about an input local routing couldn't
+// resolve and runs what it suggests directly (no confirmation - this is
+// the -x automation entry point). Suggested commands must invoke atkins
+// itself; anything else is rejected.
+func (e *Executor) executeAI(input string) error {
+	if !ai.Available() {
+		return fmt.Errorf("claude CLI not found in PATH")
+	}
+
+	prompt := ai.BuildPrompt(input, e.agent.Pipelines(), e.workDir)
+	resp, err := ai.Invoke(e.ctx, prompt)
+	if err != nil {
+		return err
+	}
+
+	if len(resp.Cmds) > 0 {
+		argvs, err := ai.ValidateAtkinsCmds(resp.Cmds)
+		if err != nil {
+			return err
+		}
+
+		atkinsPath, err := os.Executable()
+		if err != nil {
+			return err
+		}
+
+		for _, argv := range argvs {
+			cmd := exec.CommandContext(e.ctx, atkinsPath, argv[1:]...)
+			cmd.Dir = e.workDir
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if resp.Message != "" {
+		e.out.Info(resp.Message)
+		return nil
+	}
+
+	return fmt.Errorf("AI returned an empty response")
 }
 
 // printSkillList prints available skills in the same format as `atkins -l`.
