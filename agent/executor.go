@@ -221,49 +221,25 @@ func (e *Executor) handleSlashCommand(route *router.Route) error {
 }
 
 // executeAI asks claude what to do about an input local routing couldn't
-// resolve and runs what it suggests directly (no confirmation - this is
-// the -x automation entry point). Suggested commands must invoke atkins
-// itself; anything else is rejected.
+// resolve and runs what it suggests. There is no confirmation step here:
+// -x is the scripted entry point, and the same commands are confirmed in
+// the REPL.
 func (e *Executor) executeAI(input string) error {
 	if !ai.Available() {
 		return fmt.Errorf("claude CLI not found in PATH")
 	}
 
-	prompt := ai.BuildPrompt(input, e.agent.Pipelines(), e.workDir)
-	resp, err := ai.Invoke(e.ctx, prompt)
+	result, err := ai.Ask(e.ctx, input, e.agent.Pipelines(), e.workDir)
 	if err != nil {
 		return err
 	}
 
-	if len(resp.Cmds) > 0 {
-		argvs, err := ai.ValidateAtkinsCmds(resp.Cmds)
-		if err != nil {
-			return err
-		}
-
-		atkinsPath, err := os.Executable()
-		if err != nil {
-			return err
-		}
-
-		for _, argv := range argvs {
-			cmd := exec.CommandContext(e.ctx, atkinsPath, argv[1:]...)
-			cmd.Dir = e.workDir
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return err
-			}
-		}
-		return nil
+	if len(result.Cmds) > 0 {
+		return ai.Run(e.ctx, e.workDir, result.Cmds, os.Stdout, os.Stderr)
 	}
 
-	if resp.Message != "" {
-		e.out.Info(resp.Message)
-		return nil
-	}
-
-	return fmt.Errorf("AI returned an empty response")
+	e.out.Info(result.Message)
+	return nil
 }
 
 // printSkillList prints available skills in the same format as `atkins -l`.

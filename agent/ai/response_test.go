@@ -1,6 +1,11 @@
 package ai
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 func TestExtractJSON(t *testing.T) {
 	tests := []struct {
@@ -34,6 +39,12 @@ func TestExtractJSON(t *testing.T) {
 			ok:    true,
 		},
 		{
+			name:  "escaped quote inside a string value",
+			input: `{"message": "wrote \"atkins.yml\""}`,
+			want:  `{"message": "wrote \"atkins.yml\""}`,
+			ok:    true,
+		},
+		{
 			name:  "no object present",
 			input: "no can do",
 			ok:    false,
@@ -48,12 +59,27 @@ func TestExtractJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, ok := extractJSON(tt.input)
-			if ok != tt.ok {
-				t.Fatalf("ok = %v, want %v", ok, tt.ok)
-			}
-			if ok && got != tt.want {
-				t.Fatalf("got %q, want %q", got, tt.want)
+			assert.Equal(t, tt.ok, ok)
+			if tt.ok {
+				assert.Equal(t, tt.want, got)
 			}
 		})
 	}
+}
+
+func TestParseResponse(t *testing.T) {
+	resp, err := ParseResponse("Running that for you:\n" + `{"cmds": ["atkins release"]}`)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"atkins release"}, resp.Cmds)
+	assert.Empty(t, resp.Message)
+
+	resp, err = ParseResponse(`{"message": "Added test:cover to atkins.yml"}`)
+	require.NoError(t, err)
+	assert.Equal(t, "Added test:cover to atkins.yml", resp.Message)
+
+	_, err = ParseResponse("I can't help with that")
+	assert.Error(t, err)
+
+	_, err = ParseResponse(`{"cmds": "atkins release"}`)
+	assert.Error(t, err)
 }

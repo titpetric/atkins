@@ -108,6 +108,16 @@ func (a *Agent) WorkDir() string {
 	return a.workDir
 }
 
+// newRouter builds the router both entry points use. The AI fallback is
+// decided here, once: the router itself never looks at PATH, so what it
+// routes depends on the pipelines and the input, not on what happens to be
+// installed.
+func newRouter(resolver *runner.TaskResolver, pipelines []*model.Pipeline, registry *Registry) *agentrouter.Router {
+	rtr := agentrouter.NewRouter(resolver, pipelines, registry)
+	rtr.SetAIEnabled(ai.Available())
+	return rtr
+}
+
 // Exec processes a single prompt non-interactively and exits.
 func (a *Agent) Exec(ctx context.Context, prompt, version string) error {
 	prompt = strings.TrimSpace(prompt)
@@ -117,8 +127,7 @@ func (a *Agent) Exec(ctx context.Context, prompt, version string) error {
 
 	// Use centralized router and executor
 	registry := DefaultRegistry()
-	rtr := agentrouter.NewRouter(a.resolver, a.pipelines, registry)
-	rtr.SetAIEnabled(ai.Available())
+	rtr := newRouter(a.resolver, a.pipelines, registry)
 	route := rtr.Route(prompt)
 
 	out := NewStdOutput()

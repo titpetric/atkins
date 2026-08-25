@@ -2,7 +2,7 @@ direction: down
 
 # ===== START NODE =====
 main_prompt: "User Prompt"
-main_prompt.style.fill: "#FFF176"  # pastel yellow
+main_prompt.style.fill: "#FFF176" # pastel yellow
 main_prompt.shape: circle
 main_prompt.style.stroke: black
 
@@ -81,16 +81,30 @@ shell_result -> main_success: "yes"
 shell_result -> main_failure: "no"
 
 # ===== NO MATCH =====
-main_no_match -> main_failure
+main_no_match -> ai_ask: "claude on PATH"
+main_no_match -> main_failure: "no claude"
+
+# ===== AI FALLBACK =====
+ai_ask: "Ask claude -p"
+ai_valid: "atkins commands?"
+ai_valid.shape: diamond
+ai_run: "Confirm, then run\natkins commands"
+
+ai_ask -> ai_valid
+ai_valid -> ai_run: "yes"
+ai_valid -> main_success: "message only"
+ai_valid -> main_failure: "not atkins"
+ai_run -> main_success
+ai_run -> main_failure
 
 # ===== TERMINAL STATES =====
 main_success: "SUCCESS"
-main_success.style.fill: "#A5D6A7"  # pastel green
+main_success.style.fill: "#A5D6A7" # pastel green
 main_success.style.stroke: black
 main_success.shape: circle
 
 main_failure: "FAILURE"
-main_failure.style.fill: "#EF9A9A"  # pastel red
+main_failure.style.fill: "#EF9A9A" # pastel red
 main_failure.style.stroke: black
 main_failure.shape: circle
 

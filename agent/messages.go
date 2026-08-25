@@ -68,22 +68,18 @@ type AIStartMsg struct {
 	Input string
 }
 
-// AIDoneMsg signals the AI fallback finished asking claude and, if it
-// suggested commands, validating them. Cmds is only populated when Resp.Cmds
-// passed ai.ValidateAtkinsCmds; a validation failure surfaces through Err
-// the same way an invocation failure would.
+// AIDoneMsg signals claude answered. Result carries validated commands or a
+// message; a claude failure, an unparseable reply and a command that does
+// not invoke atkins all surface through Err.
 type AIDoneMsg struct {
 	Input    string
-	Resp     *ai.Response
-	Cmds     [][]string
+	Result   *ai.Result
 	Err      error
 	Duration time.Duration
 }
 
-// AICmdsDoneMsg signals the user-confirmed AI-suggested atkins commands
-// finished running.
+// AICmdsDoneMsg signals the confirmed atkins commands finished running.
 type AICmdsDoneMsg struct {
-	Cmds     []string
 	Output   string
 	Err      error
 	Duration time.Duration

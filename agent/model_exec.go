@@ -1,8 +1,8 @@
 package agent
 
 import (
+	"bytes"
 	"context"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -124,62 +124,44 @@ func (m Model) runShellCommand(ctx context.Context, command string) tea.Cmd {
 }
 
 // runAI asks claude what to do about an input local routing couldn't
-// resolve, and validates any commands it suggests. It does not run them —
-// that only happens once the user confirms (see runAtkinsCmds).
+// resolve. Suggested commands are validated but not run: that waits for the
+// confirmation in handleSubmit (see runAtkinsCmds).
 func (m Model) runAI(ctx context.Context, input string) tea.Cmd {
 	return func() tea.Msg {
 		start := time.Now()
 
-		prompt := ai.BuildPrompt(input, m.agent.Pipelines(), m.cwd)
-		resp, err := ai.Invoke(ctx, prompt)
-		if err != nil {
-			return AIDoneMsg{Input: input, Err: err, Duration: time.Since(start)}
+		result, err := ai.Ask(ctx, input, m.agent.Pipelines(), m.cwd)
+		return AIDoneMsg{
+			Input:    input,
+			Result:   result,
+			Err:      err,
+			Duration: time.Since(start),
 		}
-
-		var argvs [][]string
-		if len(resp.Cmds) > 0 {
-			argvs, err = ai.ValidateAtkinsCmds(resp.Cmds)
-			if err != nil {
-				return AIDoneMsg{Input: input, Resp: resp, Err: err, Duration: time.Since(start)}
-			}
-		}
-
-		return AIDoneMsg{Input: input, Resp: resp, Cmds: argvs, Duration: time.Since(start)}
 	}
 }
 
-// runAtkinsCmds runs user-confirmed, already-validated atkins argv
-// invocations sequentially against the current atkins binary, with no
-// shell involved, stopping at the first failure.
-func (m Model) runAtkinsCmds(ctx context.Context, argvList [][]string) tea.Cmd {
+// formatAICmds renders suggested commands as one line for the confirmation
+// prompt and the log.
+func formatAICmds(argvs [][]string) string {
+	cmds := make([]string, len(argvs))
+	for i, argv := range argvs {
+		cmds[i] = ai.Format(argv)
+	}
+	return strings.Join(cmds, " && ")
+}
+
+// runAtkinsCmds runs the confirmed commands and captures their output for
+// the log.
+func (m Model) runAtkinsCmds(ctx context.Context, argvs [][]string) tea.Cmd {
 	return func() tea.Msg {
 		start := time.Now()
 
-		atkinsPath, err := os.Executable()
-		if err != nil {
-			return AICmdsDoneMsg{Err: err, Duration: time.Since(start)}
-		}
-
-		display := make([]string, len(argvList))
-		var outputs []string
-		var runErr error
-		for i, argv := range argvList {
-			display[i] = strings.Join(argv, " ")
-
-			cmd := exec.CommandContext(ctx, atkinsPath, argv[1:]...)
-			cmd.Dir = m.cwd
-			out, err := cmd.CombinedOutput()
-			outputs = append(outputs, string(out))
-			if err != nil {
-				runErr = err
-				break
-			}
-		}
+		var out bytes.Buffer
+		err := ai.Run(ctx, m.cwd, argvs, &out, &out)
 
 		return AICmdsDoneMsg{
-			Cmds:     display,
-			Output:   strings.Join(outputs, ""),
-			Err:      runErr,
+			Output:   out.String(),
+			Err:      err,
 			Duration: time.Since(start),
 		}
 	}

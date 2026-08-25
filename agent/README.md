@@ -60,7 +60,7 @@ If you mistype a command, the agent suggests corrections and asks for confirmati
 |---------|---------|-------------|
 | `/list` | | List available skills and jobs |
 | `/run <task>` | | Run a specific task |
-| `/ai <question>` | | Ask the AI fallback directly (see below) |
+| `/ai <question>` | | Ask claude what to run (see AI Fallback) |
 | `/aliases` | | List defined aliases |
 | `/cd <path>` | | Change working directory |
 | `/help` | `/h`, `/?` | Show help |
@@ -74,32 +74,15 @@ Slash commands can also be invoked using natural language. Typing `list`, `list 
 
 ## AI Fallback
 
-The agent requires no LLM for everything above. But when local matching finds
-nothing at all - no alias, no task, no fuzzy typo suggestion - and the
-`claude` CLI is on `PATH`, the input is handed to `claude -p` as a
-last resort instead of just saying "Unknown command". Without `claude` on
-`PATH`, behavior is unchanged.
+Everything above runs without an LLM. When local matching resolves nothing (no alias, no task, no fuzzy typo suggestion) and the `claude` CLI is on `PATH`, the input goes to `claude -p` instead of ending in "Unknown command". Without `claude` on `PATH` it ends in "Unknown command" as before.
 
-You can also invoke it directly regardless of what local matching would have
-found, with `/ai <question>` (or the bare natural-language form, `ai
-<question>`).
+`/ai <question>`, or the bare `ai <question>`, takes the same path directly, whatever local matching would have found.
 
-The prompt sent to `claude -p` includes your input, the same job listing
-`atkins -l` prints, and the raw `atkins.yml` for the current project, and
-asks for a JSON reply shaped like `{"cmds": ["atkins", "atkins release"]}`
-(one or more commands to run) or `{"message": "what you did"}` (e.g. when it
-edited files instead).
+The prompt carries the input, the job listing `atkins -l` prints, and the `atkins.yml` discovered from the working directory. It asks for a JSON reply of `{"cmds": ["atkins", "atkins release"]}` to run commands, or `{"message": "what you did"}` for an input that asked for an edit rather than a job.
 
-Any suggested command must invoke `atkins` itself - `{"cmds": [...]}`
-entries that don't start with `atkins` are rejected outright, no
-confirmation offered. Commands run as direct argv against the atkins
-binary (never through a shell), so there's no shell-metacharacter injection
-surface even if a suggested command contains characters like `;` or `|`.
+Every suggested command has to invoke `atkins`, and one that does not refuses the whole batch. Commands run as argv against the running atkins binary with no shell involved, and `argv[0]` is dropped in favour of that binary, so a suggestion chooses the arguments atkins gets and nothing else. A `;` or a `|` inside one reaches atkins as a literal argument.
 
-In the interactive REPL, valid `atkins`-only commands are shown for
-confirmation - type `y` to run them, anything else cancels. Non-interactive
-`-x` mode (and `/ai` run via `-x`) executes them directly, consistent with
-`-x` already being the scripted/automation entry point.
+The REPL prints the commands and waits for `y` before running them; anything else cancels. `-x` runs them without asking, as it does for every other route.
 
 ## Shell Commands
 

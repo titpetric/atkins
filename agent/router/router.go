@@ -33,9 +33,10 @@ type Router struct {
 	lastInput  string // Last input for retry
 	lastFailed bool   // Whether last command failed
 
-	// aiEnabled gates the RouteAI fallback. It defaults to false so a
-	// freshly constructed Router never depends on what's on PATH; callers
-	// that want the fallback opt in explicitly via SetAIEnabled.
+	// aiEnabled gates the RouteAI fallback. The fallback needs the claude
+	// CLI, which the router does not check for: routing a given input
+	// stays the same whatever is installed on the machine, and the caller
+	// that owns the check sets this once.
 	aiEnabled bool
 }
 

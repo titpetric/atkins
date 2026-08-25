@@ -274,7 +274,7 @@ func registerAliases(r *Registry) {
 func registerAI(r *Registry) {
 	cmd := &SlashCommand{
 		Name:        "ai",
-		Description: "Ask the AI to figure out what to run (e.g., /ai deploy the staging release)",
+		Description: "Ask claude what to run (e.g., /ai deploy the staging release)",
 		Handler: func(m *Model, args string) (Model, tea.Cmd) {
 			if !ai.Available() {
 				m.appendLog("error", "claude CLI not found in PATH")
