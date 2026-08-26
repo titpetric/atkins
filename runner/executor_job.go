@@ -173,7 +173,10 @@ func (e *Executor) executeJobWithForLoop(ctx context.Context, execCtx *Execution
 		iterCtx.CurrentJob = &treeview.TreeNode{Node: iterNode}
 		execCtx.Render()
 
-		if err := e.executeSteps(ctx, iterCtx, steps); err != nil {
+		iterStartTime := time.Now()
+		err := e.executeSteps(ctx, iterCtx, steps)
+		iterNode.SetDuration(time.Since(iterStartTime).Seconds())
+		if err != nil {
 			iterNode.SetStatus(treeview.StatusFailed)
 			return err
 		}

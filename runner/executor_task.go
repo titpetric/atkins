@@ -25,6 +25,11 @@ func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContex
 		return nil
 	}
 
+	stepStartTime := time.Now()
+	defer func() {
+		stepNode.SetDuration(time.Since(stepStartTime).Seconds())
+	}()
+
 	for _, taskRef := range tasks {
 		if err := e.executeTaskRef(ctx, execCtx, step, taskRef, stepNode); err != nil {
 			return err
@@ -331,6 +336,10 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 
 		executeIteration := func(iterRunCtx context.Context) error {
 			iterTreeNode := iterationNodes[idx]
+			iterStartTime := time.Now()
+			defer func() {
+				iterTreeNode.SetDuration(time.Since(iterStartTime).Seconds())
+			}()
 			iterationDecl := stepDeclWithoutResolvedVars(step.Decl, iter.Variables)
 
 			// Create execution context for this iteration with loop variables

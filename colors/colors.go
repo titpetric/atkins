@@ -32,6 +32,8 @@ const (
 	colorRed     = "\033[31m"
 	colorWhite   = "\033[37m"
 	colorGray    = "\033[90m"
+	// colorMediumGray is 256-color palette entry 244 (#808080), ~50% gray.
+	colorMediumGray = "\033[38;5;244m"
 )
 
 func colorize(color, text string) string {
@@ -96,6 +98,11 @@ func White(text string) string {
 // Gray returns text in gray color.
 func Gray(text string) string {
 	return colorGray + text + colorReset
+}
+
+// MediumGray returns text in medium gray (50%) color.
+func MediumGray(text string) string {
+	return colorMediumGray + text + colorReset
 }
 
 // PrintHeader prints a header with bright cyan color.

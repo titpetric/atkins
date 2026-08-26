@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -471,6 +472,11 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 
 	var lastErr error
 	var errMu sync.Mutex
+
+	stepStartTime := time.Now()
+	defer func() {
+		stepNode.SetDuration(time.Since(stepStartTime).Seconds())
+	}()
 
 	for idx, iteration := range iterations {
 		// Check if context was cancelled before starting next iteration

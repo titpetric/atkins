@@ -1,6 +1,7 @@
 package treeview
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -88,6 +89,9 @@ func (n *Node) StatusColor() string {
 	// For leaf nodes (no children, no deps), show a status indicator if in pending state
 	if status == "" && !haveChildren && !haveDeps {
 		return colors.Green("●")
+	}
+	if (n.Status == StatusPassed || n.Status == StatusFailed) && n.Duration > 0 {
+		status += " " + colors.White("(") + colors.MediumGray(fmt.Sprintf("%.2fs", n.Duration)) + colors.White(")")
 	}
 	return status
 }

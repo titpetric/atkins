@@ -26,6 +26,7 @@ func (e *Executor) executeCommands(ctx context.Context, stepCtx *ExecutionContex
 	}
 
 	var lastErr error
+	startTime := time.Now()
 	for i, cmd := range commands {
 		var cmdNode *treeview.Node
 		if i < len(cmdNodes) {
@@ -40,6 +41,7 @@ func (e *Executor) executeCommands(ctx context.Context, stepCtx *ExecutionContex
 
 	// Update parent node status if we used child nodes
 	if len(cmdNodes) > 0 && stepNode != nil {
+		stepNode.SetDuration(time.Since(startTime).Seconds())
 		if lastErr != nil {
 			stepNode.SetStatus(treeview.StatusFailed)
 		} else {
