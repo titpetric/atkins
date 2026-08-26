@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"io/fs"
-	"path"
 
 	"github.com/go-bridget/mig/migrate"
 	"github.com/jmoiron/sqlx"
@@ -13,28 +12,14 @@ import (
 const Project = "atkins"
 
 // Migrate applies SQL migrations from the given filesystem to the database.
+// Files are selected by mig's default "*.up.sql" pattern; a filesystem with
+// none of them is an error.
 func Migrate(ctx context.Context, db *sqlx.DB, schema fs.FS) error {
-	entries, err := fs.Glob(schema, "*.sql")
+	m, err := migrate.NewManager(db, schema, Project)
 	if err != nil {
 		return err
 	}
 
-	migrations := make(map[string][]byte, len(entries))
-	for _, name := range entries {
-		contents, err := fs.ReadFile(schema, name)
-		if err != nil {
-			return err
-		}
-		migrations[path.Base(name)] = contents
-	}
-
-	return migrate.RunWithFS(
-		ctx,
-		db,
-		migrations,
-		&migrate.Options{
-			Project: Project,
-			Apply:   true,
-		},
-	)
+	_, err = m.Apply(ctx)
+	return err
 }
