@@ -51,7 +51,7 @@ jobs:
   fmt:revise:
     desc: "Revise goimports formatting"
     steps:
-      - goimports-reviser -set-alias -format -imports-order "std,blanked,general,company,project" -excludes "scripts/" ./...
+      - goimports-reviser -set-alias -format -imports-order "std,blanked,general,company,project" -excludes ".git/,scripts/" ./...
 
   lint:
     desc: "Lint the code"
@@ -79,4 +79,7 @@ jobs:
     passthru: true
     tty: true
     steps:
-      - gotestsum ./... -- -count 1 -cover
+      # Package list last: gotestsum hands everything after -- to go test, and
+      # -coverprofile writes nothing without a word of complaint when the list
+      # precedes the flags. The profile is what `atkins cover` reports from.
+      - gotestsum -- -count 1 -cover -coverpkg=./... -coverprofile=pkg.cov ./...
