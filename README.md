@@ -19,6 +19,10 @@ With atkins you can:
 It's driven by yaml syntax, and supports shell interpolation with `$(...)`, and
 yaml friendly variable interpolation: `name: ${{app.name}}`.
 
+`atkins --help` prints the whole reference in one document: every command and
+flag, the skills installed on the machine with the jobs each contributes, and
+the atkins.yml schema. Redirected to a file it is markdown.
+
 ## Documentation
 
 - Getting Started

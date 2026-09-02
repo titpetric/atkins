@@ -59,6 +59,28 @@ when:
     - schema/*.up.sql    # a folder of migrations, not any folder called schema
 ```
 
+## Skill Help
+
+A skill says what it is for with `help:`, one or two sentences naming the files it reads and writes. `atkins --help` prints it beside the skill and the jobs decoded from the YAML.
+
+```yaml
+name: Go build and test
+help: >-
+  Generates, formats, lints, tests and builds a Go module. go:test writes the
+  coverage profile pkg.cov; go:build writes bin/<name>-<goos>-<goarch>.
+```
+
+A skill may also carry a markdown file of the same base name beside it, `go.md` next to `go.yml`. It is an optional usage guide for a skill whose typical use is not obvious from the job list, and `atkins --help` prints it under the skill. It documents typical use, not every job: the job list is already decoded from the YAML.
+
+```markdown
+`atkins go` runs the whole lifecycle: generate, fmt, lint, test, build.
+
+- `atkins go:fmt` - format the sources.
+- `atkins go:test` - run the tests and write the coverage profile `pkg.cov`.
+```
+
+`--vendor` copies the companion along with the skill file, and a change to the companion alone is enough to report the vendored skill as out of date.
+
 ## Skill Namespacing
 
 Skills automatically namespace their jobs:

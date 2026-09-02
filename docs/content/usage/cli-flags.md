@@ -38,6 +38,7 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 | `--log`     |       | Write an execution log to this file               |
 | `--debug`   |       | Print interpolation, evaluation and timing detail |
 | `--version` | `-v`  | Print the version and build information           |
+| `--help`    | `-h`  | Print the reference document and exit             |
 
 ### CI/CD server
 
