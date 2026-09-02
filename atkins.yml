@@ -52,9 +52,9 @@ jobs:
   test:docs:
     desc: "Generate docs"
     steps:
-      - defer: rm -f splint.json go-fsck.json
-      - splint -include-sources -output splint.json ./... || true
-      - jq '.Packages' splint.json > go-fsck.json
+      - defer: rm -f splint-doc.json go-fsck.json
+      - splint -include-sources -output splint-doc.json ./... || true
+      - jq '.Packages' splint-doc.json > go-fsck.json
       - go-fsck docs --split --out=docs/api --strip=github.com/titpetric
       - task: mdox:fmt
         vars:
