@@ -43,9 +43,40 @@ func (l *SkillsLoader) AddSkillsDir(dir string) {
 }
 
 // Load discovers and returns all enabled skill pipelines.
+//
+// A skill from an earlier directory shadows one of the same ID found
+// later, so a project skill wins over the global one it shares a name
+// with. A skill whose when: block does not match contributes nothing and
+// does not shadow anything.
 func (l *SkillsLoader) Load() ([]*model.Pipeline, error) {
+	skills, err := l.Scan()
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]bool)
+
 	var pipelines []*model.Pipeline
-	seen := make(map[string]bool) // Track skill IDs for deduplication
+	for _, skill := range skills {
+		if !skill.Active || seen[skill.ID()] {
+			continue
+		}
+		seen[skill.ID()] = true
+		pipelines = append(pipelines, skill.Pipeline)
+	}
+
+	return pipelines, nil
+}
+
+// Scan returns every skill file in the loader's directories, in
+// directory order, whether or not its when: block is satisfied.
+//
+// Load drops the skills that do not apply here; Scan keeps them so
+// `atkins --help` can list what is installed rather than only what the
+// current directory activates. Two directories carrying the same skill
+// ID both appear, the higher-priority one first.
+func (l *SkillsLoader) Scan() ([]*Skill, error) {
+	var skills []*Skill
 
 	for _, skillsDir := range l.SkillsDirs {
 		entries, err := os.ReadDir(skillsDir)
@@ -61,35 +92,45 @@ func (l *SkillsLoader) Load() ([]*model.Pipeline, error) {
 				continue
 			}
 
-			// Load the skill file
 			skillPath := filepath.Join(skillsDir, entry.Name())
-			pipeline, err := l.loadSkillFile(skillPath)
+			skill, err := l.loadSkill(skillPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to load skill %s: %w", skillPath, err)
 			}
 
-			// Skip if already loaded from higher-priority directory
-			if seen[pipeline.ID] {
-				continue
-			}
-
-			// Evaluate when: condition and determine working directory
-			workDir, enabled := l.evaluateWhen(pipeline)
-			if !enabled {
-				continue
-			}
+			skill.Dir, skill.Active = l.evaluateWhen(skill.Pipeline)
 
 			// Set Dir only if not already explicitly set in the skill file
-			if pipeline.Dir == "" {
-				pipeline.Dir = workDir
+			if skill.Active && skill.Pipeline.Dir == "" {
+				skill.Pipeline.Dir = skill.Dir
 			}
 
-			seen[pipeline.ID] = true
-			pipelines = append(pipelines, pipeline)
+			skills = append(skills, skill)
 		}
 	}
 
-	return pipelines, nil
+	return skills, nil
+}
+
+// loadSkill reads a skill file and the optional markdown companion
+// beside it: go.yml is documented by go.md in the same directory.
+// A missing or unreadable companion leaves Doc empty and is not an
+// error, because the guide is optional.
+func (l *SkillsLoader) loadSkill(path string) (*Skill, error) {
+	pipeline, err := l.loadSkillFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	skill := &Skill{Pipeline: pipeline, Path: path}
+
+	docPath := strings.TrimSuffix(path, filepath.Ext(path)) + ".md"
+	if data, err := os.ReadFile(docPath); err == nil {
+		skill.DocPath = docPath
+		skill.Doc = strings.TrimSpace(string(data))
+	}
+
+	return skill, nil
 }
 
 // loadSkillFile loads a single skill pipeline from a YAML file.

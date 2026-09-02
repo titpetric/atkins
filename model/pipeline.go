@@ -16,6 +16,11 @@ type Pipeline struct {
 	Name string `yaml:"name,omitempty"`
 	Dir  string `yaml:"dir,omitempty"`
 
+	// Help is one or two sentences on what the pipeline is for, and the
+	// files it reads and writes. `atkins --help` prints it under the
+	// skill the pipeline came from.
+	Help string `yaml:"help,omitempty"`
+
 	Jobs  map[string]*Job `yaml:"jobs,omitempty"`
 	Tasks map[string]*Job `yaml:"tasks,omitempty"`
 
