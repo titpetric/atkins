@@ -559,8 +559,11 @@ func TestModuleRecordsSweeps(t *testing.T) {
 	opts.ReclaimInterval = 10 * time.Millisecond
 	opts.RetentionInterval = 0
 
+	// NewOptions rather than the literal NewTestOptions carries: the sweep
+	// spans land in a ring buffer, and the literal sizes it at zero. The
+	// service name is the one serve.go records under.
 	options := platform.NewTestOptions()
-	options.Telemetry = oida.NewOptions()
+	options.Telemetry = oida.NewOptions("atkins")
 	options.Telemetry.Enabled = true
 
 	svc := platform.New(options)
