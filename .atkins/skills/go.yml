@@ -54,9 +54,9 @@ jobs:
     passthru: true
     tty: true
     steps:
-      - gofsck ./... || true
-      - go-fsck lint ./... || true
-      - golangci-lint run ./... --issues-exit-code 0 || true
+      # splint replaces gofsck and go-fsck lint: one pass over a data model of
+      # the source, reporting layout, godoc, pairing and coverage findings.
+      - splint ./... || true
 
   default:
     desc: "Go lifecycle"

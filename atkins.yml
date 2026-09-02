@@ -67,7 +67,7 @@ jobs:
       # after it and not before: goimports would re-sort the import groups the
       # reviser just arranged back into its own three-group layout.
       - task: go:fmt go:fmt:revise
-      - go-fsck lint ./... || true
+      - splint ./... || true
 
   test:simple:
     desc: "Simple go test with gotestsum (passthru)"
