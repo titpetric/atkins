@@ -13,3 +13,8 @@ atkins
 # templ's literal side-files. The generated *_templ.go are committed, as
 # the mig-generated model is; these are a build artefact of them.
 *_templ.txt
+
+# splint writes its document beside the tree it describes, and a job that
+# fails leaves it behind. go-fsck reads it and writes its own.
+splint.json
+go-fsck.json
