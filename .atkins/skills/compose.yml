@@ -1,4 +1,8 @@
 name: Docker compose lifecycle
+help: >-
+  Drives docker compose from the folder holding compose.yml: up, down, build,
+  pull, ps and logs. Reads compose.yml or docker-compose.yml and writes nothing
+  of its own.
 
 when:
   files:

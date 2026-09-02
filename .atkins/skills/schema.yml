@@ -1,4 +1,7 @@
 name: SQL Migrations (mig)
+help: >-
+  Applies schema/*.up.sql to a throwaway SQLite file, then regenerates
+  schema/docs, schema/schema.yml and the Go models under model/.
 
 when:
   files:

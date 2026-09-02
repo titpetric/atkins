@@ -1,4 +1,8 @@
 name: Go build and test
+help: >-
+  Generates, formats, lints, tests and builds a Go module. go:test writes the
+  coverage profile pkg.cov; go:build writes bin/<name>-<goos>-<goarch>. Reads
+  go.mod.
 
 when:
   files:

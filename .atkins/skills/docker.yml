@@ -1,4 +1,8 @@
 name: Docker build and push
+help: >-
+  Builds the image in docker/Dockerfile and pushes it, tagged with the newest
+  git tag and with latest. docker:test builds docker/Dockerfile.test when that
+  file exists and runs the image with --help.
 
 when:
   files:

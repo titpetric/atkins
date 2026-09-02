@@ -1,0 +1,1 @@
+`atkins release` prints the tag it would release and builds the assets; it writes nothing to GitHub. `atkins release:publish` is the one that publishes. Tag the commit first, because `release:publish:github` creates the release for an existing tag and not the tag itself.

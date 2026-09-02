@@ -1,3 +1,9 @@
+name: Markdown formatting and linting
+help: >-
+  Formats and checks the markdown under docs/ and README.md with mdox, and
+  runs vale when .vale.ini is present. mdox:fmt rewrites the files in place;
+  mdox:lint only reports.
+
 when:
   files:
     - .vale.ini

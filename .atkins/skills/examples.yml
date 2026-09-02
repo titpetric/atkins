@@ -1,4 +1,7 @@
 name: Generate Example Screenshots
+help: >-
+  Regenerates the terminal screenshots under examples/ with termos, one run and
+  one list capture per fixture in tests/ plus the project pipeline itself.
 
 when:
   files:

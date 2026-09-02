@@ -1,4 +1,7 @@
 name: Create a GitHub release
+help: >-
+  Cuts a GitHub release for the newest git tag: builds and tests the docker
+  image, creates the release, and uploads the binaries from bin/.
 
 when:
   files:
