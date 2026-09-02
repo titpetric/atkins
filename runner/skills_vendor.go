@@ -1,14 +1,11 @@
 package runner
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/titpetric/atkins/model"
 )
@@ -36,6 +33,10 @@ type VendorSkill struct {
 
 	// Path is the absolute path of the source skill file.
 	Path string
+
+	// DocPath is the markdown companion beside Path, empty when the
+	// skill carries none. It is installed alongside the skill file.
+	DocPath string
 
 	// Pipeline is the parsed skill.
 	Pipeline *model.Pipeline
@@ -267,74 +268,27 @@ func (v *Vendorer) Plan() (*VendorResult, error) {
 
 // compare diffs a skill against the copy the repository carries, and
 // records what installing it would change.
+//
+// A skill is its YAML file and the markdown companion beside it, so both
+// are compared and the counts are the sum. The status is New when the
+// repository has no copy of the YAML file, and Changed when either file
+// differs.
 func (v *Vendorer) compare(skill *VendorSkill) {
-	target := filepath.Join(v.TargetDir, filepath.Base(skill.Path))
+	status, added, removed, diff := v.compareFile(skill.Path)
+	skill.Status, skill.Added, skill.Removed, skill.Diff = status, added, removed, diff
 
-	existing, readErr := os.ReadFile(target)
-
-	data, err := os.ReadFile(skill.Path)
-	if err != nil {
-		// Install reports the read error properly; treat it as work to do.
-		skill.Status = VendorChanged
+	if skill.DocPath == "" {
 		return
 	}
 
-	from, to := diffLines(existing), diffLines(data)
+	docStatus, docAdded, docRemoved, docDiff := v.compareFile(skill.DocPath)
+	skill.Added += docAdded
+	skill.Removed += docRemoved
+	skill.Diff += docDiff
 
-	switch {
-	case readErr != nil:
-		// Nothing to diff against, so the whole file is the addition.
-		skill.Status = VendorNew
-		skill.Added = len(to)
-		return
-	case bytes.Equal(existing, data):
-		skill.Status = VendorCurrent
-		return
-	default:
+	if skill.Status == VendorCurrent && docStatus != VendorCurrent {
 		skill.Status = VendorChanged
 	}
-
-	for _, op := range difflib.NewMatcher(from, to).GetOpCodes() {
-		switch op.Tag {
-		case 'r':
-			skill.Removed += op.I2 - op.I1
-			skill.Added += op.J2 - op.J1
-		case 'd':
-			skill.Removed += op.I2 - op.I1
-		case 'i':
-			skill.Added += op.J2 - op.J1
-		}
-	}
-
-	fromLabel := target
-	if rel, err := filepath.Rel(v.Root, target); err == nil {
-		fromLabel = rel
-	}
-
-	// A diff that can't be rendered is not worth failing over; the line
-	// counts above are what the caller reports either way.
-	skill.Diff, _ = difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-		A:        from,
-		B:        to,
-		FromFile: fromLabel,
-		ToFile:   skill.Path,
-		Context:  3,
-	})
-}
-
-// diffLines splits a file into lines that each keep their newline, with
-// no phantom line for the trailing one.
-func diffLines(data []byte) []string {
-	if len(data) == 0 {
-		return nil
-	}
-
-	lines := strings.SplitAfter(string(data), "\n")
-	if last := len(lines) - 1; lines[last] == "" {
-		return lines[:last]
-	}
-
-	return lines
 }
 
 // Install copies the selected skills into TargetDir, creating it when it
@@ -355,14 +309,13 @@ func (v *Vendorer) Install(result *VendorResult) error {
 			continue
 		}
 
-		data, err := os.ReadFile(skill.Path)
-		if err != nil {
-			return fmt.Errorf("failed to read skill %s: %w", skill.Path, err)
+		if err := v.install(skill.Path); err != nil {
+			return err
 		}
-
-		target := filepath.Join(v.TargetDir, filepath.Base(skill.Path))
-		if err := os.WriteFile(target, data, 0o644); err != nil {
-			return fmt.Errorf("failed to write skill %s: %w", target, err)
+		if skill.DocPath != "" {
+			if err := v.install(skill.DocPath); err != nil {
+				return err
+			}
 		}
 
 		result.Installed = append(result.Installed, skill.ID)
@@ -390,15 +343,16 @@ func (v *Vendorer) candidates() ([]*VendorSkill, error) {
 		}
 
 		path := filepath.Join(v.SourceDir, entry.Name())
-		pipeline, err := loader.loadSkillFile(path)
+		skill, err := loader.loadSkill(path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load skill %s: %w", path, err)
 		}
 
 		skills = append(skills, &VendorSkill{
-			ID:       pipeline.ID,
+			ID:       skill.ID(),
 			Path:     path,
-			Pipeline: pipeline,
+			DocPath:  skill.DocPath,
+			Pipeline: skill.Pipeline,
 		})
 	}
 

@@ -372,3 +372,57 @@ func TestVendorerRun(t *testing.T) {
 		assert.Equal(t, []string{"docker"}, result.Installed)
 	})
 }
+
+// TestVendorerRunCompanion covers the markdown companion beside a skill
+// file: it is installed with the skill, counted in the diff, and a
+// change to it alone is enough to make the skill out of date.
+func TestVendorerRunCompanion(t *testing.T) {
+	const guide = "`atkins go:build` builds the module.\n"
+
+	t.Run("installs the companion with the skill", func(t *testing.T) {
+		root, source := vendorFixture(t)
+		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
+		writeFile(t, filepath.Join(source, "go.md"), guide)
+		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
+
+		result, err := runner.NewVendorer(source, root).Run()
+		require.NoError(t, err)
+		assert.Equal(t, []string{"go"}, result.Installed)
+
+		vendored, err := os.ReadFile(filepath.Join(root, ".atkins", "skills", "go.md"))
+		require.NoError(t, err)
+		assert.Equal(t, guide, string(vendored))
+	})
+
+	t.Run("reports a skill whose companion drifted", func(t *testing.T) {
+		root, source := vendorFixture(t)
+		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
+		writeFile(t, filepath.Join(source, "go.md"), guide)
+		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
+		writeFile(t, filepath.Join(root, ".atkins", "skills", "go.yml"), goSkill)
+		writeFile(t, filepath.Join(root, ".atkins", "skills", "go.md"), "stale\n")
+
+		result, err := runner.NewVendorer(source, root).Plan()
+		require.NoError(t, err)
+		require.Len(t, result.Used, 1)
+		assert.Equal(t, runner.VendorChanged, result.Used[0].Status)
+		assert.Equal(t, []string{"go"}, result.Pending())
+		assert.Contains(t, result.Used[0].Diff, "stale")
+	})
+
+	t.Run("leaves a skill current when both files match", func(t *testing.T) {
+		root, source := vendorFixture(t)
+		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
+		writeFile(t, filepath.Join(source, "go.md"), guide)
+		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
+
+		_, err := runner.NewVendorer(source, root).Run()
+		require.NoError(t, err)
+
+		result, err := runner.NewVendorer(source, root).Plan()
+		require.NoError(t, err)
+		require.Len(t, result.Used, 1)
+		assert.Equal(t, runner.VendorCurrent, result.Used[0].Status)
+		assert.Empty(t, result.Pending())
+	})
+}
