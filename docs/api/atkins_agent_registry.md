@@ -8,6 +8,9 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Registry</code></summary>
+
 ```go
 // Registry is a generic container for registered items.
 type Registry[T any] struct {
@@ -15,6 +18,8 @@ type Registry[T any] struct {
 	ordered  []string
 }
 ```
+
+</details>
 
 ## Function symbols
 

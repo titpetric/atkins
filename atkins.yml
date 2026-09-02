@@ -41,10 +41,21 @@ jobs:
           - mv -f /usr/local/bin/atkins /usr/local/bin/atkins.old
           - mv -f /usr/local/bin/atkins.new /usr/local/bin/atkins
 
+  # splint reads the tree, go-fsck renders it. `go-fsck extract ./...` reads
+  # one package where splint reads all 59, which truncated docs/api to two
+  # files every time this ran.
+  #
+  # splint exits non-zero when a linter found something, which is a lint
+  # result and not an extraction failure, hence the `|| true`. Its document
+  # nests the package list under .Packages; go-fsck reads that list on its
+  # own, so jq unwraps it.
   test:docs:
     desc: "Generate docs"
     steps:
-      - go-fsck docs --split --out=docs/api --strip=github.com/titpetric ./...
+      - defer: rm -f splint.json go-fsck.json
+      - splint -include-sources -output splint.json ./... || true
+      - jq '.Packages' splint.json > go-fsck.json
+      - go-fsck docs --split --out=docs/api --strip=github.com/titpetric
       - task: mdox:fmt
         vars:
           source: ./docs

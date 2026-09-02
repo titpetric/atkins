@@ -18,6 +18,9 @@ instead so transactions and scoping stay in one place.
 
 ## Types
 
+<details>
+<summary><code>type ArtefactRequest</code></summary>
+
 ```go
 // ArtefactRequest is one uploaded file.
 type ArtefactRequest struct {
@@ -51,6 +54,11 @@ type ArtefactRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type CheckoutRequest</code></summary>
+
 ```go
 // CheckoutRequest is what an agent reports having checked out.
 type CheckoutRequest struct {
@@ -63,6 +71,11 @@ type CheckoutRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type CreateRequest</code></summary>
+
 ```go
 // CreateRequest is the input for creating a user. It is what
 // `atkins --register` collects at the prompt.
@@ -74,6 +87,11 @@ type CreateRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Flags</code></summary>
+
 ```go
 // Flags is the administrative state of a user. A nil field is left
 // alone, so an admin can revoke one privilege without restating the
@@ -84,6 +102,11 @@ type Flags struct {
 	IsAgent  *bool `json:"is_agent"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type JobArtefactStorage</code></summary>
 
 ```go
 // JobArtefactStorage persists the files a job produced.
@@ -97,12 +120,22 @@ type JobArtefactStorage struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobLogStorage</code></summary>
+
 ```go
 // JobLogStorage persists output captured from a job.
 type JobLogStorage struct {
 	db *sqlx.DB
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type JobRequest</code></summary>
 
 ```go
 // JobRequest is the input for dispatching a job.
@@ -153,6 +186,11 @@ type JobRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobStorage</code></summary>
+
 ```go
 // JobStorage persists dispatched jobs and their lifecycle.
 type JobStorage struct {
@@ -177,6 +215,11 @@ type JobStorage struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ListFilter</code></summary>
+
 ```go
 // ListFilter narrows a job listing. A zero filter lists everything.
 type ListFilter struct {
@@ -194,6 +237,11 @@ type ListFilter struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RepositoryRequest</code></summary>
+
 ```go
 // RepositoryRequest is the repository detail a client reports.
 type RepositoryRequest struct {
@@ -202,6 +250,11 @@ type RepositoryRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RepositoryRuleStorage</code></summary>
+
 ```go
 // RepositoryRuleStorage persists the repository allowlist.
 type RepositoryRuleStorage struct {
@@ -209,12 +262,22 @@ type RepositoryRuleStorage struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RepositoryStorage</code></summary>
+
 ```go
 // RepositoryStorage persists the git repositories the server has seen.
 type RepositoryStorage struct {
 	db *sqlx.DB
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type RetentionRequest</code></summary>
 
 ```go
 // RetentionRequest is one retention pass.
@@ -240,6 +303,11 @@ type RetentionRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RetentionResult</code></summary>
+
 ```go
 // RetentionResult reports what a pass removed.
 type RetentionResult struct {
@@ -256,6 +324,11 @@ type RetentionResult struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RuleRequest</code></summary>
+
 ```go
 // RuleRequest is the input for creating an allowlist rule.
 type RuleRequest struct {
@@ -266,6 +339,11 @@ type RuleRequest struct {
 	Description string `json:"description"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type SSHKeyRequest</code></summary>
 
 ```go
 // SSHKeyRequest is the input for adding a key.
@@ -287,6 +365,11 @@ type SSHKeyRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type SSHKeyStorage</code></summary>
+
 ```go
 // SSHKeyStorage persists the deploy keys agents clone with.
 // The private material never leaves this package except through
@@ -297,6 +380,11 @@ type SSHKeyStorage struct {
 	db *sqlx.DB
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type SessionRequest</code></summary>
 
 ```go
 // SessionRequest carries the client detail recorded with a login. All
@@ -309,6 +397,11 @@ type SessionRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type SessionStorage</code></summary>
+
 ```go
 // SessionStorage persists CLI login sessions and their refresh tokens.
 type SessionStorage struct {
@@ -319,6 +412,11 @@ type SessionStorage struct {
 	ttl time.Duration
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type SettingStorage</code></summary>
 
 ```go
 // SettingStorage reads and writes runtime configuration.
@@ -333,6 +431,11 @@ type SettingStorage struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type SettingValue</code></summary>
+
 ```go
 // SettingValue is a definition together with its effective value.
 type SettingValue struct {
@@ -342,6 +445,11 @@ type SettingValue struct {
 	IsDefault bool   `json:"is_default"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type StatusRequest</code></summary>
 
 ```go
 // StatusRequest is the terminal report an agent (or the CLI itself)
@@ -353,6 +461,11 @@ type StatusRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type UserStorage</code></summary>
+
 ```go
 // UserStorage persists users and verifies their credentials.
 type UserStorage struct {
@@ -360,7 +473,12 @@ type UserStorage struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const ConnectionName</code></summary>
 
 ```go
 // ConnectionName is the platform database connection the server prefers.
@@ -376,6 +494,11 @@ type UserStorage struct {
 const ConnectionName = "atkins"
 ```
 
+</details>
+
+<details>
+<summary><code>const DefaultSessionTTL</code></summary>
+
 ```go
 // DefaultSessionTTL is how long a CLI login lasts before the user has to
 // run `atkins --login` again. It's long on purpose: the access token is
@@ -384,16 +507,31 @@ const ConnectionName = "atkins"
 const DefaultSessionTTL = 30 * 24 * time.Hour
 ```
 
+</details>
+
+<details>
+<summary><code>const MaxLogChunk</code></summary>
+
 ```go
 // MaxLogChunk bounds one appended chunk. A job that prints a gigabyte
 // should fill the page slowly rather than the database quickly.
 const MaxLogChunk = 256 * 1024
 ```
 
+</details>
+
+<details>
+<summary><code>const Project</code></summary>
+
 ```go
 // Project is the migration project name recorded in the migrations table.
 const Project = "atkins"
 ```
+
+</details>
+
+<details>
+<summary><code>const DefaultMaxDepth, DefaultLeaseTTL</code></summary>
 
 ```go
 // Defaults applied when neither a stored setting nor a configured value
@@ -409,6 +547,11 @@ const (
 )
 ```
 
+</details>
+
+<details>
+<summary><code>const StreamOutput, StreamError</code></summary>
+
 ```go
 // Stream names for job output.
 const (
@@ -421,6 +564,11 @@ const (
 	StreamError = "error"
 )
 ```
+
+</details>
+
+<details>
+<summary><code>const DefaultRetentionBatch, DefaultRetentionBatches</code></summary>
 
 ```go
 // Retention defaults. They bound one pass rather than the whole
@@ -437,6 +585,8 @@ const (
 	DefaultRetentionBatches = 20
 )
 ```
+
+</details>
 
 ## Function symbols
 
@@ -534,6 +684,8 @@ func DB(ctx context.Context, name string) (*sqlx.DB, error)
 ### Migrate
 
 Migrate applies SQL migrations from the given filesystem to the database.
+Files are selected by mig's default "*.up.sql" pattern; a filesystem with
+none of them is an error.
 
 ```go
 func Migrate(ctx context.Context, db *sqlx.DB, schema fs.FS) error

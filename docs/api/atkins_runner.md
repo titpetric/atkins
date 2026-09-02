@@ -8,6 +8,9 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type ContextVariables</code></summary>
+
 ```go
 // ContextVariables provides thread-safe variable storage with Promise-based lazy evaluation.
 type ContextVariables struct {
@@ -18,10 +21,20 @@ type ContextVariables struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Env</code></summary>
+
 ```go
 // Env is a map of environment variables.
 type Env map[string]string
 ```
+
+</details>
+
+<details>
+<summary><code>type Environment</code></summary>
 
 ```go
 // Environment represents the discovered project environment.
@@ -29,6 +42,11 @@ type Environment struct {
 	Root string // Project root directory
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ExecError</code></summary>
 
 ```go
 // ExecError represents an error from command execution.
@@ -38,6 +56,11 @@ type ExecError struct {
 	LastExitCode int
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ExecutionContext</code></summary>
 
 ```go
 // ExecutionContext holds runtime state during pipeline Exec.
@@ -84,12 +107,22 @@ type ExecutionContext struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Executor</code></summary>
+
 ```go
 // Executor runs pipeline jobs and steps.
 type Executor struct {
 	opts *Options
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type FuzzyMatchError</code></summary>
 
 ```go
 // FuzzyMatchError is returned when multiple fuzzy matches are found.
@@ -98,12 +131,22 @@ type FuzzyMatchError struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type IterationContext</code></summary>
+
 ```go
 // IterationContext holds the variables for a single iteration of a for loop.
 type IterationContext struct {
 	Variables model.VariableStorage
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type JobProgressEvent</code></summary>
 
 ```go
 // JobProgressEvent represents a job lifecycle event.
@@ -117,10 +160,20 @@ type JobProgressEvent struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobProgressStatus</code></summary>
+
 ```go
 // JobProgressStatus represents the status of a job in progress.
 type JobProgressStatus string
 ```
+
+</details>
+
+<details>
+<summary><code>type LineCapturingWriter</code></summary>
 
 ```go
 // LineCapturingWriter captures all output written to it.
@@ -129,6 +182,11 @@ type LineCapturingWriter struct {
 	mu     sync.Mutex
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type LintError</code></summary>
 
 ```go
 // LintError represents a linting error.
@@ -139,6 +197,11 @@ type LintError struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Linter</code></summary>
+
 ```go
 // Linter validates a pipeline for correctness.
 type Linter struct {
@@ -148,12 +211,22 @@ type Linter struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Options</code></summary>
+
 ```go
 // Options provides configuration for the executor.
 type Options struct {
 	DefaultTimeout time.Duration
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type OutputItem</code></summary>
 
 ```go
 // OutputItem represents a single command in the list output.
@@ -164,6 +237,11 @@ type OutputItem struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type OutputSection</code></summary>
+
 ```go
 // OutputSection represents a pipeline section in the list output.
 type OutputSection struct {
@@ -172,6 +250,11 @@ type OutputSection struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Pipeline</code></summary>
+
 ```go
 // Pipeline holds pipeline execution logic.
 type Pipeline struct {
@@ -179,6 +262,11 @@ type Pipeline struct {
 	data *model.Pipeline
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type PipelineOptions</code></summary>
 
 ```go
 // PipelineOptions contains options for running a pipeline.
@@ -202,6 +290,11 @@ type PipelineOptions struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ProgressObserver</code></summary>
+
 ```go
 // ProgressObserver receives job progress events.
 type ProgressObserver interface {
@@ -209,10 +302,20 @@ type ProgressObserver interface {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ProgressObserverFunc</code></summary>
+
 ```go
 // ProgressObserverFunc is a function adapter for ProgressObserver.
 type ProgressObserverFunc func(JobProgressEvent)
 ```
+
+</details>
+
+<details>
+<summary><code>type Resolver</code></summary>
 
 ```go
 // Resolver resolves vars and env.vars together using a unified dependency
@@ -228,6 +331,51 @@ type Resolver struct {
 	workCtx *ExecutionContext
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Skill</code></summary>
+
+```go
+// Skill is one skill file found on disk.
+// A skill is a pipeline file whose name is the job namespace: go.yml
+// contributes go:build, go:test and the rest. Beside it a skill may
+// carry a markdown companion of the same base name, go.md, which is a
+// usage guide rather than a job list; `atkins --help` prints it under
+// the skill.
+type Skill struct {
+	// Pipeline is the parsed skill. Its ID is the file name without the
+	// extension, and prefixes every job the skill declares.
+	Pipeline *model.Pipeline
+
+	// Path is the absolute path of the skill file.
+	Path string
+
+	// DocPath is the markdown companion beside the skill file, empty
+	// when the skill carries none.
+	DocPath string
+
+	// Doc is the contents of DocPath, with surrounding blank lines
+	// trimmed.
+	Doc string
+
+	// Dir is the directory the skill runs in: the folder that satisfied
+	// its when: block, or the workspace root when it has none. It is
+	// only resolved for an active skill.
+	Dir string
+
+	// Active reports whether the skill's when: block is satisfied from
+	// the directory the scan started in. Only an active skill
+	// contributes its jobs to a run.
+	Active bool
+}
+```
+
+</details>
+
+<details>
+<summary><code>type SkillsLoader</code></summary>
 
 ```go
 // SkillsLoader discovers and loads skill pipelines from .atkins/skills/ directories.
@@ -247,12 +395,22 @@ type SkillsLoader struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type TaskResolver</code></summary>
+
 ```go
 // TaskResolver resolves task references, handling cross-pipeline : prefix syntax.
 type TaskResolver struct {
 	pipelines []*model.Pipeline
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type VarPromise</code></summary>
 
 ```go
 // VarPromise represents a lazy variable that is evaluated on first access.
@@ -264,6 +422,11 @@ type VarPromise struct {
 	mu    sync.Mutex
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type VendorResult</code></summary>
 
 ```go
 // VendorResult reports what a vendoring run found, matched and wrote.
@@ -286,6 +449,11 @@ type VendorResult struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type VendorSkill</code></summary>
+
 ```go
 // VendorSkill is a candidate skill file, with the reason it was picked
 // for vendoring once it has been matched against a repository.
@@ -295,6 +463,10 @@ type VendorSkill struct {
 
 	// Path is the absolute path of the source skill file.
 	Path string
+
+	// DocPath is the markdown companion beside Path, empty when the
+	// skill carries none. It is installed alongside the skill file.
+	DocPath string
 
 	// Pipeline is the parsed skill.
 	Pipeline *model.Pipeline
@@ -317,10 +489,20 @@ type VendorSkill struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type VendorStatus</code></summary>
+
 ```go
 // VendorStatus is what installing a skill would do to the repository.
 type VendorStatus string
 ```
+
+</details>
+
+<details>
+<summary><code>type Vendorer</code></summary>
 
 ```go
 // Vendorer copies the skills a repository uses out of a shared skills
@@ -342,7 +524,12 @@ type Vendorer struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const JobProgressRunning, JobProgressPassed, JobProgressFailed, JobProgressSkipped</code></summary>
 
 ```go
 // Job progress status constants.
@@ -353,6 +540,11 @@ const (
 	JobProgressSkipped JobProgressStatus = "skipped"
 )
 ```
+
+</details>
+
+<details>
+<summary><code>const VendorNew, VendorCurrent, VendorChanged</code></summary>
 
 ```go
 const (
@@ -368,17 +560,29 @@ const (
 )
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var ConfigNames</code></summary>
 
 ```go
 // ConfigNames are the default config file names to search for, in order of preference.
 var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.yaml"}
 ```
 
+</details>
+
+<details>
+<summary><code>var ErrJobSkipped</code></summary>
+
 ```go
 // ErrJobSkipped is returned when a job's if condition evaluates to false.
 var ErrJobSkipped = errors.New("job skipped")
 ```
+
+</details>
 
 ## Function symbols
 
@@ -448,10 +652,12 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*LineCapturingWriter) String () string`
 - `func (*LineCapturingWriter) Write (p []byte) (int, error)`
 - `func (*Linter) Lint () []LintError`
+- `func (*Skill) ID () string`
 - `func (*SkillsLoader) AddSkillsDir (dir string)`
 - `func (*SkillsLoader) FindFile (patterns []string, startDir string) (string, bool)`
 - `func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)`
 - `func (*SkillsLoader) Load () ([]*model.Pipeline, error)`
+- `func (*SkillsLoader) Scan () ([]*Skill, error)`
 - `func (*TaskResolver) Resolve (taskName string) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveName (name string, strict bool) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveWithFallback (taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)`
@@ -1049,6 +1255,14 @@ Lint validates the pipeline and returns any errors.
 func (*Linter) Lint() []LintError
 ```
 
+### ID
+
+ID returns the skill namespace, the file name without its extension.
+
+```go
+func (*Skill) ID() string
+```
+
 ### AddSkillsDir
 
 AddSkillsDir adds an additional skills directory to search.
@@ -1085,8 +1299,27 @@ func (*SkillsLoader) FindFolder(name, startDir string) (string, bool)
 
 Load discovers and returns all enabled skill pipelines.
 
+A skill from an earlier directory shadows one of the same ID found
+later, so a project skill wins over the global one it shares a name
+with. A skill whose when: block does not match contributes nothing and
+does not shadow anything.
+
 ```go
 func (*SkillsLoader) Load() ([]*model.Pipeline, error)
+```
+
+### Scan
+
+Scan returns every skill file in the loader's directories, in
+directory order, whether or not its when: block is satisfied.
+
+Load drops the skills that do not apply here; Scan keeps them so
+`atkins --help` can list what is installed rather than only what the
+current directory activates. Two directories carrying the same skill
+ID both appear, the higher-priority one first.
+
+```go
+func (*SkillsLoader) Scan() ([]*Skill, error)
 ```
 
 ### Resolve

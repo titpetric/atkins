@@ -8,6 +8,9 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Info</code></summary>
+
 ```go
 // Info contains injected build environment information.
 type Info struct {
@@ -18,12 +21,19 @@ type Info struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const Name</code></summary>
 
 ```go
 // Name is the command title.
 const Name = "Show version/build information"
 ```
+
+</details>
 
 ## Function symbols
 

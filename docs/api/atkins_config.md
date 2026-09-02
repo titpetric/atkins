@@ -20,6 +20,9 @@ with a message naming the field, rather than at the first request.
 
 ## Types
 
+<details>
+<summary><code>type AgentConfig</code></summary>
+
 ```go
 // AgentConfig is the worker that runs jobs.
 type AgentConfig struct {
@@ -42,6 +45,11 @@ type AgentConfig struct {
 	PreferHTTPS       bool          `yaml:"prefer_https" json:"prefer_https" env:"ATKINS_GIT_PREFER_HTTPS"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ClientConfig</code></summary>
 
 ```go
 // ClientConfig is the dispatching side.
@@ -71,6 +79,11 @@ type ClientConfig struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Config</code></summary>
+
 ```go
 // Config is the .atkins/config.yml document.
 type Config struct {
@@ -87,6 +100,11 @@ type Config struct {
 	Agent AgentConfig `yaml:"agent" json:"agent"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Field</code></summary>
 
 ```go
 // Field is one editable value in the configuration document.
@@ -105,6 +123,11 @@ type Field struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Menu</code></summary>
+
 ```go
 // Menu edits a configuration document interactively.
 type Menu struct {
@@ -119,6 +142,11 @@ type Menu struct {
 	dirty bool
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ServerConfig</code></summary>
 
 ```go
 // ServerConfig is the CI/CD server.
@@ -149,24 +177,44 @@ type ServerConfig struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const Dir</code></summary>
 
 ```go
 // Dir is the directory holding project and user configuration.
 const Dir = ".atkins"
 ```
 
+</details>
+
+<details>
+<summary><code>const FileName</code></summary>
+
 ```go
 // FileName is the configuration document inside an .atkins directory.
 const FileName = "config.yml"
 ```
+
+</details>
+
+<details>
+<summary><code>const Version</code></summary>
 
 ```go
 // Version is the document version this build understands.
 const Version = 1
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var RuntimeDefaultConfig</code></summary>
 
 ```go
 // RuntimeDefaultConfig is the default configuration document, embedded
@@ -180,6 +228,8 @@ const Version = 1
 //go:embed config.yml
 var RuntimeDefaultConfig []byte
 ```
+
+</details>
 
 ## Function symbols
 

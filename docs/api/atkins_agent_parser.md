@@ -8,9 +8,17 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Intent</code></summary>
+
 ```go
 type Intent = agentmodel.Intent
 ```
+
+</details>
+
+<details>
+<summary><code>type Parser</code></summary>
 
 ```go
 // Parser parses user input into intents.
@@ -20,6 +28,8 @@ type Parser struct {
 	aliases  *aliases.AliasStore
 }
 ```
+
+</details>
 
 ## Function symbols
 

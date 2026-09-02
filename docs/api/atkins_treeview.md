@@ -8,12 +8,20 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Builder</code></summary>
+
 ```go
 // Builder constructs tree nodes from pipeline data.
 type Builder struct {
 	root *Node
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Display</code></summary>
 
 ```go
 // Display manages in-place tree rendering with ANSI cursor control.
@@ -26,12 +34,22 @@ type Display struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ExecutionTree</code></summary>
+
 ```go
 // ExecutionTree holds the entire execution tree.
 type ExecutionTree struct {
 	*TreeNode
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Node</code></summary>
 
 ```go
 // Node represents a node in the tree (job, step, or iteration).
@@ -55,6 +73,11 @@ type Node struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Renderer</code></summary>
+
 ```go
 // Renderer handles rendering of tree nodes to strings with proper formatting.
 type Renderer struct {
@@ -64,10 +87,20 @@ type Renderer struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Status</code></summary>
+
 ```go
 // Status represents the execution status of a node.
 type Status int
 ```
+
+</details>
+
+<details>
+<summary><code>type TreeNode</code></summary>
 
 ```go
 // TreeNode represents a node in the execution tree (backward compatibility).
@@ -75,6 +108,11 @@ type TreeNode struct {
 	*Node
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Trimmer</code></summary>
 
 ```go
 // Trimmer handles label and line trimming for viewport constraints.
@@ -84,12 +122,22 @@ type Trimmer struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const DefaultMaxArgLen</code></summary>
 
 ```go
 // DefaultMaxArgLen is the default maximum length for argument values before compaction.
 const DefaultMaxArgLen = 25
 ```
+
+</details>
+
+<details>
+<summary><code>const StatusPending, StatusRunning, StatusPassed, StatusFailed, StatusSkipped, StatusConditional</code></summary>
 
 ```go
 // Status constants.
@@ -102,6 +150,8 @@ const (
 	StatusConditional
 )
 ```
+
+</details>
 
 ## Function symbols
 

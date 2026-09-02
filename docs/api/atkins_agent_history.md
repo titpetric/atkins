@@ -8,6 +8,9 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type ShellHistory</code></summary>
+
 ```go
 // ShellHistory maintains a persistent history of shell commands.
 type ShellHistory struct {
@@ -15,6 +18,11 @@ type ShellHistory struct {
 	path    string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ShellHistoryEntry</code></summary>
 
 ```go
 // ShellHistoryEntry records a shell command execution.
@@ -26,6 +34,8 @@ type ShellHistoryEntry struct {
 	Time     time.Time     `json:"time"`
 }
 ```
+
+</details>
 
 ## Function symbols
 

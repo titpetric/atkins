@@ -19,6 +19,9 @@ its own work tree under <DataDir>/work.
 
 ## Types
 
+<details>
+<summary><code>type Checkout</code></summary>
+
 ```go
 // Checkout records what the agent actually put in the work tree.
 // Ref is the effective ref: the one the job named, or the default branch
@@ -34,6 +37,11 @@ type Checkout struct {
 	Branch string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Options</code></summary>
 
 ```go
 // Options configures an agent.
@@ -86,6 +94,11 @@ type Options struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Result</code></summary>
+
 ```go
 // Result is the outcome of running a job command.
 type Result struct {
@@ -94,6 +107,11 @@ type Result struct {
 	Error    string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Worker</code></summary>
 
 ```go
 // Worker claims and runs jobs for one server.
@@ -105,6 +123,11 @@ type Worker struct {
 	ssh    sshKeys
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Workspace</code></summary>
 
 ```go
 // Workspace is a checkout prepared for one job.
@@ -133,13 +156,20 @@ type Workspace struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const EnvToken</code></summary>
 
 ```go
 // EnvToken is the enrolment secret's environment name. It is named here
 // because the "no credentials configured" error points at it.
 const EnvToken = "ATKINS_AGENT_TOKEN"
 ```
+
+</details>
 
 ## Function symbols
 

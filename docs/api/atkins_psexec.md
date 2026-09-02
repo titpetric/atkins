@@ -12,6 +12,9 @@ transports including websockets.
 
 ## Types
 
+<details>
+<summary><code>type Command</code></summary>
+
 ```go
 // Command represents a command to be executed.
 type Command struct {
@@ -42,10 +45,20 @@ type Command struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type EmptyResult</code></summary>
+
 ```go
 // EmptyResult is a Result for empty/no-op commands.
 type EmptyResult struct{}
 ```
+
+</details>
+
+<details>
+<summary><code>type Executor</code></summary>
 
 ```go
 // Executor manages process execution.
@@ -63,6 +76,11 @@ type Executor struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Options</code></summary>
+
 ```go
 // Options configures the Executor.
 type Options struct {
@@ -77,6 +95,11 @@ type Options struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Process</code></summary>
+
 ```go
 // Process represents a running process with PTY support.
 type Process struct {
@@ -90,6 +113,11 @@ type Process struct {
 	closed bool
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Result</code></summary>
 
 ```go
 // Result provides access to the outcome of a process execution.
@@ -108,6 +136,8 @@ type Result interface {
 	Duration() time.Duration
 }
 ```
+
+</details>
 
 ## Function symbols
 

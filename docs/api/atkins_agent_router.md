@@ -8,12 +8,20 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type CommandLookup</code></summary>
+
 ```go
 // CommandLookup provides command existence checking.
 type CommandLookup interface {
 	HasCommand(name string) bool
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Route</code></summary>
 
 ```go
 // Route represents a routing decision.
@@ -42,10 +50,20 @@ type Route struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RouteType</code></summary>
+
 ```go
 // RouteType categorizes the routing decision.
 type RouteType int
 ```
+
+</details>
+
+<details>
+<summary><code>type Router</code></summary>
 
 ```go
 // Router implements the centralized routing logic based on structure.d2.
@@ -66,7 +84,12 @@ type Router struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const RouteUnknown, RouteAlias, RouteSlash, RouteTask, RouteMultiTask, RouteShell, RouteGreeting, RouteCorrection, RouteFortune, RouteHelp, RouteQuit, RouteRetry, RouteConfirm</code></summary>
 
 ```go
 // RouteType constants following structure.d2 flow.
@@ -86,6 +109,8 @@ const (
 	RouteConfirm              // Fuzzy match needs confirmation
 )
 ```
+
+</details>
 
 ## Function symbols
 

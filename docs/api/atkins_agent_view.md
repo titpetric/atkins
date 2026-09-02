@@ -8,6 +8,9 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Breadcrumb</code></summary>
+
 ```go
 // Breadcrumb tracks execution progress as a one-liner.
 type Breadcrumb struct {
@@ -16,6 +19,11 @@ type Breadcrumb struct {
 	startTime time.Time
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type JobEntry</code></summary>
 
 ```go
 // JobEntry tracks a single job's execution progress.
@@ -29,10 +37,20 @@ type JobEntry struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobStatus</code></summary>
+
 ```go
 // JobStatus represents the execution status of a job.
 type JobStatus int
 ```
+
+</details>
+
+<details>
+<summary><code>type JobView</code></summary>
 
 ```go
 // JobView renders job execution in gotestsum-style format.
@@ -40,6 +58,11 @@ type JobView struct {
 	entries []JobEntry
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type LogEntry</code></summary>
 
 ```go
 // LogEntry represents a single entry in the message log.
@@ -54,10 +77,20 @@ type LogEntry struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type PromptMode</code></summary>
+
 ```go
 // PromptMode represents the current input mode.
 type PromptMode int
 ```
+
+</details>
+
+<details>
+<summary><code>type RenderData</code></summary>
 
 ```go
 // RenderData holds all data needed to render the TUI view.
@@ -81,6 +114,11 @@ type RenderData struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type StepEntry</code></summary>
+
 ```go
 // StepEntry tracks a single step within a job.
 type StepEntry struct {
@@ -91,7 +129,12 @@ type StepEntry struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const JobStatusPending, JobStatusRunning, JobStatusPassed, JobStatusFailed, JobStatusSkipped</code></summary>
 
 ```go
 // JobStatus constants.
@@ -103,6 +146,11 @@ const (
 	JobStatusSkipped
 )
 ```
+
+</details>
+
+<details>
+<summary><code>const PromptModeLanguage, PromptModeShell</code></summary>
 
 ```go
 // PromptMode constants.
@@ -117,6 +165,8 @@ const (
 	PromptModeShell
 )
 ```
+
+</details>
 
 ## Function symbols
 

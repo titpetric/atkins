@@ -8,12 +8,20 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Greeter</code></summary>
+
 ```go
 // Greeter handles greeting detection and responses.
 type Greeter struct {
 	groups []GreetingGroup
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type GreetingConfig</code></summary>
 
 ```go
 // GreetingConfig is the YAML structure for ~/.atkins/greetings.yaml.
@@ -22,6 +30,11 @@ type GreetingConfig struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type GreetingGroup</code></summary>
+
 ```go
 // GreetingGroup maps a language/group to its trigger words and responses.
 type GreetingGroup struct {
@@ -29,6 +42,8 @@ type GreetingGroup struct {
 	Responses []string `yaml:"responses"`
 }
 ```
+
+</details>
 
 ## Function symbols
 

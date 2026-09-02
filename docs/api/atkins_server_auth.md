@@ -15,6 +15,9 @@ refresh flow without keeping a revocation list of every access token.
 
 ## Types
 
+<details>
+<summary><code>type Claims</code></summary>
+
 ```go
 // Claims is the decoded payload of an access token.
 type Claims struct {
@@ -32,6 +35,11 @@ type Claims struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JWT</code></summary>
+
 ```go
 // JWT creates and validates signed access tokens.
 type JWT struct {
@@ -40,7 +48,12 @@ type JWT struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const ViewTokenLength</code></summary>
 
 ```go
 // ViewTokenLength is how many base64url characters of the digest a job
@@ -49,7 +62,12 @@ type JWT struct {
 const ViewTokenLength = 22
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var ErrEmptyToken, ErrEmptySecret, ErrInvalidToken</code></summary>
 
 ```go
 // Errors returned when a token cannot be turned into claims.
@@ -59,6 +77,8 @@ var (
 	ErrInvalidToken = errors.New("invalid token")
 )
 ```
+
+</details>
 
 ## Function symbols
 

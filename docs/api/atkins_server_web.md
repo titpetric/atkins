@@ -25,6 +25,9 @@ See session.go.
 
 ## Types
 
+<details>
+<summary><code>type Handlers</code></summary>
+
 ```go
 // Handlers serves the HTML pages.
 type Handlers struct {
@@ -51,6 +54,11 @@ type Handlers struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type IndexPage</code></summary>
+
 ```go
 // IndexPage is the view model for the front page.
 type IndexPage struct {
@@ -75,6 +83,11 @@ type IndexPage struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobPage</code></summary>
+
 ```go
 // JobPage is the view model for the job page.
 type JobPage struct {
@@ -90,6 +103,11 @@ type JobPage struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Links</code></summary>
+
 ```go
 // Links builds the URLs a page points at.
 // It exists because a component is a package-level function and cannot
@@ -102,6 +120,11 @@ type Links struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type LogSpan</code></summary>
+
 ```go
 // LogSpan is a run of output that shares one appearance.
 type LogSpan struct {
@@ -112,6 +135,11 @@ type LogSpan struct {
 	Class string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Options</code></summary>
 
 ```go
 // Options is passed from the server module scope.
@@ -133,6 +161,11 @@ type Options struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Page</code></summary>
+
 ```go
 // Page is the state every admin template needs whatever it is showing:
 // who is signed in, the token its forms have to echo, which nav entry
@@ -149,7 +182,12 @@ type Page struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const ViewTokenParam</code></summary>
 
 ```go
 // ViewTokenParam is the query parameter carrying a job's view token.
@@ -157,6 +195,8 @@ type Page struct {
 // sides share.
 const ViewTokenParam = model.ViewTokenParam
 ```
+
+</details>
 
 ## Function symbols
 

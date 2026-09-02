@@ -21,6 +21,9 @@ no HTTP handler anywhere near it.
 
 ## Types
 
+<details>
+<summary><code>type Dir</code></summary>
+
 ```go
 // Dir stores blobs as files under a root directory.
 // It is the right first backend and probably the right one for most
@@ -32,6 +35,11 @@ type Dir struct {
 	root string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Result</code></summary>
 
 ```go
 // Result describes what a Put wrote.
@@ -45,6 +53,11 @@ type Result struct {
 	Checksum string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Store</code></summary>
 
 ```go
 // Store holds artefact bytes under opaque keys.
@@ -68,7 +81,12 @@ type Store interface {
 }
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var ErrTooLarge, ErrInvalidKey</code></summary>
 
 ```go
 // Errors returned by a Store.
@@ -81,6 +99,8 @@ var (
 	ErrInvalidKey = errors.New("invalid blob key")
 )
 ```
+
+</details>
 
 ## Function symbols
 

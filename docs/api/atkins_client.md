@@ -19,6 +19,9 @@ database and routing dependencies.
 
 ## Types
 
+<details>
+<summary><code>type APIError</code></summary>
+
 ```go
 // APIError is a non-2xx response from the server.
 type APIError struct {
@@ -26,6 +29,11 @@ type APIError struct {
 	Message    string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type AgentSSHKey</code></summary>
 
 ```go
 // AgentSSHKey is a deploy key handed to an agent.
@@ -38,6 +46,11 @@ type AgentSSHKey struct {
 	Fingerprint string `json:"fingerprint"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Artefact</code></summary>
 
 ```go
 // Artefact mirrors api.ArtefactView: one file a job produced.
@@ -52,6 +65,11 @@ type Artefact struct {
 	URL         string `json:"url"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ArtefactUpload</code></summary>
 
 ```go
 // ArtefactUpload is one file being pushed to the server.
@@ -73,6 +91,11 @@ type ArtefactUpload struct {
 	Content io.Reader
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Checkout</code></summary>
 
 ```go
 // Checkout is what the client reports about the working copy a run
@@ -103,6 +126,11 @@ type Checkout struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ClaimRequest</code></summary>
+
 ```go
 // ClaimRequest is the body of POST /api/job/claim.
 type ClaimRequest struct {
@@ -110,6 +138,11 @@ type ClaimRequest struct {
 	Labels  []string `json:"labels,omitempty"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ClaimResponse</code></summary>
 
 ```go
 // ClaimResponse is returned when an agent leases a job. The repository
@@ -120,6 +153,11 @@ type ClaimResponse struct {
 	Repository *Repository `json:"repository"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Client</code></summary>
 
 ```go
 // Client is an HTTP client for one atkins server.
@@ -134,6 +172,11 @@ type Client struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Credential</code></summary>
+
 ```go
 // Credential is a stored login for one server.
 type Credential struct {
@@ -145,6 +188,11 @@ type Credential struct {
 	ExpiresAt    int64  `json:"expires_at"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type DispatchOptions</code></summary>
 
 ```go
 // DispatchOptions describes the run being handed over.
@@ -160,6 +208,11 @@ type DispatchOptions struct {
 	Server string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type DispatchRequest</code></summary>
 
 ```go
 // DispatchRequest is the body of POST /api/dispatch.
@@ -181,6 +234,11 @@ type DispatchRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type DispatchResponse</code></summary>
+
 ```go
 // DispatchResponse is returned by POST /api/dispatch.
 type DispatchResponse struct {
@@ -199,6 +257,11 @@ type DispatchResponse struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Dispatched</code></summary>
+
 ```go
 // Dispatched is a job handed to a server.
 // A nil *Dispatched means the run was not delegated and the caller
@@ -216,6 +279,11 @@ type Dispatched struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type EnrolRequest</code></summary>
+
 ```go
 // EnrolRequest is the body of POST /api/agent/enrol.
 type EnrolRequest struct {
@@ -224,6 +292,11 @@ type EnrolRequest struct {
 	Labels  []string `json:"labels,omitempty"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Job</code></summary>
 
 ```go
 // Job is the subset of a queued job an agent needs to run it. It
@@ -248,6 +321,11 @@ type Job struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobCheckoutRequest</code></summary>
+
 ```go
 // JobCheckoutRequest is the body of POST /api/job/{jobID}/checkout: what
 // the agent actually put in the work tree.
@@ -257,6 +335,11 @@ type JobCheckoutRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobLogRequest</code></summary>
+
 ```go
 // JobLogRequest is the body of POST /api/job/{jobID}/log.
 type JobLogRequest struct {
@@ -264,6 +347,11 @@ type JobLogRequest struct {
 	Content string `json:"content"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type JobStatusRequest</code></summary>
 
 ```go
 // JobStatusRequest is the body of POST /api/job/{jobID}/status.
@@ -274,6 +362,11 @@ type JobStatusRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type LoginRequest</code></summary>
+
 ```go
 // LoginRequest is the body of POST /api/user/login.
 type LoginRequest struct {
@@ -283,12 +376,22 @@ type LoginRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type LogoutRequest</code></summary>
+
 ```go
 // LogoutRequest is the body of POST /api/user/logout.
 type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type PolicyResponse</code></summary>
 
 ```go
 // PolicyResponse is what an agent may run.
@@ -297,6 +400,11 @@ type PolicyResponse struct {
 	Patterns []string `json:"patterns"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Prompter</code></summary>
 
 ```go
 // Prompter reads credentials from the terminal.
@@ -308,6 +416,11 @@ type Prompter struct {
 	fd int
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type RecordOptions</code></summary>
 
 ```go
 // RecordOptions describes the local run being logged.
@@ -323,6 +436,11 @@ type RecordOptions struct {
 	Server string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Recorder</code></summary>
 
 ```go
 // Recorder is a run happening here that is logged on a CI/CD server.
@@ -348,12 +466,22 @@ type Recorder struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RefreshRequest</code></summary>
+
 ```go
 // RefreshRequest is the body of POST /api/user/refreshToken.
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type RegisterRequest</code></summary>
 
 ```go
 // RegisterRequest is the body of POST /api/user/register.
@@ -365,6 +493,11 @@ type RegisterRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Repository</code></summary>
+
 ```go
 // Repository is the checkout an agent has to reproduce.
 type Repository struct {
@@ -374,6 +507,11 @@ type Repository struct {
 	DefaultBranch string `json:"default_branch"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type RepositoryPayload</code></summary>
 
 ```go
 // RepositoryPayload describes the checkout a run happens in.
@@ -389,6 +527,11 @@ type RepositoryPayload struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Store</code></summary>
+
 ```go
 // Store is the on-disk credential file. It holds one credential per
 // server so a machine can talk to more than one atkins instance, plus
@@ -402,6 +545,11 @@ type Store struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type TokenResponse</code></summary>
+
 ```go
 // TokenResponse is returned by login, register and refresh.
 type TokenResponse struct {
@@ -413,7 +561,12 @@ type TokenResponse struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const DefaultTimeout</code></summary>
 
 ```go
 // DefaultTimeout bounds a single API call. Dispatch happens on the hot
@@ -421,11 +574,21 @@ type TokenResponse struct {
 const DefaultTimeout = 10 * time.Second
 ```
 
+</details>
+
+<details>
+<summary><code>const HeaderArtefactChecksum</code></summary>
+
 ```go
 // HeaderArtefactChecksum carries ArtefactUpload.Checksum, mirroring
 // server/api.
 const HeaderArtefactChecksum = "X-Atkins-Checksum"
 ```
+
+</details>
+
+<details>
+<summary><code>const MinPasswordLength</code></summary>
 
 ```go
 // MinPasswordLength mirrors what the server accepts, so a typo is
@@ -433,12 +596,22 @@ const HeaderArtefactChecksum = "X-Atkins-Checksum"
 const MinPasswordLength = 8
 ```
 
+</details>
+
+<details>
+<summary><code>const UploadTimeout</code></summary>
+
 ```go
 // UploadTimeout bounds one artefact transfer. It is generous because an
 // artefact is measured in megabytes rather than in fields, and nothing
 // is waiting on it: the job has already finished by the time it runs.
 const UploadTimeout = 5 * time.Minute
 ```
+
+</details>
+
+<details>
+<summary><code>const EnvJobID, EnvParentJobID, EnvRootJobID, EnvJobParams, EnvArtefacts, EnvServer, EnvLabels, EnvNoDispatch, EnvCI</code></summary>
 
 ```go
 // Environment variables a dispatched run exports to its steps. They are
@@ -487,6 +660,11 @@ const (
 )
 ```
 
+</details>
+
+<details>
+<summary><code>const EnvEmail, EnvUsername, EnvPassword</code></summary>
+
 ```go
 // Environment overrides for non-interactive login and registration.
 // They exist so a container or a provisioning script can attach a
@@ -498,6 +676,11 @@ const (
 )
 ```
 
+</details>
+
+<details>
+<summary><code>const PolicyOpen, PolicyAllowlist</code></summary>
+
 ```go
 // Repository policy values, mirroring server/model.
 const (
@@ -506,6 +689,11 @@ const (
 )
 ```
 
+</details>
+
+<details>
+<summary><code>const StreamOutput, StreamError</code></summary>
+
 ```go
 // Log stream names, mirroring server/storage.
 const (
@@ -513,6 +701,11 @@ const (
 	StreamError  = "error"
 )
 ```
+
+</details>
+
+<details>
+<summary><code>const StatusPassed, StatusFailed, StatusTimeout, StatusCancelled</code></summary>
 
 ```go
 // Job status values reported by the CLI. They mirror the server's
@@ -525,7 +718,12 @@ const (
 )
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var ErrDispatchDisabled</code></summary>
 
 ```go
 // ErrDispatchDisabled is returned when the environment forbids handing
@@ -534,11 +732,21 @@ const (
 var ErrDispatchDisabled = errors.New(EnvNoDispatch + " is set")
 ```
 
+</details>
+
+<details>
+<summary><code>var ErrNoTerminal</code></summary>
+
 ```go
 // ErrNoTerminal is returned when a password is needed but stdin isn't a
 // terminal and no environment override was provided.
 var ErrNoTerminal = errors.New("stdin is not a terminal: set ATKINS_PASSWORD to log in non-interactively")
 ```
+
+</details>
+
+<details>
+<summary><code>var ErrNotARepository</code></summary>
 
 ```go
 // ErrNotARepository is returned when a directory is not inside a git
@@ -547,10 +755,20 @@ var ErrNoTerminal = errors.New("stdin is not a terminal: set ATKINS_PASSWORD to 
 var ErrNotARepository = errors.New("not inside a git repository")
 ```
 
+</details>
+
+<details>
+<summary><code>var ErrNotLoggedIn</code></summary>
+
 ```go
 // ErrNotLoggedIn is returned when no credential is stored for a server.
 var ErrNotLoggedIn = errors.New("not logged in: run `atkins --login <url>`")
 ```
+
+</details>
+
+<details>
+<summary><code>var UserAgent</code></summary>
 
 ```go
 // UserAgent is sent with every request. The main package overwrites it
@@ -558,6 +776,11 @@ var ErrNotLoggedIn = errors.New("not logged in: run `atkins --login <url>`")
 // old client from a new one.
 var UserAgent = "atkins"
 ```
+
+</details>
+
+<details>
+<summary><code>var ErrDirtyCheckout, ErrUnpushedCheckout</code></summary>
 
 ```go
 // Errors reported when a checkout cannot be reproduced elsewhere.
@@ -569,6 +792,8 @@ var (
 	ErrUnpushedCheckout = errors.New("HEAD has not been pushed to a remote")
 )
 ```
+
+</details>
 
 ## Function symbols
 

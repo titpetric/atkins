@@ -8,11 +8,19 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Cmd</code></summary>
+
 ```go
 // Cmd represents a command to be executed by the runtime.
 // This is an interface to decouple from specific implementations (e.g., bubbletea).
 type Cmd = func() any
 ```
+
+</details>
+
+<details>
+<summary><code>type Intent</code></summary>
 
 ```go
 // Intent represents a parsed user intent.
@@ -27,10 +35,20 @@ type Intent struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type IntentType</code></summary>
+
 ```go
 // IntentType categorizes user input.
 type IntentType int
 ```
+
+</details>
+
+<details>
+<summary><code>type Model</code></summary>
 
 ```go
 // Model represents the application model interface.
@@ -40,7 +58,12 @@ type Model interface {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const IntentUnknown, IntentTask, IntentSlash, IntentHelp, IntentQuit</code></summary>
 
 ```go
 // IntentType constants for the enum.
@@ -53,7 +76,12 @@ const (
 )
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var FillerWords</code></summary>
 
 ```go
 // FillerWords to strip from natural language input.
@@ -65,6 +93,8 @@ var FillerWords = []string{
 	"your", "its", "it's", "tell", "whats",
 }
 ```
+
+</details>
 
 ## Function symbols
 

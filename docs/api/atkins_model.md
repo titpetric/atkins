@@ -8,16 +8,29 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Condition</code></summary>
+
 ```go
 // Condition represents a single if-condition expression.
 type Condition string
 ```
+
+</details>
+
+<details>
+<summary><code>type Conditionals</code></summary>
 
 ```go
 // Conditionals is a slice of Condition with custom YAML unmarshalling
 // to support both single string and list of strings.
 type Conditionals []Condition
 ```
+
+</details>
+
+<details>
+<summary><code>type Decl</code></summary>
 
 ```go
 // Decl represents a common variables signature {vars, env, include}.
@@ -29,6 +42,11 @@ type Decl struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type DeferredStep</code></summary>
+
 ```go
 // DeferredStep represents a deferred step wrapper.
 type DeferredStep struct {
@@ -36,16 +54,31 @@ type DeferredStep struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Dependencies</code></summary>
+
 ```go
 // Dependencies represents job dependencies.
 type Dependencies []string
 ```
+
+</details>
+
+<details>
+<summary><code>type EnvDecl</code></summary>
 
 ```go
 // EnvDecl represents an environment variable declaration that can contain
 // both manually-set variables and includes from external files.
 type EnvDecl Decl
 ```
+
+</details>
+
+<details>
+<summary><code>type IncludeDecl</code></summary>
 
 ```go
 // IncludeDecl represents file includes that can be either a single string or a list of strings.
@@ -54,6 +87,11 @@ type IncludeDecl struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Iterator</code></summary>
+
 ```go
 // Iterator represents a single for-loop iteration specification,
 // using format "item in items" or "(idx, item) in items". The alternative
@@ -61,11 +99,21 @@ type IncludeDecl struct {
 type Iterator string
 ```
 
+</details>
+
+<details>
+<summary><code>type Iterators</code></summary>
+
 ```go
 // Iterators is a slice of Iterator with custom YAML unmarshalling
 // to support both single string and list of strings.
 type Iterators []Iterator
 ```
+
+</details>
+
+<details>
+<summary><code>type Job</code></summary>
 
 ```go
 // Job represents a job/task in the pipeline.
@@ -97,10 +145,20 @@ type Job struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobWalkFunc</code></summary>
+
 ```go
 // JobWalkFunc is called for each step in a job during Walk.
 type JobWalkFunc func(index int, step *Step) error
 ```
+
+</details>
+
+<details>
+<summary><code>type Label</code></summary>
 
 ```go
 // Label represents a display label for a step or command.
@@ -113,6 +171,11 @@ type Label struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Pipeline</code></summary>
+
 ```go
 // Pipeline represents the root structure of an atkins.yml file.
 type Pipeline struct {
@@ -122,6 +185,11 @@ type Pipeline struct {
 	Name string `yaml:"name,omitempty"`
 	Dir  string `yaml:"dir,omitempty"`
 
+	// Help is one or two sentences on what the pipeline is for, and the
+	// files it reads and writes. `atkins --help` prints it under the
+	// skill the pipeline came from.
+	Help string `yaml:"help,omitempty"`
+
 	Jobs  map[string]*Job `yaml:"jobs,omitempty"`
 	Tasks map[string]*Job `yaml:"tasks,omitempty"`
 
@@ -129,10 +197,20 @@ type Pipeline struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type PipelineWalkFunc</code></summary>
+
 ```go
 // PipelineWalkFunc is called for each job in a pipeline during Walk.
 type PipelineWalkFunc func(name string, job *Job) error
 ```
+
+</details>
+
+<details>
+<summary><code>type PipelineWhen</code></summary>
 
 ```go
 // PipelineWhen is a list of files that need to exist somewhere to
@@ -142,6 +220,11 @@ type PipelineWhen struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ResolvedTask</code></summary>
+
 ```go
 // ResolvedTask contains the result of resolving a task reference.
 type ResolvedTask struct {
@@ -150,6 +233,11 @@ type ResolvedTask struct {
 	Pipeline *Pipeline // The pipeline containing the task
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Step</code></summary>
 
 ```go
 // Step represents a step within a job.
@@ -177,6 +265,11 @@ type Step struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type StepDispatcher</code></summary>
+
 ```go
 // StepDispatcher handles dispatching step execution without caring
 // about the step type (task vs command). Implementations decide how
@@ -188,6 +281,11 @@ type StepDispatcher interface {
 	Command(step *Step, index int, cmd string) error
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type VariableStorage</code></summary>
 
 ```go
 // VariableStorage provides access to variables with lazy evaluation support.
@@ -209,6 +307,8 @@ type VariableStorage interface {
 	Walk(fn func(key string, value any))
 }
 ```
+
+</details>
 
 ## Function symbols
 

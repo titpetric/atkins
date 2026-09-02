@@ -8,6 +8,9 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Event</code></summary>
+
 ```go
 // Event represents a single execution event in the log.
 type Event struct {
@@ -33,10 +36,20 @@ type Event struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type EventType</code></summary>
+
 ```go
 // EventType indicates the source of an event.
 type EventType string
 ```
+
+</details>
+
+<details>
+<summary><code>type GitInfo</code></summary>
 
 ```go
 // GitInfo contains git repository information.
@@ -48,6 +61,11 @@ type GitInfo struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Log</code></summary>
+
 ```go
 // Log is the complete log structure written to YAML.
 type Log struct {
@@ -57,6 +75,11 @@ type Log struct {
 	Summary  *RunSummary `yaml:"summary,omitempty"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type LogEntry</code></summary>
 
 ```go
 // LogEntry is the input for LogCommand with named fields.
@@ -75,6 +98,11 @@ type LogEntry struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Logger</code></summary>
+
 ```go
 // Logger collects events during execution and writes the final log.
 type Logger struct {
@@ -87,10 +115,20 @@ type Logger struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Result</code></summary>
+
 ```go
 // Result represents the final outcome of an execution.
 type Result string
 ```
+
+</details>
+
+<details>
+<summary><code>type RunMetadata</code></summary>
 
 ```go
 // RunMetadata contains information about the execution environment.
@@ -103,6 +141,11 @@ type RunMetadata struct {
 	Git        *GitInfo  `yaml:"git,omitempty"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type RunSummary</code></summary>
 
 ```go
 // RunSummary provides aggregate statistics for the run.
@@ -118,6 +161,11 @@ type RunSummary struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RuntimeStats</code></summary>
+
 ```go
 // RuntimeStats holds memory and goroutine statistics.
 type RuntimeStats struct {
@@ -125,6 +173,11 @@ type RuntimeStats struct {
 	Goroutines  int
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type StateNode</code></summary>
 
 ```go
 // StateNode represents a node in the execution state tree for YAML output.
@@ -143,7 +196,12 @@ type StateNode struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const ResultPass, ResultFail, ResultSkipped</code></summary>
 
 ```go
 // Result constants for execution outcomes.
@@ -154,6 +212,11 @@ const (
 )
 ```
 
+</details>
+
+<details>
+<summary><code>const EventTypeStep, EventTypeSubstitution, EventTypeInterpolation</code></summary>
+
 ```go
 // EventType constants for different event sources.
 const (
@@ -162,6 +225,8 @@ const (
 	EventTypeInterpolation EventType = "interpolation" // Variable interpolation
 )
 ```
+
+</details>
 
 ## Function symbols
 

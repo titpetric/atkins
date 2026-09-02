@@ -8,6 +8,9 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Agent</code></summary>
+
 ```go
 // Agent manages the interactive REPL session.
 type Agent struct {
@@ -17,6 +20,11 @@ type Agent struct {
 	workDir   string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type AutoFixConfig</code></summary>
 
 ```go
 // AutoFixConfig holds configuration for auto-fix behavior.
@@ -32,6 +40,11 @@ type AutoFixConfig struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type AutoFixer</code></summary>
+
 ```go
 // AutoFixer handles automatic error recovery.
 type AutoFixer struct {
@@ -39,6 +52,11 @@ type AutoFixer struct {
 	skills   []*model.Pipeline
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type AutofixDoneMsg</code></summary>
 
 ```go
 // AutofixDoneMsg signals an autofix completed.
@@ -49,6 +67,11 @@ type AutofixDoneMsg struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type AutofixStartMsg</code></summary>
+
 ```go
 // AutofixStartMsg signals an autofix should begin.
 type AutofixStartMsg struct {
@@ -56,6 +79,11 @@ type AutofixStartMsg struct {
 	FixTask      *model.ResolvedTask
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ExecutionDoneMsg</code></summary>
 
 ```go
 // ExecutionDoneMsg signals a task execution completed.
@@ -66,10 +94,20 @@ type ExecutionDoneMsg struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ExecutionProgressExported</code></summary>
+
 ```go
 // ExecutionProgressExported is exported for testing. Use newExecutionProgress in production.
 type ExecutionProgressExported = executionProgress
 ```
+
+</details>
+
+<details>
+<summary><code>type ExecutionStartMsg</code></summary>
 
 ```go
 // ExecutionStartMsg signals a task execution should begin.
@@ -79,6 +117,11 @@ type ExecutionStartMsg struct {
 	Resolved *model.ResolvedTask
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Executor</code></summary>
 
 ```go
 // Executor handles route execution with consistent output.
@@ -91,6 +134,11 @@ type Executor struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type GitStats</code></summary>
+
 ```go
 // GitStats holds +/- line counts from git diff.
 type GitStats struct {
@@ -99,16 +147,31 @@ type GitStats struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Greeter</code></summary>
+
 ```go
 type (
 	Greeter = greeting.Greeter
 )
 ```
 
+</details>
+
+<details>
+<summary><code>type JobProgressClosedMsg</code></summary>
+
 ```go
 // JobProgressClosedMsg signals the progress channel was closed.
 type JobProgressClosedMsg struct{}
 ```
+
+</details>
+
+<details>
+<summary><code>type JobProgressMsg</code></summary>
 
 ```go
 // JobProgressMsg signals a job progress update from the runner.
@@ -116,6 +179,11 @@ type JobProgressMsg struct {
 	Event runner.JobProgressEvent
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Model</code></summary>
 
 ```go
 // Model is the bubbletea model for the agent REPL.
@@ -171,6 +239,11 @@ type Model struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Options</code></summary>
+
 ```go
 // Options configures agent behavior.
 type Options struct {
@@ -179,6 +252,11 @@ type Options struct {
 	Jail    bool
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Output</code></summary>
 
 ```go
 // Output abstracts output operations for both interactive and non-interactive modes.
@@ -194,10 +272,20 @@ type Output interface {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Registry</code></summary>
+
 ```go
 // Registry is the slash command registry type.
 type Registry = SlashRegistry
 ```
+
+</details>
+
+<details>
+<summary><code>type RetryMsg</code></summary>
 
 ```go
 // RetryMsg signals a task should be retried.
@@ -205,6 +293,11 @@ type RetryMsg struct {
 	Task *model.ResolvedTask
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ShellDoneMsg</code></summary>
 
 ```go
 // ShellDoneMsg signals a shell command completed.
@@ -217,6 +310,11 @@ type ShellDoneMsg struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ShellResult</code></summary>
+
 ```go
 // ShellResult contains the result of a shell command execution.
 type ShellResult struct {
@@ -228,12 +326,22 @@ type ShellResult struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ShellStartMsg</code></summary>
+
 ```go
 // ShellStartMsg signals a shell command should begin.
 type ShellStartMsg struct {
 	Command string
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type SlashCommand</code></summary>
 
 ```go
 // SlashCommand represents a slash command handler.
@@ -245,6 +353,11 @@ type SlashCommand struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type SlashRegistry</code></summary>
+
 ```go
 // SlashRegistry wraps the generic registry to implement CommandLookup.
 type SlashRegistry struct {
@@ -252,10 +365,20 @@ type SlashRegistry struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type State</code></summary>
+
 ```go
 // State represents the current REPL state.
 type State int
 ```
+
+</details>
+
+<details>
+<summary><code>type StdOutput</code></summary>
 
 ```go
 // StdOutput implements Output for non-interactive mode (stdout/stderr).
@@ -264,6 +387,11 @@ type StdOutput struct {
 	Err io.Writer
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type LogEntry, Breadcrumb, PromptMode, JobStatus, JobEntry, StepEntry, JobView</code></summary>
 
 ```go
 // Type aliases for view package types.
@@ -278,7 +406,12 @@ type (
 )
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const PromptModeLanguage, PromptModeShell</code></summary>
 
 ```go
 // PromptMode constants.
@@ -287,6 +420,11 @@ const (
 	PromptModeShell    = view.PromptModeShell
 )
 ```
+
+</details>
+
+<details>
+<summary><code>const JobStatusPending, JobStatusRunning, JobStatusPassed, JobStatusFailed, JobStatusSkipped</code></summary>
 
 ```go
 // JobStatus constants.
@@ -299,6 +437,11 @@ const (
 )
 ```
 
+</details>
+
+<details>
+<summary><code>const StateIdle, StateExecuting, StateAutofix, StateRetrying</code></summary>
+
 ```go
 // State constants for the REPL.
 const (
@@ -309,7 +452,12 @@ const (
 )
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var NewGreeter, MatchFortune, Fortune</code></summary>
 
 ```go
 var (
@@ -318,6 +466,8 @@ var (
 	Fortune      = greeting.Fortune
 )
 ```
+
+</details>
 
 ## Function symbols
 

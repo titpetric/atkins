@@ -17,13 +17,16 @@ dispatch from there, and agents claim queued work over /api/job/claim.
 
 Mount it in a platform server:
 
-```
+```go
 svc := platform.New(platform.NewOptions())
 svc.Register(server.NewModule(server.NewOptions()))
 svc.Start(ctx)
 ```
 
 ## Types
+
+<details>
+<summary><code>type Module</code></summary>
 
 ```go
 // Module implements the platform module contract for the atkins server.
@@ -49,6 +52,11 @@ type Module struct {
 	done   sync.WaitGroup
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Options</code></summary>
 
 ```go
 // Options configures the atkins CI/CD server module.
@@ -107,7 +115,12 @@ type Options struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const DefaultArtefactDir</code></summary>
 
 ```go
 // DefaultArtefactDir is where artefact bytes go when nothing says
@@ -116,11 +129,21 @@ type Options struct {
 const DefaultArtefactDir = "artefacts"
 ```
 
+</details>
+
+<details>
+<summary><code>const Name</code></summary>
+
 ```go
 // Name is the module name, and the name of the database connection the
 // module uses (PLATFORM_DB_ATKINS).
 const Name = storage.ConnectionName
 ```
+
+</details>
+
+<details>
+<summary><code>const EnvSigningKey, EnvAgentToken</code></summary>
 
 ```go
 // Environment variable names, kept here because error messages point at
@@ -130,6 +153,8 @@ const (
 	EnvAgentToken = "ATKINS_AGENT_TOKEN"
 )
 ```
+
+</details>
 
 ## Function symbols
 

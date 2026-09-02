@@ -18,6 +18,9 @@ call storage rather than issuing SQL.
 
 ## Types
 
+<details>
+<summary><code>type AgentSSHKey</code></summary>
+
 ```go
 // AgentSSHKey is a deploy key handed to an agent, private half and all.
 type AgentSSHKey struct {
@@ -29,6 +32,11 @@ type AgentSSHKey struct {
 	Fingerprint string `json:"fingerprint"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type ArtefactView</code></summary>
 
 ```go
 // ArtefactView is how an artefact is described over the API.
@@ -52,6 +60,11 @@ type ArtefactView struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ClaimRequest</code></summary>
+
 ```go
 // ClaimRequest is the body of /api/job/claim.
 type ClaimRequest struct {
@@ -64,6 +77,11 @@ type ClaimRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ClaimResponse</code></summary>
+
 ```go
 // ClaimResponse is returned when an agent leases a job.
 // The repository is included rather than referenced: the agent's very
@@ -74,6 +92,11 @@ type ClaimResponse struct {
 	Repository *model.Repository `json:"repository"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type DispatchRequest</code></summary>
 
 ```go
 // DispatchRequest is the body of /api/dispatch.
@@ -122,6 +145,11 @@ type DispatchRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type DispatchResponse</code></summary>
+
 ```go
 // DispatchResponse is what /api/dispatch returns.
 // The CLI puts JobID into ATKINS_JOB_ID for the run it is about to
@@ -144,6 +172,11 @@ type DispatchResponse struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type EnrolRequest</code></summary>
+
 ```go
 // EnrolRequest is the body of POST /api/agent/enrol.
 type EnrolRequest struct {
@@ -160,6 +193,11 @@ type EnrolRequest struct {
 	Labels []string `json:"labels"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Handlers</code></summary>
 
 ```go
 // Handlers serves the atkins server API.
@@ -184,6 +222,11 @@ type Handlers struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobCheckoutRequest</code></summary>
+
 ```go
 // JobCheckoutRequest is the body of /api/job/{jobID}/checkout.
 // It is the agent answering the question the job asked. A job may name a
@@ -199,6 +242,11 @@ type JobCheckoutRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobLogRequest</code></summary>
+
 ```go
 // JobLogRequest is the body of POST /api/job/{jobID}/log.
 type JobLogRequest struct {
@@ -210,6 +258,11 @@ type JobLogRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobStatusRequest</code></summary>
+
 ```go
 // JobStatusRequest is the body of /api/job/{jobID}/status.
 type JobStatusRequest struct {
@@ -218,6 +271,11 @@ type JobStatusRequest struct {
 	Error    string `json:"error"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type JobView</code></summary>
 
 ```go
 // JobView is a job as the API returns it: the stored row, plus how to
@@ -241,6 +299,11 @@ type JobView struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type LoginRequest</code></summary>
+
 ```go
 // LoginRequest is the body of /api/user/login.
 type LoginRequest struct {
@@ -253,6 +316,11 @@ type LoginRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type LogoutRequest</code></summary>
+
 ```go
 // LogoutRequest is the body of /api/user/logout. The refresh token is
 // optional: an authenticated request already names its session.
@@ -260,6 +328,11 @@ type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Options</code></summary>
 
 ```go
 // Options is passed from the server module scope. Every field has a
@@ -296,6 +369,11 @@ type Options struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type PolicyResponse</code></summary>
+
 ```go
 // PolicyResponse tells an agent what it is allowed to run.
 // The agent enforces this itself before cloning anything. The server
@@ -312,12 +390,22 @@ type PolicyResponse struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RefreshRequest</code></summary>
+
 ```go
 // RefreshRequest is the body of /api/user/refreshToken.
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type RegisterRequest</code></summary>
 
 ```go
 // RegisterRequest is the body of /api/user/register.
@@ -328,6 +416,11 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type RepositoryPayload</code></summary>
 
 ```go
 // RepositoryPayload is the git detail a client reports about its checkout.
@@ -351,6 +444,11 @@ type RepositoryPayload struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RequestError</code></summary>
+
 ```go
 // RequestError is an error carrying the HTTP status to report it with.
 type RequestError struct {
@@ -359,6 +457,11 @@ type RequestError struct {
 	Err error
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type SSHKeyView</code></summary>
 
 ```go
 // SSHKeyView is how a key is described to an operator: everything
@@ -374,6 +477,11 @@ type SSHKeyView struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type TokenResponse</code></summary>
+
 ```go
 // TokenResponse is what the login and refresh endpoints return. It is
 // exactly what the CLI persists in ~/.atkins/credentials.json.
@@ -385,6 +493,11 @@ type TokenResponse struct {
 	ExpiresAt    int64  `json:"expires_at"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type TriggerRequest</code></summary>
 
 ```go
 // TriggerRequest is the body of POST /api/repository/{repositoryID}/trigger.
@@ -435,6 +548,11 @@ type TriggerRequest struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type UserView</code></summary>
+
 ```go
 // UserView is how a user is described over the API. It exists so a
 // password hash can never reach a response by accident.
@@ -449,6 +567,11 @@ type UserView struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type WhoamiResponse</code></summary>
+
 ```go
 // WhoamiResponse describes the authenticated user.
 type WhoamiResponse struct {
@@ -460,7 +583,12 @@ type WhoamiResponse struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const DefaultTokenTTL</code></summary>
 
 ```go
 // DefaultTokenTTL is the access token lifetime. It is short because the
@@ -469,6 +597,11 @@ type WhoamiResponse struct {
 const DefaultTokenTTL = time.Hour
 ```
 
+</details>
+
+<details>
+<summary><code>const HeaderArtefactChecksum</code></summary>
+
 ```go
 // HeaderArtefactChecksum carries the SHA256 the agent computed while
 // reading the file. It is optional; when present the server compares it
@@ -476,6 +609,8 @@ const DefaultTokenTTL = time.Hour
 // than an artefact nobody can use.
 const HeaderArtefactChecksum = "X-Atkins-Checksum"
 ```
+
+</details>
 
 ## Function symbols
 

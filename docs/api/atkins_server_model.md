@@ -8,6 +8,9 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Job</code></summary>
+
 ```go
 // Job generated for db table `job`.
 type Job struct {
@@ -82,6 +85,11 @@ type Job struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobArtefact</code></summary>
+
 ```go
 // JobArtefact generated for db table `job_artefact`.
 // Job Artefact.
@@ -118,6 +126,11 @@ type JobArtefact struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobLog</code></summary>
+
 ```go
 // JobLog generated for db table `job_log`.
 // Job Log.
@@ -142,6 +155,11 @@ type JobLog struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type JobStatus</code></summary>
+
 ```go
 // JobStatus is the lifecycle state of a job. The values mirror the
 // CHECK constraint in schema/job.up.sql; adding one means adding it in
@@ -149,10 +167,20 @@ type JobLog struct {
 type JobStatus = string
 ```
 
+</details>
+
+<details>
+<summary><code>type JobVisibility</code></summary>
+
 ```go
 // JobVisibility decides who may read a job and the output it captured.
 type JobVisibility = string
 ```
+
+</details>
+
+<details>
+<summary><code>type Migrations</code></summary>
 
 ```go
 // Migrations generated for db table `migrations`.
@@ -171,6 +199,11 @@ type Migrations struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type QueryConfig</code></summary>
+
 ```go
 // QueryConfig is a function-chaining SQL statement type.
 type QueryConfig struct {
@@ -184,6 +217,11 @@ type QueryConfig struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type QueryOption</code></summary>
+
 ```go
 // QueryOption is implemented by each data model type.
 type QueryOption interface {
@@ -195,6 +233,11 @@ type QueryOption interface {
 	WithStatement(stmt string) QueryOption
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Repository</code></summary>
 
 ```go
 // Repository generated for db table `repository`.
@@ -228,10 +271,20 @@ type Repository struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type RepositoryPolicy</code></summary>
+
 ```go
 // RepositoryPolicy decides which repositories agents may build.
 type RepositoryPolicy = string
 ```
+
+</details>
+
+<details>
+<summary><code>type RepositoryRule</code></summary>
 
 ```go
 // RepositoryRule generated for db table `repository_rule`.
@@ -262,6 +315,11 @@ type RepositoryRule struct {
 	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type SSHKey</code></summary>
 
 ```go
 // SSHKey generated for db table `ssh_key`.
@@ -308,6 +366,11 @@ type SSHKey struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Session</code></summary>
+
 ```go
 // Session generated for db table `session`.
 type Session struct {
@@ -346,6 +409,11 @@ type Session struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type Setting</code></summary>
+
 ```go
 // Setting generated for db table `setting`.
 type Setting struct {
@@ -366,6 +434,11 @@ type Setting struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type SettingDefinition</code></summary>
+
 ```go
 // SettingDefinition describes one configurable value.
 type SettingDefinition struct {
@@ -379,10 +452,20 @@ type SettingDefinition struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type SettingKind</code></summary>
+
 ```go
 // SettingKind is how a setting's value is validated and parsed.
 type SettingKind string
 ```
+
+</details>
+
+<details>
+<summary><code>type User</code></summary>
 
 ```go
 // User generated for db table `user`.
@@ -422,7 +505,12 @@ type User struct {
 }
 ```
 
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const DefaultContentType</code></summary>
 
 ```go
 // DefaultContentType is what an artefact is served as when the agent
@@ -430,20 +518,40 @@ type User struct {
 const DefaultContentType = "application/octet-stream"
 ```
 
+</details>
+
+<details>
+<summary><code>const JobArtefactTable</code></summary>
+
 ```go
 // JobArtefactTable is the name of the table in the DB.
 const JobArtefactTable = "`job_artefact`"
 ```
+
+</details>
+
+<details>
+<summary><code>const JobLogTable</code></summary>
 
 ```go
 // JobLogTable is the name of the table in the DB.
 const JobLogTable = "`job_log`"
 ```
 
+</details>
+
+<details>
+<summary><code>const JobTable</code></summary>
+
 ```go
 // JobTable is the name of the table in the DB.
 const JobTable = "`job`"
 ```
+
+</details>
+
+<details>
+<summary><code>const MaxArtefactPathLength</code></summary>
 
 ```go
 // MaxArtefactPathLength bounds the name an artefact is stored under.
@@ -452,40 +560,80 @@ const JobTable = "`job`"
 const MaxArtefactPathLength = 512
 ```
 
+</details>
+
+<details>
+<summary><code>const MigrationsTable</code></summary>
+
 ```go
 // MigrationsTable is the name of the table in the DB.
 const MigrationsTable = "`migrations`"
 ```
+
+</details>
+
+<details>
+<summary><code>const RepositoryRuleTable</code></summary>
 
 ```go
 // RepositoryRuleTable is the name of the table in the DB.
 const RepositoryRuleTable = "`repository_rule`"
 ```
 
+</details>
+
+<details>
+<summary><code>const RepositoryTable</code></summary>
+
 ```go
 // RepositoryTable is the name of the table in the DB.
 const RepositoryTable = "`repository`"
 ```
+
+</details>
+
+<details>
+<summary><code>const SSHKeyTable</code></summary>
 
 ```go
 // SSHKeyTable is the name of the table in the DB.
 const SSHKeyTable = "`ssh_key`"
 ```
 
+</details>
+
+<details>
+<summary><code>const SessionTable</code></summary>
+
 ```go
 // SessionTable is the name of the table in the DB.
 const SessionTable = "`session`"
 ```
+
+</details>
+
+<details>
+<summary><code>const SettingTable</code></summary>
 
 ```go
 // SettingTable is the name of the table in the DB.
 const SettingTable = "`setting`"
 ```
 
+</details>
+
+<details>
+<summary><code>const UserTable</code></summary>
+
 ```go
 // UserTable is the name of the table in the DB.
 const UserTable = "`user`"
 ```
+
+</details>
+
+<details>
+<summary><code>const ViewTokenParam</code></summary>
 
 ```go
 // ViewTokenParam is the query parameter carrying a job's view token.
@@ -493,6 +641,11 @@ const UserTable = "`user`"
 // terminal.
 const ViewTokenParam = "t"
 ```
+
+</details>
+
+<details>
+<summary><code>const KindString, KindBool, KindInt, KindDuration, KindEnum, KindBytes</code></summary>
 
 ```go
 // Setting kinds.
@@ -508,6 +661,11 @@ const (
 	KindBytes SettingKind = "bytes"
 )
 ```
+
+</details>
+
+<details>
+<summary><code>const SettingRepositoryPolicy, SettingRegistrationOpen, SettingJobMaxDepth, SettingJobLeaseTTL, SettingJobRetention, SettingJobLogRetention, SettingJobVisibility, SettingArtefactMaxSize, SettingArtefactMaxCount, SettingArtefactRetention</code></summary>
 
 ```go
 // Setting names. These are the configuration an admin can change at
@@ -555,6 +713,11 @@ const (
 )
 ```
 
+</details>
+
+<details>
+<summary><code>const PolicyOpen, PolicyAllowlist</code></summary>
+
 ```go
 // Repository policy values.
 const (
@@ -570,6 +733,11 @@ const (
 	PolicyAllowlist RepositoryPolicy = "allowlist"
 )
 ```
+
+</details>
+
+<details>
+<summary><code>const JobStatusPending, JobStatusRunning, JobStatusPassed, JobStatusFailed, JobStatusTimeout, JobStatusCancelled</code></summary>
 
 ```go
 // Job status values.
@@ -598,6 +766,11 @@ const (
 )
 ```
 
+</details>
+
+<details>
+<summary><code>const VisibilityPrivate, VisibilityPublic</code></summary>
+
 ```go
 // Job visibility values.
 const (
@@ -615,107 +788,212 @@ const (
 )
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var JobArtefactFields</code></summary>
 
 ```go
 // JobArtefactFields is a list of all columns in the DB table.
 var JobArtefactFields = []string{"id", "job_id", "path", "storage_key", "size", "content_type", "checksum", "agent_id", "created_at", "deleted_at"}
 ```
 
+</details>
+
+<details>
+<summary><code>var JobArtefactPrimaryFields</code></summary>
+
 ```go
 // JobArtefactPrimaryFields are the primary key fields in the DB table.
 var JobArtefactPrimaryFields = []string{"id"}
 ```
+
+</details>
+
+<details>
+<summary><code>var JobFields</code></summary>
 
 ```go
 // JobFields is a list of all columns in the DB table.
 var JobFields = []string{"id", "parent_id", "root_id", "depth", "repository_id", "user_id", "working_directory", "command", "labels", "params", "status", "exit_code", "error", "agent_id", "lease_expires_at", "started_at", "finished_at", "created_at", "updated_at", "artefact_paths", "ref", "commit_sha", "clone_depth"}
 ```
 
+</details>
+
+<details>
+<summary><code>var JobLogFields</code></summary>
+
 ```go
 // JobLogFields is a list of all columns in the DB table.
 var JobLogFields = []string{"id", "job_id", "seq", "stream", "content", "created_at"}
 ```
+
+</details>
+
+<details>
+<summary><code>var JobLogPrimaryFields</code></summary>
 
 ```go
 // JobLogPrimaryFields are the primary key fields in the DB table.
 var JobLogPrimaryFields = []string{"id"}
 ```
 
+</details>
+
+<details>
+<summary><code>var JobPrimaryFields</code></summary>
+
 ```go
 // JobPrimaryFields are the primary key fields in the DB table.
 var JobPrimaryFields = []string{"id"}
 ```
+
+</details>
+
+<details>
+<summary><code>var MigrationsFields</code></summary>
 
 ```go
 // MigrationsFields is a list of all columns in the DB table.
 var MigrationsFields = []string{"project", "filename", "statement_index", "status"}
 ```
 
+</details>
+
+<details>
+<summary><code>var MigrationsPrimaryFields</code></summary>
+
 ```go
 // MigrationsPrimaryFields are the primary key fields in the DB table.
 var MigrationsPrimaryFields = []string{"project", "filename"}
 ```
+
+</details>
+
+<details>
+<summary><code>var RepositoryFields</code></summary>
 
 ```go
 // RepositoryFields is a list of all columns in the DB table.
 var RepositoryFields = []string{"id", "slug", "remote_url", "default_branch", "created_by_user_id", "is_active", "created_at", "updated_at", "deleted_at"}
 ```
 
+</details>
+
+<details>
+<summary><code>var RepositoryPrimaryFields</code></summary>
+
 ```go
 // RepositoryPrimaryFields are the primary key fields in the DB table.
 var RepositoryPrimaryFields = []string{"id"}
 ```
+
+</details>
+
+<details>
+<summary><code>var RepositoryRuleFields</code></summary>
 
 ```go
 // RepositoryRuleFields is a list of all columns in the DB table.
 var RepositoryRuleFields = []string{"id", "pattern", "description", "is_active", "created_by_user_id", "created_at", "updated_at", "deleted_at"}
 ```
 
+</details>
+
+<details>
+<summary><code>var RepositoryRulePrimaryFields</code></summary>
+
 ```go
 // RepositoryRulePrimaryFields are the primary key fields in the DB table.
 var RepositoryRulePrimaryFields = []string{"id"}
 ```
+
+</details>
+
+<details>
+<summary><code>var SSHKeyFields</code></summary>
 
 ```go
 // SSHKeyFields is a list of all columns in the DB table.
 var SSHKeyFields = []string{"id", "name", "host", "private_key", "public_key", "fingerprint", "known_hosts", "is_active", "created_by_user_id", "last_used_at", "created_at", "updated_at", "deleted_at"}
 ```
 
+</details>
+
+<details>
+<summary><code>var SSHKeyPrimaryFields</code></summary>
+
 ```go
 // SSHKeyPrimaryFields are the primary key fields in the DB table.
 var SSHKeyPrimaryFields = []string{"id"}
 ```
+
+</details>
+
+<details>
+<summary><code>var SessionFields</code></summary>
 
 ```go
 // SessionFields is a list of all columns in the DB table.
 var SessionFields = []string{"id", "user_id", "refresh_token", "hostname", "user_agent", "remote_addr", "last_seen_at", "expires_at", "revoked_at", "created_at", "updated_at"}
 ```
 
+</details>
+
+<details>
+<summary><code>var SessionPrimaryFields</code></summary>
+
 ```go
 // SessionPrimaryFields are the primary key fields in the DB table.
 var SessionPrimaryFields = []string{"id"}
 ```
+
+</details>
+
+<details>
+<summary><code>var SettingFields</code></summary>
 
 ```go
 // SettingFields is a list of all columns in the DB table.
 var SettingFields = []string{"name", "value", "updated_by_user_id", "created_at", "updated_at"}
 ```
 
+</details>
+
+<details>
+<summary><code>var SettingPrimaryFields</code></summary>
+
 ```go
 // SettingPrimaryFields are the primary key fields in the DB table.
 var SettingPrimaryFields = []string{"name"}
 ```
+
+</details>
+
+<details>
+<summary><code>var UserFields</code></summary>
 
 ```go
 // UserFields is a list of all columns in the DB table.
 var UserFields = []string{"id", "email", "username", "full_name", "password", "is_admin", "is_active", "created_at", "updated_at", "deleted_at", "is_agent"}
 ```
 
+</details>
+
+<details>
+<summary><code>var UserPrimaryFields</code></summary>
+
 ```go
 // UserPrimaryFields are the primary key fields in the DB table.
 var UserPrimaryFields = []string{"id"}
 ```
+
+</details>
+
+<details>
+<summary><code>var ErrInvalidCredentials, ErrUserInactive, ErrEmailTaken, ErrUsernameTaken, ErrRegistrationClosed, ErrSessionExpired, ErrSessionRevoked, ErrInvalidRepository, ErrMaxDepthExceeded, ErrRepositoryNotAllowed, ErrInvalidPattern, ErrRuleNotFound, ErrSSHKeyNotFound, ErrInvalidSSHKey, ErrInvalidArtefactPath, ErrArtefactTooLarge, ErrTooManyArtefacts, ErrChecksumMismatch, ErrArtefactNotFound, ErrForbidden, ErrLastAdmin, ErrInvalidAgentToken</code></summary>
 
 ```go
 // Errors returned by the storage layer. Handlers map these onto status
@@ -811,6 +1089,8 @@ var (
 	ErrInvalidAgentToken = errors.New("invalid agent enrolment token")
 )
 ```
+
+</details>
 
 ## Function symbols
 
@@ -1212,7 +1492,7 @@ MatchRepository reports whether a repository slug matches a pattern.
 
 Patterns are written against the normalized slug (`host/owner/name`):
 
-```
+```go
 github.com/titpetric/atkins   one repository
 github.com/titpetric/*        every repository of one owner
 github.com/**                 every repository on one host

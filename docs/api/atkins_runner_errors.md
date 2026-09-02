@@ -8,12 +8,17 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type NoDefaultJobError</code></summary>
+
 ```go
 // NoDefaultJobError is returned when no default job is found.
 type NoDefaultJobError struct {
 	Jobs map[string]*model.Job
 }
 ```
+
+</details>
 
 ## Function symbols
 

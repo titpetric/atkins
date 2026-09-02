@@ -19,6 +19,7 @@ import (
 - `func Dim (text string) string`
 - `func Gray (text string) string`
 - `func Green (text string) string`
+- `func MediumGray (text string) string`
 - `func PrintFail (name,errMsg string)`
 - `func PrintHeader (title string)`
 - `func PrintInfo (key,value string)`
@@ -117,6 +118,14 @@ Green returns text in green color.
 
 ```go
 func Green(text string) string
+```
+
+### MediumGray
+
+MediumGray returns text in medium gray (50%) color.
+
+```go
+func MediumGray(text string) string
 ```
 
 ### PrintFail

@@ -8,6 +8,9 @@ import (
 
 ## Types
 
+<details>
+<summary><code>type Options</code></summary>
+
 ```go
 // Options holds pipeline command-line arguments
 type Options struct {
@@ -48,6 +51,11 @@ type Options struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type ServerOptions</code></summary>
+
 ```go
 // ServerOptions holds `atkins server` command-line arguments.
 // Every flag overrides the resolved configuration; an empty one leaves
@@ -75,6 +83,11 @@ type ServerOptions struct {
 }
 ```
 
+</details>
+
+<details>
+<summary><code>type WorkerOptions</code></summary>
+
 ```go
 // WorkerOptions holds `atkins worker` command-line arguments.
 // Flags override the resolved configuration, which already carries the
@@ -91,7 +104,12 @@ type WorkerOptions struct {
 }
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var Version, Commit, CommitTime, Branch</code></summary>
 
 ```go
 // Version information injected at build time via ldflags
@@ -103,15 +121,44 @@ var (
 )
 ```
 
+</details>
+
 ## Function symbols
 
+- `func HelpFlags () *pflag.FlagSet`
+- `func HelpRequested (flags *pflag.FlagSet, args []string) bool`
 - `func NewOptions () *Options`
 - `func Pipeline () *cli.Command`
 - `func Server () *cli.Command`
 - `func Worker () *cli.Command`
+- `func WriteHelp (w io.Writer) error`
 - `func (*Options) Bind (fs *cli.FlagSet)`
 - `func (*ServerOptions) Bind (fs *pflag.FlagSet)`
 - `func (*WorkerOptions) Bind (fs *pflag.FlagSet)`
+
+### HelpFlags
+
+HelpFlags returns one flag set carrying every flag atkins defines, for
+the three commands together. Help detection needs to know which of
+them take a value, and the three sets share no names.
+
+```go
+func HelpFlags() *pflag.FlagSet
+```
+
+### HelpRequested
+
+HelpRequested reports whether a command line is asking for the help
+document rather than a run.
+
+A -h or --help that is the value of a string flag is not a help
+request: `atkins -x "--help"` runs a prompt. The flag set says which
+flags take a value, so the two cases are told apart by the same rules
+pflag parses by. Everything after a bare -- is an argument.
+
+```go
+func HelpRequested(flags *pflag.FlagSet, args []string) bool
+```
 
 ### Pipeline
 
@@ -135,6 +182,19 @@ Worker provides a cli.Command that runs the atkins CI/CD agent.
 
 ```go
 func Worker() *cli.Command
+```
+
+### WriteHelp
+
+WriteHelp renders `atkins --help` to a writer.
+
+The skills are scanned rather than loaded: the document lists what is
+installed, marking what this directory does not activate, because a
+reader asking what atkins can do is not always standing in a
+repository that answers.
+
+```go
+func WriteHelp(w io.Writer) error
 ```
 
 ### Bind
