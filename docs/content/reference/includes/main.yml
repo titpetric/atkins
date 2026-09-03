@@ -4,10 +4,12 @@ include:
   - ci/build.yml
   - ci/test.yml
 
+vars:
+  environment: staging
+
 jobs:
   default:
     aliases: [default]
-    desc: Run all tasks
+    desc: Report the merged variables
     steps:
-      - run: echo "Running main pipeline"
-      - run: echo "Included jobs are available as build, test"
+      - run: echo "Deploying ${{ image }}:${{ tag }} to ${{ environment }} (coverage >= ${{ coverage_threshold }}%)"

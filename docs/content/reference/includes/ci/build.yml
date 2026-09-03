@@ -1,6 +1,2 @@
-jobs:
-  build:
-    aliases: [default]
-    desc: Build application
-    steps:
-      - run: echo "Building..."
+image: myapp
+tag: v1.2.3

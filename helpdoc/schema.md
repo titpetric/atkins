@@ -31,7 +31,7 @@ Four more shorthands, in the same spirit:
 | `jobs`, `tasks` | map          | the jobs, keyed by the name `atkins <name>` runs        |
 | `vars`          | map          | variables, read as `${{ name }}`                        |
 | `env`           | object       | `{vars, include}`, exported into every command          |
-| `include`       | string, list | pipeline files merged into this one                     |
+| `include`       | string, list | YAML files read into `vars`; `env.include` reads dotenv into `env` |
 | `when`          | object       | `{files: [...]}`, the paths that activate a skill       |
 
 ### A job
@@ -48,7 +48,7 @@ Four more shorthands, in the same spirit:
 | `aliases`       | list         | none           | other names `atkins <name>` accepts                 |
 | `vars`          | map          | none           | variables for this job and its steps                |
 | `env`           | object       | none           | environment for this job and its steps              |
-| `include`       | string, list | none           | files merged into this job                          |
+| `include`       | string, list | none           | YAML files read into this job's `vars`               |
 | `dir`           | string       | pipeline `dir` | working directory                                   |
 | `timeout`       | string       | none           | duration, e.g. `10m`, `300s`                        |
 | `detach`        | bool         | false          | start in the background, join before deferred steps |
@@ -72,7 +72,7 @@ Four more shorthands, in the same spirit:
 | `for`               | string, list | none        | run the step once per item           |
 | `vars`              | map          | none        | variables for this step              |
 | `env`               | object       | none        | environment for this step            |
-| `include`           | string, list | none        | files merged into this step          |
+| `include`           | string, list | none        | YAML files read into this step's `vars`              |
 | `dir`               | string       | job `dir`   | working directory                    |
 | `deferred`, `defer` | bool, step   | false       | run at the end of the job            |
 | `detach`            | bool         | false       | start in the background              |

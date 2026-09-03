@@ -4,11 +4,9 @@ subtitle: File inclusion reference
 layout: page
 ---
 
-Compose pipelines from multiple files using `include:` at the pipeline level.
+`include:` reads one or more files into `vars`, at the pipeline, job or step level. It does not merge jobs: an included file's `jobs:` section, if it has one, is ignored. To share jobs across files, use [Skills](../usage/skills).
 
 ## Basic Include
-
-Include jobs from external files:
 
 @tabs
 @file "Main" includes/main.yml
@@ -17,64 +15,40 @@ Include jobs from external files:
 
 ![Includes](./includes/main.png)
 
-## Glob Patterns
+`ci/build.yml` and `ci/test.yml` are plain YAML documents of variables, not pipelines. Their top-level keys land in `vars`, exactly as if they had been written into `main.yml` directly.
 
-Use glob patterns to include multiple files:
+## Merge Order
+
+A later file in the list overrides an earlier one, and the block's own `vars:` overrides every included file, whichever order they appear in:
 
 ```yaml
-name: My Pipeline
+include:
+  - ci/build.yml   # tag: v1.2.3
+  - ci/test.yml    # tag: v1.2.3-rc (wins over ci/build.yml)
 
-include: ci/*.yml
-
-jobs:
-  default:
-    steps:
-      - run: echo "Jobs from ci/*.yml are now available"
+vars:
+  tag: v2.0.0        # wins over both included files
 ```
 
-## Include Behavior
+## Relative Paths
 
-- Included files contribute their jobs to the main pipeline
-- Job names from included files are available directly
-- Duplicate job names cause an error
-- Relative paths are resolved from the main file's directory
+A path in `include:` is resolved from the current working directory atkins was run from, not from the file that declares it. A pipeline that includes a file next to itself only works when invoked from that directory; write the include relative to where the pipeline is meant to be run, or resolve it with `$(...)` first.
 
-## Use Cases
+No glob expansion happens: `include: ci/*.yml` is read as a literal filename and fails with "no such file or directory" rather than matching multiple files. List every file `include:` should read.
 
-### Split by Domain
+## Environment Includes
 
-```yaml
-name: My Project
-
-include:
-  - docker/*.yml
-  - test/*.yml
-  - deploy/*.yml
-
-jobs:
-  default:
-    steps:
-      - task: docker:build
-      - task: test:unit
-```
-
-### Team-Specific Files
+`env: include:` does the same for `env`, but reads a dotenv file (`KEY=value` lines) instead of YAML:
 
 ```yaml
-name: Monorepo
-
-include:
-  - frontend/tasks.yml
-  - backend/tasks.yml
-  - infra/tasks.yml
-
-jobs:
-  all:
-    steps:
-      - run: echo "All team tasks are available"
+env:
+  include: .env.production
+  vars:
+    LOG_LEVEL: debug   # wins over .env.production
 ```
 
 ## See Also
 
 - [Pipeline](./pipeline) - Pipeline configuration
-- [Jobs](./jobs) - Job configuration
+- [Variables](./variables) - Variable interpolation
+- [Skills](../usage/skills) - Sharing jobs across files
