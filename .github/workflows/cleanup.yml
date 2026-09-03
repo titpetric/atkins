@@ -1,0 +1,164 @@
+name: cleanup
+
+# Checking a box in the bot's PR comment edits the comment body, which
+# fires issue_comment:edited. workflow_dispatch shadows the same job for
+# manual runs and for testing before the comment path is exercised.
+on:
+  issue_comment:
+    types: [edited]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "Pull request number"
+        required: true
+        type: string
+      rebase:
+        description: "Rebase from main"
+        type: boolean
+        default: false
+      gomod_update:
+        description: "go get -u ./... && go mod tidy"
+        type: boolean
+        default: false
+      commit:
+        description: "Commit changed files"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: cleanup-${{ github.event.issue.number || inputs.pr }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    # Loop guard: the reset PATCH below uses GITHUB_TOKEN (never triggers
+    # workflows), writes back no `- [x]`, and Bot senders are skipped here.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.issue.pull_request &&
+        github.event.sender.type != 'Bot' &&
+        contains(github.event.comment.body, '<!-- atkins-cleanup -->') &&
+        contains(github.event.comment.body, '- [x]')
+      )
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.issue.number || inputs.pr }}
+    steps:
+      # GitHub only lets collaborators edit the bot's comment, but verify
+      # anyway: comment.author_association describes the bot, not the sender.
+      - name: Verify sender has write access
+        if: github.event_name == 'issue_comment'
+        run: |
+          PERM="$(gh api "repos/${{ github.repository }}/collaborators/${{ github.event.sender.login }}/permission" -q .permission)"
+          case "$PERM" in
+            admin|maintain|write) ;;
+            *) echo "sender lacks write access: $PERM"; exit 1 ;;
+          esac
+
+      - name: Resolve requested actions
+        id: flags
+        env:
+          BODY: ${{ github.event.comment.body }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "rebase=${{ inputs.rebase }}" >> "$GITHUB_OUTPUT"
+            echo "gomod=${{ inputs.gomod_update }}" >> "$GITHUB_OUTPUT"
+            echo "commit=${{ inputs.commit }}" >> "$GITHUB_OUTPUT"
+          else
+            check() { grep -qF "$1" <<<"$BODY" && echo true || echo false; }
+            echo "rebase=$(check '- [x] Rebase from main')" >> "$GITHUB_OUTPUT"
+            echo "gomod=$(check '- [x] Clean up go mod')" >> "$GITHUB_OUTPUT"
+            echo "commit=$(check '- [x] Commit changed files')" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve PR branch
+        id: pr
+        run: |
+          gh pr view "$PR" -R "${{ github.repository }}" \
+            --json headRefName,headRepositoryOwner,state \
+            -q '[.headRefName, .headRepositoryOwner.login, .state] | @tsv' | {
+            IFS=$'\t' read -r branch owner state
+            if [ "$owner" != "${{ github.repository_owner }}" ]; then
+              echo "PR is from a fork, refusing to push"; exit 1
+            fi
+            if [ "$state" != "OPEN" ]; then
+              echo "PR is $state, nothing to do"; exit 1
+            fi
+            echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          }
+
+      # CLEANUP_TOKEN (fine-grained PAT) makes the push re-trigger PR CI;
+      # GITHUB_TOKEN pushes never do. Fallback keeps the job working
+      # before the secret exists.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.pr.outputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.CLEANUP_TOKEN || github.token }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Rebase from main
+        if: steps.flags.outputs.rebase == 'true'
+        run: |
+          git fetch origin main
+          git rebase origin/main
+
+      - uses: ./.github/actions/atkins-setup
+
+      - name: Update go modules
+        if: steps.flags.outputs.gomod == 'true'
+        run: |
+          go get -u ./...
+          go mod tidy
+
+      # The gate: nothing is pushed unless fmt, tests and docs all pass.
+      - name: Run fmt, tests, docs
+        run: atkins default
+
+      - name: Commit and push
+        run: |
+          git add -u
+          git add docs
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: atkins cleanup"
+          fi
+          if [ "${{ steps.flags.outputs.rebase }}" = "true" ]; then
+            git push --force-with-lease
+          elif [ "$(git rev-parse HEAD)" != "$(git rev-parse '@{u}')" ]; then
+            git push
+          else
+            echo "nothing to push"
+          fi
+
+      # Restore the unchecked template plus a status footer. GITHUB_TOKEN
+      # edits never fire issue_comment, so this cannot loop.
+      - name: Reset checkboxes and report status
+        if: always() && github.event_name == 'issue_comment'
+        env:
+          RESULT: ${{ job.status }}
+        run: |
+          gh api -X PATCH \
+            "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}" \
+            -f body="<!-- atkins-cleanup -->
+          ### atkins cleanup
+
+          \`atkins default\` left uncommitted changes (fmt, docs, go mod tidy).
+          Check a box to have the bot fix this branch. Write access required.
+
+          - [ ] Rebase from main
+          - [ ] Clean up go mod (\`go get -u ./...\`)
+          - [ ] Commit changed files
+
+          ---
+          Last run: [$RESULT](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) (rebase=${{ steps.flags.outputs.rebase }}, gomod=${{ steps.flags.outputs.gomod }}, commit=${{ steps.flags.outputs.commit }})"

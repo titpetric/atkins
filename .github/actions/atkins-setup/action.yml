@@ -1,0 +1,22 @@
+name: atkins-setup
+description: "Set up Go, install the latest atkins release, install dev tools"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+
+    # Download to temp, then sudo install: `sudo gh` would drop GH_TOKEN.
+    - name: Install atkins
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release download -R titpetric/atkins --pattern atkins-linux-amd64 -O "$RUNNER_TEMP/atkins"
+        sudo install -m 0755 "$RUNNER_TEMP/atkins" /usr/local/bin/atkins
+        atkins --version
+
+    - name: Install dev tools
+      shell: bash
+      run: atkins setup

@@ -1,0 +1,69 @@
+name: pull_request
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+# A new commit to the PR cancels the in-flight run.
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/atkins-setup
+
+      - name: Run fmt, tests, docs
+        run: atkins default
+
+      # A dirty tree is reported via the comment, not a red job; test
+      # failures already failed the previous step.
+      - name: Check for uncommitted changes
+        id: dirty
+        run: |
+          git add -u
+          git add docs
+          if git diff --cached --quiet; then
+            echo "dirty=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "dirty=true" >> "$GITHUB_OUTPUT"
+            git status --short
+          fi
+
+      - name: Find cleanup comment
+        id: find
+        if: steps.dirty.outputs.dirty == 'true'
+        uses: peter-evans/find-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- atkins-cleanup -->"
+
+      # The checkbox labels are the contract with cleanup.yml, which greps
+      # for the literal `- [x] <label>` lines. Keep them in sync.
+      - name: Post cleanup comment
+        if: steps.dirty.outputs.dirty == 'true'
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body: |
+            <!-- atkins-cleanup -->
+            ### atkins cleanup
+
+            `atkins default` left uncommitted changes (fmt, docs, go mod tidy).
+            Check a box to have the bot fix this branch. Write access required.
+
+            - [ ] Rebase from main
+            - [ ] Clean up go mod (`go get -u ./...`)
+            - [ ] Commit changed files

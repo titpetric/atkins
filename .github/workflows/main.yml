@@ -1,0 +1,43 @@
+name: main
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+# Serialise, never cancel: a cancelled run mid-push leaves main half-cleaned.
+concurrency:
+  group: main
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/atkins-setup
+
+      # fmt -> test:simple -> test:docs; a test failure stops the run
+      # before anything is committed.
+      - name: Run fmt, tests, docs
+        run: atkins default
+
+      # -u stages tracked changes only; `git add docs` picks up new
+      # docs/api files. Gitignore keeps coverage.out and friends out.
+      - name: Commit cleanup
+        run: |
+          git add -u
+          git add docs
+          if git diff --cached --quiet; then
+            echo "tree clean, nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: automated cleanup of outdated docs/go.mod/go.sum/fmt [skip ci]"
+          git push
