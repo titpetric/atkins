@@ -83,7 +83,7 @@ Sections in order:
 atkins --yaml
 ```
 
-Suppresses the interactive tree and outputs execution state as YAML when complete.
+Suppresses the interactive tree and prints the execution state as YAML once the run finishes.
 
 ### Run with JSON Output
 
@@ -91,24 +91,37 @@ Suppresses the interactive tree and outputs execution state as YAML when complet
 atkins --json
 ```
 
-Same behavior, but outputs JSON.
+Same behavior, but prints JSON. The two share one field set and the same snake_case keys; only the encoding differs.
 
 ### Example Execution Output
+
+```bash
+$ atkins --json build
+```
 
 ```json
 {
   "name": "My Project",
   "status": "passed",
-  "duration": 5.234,
+  "result": "pass",
+  "created_at": "2026-01-01T12:00:00Z",
+  "updated_at": "2026-01-01T12:00:03Z",
   "children": [
     {
-      "name": "build",
+      "name": "build - Build the application",
       "status": "passed",
+      "result": "pass",
+      "created_at": "2026-01-01T12:00:00Z",
+      "updated_at": "2026-01-01T12:00:03Z",
       "duration": 3.12,
       "children": [
         {
-          "name": "run: go build ./...",
+          "name": "go build ./...",
+          "id": "jobs.build.steps.0",
           "status": "passed",
+          "result": "pass",
+          "created_at": "2026-01-01T12:00:00Z",
+          "updated_at": "2026-01-01T12:00:03Z",
           "duration": 3.1
         }
       ]
@@ -116,6 +129,20 @@ Same behavior, but outputs JSON.
   ]
 }
 ```
+
+| Field        | Present when                                           |
+|--------------|--------------------------------------------------------|
+| `name`       | always                                                 |
+| `id`         | a step, e.g. `jobs.build.steps.0`; empty on job nodes  |
+| `status`     | always: `passed`, `failed`, `skipped` or `conditional` |
+| `result`     | a leaf step ran: `pass`, `fail` or `skipped`           |
+| `if`         | the node carried an `if:` condition                    |
+| `created_at` | always                                                 |
+| `updated_at` | the node's status changed after creation               |
+| `start`      | nonzero: seconds since the run started                 |
+| `duration`   | nonzero: seconds the node took                         |
+| `steps`      | nonzero: steps executed under a job or workflow node   |
+| `children`   | the node has any                                       |
 
 ## Use Cases
 
@@ -250,7 +277,7 @@ When using `--json` or `--yaml`:
 2. No progress output during execution
 3. Only final state is printed to stdout
 4. Errors still go to stderr
-5. Exit code reflects success/failure
+5. atkins exits 0 when every step passed, and otherwise with the exit code of the step that failed
 
 This makes output parsing reliable without filtering ANSI codes or progress updates.
 
