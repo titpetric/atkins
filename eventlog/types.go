@@ -60,19 +60,19 @@ type LogEntry struct {
 	Env        []string
 }
 
-// StateNode represents a node in the execution state tree for YAML output.
+// StateNode represents a node in the execution state tree for JSON/YAML output.
 type StateNode struct {
-	Name      string       `yaml:"name"`
-	ID        string       `yaml:"id,omitempty"`
-	Status    string       `yaml:"status"` // Readable string: pending, running, passed, failed, skipped, conditional
-	Result    Result       `yaml:"result,omitempty"`
-	If        string       `yaml:"if,omitempty"` // Condition that was evaluated
-	CreatedAt time.Time    `yaml:"created_at"`
-	UpdatedAt time.Time    `yaml:"updated_at,omitempty"`
-	Start     float64      `yaml:"start,omitempty"`    // Seconds offset from run start
-	Duration  float64      `yaml:"duration,omitempty"` // Total duration in seconds
-	Steps     int          `yaml:"steps,omitempty"`    // Number of steps executed (for jobs/workflow)
-	Children  []*StateNode `yaml:"children,omitempty"`
+	Name      string       `json:"name" yaml:"name"`
+	ID        string       `json:"id,omitempty" yaml:"id,omitempty"`
+	Status    string       `json:"status" yaml:"status"` // Readable string: pending, running, passed, failed, skipped, conditional
+	Result    Result       `json:"result,omitempty" yaml:"result,omitempty"`
+	If        string       `json:"if,omitempty" yaml:"if,omitempty"` // Condition that was evaluated
+	CreatedAt time.Time    `json:"created_at" yaml:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
+	Start     float64      `json:"start,omitempty" yaml:"start,omitempty"`       // Seconds offset from run start
+	Duration  float64      `json:"duration,omitempty" yaml:"duration,omitempty"` // Total duration in seconds
+	Steps     int          `json:"steps,omitempty" yaml:"steps,omitempty"`       // Number of steps executed (for jobs/workflow)
+	Children  []*StateNode `json:"children,omitempty" yaml:"children,omitempty"`
 }
 
 // RunMetadata contains information about the execution environment.
