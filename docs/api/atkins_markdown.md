@@ -18,6 +18,9 @@ prose around it; Render does the replacing.
 
 ## Types
 
+<details>
+<summary><code>type Table</code></summary>
+
 ```go
 // Table is a GFM pipe table decoded from a markdown section: a header
 // row, and the data rows below the `---` separator.
@@ -26,6 +29,8 @@ type Table struct {
 	Rows    [][]string
 }
 ```
+
+</details>
 
 ## Function symbols
 

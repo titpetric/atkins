@@ -23,6 +23,11 @@ jobs:
       - task: test:simple
       - task: test:docs
 
+  setup:
+    desc: "Install dev tools"
+    steps:
+      - task: go:setup templ:setup mdox:setup
+
   install:
     desc: "Install atkins"
     depends_on: fmt
@@ -64,6 +69,12 @@ jobs:
     steps:
       - templ fmt ./server/web
       - templ generate -path ./server/web
+
+  templ:setup:
+    desc: "Install a-h/templ"
+    interactive: true
+    cmds:
+      - go install github.com/a-h/templ/cmd/templ@latest
 
   fmt:
     desc: "Format the code"

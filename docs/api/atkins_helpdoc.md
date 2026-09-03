@@ -22,6 +22,9 @@ added only when the caller says the writer is a terminal, so
 
 ## Types
 
+<details>
+<summary><code>type Command</code></summary>
+
 ```go
 // Command is one subcommand in the help document: the word a user types,
 // what it does, and the flags it defines.
@@ -40,6 +43,11 @@ type Command struct {
 	Flags *cli.FlagSet
 }
 ```
+
+</details>
+
+<details>
+<summary><code>type Options</code></summary>
 
 ```go
 // Options is what Write renders.
@@ -68,6 +76,8 @@ type Options struct {
 	Color bool
 }
 ```
+
+</details>
 
 ## Function symbols
 

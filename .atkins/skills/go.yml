@@ -41,6 +41,16 @@ jobs:
         detach: true
         run: go build -trimpath -ldflags="-X 'main.Version=${GIT_TAG}' -X 'main.Commit=${GIT_COMMIT}' -X 'main.CommitTime=${GIT_TIME}' -X 'main.Branch=${GIT_BRANCH}' -X 'main.Modified=${GIT_MODIFIED}'" -o bin/${{name}}-${GOOS}-${GOARCH} ${{buildPath}}
 
+  setup:
+    desc: "Install Go automation tooling"
+    cmds:
+      - go install github.com/titpetric/tools/splint/cmd/splint@main
+      - go install github.com/titpetric/exp/cmd/go-fsck@main
+      - go install github.com/incu6us/goimports-reviser/v3@latest
+      - go install mvdan.cc/gofumpt@latest
+      - go install golang.org/x/tools/cmd/goimports@latest
+      - go install gotest.tools/gotestsum@latest
+
   fmt:
     desc: "Format the code"
     steps:
