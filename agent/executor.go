@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/titpetric/atkins/agent/ai"
 	"github.com/titpetric/atkins/agent/aliases"
 	"github.com/titpetric/atkins/agent/router"
 	"github.com/titpetric/atkins/colors"
@@ -86,6 +87,9 @@ func (e *Executor) ExecuteRoute(route *router.Route) error {
 
 	case router.RouteShell:
 		return e.ExecuteShell(route.ShellCmd)
+
+	case router.RouteAI:
+		return e.executeAI(route.Raw)
 
 	case router.RouteHelp:
 		e.out.Info(UsageText())
@@ -205,9 +209,37 @@ func (e *Executor) handleSlashCommand(route *router.Route) error {
 	case "aliases", "alias":
 		e.printAliases(e.router.Aliases())
 		return nil
+	case "ai":
+		args := strings.TrimSpace(route.Args)
+		if args == "" {
+			return fmt.Errorf("usage: /ai <question>")
+		}
+		return e.executeAI(args)
 	default:
 		return fmt.Errorf("slash command /%s is only available in interactive mode", route.Command)
 	}
+}
+
+// executeAI asks claude what to do about an input local routing couldn't
+// resolve and runs what it suggests. There is no confirmation step here:
+// -x is the scripted entry point, and the same commands are confirmed in
+// the REPL.
+func (e *Executor) executeAI(input string) error {
+	if !ai.Available() {
+		return fmt.Errorf("claude CLI not found in PATH")
+	}
+
+	result, err := ai.Ask(e.ctx, input, e.agent.Pipelines(), e.workDir)
+	if err != nil {
+		return err
+	}
+
+	if len(result.Cmds) > 0 {
+		return ai.Run(e.ctx, e.workDir, result.Cmds, os.Stdout, os.Stderr)
+	}
+
+	e.out.Info(result.Message)
+	return nil
 }
 
 // printSkillList prints available skills in the same format as `atkins -l`.

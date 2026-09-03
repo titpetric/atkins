@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/titpetric/atkins/agent/ai"
 	"github.com/titpetric/atkins/agent/registry"
 	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/runner"
@@ -49,6 +50,7 @@ func DefaultRegistry() *Registry {
 	registerCd(r)
 	registerTree(r)
 	registerAliases(r)
+	registerAI(r)
 
 	return r
 }
@@ -264,6 +266,28 @@ func registerAliases(r *Registry) {
 			}
 			m.appendLog("info", "Defined aliases:\n\n"+strings.Join(lines, "\n")+"\n")
 			return *m, nil
+		},
+	}
+	r.Register(cmd.Name, cmd.Aliases, cmd)
+}
+
+func registerAI(r *Registry) {
+	cmd := &SlashCommand{
+		Name:        "ai",
+		Description: "Ask claude what to run (e.g., /ai deploy the staging release)",
+		Handler: func(m *Model, args string) (Model, tea.Cmd) {
+			if !ai.Available() {
+				m.appendLog("error", "claude CLI not found in PATH")
+				return *m, nil
+			}
+			args = strings.TrimSpace(args)
+			if args == "" {
+				m.appendLog("info", "Usage: /ai <question>")
+				return *m, nil
+			}
+			return *m, func() tea.Msg {
+				return AIStartMsg{Input: args}
+			}
 		},
 	}
 	r.Register(cmd.Name, cmd.Aliases, cmd)

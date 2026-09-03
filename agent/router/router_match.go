@@ -185,10 +185,21 @@ func (r *Router) AvailableSkills() []string {
 	return skills
 }
 
-// fuzzyMatchSkill attempts to find a close match for typos.
-func (r *Router) fuzzyMatchSkill(input string) string {
-	input = strings.ToLower(strings.TrimSpace(input))
-	if len(input) < 2 {
+// fuzzyMatchSkill attempts to find a close match for typos. It scores both
+// the raw input (for single-word typos like "tets" -> "test") and each
+// already-stripped keyword (for multi-word phrases like "run go tets",
+// where the raw input alone would never score close to "go:test").
+func (r *Router) fuzzyMatchSkill(input string, keywords []string) string {
+	candidates := make([]string, 0, len(keywords)+1)
+	if raw := strings.ToLower(strings.TrimSpace(input)); len(raw) >= 2 {
+		candidates = append(candidates, raw)
+	}
+	for _, kw := range keywords {
+		if len(kw) >= 2 {
+			candidates = append(candidates, kw)
+		}
+	}
+	if len(candidates) == 0 {
 		return ""
 	}
 
@@ -198,26 +209,44 @@ func (r *Router) fuzzyMatchSkill(input string) string {
 
 	for _, info := range infos {
 		name := strings.ToLower(info.name)
+		nameTokens := tokenizeSkillName(name)
 
-		// Calculate similarity score
-		score := r.similarityScore(input, name)
+		for _, cand := range candidates {
+			// Calculate similarity score against the full name.
+			score := r.similarityScore(cand, name)
 
-		// Also check against the job name part (after colon)
-		if idx := strings.LastIndex(name, ":"); idx >= 0 {
-			jobName := name[idx+1:]
-			jobScore := r.similarityScore(input, jobName)
-			if jobScore > score {
-				score = jobScore
+			// Also check against the job name part (after colon).
+			if idx := strings.LastIndex(name, ":"); idx >= 0 {
+				jobName := name[idx+1:]
+				if s := r.similarityScore(cand, jobName); s > score {
+					score = s
+				}
 			}
-		}
 
-		if score > bestScore && score >= 60 { // 60% similarity threshold
-			bestScore = score
-			bestMatch = info.name
+			// Also check against each ':'/'-'/'_' separated token, so a
+			// multi-word job name like "test:cover" can fuzzy-match a
+			// single-word candidate like "coverage".
+			for _, tok := range nameTokens {
+				if s := r.similarityScore(cand, tok); s > score {
+					score = s
+				}
+			}
+
+			if score > bestScore && score >= 60 { // 60% similarity threshold
+				bestScore = score
+				bestMatch = info.name
+			}
 		}
 	}
 
 	return bestMatch
+}
+
+// tokenizeSkillName splits a lowercased skill name on ':', '-' and '_'.
+func tokenizeSkillName(name string) []string {
+	return strings.FieldsFunc(name, func(r rune) bool {
+		return r == ':' || r == '-' || r == '_'
+	})
 }
 
 // similarityScore calculates a simple similarity score (0-100).

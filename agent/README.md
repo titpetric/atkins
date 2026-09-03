@@ -60,6 +60,7 @@ If you mistype a command, the agent suggests corrections and asks for confirmati
 |---------|---------|-------------|
 | `/list` | | List available skills and jobs |
 | `/run <task>` | | Run a specific task |
+| `/ai <question>` | | Ask claude what to run (see AI Fallback) |
 | `/aliases` | | List defined aliases |
 | `/cd <path>` | | Change working directory |
 | `/help` | `/h`, `/?` | Show help |
@@ -70,6 +71,18 @@ If you mistype a command, the agent suggests corrections and asks for confirmati
 | `/quit` | `/q`, `/exit` | Exit |
 
 Slash commands can also be invoked using natural language. Typing `list`, `list tasks`, `tasks`, or `skills` all invoke `/list`. Typing `history` invokes `/history` and `help` invokes `/help`.
+
+## AI Fallback
+
+Everything above runs without an LLM. When local matching resolves nothing (no alias, no task, no fuzzy typo suggestion) and the `claude` CLI is on `PATH`, the input goes to `claude -p` instead of ending in "Unknown command". Without `claude` on `PATH` it ends in "Unknown command" as before.
+
+`/ai <question>`, or the bare `ai <question>`, takes the same path directly, whatever local matching would have found.
+
+The prompt carries the input, the job listing `atkins -l` prints, and the `atkins.yml` discovered from the working directory. It asks for a JSON reply of `{"cmds": ["atkins", "atkins release"]}` to run commands, or `{"message": "what you did"}` for an input that asked for an edit rather than a job.
+
+Every suggested command has to invoke `atkins`, and one that does not refuses the whole batch. Commands run as argv against the running atkins binary with no shell involved, and `argv[0]` is dropped in favour of that binary, so a suggestion chooses the arguments atkins gets and nothing else. A `;` or a `|` inside one reaches atkins as a literal argument.
+
+The REPL prints the commands and waits for `y` before running them; anything else cancels. `-x` runs them without asking, as it does for every other route.
 
 ## Shell Commands
 

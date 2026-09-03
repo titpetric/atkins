@@ -112,6 +112,10 @@ type Model struct {
 	// Confirmation state for fuzzy matching
 	pendingConfirm *router.Route
 
+	// Confirmation state for AI-suggested atkins commands: one argv per
+	// command, awaiting y/n
+	pendingAICmds [][]string
+
 	// Prompt mode (language or shell)
 	promptMode PromptMode
 
@@ -141,7 +145,7 @@ func NewModel(agent *Agent, version string) Model {
 		history:         []string{},
 		historyIdx:      -1,
 		breadcrumb:      NewBreadcrumb(),
-		router:          router.NewRouter(agent.Resolver(), agent.Pipelines(), registry),
+		router:          newRouter(agent.Resolver(), agent.Pipelines(), registry),
 		registry:        registry,
 		version:         version,
 		hostname:        detectHostname(),
@@ -519,6 +523,61 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appendLog("info", "")
 		m.state = StateIdle
 		return m, nil
+
+	case AIStartMsg:
+		m.state = StateExecuting
+		m.appendLog("info", colors.Dim("Asking claude..."))
+
+		ctx, cancel := context.WithCancel(context.Background())
+		m.execCtx = ctx
+		m.execCancel = cancel
+
+		return m, tea.Batch(m.spinner.Tick, m.runAI(ctx, msg.Input))
+
+	case AIDoneMsg:
+		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
+		m.execCtx = nil
+		m.execCancel = nil
+		m.state = StateIdle
+		took := colors.Dim(view.FormatJobDuration(msg.Duration))
+
+		switch {
+		case cancelled:
+			m.appendLog("info", colors.BrightYellow("Cancelled"))
+		case msg.Err != nil:
+			m.appendLog("error", msg.Err.Error()+" "+took)
+		case len(msg.Result.Cmds) > 0:
+			// Held until the next submit answers y/n, see handleSubmit.
+			m.pendingAICmds = msg.Result.Cmds
+			m.appendLog("info", fmt.Sprintf("AI suggests: %s [y/n] %s",
+				colors.BrightGreen(formatAICmds(msg.Result.Cmds)), took))
+			return m, nil
+		default:
+			m.appendLog("info", msg.Result.Message+" "+took)
+		}
+
+		m.appendLog("info", "")
+		return m, nil
+
+	case AICmdsDoneMsg:
+		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
+		m.execCtx = nil
+		m.execCancel = nil
+
+		if output := strings.TrimRight(msg.Output, "\n"); output != "" {
+			m.appendLog("output", output)
+		}
+		if cancelled {
+			m.appendLog("info", colors.BrightYellow("Cancelled"))
+		} else if msg.Err != nil {
+			m.appendLog("error", fmt.Sprintf("%s: %s %s",
+				colors.BrightRed("failed"), msg.Err.Error(),
+				colors.Dim(view.FormatJobDuration(msg.Duration))))
+		}
+		m.gitStats = detectGitStats(m.cwd)
+		m.appendLog("info", "")
+		m.state = StateIdle
+		return m, nil
 	}
 
 	// Forward all other messages to the spinners
@@ -695,6 +754,25 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Handle pending confirmation (AI-suggested atkins commands)
+	if m.pendingAICmds != nil {
+		argvs := m.pendingAICmds
+		m.pendingAICmds = nil
+
+		lower := strings.ToLower(input)
+		if lower == "y" || lower == "yes" {
+			ctx, cancel := context.WithCancel(context.Background())
+			m.execCtx = ctx
+			m.execCancel = cancel
+			m.state = StateExecuting
+			m.appendLog("shell-cmd", "$ "+formatAICmds(argvs))
+			return m, m.runAtkinsCmds(ctx, argvs)
+		}
+		m.appendLog("info", colors.Dim("Cancelled"))
+		m.appendLog("info", "")
+		return m, nil
+	}
+
 	// Handle pending confirmation (fuzzy match)
 	if m.pendingConfirm != nil {
 		confirm := m.pendingConfirm
@@ -840,6 +918,12 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		m.router.SetLastCommand(input, false)
 		return m, func() tea.Msg {
 			return ShellStartMsg{Command: route.ShellCmd}
+		}
+
+	case router.RouteAI:
+		m.appendLog("prompt", "> "+input)
+		return m, func() tea.Msg {
+			return AIStartMsg{Input: input}
 		}
 
 	default:

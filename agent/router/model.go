@@ -23,6 +23,7 @@ const (
 	RouteQuit                 // Exit request
 	RouteRetry                // Retry last command (again/retry)
 	RouteConfirm              // Fuzzy match needs confirmation
+	RouteAI                   // No local match; hand off to the AI fallback
 )
 
 // Route represents a routing decision.

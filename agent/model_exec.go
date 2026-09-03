@@ -1,12 +1,15 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"os/exec"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/titpetric/atkins/agent/ai"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -115,6 +118,50 @@ func (m Model) runShellCommand(ctx context.Context, command string) tea.Cmd {
 			Output:   string(out),
 			Err:      err,
 			ExitCode: exitCode,
+			Duration: time.Since(start),
+		}
+	}
+}
+
+// runAI asks claude what to do about an input local routing couldn't
+// resolve. Suggested commands are validated but not run: that waits for the
+// confirmation in handleSubmit (see runAtkinsCmds).
+func (m Model) runAI(ctx context.Context, input string) tea.Cmd {
+	return func() tea.Msg {
+		start := time.Now()
+
+		result, err := ai.Ask(ctx, input, m.agent.Pipelines(), m.cwd)
+		return AIDoneMsg{
+			Input:    input,
+			Result:   result,
+			Err:      err,
+			Duration: time.Since(start),
+		}
+	}
+}
+
+// formatAICmds renders suggested commands as one line for the confirmation
+// prompt and the log.
+func formatAICmds(argvs [][]string) string {
+	cmds := make([]string, len(argvs))
+	for i, argv := range argvs {
+		cmds[i] = ai.Format(argv)
+	}
+	return strings.Join(cmds, " && ")
+}
+
+// runAtkinsCmds runs the confirmed commands and captures their output for
+// the log.
+func (m Model) runAtkinsCmds(ctx context.Context, argvs [][]string) tea.Cmd {
+	return func() tea.Msg {
+		start := time.Now()
+
+		var out bytes.Buffer
+		err := ai.Run(ctx, m.cwd, argvs, &out, &out)
+
+		return AICmdsDoneMsg{
+			Output:   out.String(),
+			Err:      err,
 			Duration: time.Since(start),
 		}
 	}

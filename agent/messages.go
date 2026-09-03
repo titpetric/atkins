@@ -3,6 +3,7 @@ package agent
 import (
 	"time"
 
+	"github.com/titpetric/atkins/agent/ai"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -60,3 +61,26 @@ type JobProgressMsg struct {
 
 // JobProgressClosedMsg signals the progress channel was closed.
 type JobProgressClosedMsg struct{}
+
+// AIStartMsg signals the AI fallback should begin for an input local
+// routing couldn't resolve.
+type AIStartMsg struct {
+	Input string
+}
+
+// AIDoneMsg signals claude answered. Result carries validated commands or a
+// message; a claude failure, an unparseable reply and a command that does
+// not invoke atkins all surface through Err.
+type AIDoneMsg struct {
+	Input    string
+	Result   *ai.Result
+	Err      error
+	Duration time.Duration
+}
+
+// AICmdsDoneMsg signals the confirmed atkins commands finished running.
+type AICmdsDoneMsg struct {
+	Output   string
+	Err      error
+	Duration time.Duration
+}
