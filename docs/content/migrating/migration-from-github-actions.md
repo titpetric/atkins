@@ -52,14 +52,17 @@ jobs:
 
 Atkins has no equivalent to `on:`. Nothing watches your repository for pushes, tags or pull requests; a run starts when something invokes `atkins`. Use your existing CI, a cron job, or a webhook receiver to do the invoking.
 
-`runs-on:` has a partial equivalent. With the [CI/CD server](../usage/ci-cd), a job carries labels and only lands on an agent advertising all of them:
+`runs-on:` has a partial equivalent. With the [CI/CD server](../usage/ci-cd), an agent advertises what it can run, and a dispatched job only lands on an agent advertising every label it asks for:
 
 ```bash
 # The agent declares what it can run
-ATKINS_LABELS=linux,arm64,docker atkins build
+atkins worker --labels linux,arm64,docker
+
+# The dispatching machine asks for those labels
+ATKINS_LABELS=linux,arm64,docker atkins --dispatch build
 ```
 
-Unlike GitHub's hosted runners, you provide the machines.
+`ATKINS_LABELS` only matters together with `--login` and `--dispatch`; a plain `atkins build` runs on the machine you typed it on regardless of the variable. Unlike GitHub's hosted runners, you provide the machines.
 
 ### No `uses:` Actions
 

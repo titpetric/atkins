@@ -8,7 +8,7 @@ Atkins ships as a single binary with no runtime dependencies. You can install it
 
 ## From Source (Go)
 
-If you have Go 1.21+ installed, this is the simplest method:
+If you have Go 1.27+ installed, this is the simplest method:
 
 ```bash
 go install github.com/titpetric/atkins@latest
@@ -18,7 +18,7 @@ The binary will be placed in your `$GOPATH/bin` directory.
 
 ## Binary Release
 
-Pre-built binaries are available for Linux and macOS (amd64 and arm64):
+Pre-built binaries are available for Linux amd64:
 
 1. Navigate to the [Releases page](https://github.com/titpetric/atkins/releases)
 2. Download the binary for your platform
@@ -46,7 +46,7 @@ Or run it directly:
 docker run --rm -v $PWD:/app titpetric/atkins -l
 ```
 
-The image is built from scratch in [docker/Dockerfile](https://github.com/titpetric/atkins/blob/main/docker/Dockerfile). See [docker/Dockerfile.example](https://github.com/titpetric/atkins/blob/main/docker/Dockerfile.example) for a full example.
+The image is built from [alpine](https://hub.docker.com/_/alpine) in [docker/Dockerfile](https://github.com/titpetric/atkins/blob/main/docker/Dockerfile).
 
 ## Verify Installation
 

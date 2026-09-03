@@ -238,7 +238,7 @@ curl -sS -X POST -H "Authorization: Bearer $TOKEN" "$SERVER/api/repository/$REPO
 
 A bare name is looked for as a tag first and then as a branch, which is git's own order. A fully qualified `refs/...` name is taken at its word.
 
-**A ref that does not resolve fails the job, naming the ref.** There is no fallback to the default branch: a typo in a tag name should not produce a green run of the wrong code.
+**A ref that does not resolve fails the job, naming the ref.** Nothing falls back to the default branch: a typo in a tag name should not produce a green run of the wrong code.
 
 **The commit is recorded.** Before it runs anything the agent reports what it actually checked out, and the job page shows the ref and the commit side by side. A tag moves; a job that remembered only `v1.2.3` could not be reproduced after it did. `ATKINS_COMMIT_SHA` carries the same value into the pipeline, so an artefact can be labelled with the commit even when the job named a branch.
 
@@ -258,7 +258,7 @@ A job with `clone_depth: 1` has no history and no tags: `git describe`, `git log
 
 A job that produces a file — a scan, a coverage report, a built binary — can push it back to the server and have it attached to the job. This is the "collect the outputs and data mine them centrally" half of a CI system: the agent's disk is thrown away with the work tree, and the server keeps what mattered.
 
-There are two ways to say what to keep, and a job can use both.
+A job can say what to keep two ways, and use both.
 
 **Copy it into `$ATKINS_ARTEFACTS`.** The agent creates that directory before the command runs, and uploads whatever is in it afterwards, named by its path within the directory:
 
@@ -319,7 +319,7 @@ Cancelling settles the record and stops the command. The agent finds out at its 
 
 The output keeps its colour. atkins colours its tree whether or not anything is watching, so the page translates the SGR escape sequences into spans it styles, and drops the ones that move a cursor or clear a line — a document cannot honour those, and printing them as text is how a three-line tree turns into noise. What is stored is untouched: `GET /api/job/{id}/log` returns the bytes the command wrote, escape sequences and all, for a script that would rather strip or re-colour them itself.
 
-The page has no session to check — the browser reading it never logged in — so what a private instance checks instead is the token in the URL. It is an HMAC of the job ID under the server's signing key: nothing is stored, nothing extra leaks from a database dump, and rotating the signing key invalidates every outstanding link along with every token. Paste the whole line and the job opens; trim the query string and you get a 403 saying so. Links between jobs on the page — the parent, and the children a job dispatched — carry the token for the job they point at, so following the tree keeps working. So do the artefact download links: a file a job produced is reachable on exactly the terms its page is, no wider and no narrower.
+The page has no session to check — the browser reading it never logged in — so what a private instance checks instead is the token in the URL. It is an HMAC of the job ID under the server's signing key: nothing is stored, nothing extra leaks from a database dump, and rotating the signing key invalidates every outstanding link along with every token. Paste the whole line and the job opens; trim the query string and you get a 403 saying so. Links between jobs on the page — the parent, and the children a job dispatched — carry the token for the job they point at, so following the tree keeps working. The artefact download links carry it too: a file a job produced is reachable on exactly the terms its page is, no wider and no narrower.
 
 `/` lists recent jobs. On a private instance the session decides what it lists: signed in, it is your own runs, with each link carrying the view token for the job it points at; signed out, it lists nothing and says where to sign in, because there is no token that could scope a listing and no session to scope it by. The page answers either way — it is the front door, and a health check probing it should find a server. `GET /api/job` is the same listing for a bearer token, scoped the same way.
 
@@ -395,7 +395,7 @@ Nothing about the browser's session is special: it is revoked by signing out, it
 
 Forms carry a CSRF token — an HMAC of the session id, scoped so it is not the cookie value — and a cross-origin post is refused outright. A form that has been open long enough for the session to change comes back with "this form has expired; reload the page and try again".
 
-The pages are plain HTML: a form post and a redirect. There is no JavaScript, no framework and no CDN.
+The pages are plain HTML: a form post and a redirect. No JavaScript, no framework, no CDN.
 
 The markup lives in `server/web/*.templ` and is compiled to Go by [templ](https://templ.guide). The generated `*_templ.go` files are committed next to their sources, so building the server needs nothing beyond the Go toolchain — a template that does not compile is a build failure rather than a page that breaks the first time somebody opens it, and an interpolated value is escaped for the context it lands in without anyone having to remember to do it. Regenerate after editing a `.templ` with `atkins templ`; `atkins fmt` already runs it first, so the usual formatting pass before a commit is enough.
 
