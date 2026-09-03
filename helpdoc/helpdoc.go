@@ -6,13 +6,15 @@
 // atkins.yml schema. Someone reading it, or an agent, should be able to
 // run atkins and write a pipeline without opening a second page.
 //
-// The document is markdown throughout, with padded table cells so it
-// reads as columns in a terminal too. Colour is added to the headings
-// only when the caller says the writer is a terminal, so
+// The document is built as plain markdown throughout, with padded table
+// cells so it reads as columns in a file too. Colour - on the headings,
+// and on every table, redrawn with borders by the markdown package - is
+// added only when the caller says the writer is a terminal, so
 // `atkins --help > help.md` is a document and not a screenshot of one.
 package helpdoc
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -23,6 +25,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/titpetric/atkins/colors"
+	"github.com/titpetric/atkins/markdown"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -38,7 +41,8 @@ func Write(w io.Writer, opts *Options) error {
 		name = "atkins"
 	}
 
-	d := &document{w: w, color: opts.Color}
+	var buf bytes.Buffer
+	d := &document{w: &buf, color: opts.Color}
 
 	d.heading(1, name)
 	if opts.Version != "" {
@@ -57,7 +61,11 @@ func Write(w io.Writer, opts *Options) error {
 	d.heading(2, "atkins.yml")
 	d.raw(Schema())
 
-	return nil
+	// Every table above was written as plain GFM: markdown.Render redraws
+	// them as bordered ANSI tables for a terminal, and leaves the
+	// document as markdown for a file or a pipe.
+	_, err := io.WriteString(w, markdown.Render(buf.String(), opts.Color))
+	return err
 }
 
 // document writes the help sections to one writer.
