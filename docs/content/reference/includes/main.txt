@@ -1,6 +1,5 @@
 $ atkins -f main.yml --final
 
 Main Pipeline
-└─ default - Run all tasks ✓ (2/2)
-   ├─ Running main pipeline ✓
-   └─ Included jobs are available as build, test ✓
+└─ default - Report the merged variables ✓ (0.00s)
+   └─ Deploying myapp:v1.2.3 to staging (coverage >= 80%) ✓ (0.00s)

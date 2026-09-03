@@ -75,20 +75,23 @@ Atkins passes the existing shell environment through to all commands. There's no
 
 ## Include (`include:`)
 
-Compose pipelines from multiple files using `include:` at the pipeline level:
+`include:` reads one or more YAML files into `vars`, at the pipeline, job or step level:
 
 ```yaml
 name: My Project
 
-include: ci/*.yml
+include: ci/vars.yml
+
+vars:
+  environment: staging   # wins over a same-named key in ci/vars.yml
 
 jobs:
   default:
     steps:
-      - run: echo "Jobs from included files are available"
+      - run: echo "Deploying to ${{ environment }}"
 ```
 
-Each included file contributes its jobs to the pipeline, allowing large pipelines to be split into manageable pieces.
+It merges variables, not jobs: an included file's own `jobs:` section, if it has one, is ignored, paths are not expanded as globs, and a relative path is read from the current working directory rather than from the pipeline file. See [Includes](../reference/includes) for the merge order and `env: include:`'s dotenv form. To share jobs across files, use [Skills](./skills).
 
 ## Conditional Activation (`when:`)
 
