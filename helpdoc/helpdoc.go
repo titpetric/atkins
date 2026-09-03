@@ -217,7 +217,7 @@ func (d *document) skills(opts *Options) {
 // skill writes one skill: its purpose, its guide when it carries one,
 // and the jobs decoded from its YAML.
 func (d *document) skill(skill *runner.Skill) {
-	d.heading(3, skill.ID())
+	d.heading(3, fmt.Sprintf("Skill: %s", skill.ID()))
 
 	if text := purpose(skill); text != "" {
 		d.text(text)

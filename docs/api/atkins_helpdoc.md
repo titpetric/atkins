@@ -14,15 +14,13 @@ machine with the jobs each contributes, and a reference for the
 atkins.yml schema. Someone reading it, or an agent, should be able to
 run atkins and write a pipeline without opening a second page.
 
-The document is markdown throughout, with padded table cells so it
-reads as columns in a terminal too. Colour is added to the headings
-only when the caller says the writer is a terminal, so
+The document is built as plain markdown throughout, with padded table
+cells so it reads as columns in a file too. Colour - on the headings,
+and on every table, redrawn with borders by the markdown package - is
+added only when the caller says the writer is a terminal, so
 `atkins --help > help.md` is a document and not a screenshot of one.
 
 ## Types
-
-<details>
-<summary><code>type Command</code></summary>
 
 ```go
 // Command is one subcommand in the help document: the word a user types,
@@ -42,11 +40,6 @@ type Command struct {
 	Flags *cli.FlagSet
 }
 ```
-
-</details>
-
-<details>
-<summary><code>type Options</code></summary>
 
 ```go
 // Options is what Write renders.
@@ -75,8 +68,6 @@ type Options struct {
 	Color bool
 }
 ```
-
-</details>
 
 ## Function symbols
 
