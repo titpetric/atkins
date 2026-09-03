@@ -75,8 +75,8 @@ func TestWrite(t *testing.T) {
 		"## Commands",
 		"## Flags",
 		"## Skills",
-		"### go",
-		"### tailwind",
+		"### Skill: go",
+		"### Skill: tailwind",
 		"## atkins.yml",
 		"### One idea, several spellings",
 	}

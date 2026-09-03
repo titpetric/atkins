@@ -8,7 +8,8 @@ import (
 )
 
 // Render redraws every GFM pipe table in a markdown document as a
-// bordered ANSI table, and leaves everything else untouched.
+// bordered ANSI table, colours every ATX heading that was not already
+// coloured by the caller, and leaves everything else untouched.
 //
 // With color false the document is returned exactly as it was written,
 // so `atkins --help > help.md` or a piped `atkins --help | less` still
@@ -22,10 +23,33 @@ func Render(doc string, color bool) string {
 	for i, section := range sections {
 		if t, ok := ParseTable(section); ok {
 			sections[i] = t.render()
+		} else if headingLine.MatchString(section) {
+			sections[i] = colorizeHeading(section)
 		}
 	}
 
-	return strings.Join(sections, "\n\n")
+	out := strings.Join(sections, "\n\n")
+	if strings.HasSuffix(doc, "\n") && !strings.HasSuffix(out, "\n") {
+		out += "\n"
+	}
+
+	return out
+}
+
+// headingLine matches a section that is nothing but a single ATX
+// heading, `schema.md`'s own `### A job` among them: content embedded
+// as already-formatted markdown carries no colour of its own, unlike
+// the headings helpdoc writes directly.
+var headingLine = regexp.MustCompile(`^#{1,6} .+$`)
+
+// colorizeHeading wraps a heading line the same way helpdoc's own
+// heading() does: level 1 bright cyan, every other level bright white.
+func colorizeHeading(line string) string {
+	level := strings.IndexFunc(line, func(r rune) bool { return r != '#' })
+	if level == 1 {
+		return colors.BrightCyan(line)
+	}
+	return colors.BrightWhite(line)
 }
 
 // codeSpan matches a markdown inline code span: `text`.
