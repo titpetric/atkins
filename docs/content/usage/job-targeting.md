@@ -207,9 +207,9 @@ INFO: found 2 matching jobs:
 
 Use the full name or `:` prefix to disambiguate.
 
-## Nested Jobs
+## Jobs Named Like a Namespace
 
-Jobs with `:` in their name are nested and not directly executable:
+A `:` in a job's own name has no special meaning to job resolution; it is matched as an exact key in the job map, the same as a name with no colon in it:
 
 ```yaml
 jobs:
@@ -218,19 +218,21 @@ jobs:
       - task: build:linux
       - task: build:darwin
 
-  build:linux:    # Nested - only runs via 'build'
+  build:linux:
     steps:
       - run: GOOS=linux go build
 
-  build:darwin:   # Nested - only runs via 'build'
+  build:darwin:
     steps:
       - run: GOOS=darwin go build
 ```
 
 ```bash
 atkins build         # Runs build:linux and build:darwin
-atkins build:linux   # Error - nested job
+atkins build:linux   # Also runs directly
 ```
+
+Naming one directly, as above, runs it like any other job; `-l` lists it like any other job too.
 
 ## Examples
 

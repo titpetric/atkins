@@ -30,7 +30,7 @@ steps:
 | `cmds`        | list        | -       | Multiple commands to run in sequence     |
 | `task`        | string      | -       | Task/job to invoke                       |
 | `if`          | string/list | -       | Conditional execution (list items ANDed) |
-| `for`         | string      | -       | Loop iteration                           |
+| `for`         | string/list | -       | Loop iteration                           |
 | `vars`        | map         | `{}`    | Step-level variables                     |
 | `env`         | object      | -       | Step environment                         |
 | `include`     | string/list | -       | Include external files                   |

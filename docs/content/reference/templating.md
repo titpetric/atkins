@@ -40,11 +40,11 @@ All pipeline and job variables are available in expressions:
 
 ### Logical
 
-| Operator | Description |
-|----------|-------------|
-| `&&`     | Logical AND |
-| `        |             |
-| `!`      | Logical NOT |
+| Operator       | Description |
+|----------------|-------------|
+| `&&`           | Logical AND |
+| `&#124;&#124;` | Logical OR  |
+| `!`            | Logical NOT |
 
 ### String
 

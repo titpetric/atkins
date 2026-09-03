@@ -18,6 +18,7 @@ Jobs can be defined using either `jobs:` (GitHub Actions style) or `tasks:` (Tas
 | `run`         | string      | -       | Single command (creates synthetic step)  |
 | `cmd`         | string      | -       | Alias for `run`                          |
 | `depends_on`  | string/list | `[]`    | Jobs to run before this job              |
+| `for`         | string/list | -       | Run the job once per item                |
 | `vars`        | map         | `{}`    | Job-level variables                      |
 | `env`         | object      | `{}`    | Job-level environment                    |
 | `include`     | string/list | -       | Include external files                   |

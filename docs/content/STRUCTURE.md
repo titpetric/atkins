@@ -6,6 +6,14 @@ This is the table of contents for the docs:
   - [Introduction](./getting-started/introduction.md)
   - [Installation](./getting-started/installation.md)
   - [Why use Atkins?](./getting-started/why-atkins.md)
+- Reference
+  - [Schema](./reference/schema.md)
+  - [Pipeline](./reference/pipeline.md)
+  - [Jobs](./reference/jobs.md)
+  - [Steps](./reference/steps.md)
+  - [Variables](./reference/variables.md)
+  - [Includes](./reference/includes.md)
+  - [Templating](./reference/templating.md)
 - Usage
   - [Configuration](./usage/configuration.md)
   - [Pipelines](./usage/pipelines.md)
@@ -37,6 +45,36 @@ Installation methods: from source with Go, binary release download, and Docker i
 ### Why use Atkins?
 
 When and why to choose Atkins over other solutions. Includes a comparison table with GitHub Actions, Taskfile, and Lefthook covering features like distributed execution, interpolation format, secrets management, environment inheritance, parallel execution, and more.
+
+## Reference
+
+### Schema
+
+The atkins.yml schema in one page: the keys a pipeline, a job and a step accept, and the GitHub Actions / Taskfile spelling each pairs with.
+
+### Pipeline
+
+Pipeline-level fields: `name`, `dir`, `vars`, `env`, `jobs`/`tasks`, `include`, `when`.
+
+### Jobs
+
+Job-level fields: `desc`, `steps`/`cmds`, dependencies, conditions, loops, and the run-behavior flags (`detach`, `passthru`, `tty`, `interactive`, `summarize`, `quiet`).
+
+### Steps
+
+Step-level fields: `run`/`cmd`/`cmds`/`task`, conditions, loops, `deferred`, and the same run-behavior flags a job carries.
+
+### Variables
+
+`${{ name }}` interpolation, `$(command)` substitution, `${NAME}` environment expansion, and variable scoping across pipeline, job, step and loop.
+
+### Includes
+
+Composing a pipeline from multiple files with `include:` at the pipeline, job or step level.
+
+### Templating
+
+The [expr-lang](https://expr-lang.org/) expression syntax `if:` conditions evaluate.
 
 ## Usage
 

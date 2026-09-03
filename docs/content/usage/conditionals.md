@@ -31,7 +31,7 @@ Expr-lang supports common operators and comparisons:
 | `==`                 | Equals      | `env == "prod"`              |
 | `!=`                 | Not equals  | `env != "dev"`               |
 | `&&`                 | Logical AND | `a == 1 && b == 2`           |
-| `                    |             | `                            |
+| `&#124;&#124;`       | Logical OR  | `a == 1 &#124;&#124; b == 2` |
 | `!`                  | Logical NOT | `!skip_tests`                |
 | `>`, `<`, `>=`, `<=` | Comparisons | `num_retries > 0`            |
 | `in`                 | Contains    | `"prod" in environments`     |
