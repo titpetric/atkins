@@ -29,6 +29,7 @@ jobs:
     desc: "Build assets required for release"
     passthru: true
     steps:
+      - task: go:build
       - task: docker:build
 
   test:

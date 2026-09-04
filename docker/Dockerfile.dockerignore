@@ -1,0 +1,24 @@
+# Ignore file for docker/Dockerfile only. BuildKit reads
+# <dockerfile>.dockerignore in preference to the context .dockerignore,
+# which excludes bin/ because Dockerfile.ci compiles from source. This
+# image does the opposite: it COPYs the prebuilt bin/atkins-linux-*, so
+# bin/ has to stay in the context here.
+.git
+.github
+.claude
+coverage
+docs
+examples
+tests
+
+# Built artefacts and recordings that would otherwise dominate the
+# context: the checked-in binary alone is ~11MB.
+atkins
+*.test
+*.cov
+*.out
+*.cast
+*.log
+*.db
+*.png
+*.svg
