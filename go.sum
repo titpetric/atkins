@@ -13,8 +13,8 @@ github.com/aymanbagabas/go-udiff v0.4.1 h1:OEIrQ8maEeDBXQDoGCbbTTXYJMYRCRO1fnodZ
 github.com/aymanbagabas/go-udiff v0.4.1/go.mod h1:0L9PGwj20lrtmEMeyw4WKJ/TMyDtvAoK9bf2u/mNo3w=
 github.com/charmbracelet/colorprofile v0.4.3 h1:QPa1IWkYI+AOB+fE+mg/5/4HRMZcaXex9t5KX76i20Q=
 github.com/charmbracelet/colorprofile v0.4.3/go.mod h1:/zT4BhpD5aGFpqQQqw7a+VtHCzu+zrQtt1zhMt9mR4Q=
-github.com/charmbracelet/ultraviolet v0.0.0-20260906173415-0277a179edd9 h1:tYBWVoMfQHTwp88mWeWH7o0uJFZqRJeEGJmeHpIR8Ms=
-github.com/charmbracelet/ultraviolet v0.0.0-20260906173415-0277a179edd9/go.mod h1:nAw0d9PhFp1qdzi2xhQU5YOu5sVpDIHWlaW2Uz/bCro=
+github.com/charmbracelet/ultraviolet v0.0.0-20260910203606-6c9e17dc7a16 h1:/hSCZO1puetbGd2JikHKN0nAcb2mFevzxJElFoduhaw=
+github.com/charmbracelet/ultraviolet v0.0.0-20260910203606-6c9e17dc7a16/go.mod h1:JFvmQPZh3uAu7PpSZU91bcR0BrIy24HhW+0EsW1uGxE=
 github.com/charmbracelet/x/ansi v0.11.8 h1:JMFwp0CgDC2+jcOB162HH5k7I3FVbgFSMMYg7dSPBQQ=
 github.com/charmbracelet/x/ansi v0.11.8/go.mod h1:ZNN+3mXny/516oTQPLMPIBeSINvNJJQ8uQXDgbeJxY0=
 github.com/charmbracelet/x/exp/golden v0.0.0-20250806222409-83e3a29d542f h1:pk6gmGpCE7F3FcjaOEKYriCvpmIN4+6OS/RD0vm4uIA=
@@ -76,8 +76,8 @@ github.com/lucasb-eyer/go-colorful v1.4.1 h1:1EO+WB73+EH8EVbzlrG3KLAfEypQWVHIBql
 github.com/lucasb-eyer/go-colorful v1.4.1/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/mattn/go-isatty v0.0.24 h1:tGZZoVgT/KiqK1c8ocVLeDS8BSWMRd47J3Lbz7vsReI=
 github.com/mattn/go-isatty v0.0.24/go.mod h1:nMCL3Zebbrt45jsMDgnfIwz6ydEQApk5oEI3HqDio6A=
-github.com/mattn/go-runewidth v0.0.29 h1:3oGF3R/S2N9DQ3ptftzVIvg2eicmojCzlwBEmqEPDfQ=
-github.com/mattn/go-runewidth v0.0.29/go.mod h1:3qAiGCV4Koz/yuveO58qUefmUTRm8r0IGEXZ9jeHp/8=
+github.com/mattn/go-runewidth v0.0.30 h1:+KUuiDA4fF0R1p5FeueHefjDm+GIM+kWfFnDjybOPgk=
+github.com/mattn/go-runewidth v0.0.30/go.mod h1:3qAiGCV4Koz/yuveO58qUefmUTRm8r0IGEXZ9jeHp/8=
 github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/mattn/go-sqlite3 v1.14.32 h1:JD12Ag3oLy1zQA+BNn74xRgaBbdhbNIDYvQUEuuErjs=
 github.com/mattn/go-sqlite3 v1.14.32/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
@@ -106,10 +106,10 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
-github.com/titpetric/cli v0.6.0 h1:r5GJrPCxIgVm2sy3zCs5SNmCbX9WA5x3Rp785ge7VUE=
-github.com/titpetric/cli v0.6.0/go.mod h1:W14SqTVk7wJT3FWuISXN4YsL75e0vOS6ED+9IxdlEnU=
-github.com/titpetric/oida v0.3.0 h1:Fx61ExCF4x6bDvC5mw6TNfzYhmKhoRTL3Nf6e5AHlgQ=
-github.com/titpetric/oida v0.3.0/go.mod h1:ZRPnTkjF/AfRUt0BLeJl3d4JRFg2nUX0YJ7SyKMaNgE=
+github.com/titpetric/cli v0.6.1 h1:vnQz5/D+c6FJyrWXcf9jMj+DmOxIVaWMxiJWYibUGj8=
+github.com/titpetric/cli v0.6.1/go.mod h1:W14SqTVk7wJT3FWuISXN4YsL75e0vOS6ED+9IxdlEnU=
+github.com/titpetric/oida v0.4.0 h1:h5k2GFqdH7vcWRIsAOB1QXiNO/rpSy9zF5gLAQnSIEA=
+github.com/titpetric/oida v0.4.0/go.mod h1:gjGHS/y41xyl+CICP/JiNBFm4p4HbHqilb/VXPGbZGc=
 github.com/titpetric/pdo v0.2.5 h1:bu+s9kE6cbeN/EaLoFUYtboA9tSCJ72p6ws8GY5kAa4=
 github.com/titpetric/pdo v0.2.5/go.mod h1:npqO0/jbyCjjNGFH0VrHHivjQCCE1BnI4LtLnfWeW6U=
 github.com/titpetric/platform v0.7.2 h1:j7yzxi01RbnnyHvxkRcbMik3v47v6R0+O8V8kIEm3TQ=
