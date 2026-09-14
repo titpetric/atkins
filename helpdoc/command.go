@@ -1,6 +1,8 @@
 package helpdoc
 
-import "github.com/titpetric/cli"
+import (
+	"github.com/titpetric/cli"
+)
 
 // Command is one subcommand in the help document: the word a user types,
 // what it does, and the flags it defines.

@@ -1,6 +1,8 @@
 package markdown
 
-import "strings"
+import (
+	"strings"
+)
 
 // Table is a GFM pipe table decoded from a markdown section: a header
 // row, and the data rows below the `---` separator.

@@ -1,6 +1,8 @@
 package model
 
-import "strings"
+import (
+	"strings"
+)
 
 // singularize strips common plural suffixes.
 // Only applies to words longer than 3 chars to avoid mangling short words like "ls".

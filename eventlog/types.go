@@ -1,6 +1,8 @@
 package eventlog
 
-import "time"
+import (
+	"time"
+)
 
 // Result represents the final outcome of an execution.
 type Result string

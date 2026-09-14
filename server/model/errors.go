@@ -1,6 +1,8 @@
 package model
 
-import "errors"
+import (
+	"errors"
+)
 
 // Errors returned by the storage layer. Handlers map these onto status
 // codes; anything not listed here is a 5xx as far as the API is concerned.

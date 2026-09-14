@@ -5,11 +5,10 @@ package web
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
-import (
-	"github.com/a-h/templ"
-	templruntime "github.com/a-h/templ/runtime"
-	"github.com/titpetric/atkins/server/model"
-)
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+import "github.com/titpetric/atkins/server/model"
 
 // settingsView renders the registry rather than a hand-written list, so
 // a setting added to model/setting.go appears here on its own.

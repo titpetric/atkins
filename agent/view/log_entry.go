@@ -1,6 +1,8 @@
 package view
 
-import "time"
+import (
+	"time"
+)
 
 // LogEntry represents a single entry in the message log.
 type LogEntry struct {

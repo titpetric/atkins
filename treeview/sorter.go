@@ -1,6 +1,8 @@
 package treeview
 
-import "slices"
+import (
+	"slices"
+)
 
 // SortJobsByDepth sorts job names by ':' depth, then alphabetically.
 // Depth is determined by the count of ':' separators in the job name.

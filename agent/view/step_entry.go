@@ -1,6 +1,8 @@
 package view
 
-import "time"
+import (
+	"time"
+)
 
 // StepEntry tracks a single step within a job.
 type StepEntry struct {

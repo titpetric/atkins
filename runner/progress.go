@@ -1,6 +1,8 @@
 package runner
 
-import "time"
+import (
+	"time"
+)
 
 // JobProgressStatus represents the status of a job in progress.
 type JobProgressStatus string

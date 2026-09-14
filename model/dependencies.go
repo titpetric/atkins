@@ -1,6 +1,8 @@
 package model
 
-import yaml "gopkg.in/yaml.v3"
+import (
+	yaml "gopkg.in/yaml.v3"
+)
 
 // Dependencies represents job dependencies.
 type Dependencies []string

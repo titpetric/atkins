@@ -1,6 +1,8 @@
 package runner
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // generateStepID creates a step ID from job name and sequential step index
 // Format follows GitHub Actions: jobs.<jobName>.steps.<sequentialIndex>

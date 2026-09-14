@@ -11,7 +11,9 @@
 // with a message naming the field, rather than at the first request.
 package config
 
-import "time"
+import (
+	"time"
+)
 
 // Version is the document version this build understands.
 const Version = 1

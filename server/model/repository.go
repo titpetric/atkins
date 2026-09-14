@@ -1,6 +1,8 @@
 package model
 
-import "strings"
+import (
+	"strings"
+)
 
 // RepositorySlug normalizes a git remote URL into a stable identity of
 // the form `host/owner/name`. The slug is what the server deduplicates

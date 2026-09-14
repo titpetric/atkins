@@ -1,6 +1,8 @@
 package psexec
 
-import "time"
+import (
+	"time"
+)
 
 // Options configures the Executor.
 type Options struct {

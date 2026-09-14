@@ -1,6 +1,8 @@
 package runner
 
-import "github.com/titpetric/atkins/model"
+import (
+	"github.com/titpetric/atkins/model"
+)
 
 // Skill is one skill file found on disk.
 //

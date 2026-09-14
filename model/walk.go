@@ -1,6 +1,8 @@
 package model
 
-import "sort"
+import (
+	"sort"
+)
 
 // StepDispatcher handles dispatching step execution without caring
 // about the step type (task vs command). Implementations decide how

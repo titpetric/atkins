@@ -1,6 +1,8 @@
 package config
 
-import _ "embed"
+import (
+	_ "embed"
+)
 
 // RuntimeDefaultConfig is the default configuration document, embedded
 // so an unconfigured install still has a complete and valid set of

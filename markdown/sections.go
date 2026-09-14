@@ -9,7 +9,9 @@
 // prose around it; Render does the replacing.
 package markdown
 
-import "strings"
+import (
+	"strings"
+)
 
 // Sections splits a document into the blocks a blank line separates.
 //

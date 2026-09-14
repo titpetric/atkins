@@ -1,6 +1,8 @@
 package model
 
-import "strings"
+import (
+	"strings"
+)
 
 // RepositoryPolicy decides which repositories agents may build.
 type RepositoryPolicy = string

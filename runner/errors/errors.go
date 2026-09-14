@@ -1,6 +1,8 @@
 package errors
 
-import "github.com/titpetric/atkins/model"
+import (
+	"github.com/titpetric/atkins/model"
+)
 
 // NoDefaultJobError is returned when no default job is found.
 type NoDefaultJobError struct {

@@ -1,6 +1,8 @@
 package registry
 
-import "strings"
+import (
+	"strings"
+)
 
 // Registry is a generic container for registered items.
 type Registry[T any] struct {

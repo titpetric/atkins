@@ -1,6 +1,8 @@
 package main
 
-import "github.com/titpetric/cli"
+import (
+	"github.com/titpetric/cli"
+)
 
 // Options holds pipeline command-line arguments
 type Options struct {

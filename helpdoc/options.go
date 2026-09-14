@@ -1,6 +1,8 @@
 package helpdoc
 
-import "github.com/titpetric/atkins/runner"
+import (
+	"github.com/titpetric/atkins/runner"
+)
 
 // Options is what Write renders.
 type Options struct {

@@ -1,6 +1,8 @@
 package client
 
-import "io"
+import (
+	"io"
+)
 
 // The payload types below mirror github.com/titpetric/atkins/server/api.
 // They are re-declared rather than imported so the atkins CLI links

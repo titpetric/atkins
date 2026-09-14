@@ -1,6 +1,8 @@
 package model
 
-import "strings"
+import (
+	"strings"
+)
 
 // FillerWords to strip from natural language input.
 var FillerWords = []string{
