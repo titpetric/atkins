@@ -218,7 +218,7 @@ jobs:
   fmt:
     steps:
       - run: gofmt -w .
-      - run: goimports -w .
+      - run: splint fix ./...
 
   lint:
     steps:

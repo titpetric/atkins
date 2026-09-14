@@ -84,7 +84,7 @@ That runs `templ fmt ./server/web` and `templ generate -path ./server/web`.
 `atkins fmt` runs the same job first, before the Go formatters, so the
 usual `atkins fmt` before a commit is enough. The ordering is load
 bearing: templ emits its imports as two single-line statements that
-`goimports-reviser` merges, and generating afterwards would leave the
+`splint fix` merges, and generating afterwards would leave the
 committed files permanently one `fmt` behind.
 
 The generated `*_templ.go` files are committed, exactly as

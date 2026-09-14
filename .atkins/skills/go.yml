@@ -61,8 +61,6 @@ jobs:
     passthru: true
     tty: true
     steps:
-      # splint replaces gofsck and go-fsck lint: one pass over a data model of
-      # the source, reporting layout, godoc, pairing and coverage findings.
       - splint ./... || true
 
   default:
