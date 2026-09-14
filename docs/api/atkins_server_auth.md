@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/server/auth"
-}
+)
 ```
 
 Package auth issues and validates the access tokens the atkins CLI

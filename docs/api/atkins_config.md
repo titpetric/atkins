@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/config"
-}
+)
 ```
 
 Package config owns the atkins configuration document.

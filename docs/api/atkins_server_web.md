@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/server/web"
-}
+)
 ```
 
 Package web serves the browser-facing pages of the atkins CI/CD

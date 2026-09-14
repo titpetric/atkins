@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/server"
-}
+)
 ```
 
 Package server is the atkins CI/CD server: a platform.Module that

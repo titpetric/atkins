@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/agent/model"
-}
+)
 ```
 
 ## Types

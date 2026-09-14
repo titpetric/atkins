@@ -44,8 +44,7 @@ jobs:
   setup:
     desc: "Install Go automation tooling"
     cmds:
-      - go install github.com/titpetric/tools/splint/cmd/splint@main
-      - go install github.com/titpetric/exp/cmd/go-fsck@main
+      - go install github.com/titpetric/tools/splint@main
       - go install gotest.tools/gotestsum@latest
 
   fmt:

@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/server/storage"
-}
+)
 ```
 
 Package storage owns the SQL for the atkins CI/CD server.

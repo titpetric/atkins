@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/server/api"
-}
+)
 ```
 
 Package api implements the JSON endpoints of the atkins CI/CD server.

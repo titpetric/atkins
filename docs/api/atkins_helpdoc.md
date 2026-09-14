@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/helpdoc"
-}
+)
 ```
 
 Package helpdoc renders `atkins --help`.

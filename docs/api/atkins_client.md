@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/client"
-}
+)
 ```
 
 Package client talks to an atkins CI/CD server.

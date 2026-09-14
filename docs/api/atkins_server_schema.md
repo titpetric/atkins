@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/server/schema"
-}
+)
 ```
 
 Package schema holds the SQL migrations for the atkins CI/CD server.

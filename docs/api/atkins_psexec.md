@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/psexec"
-}
+)
 ```
 
 Package psexec provides process execution capabilities with support for

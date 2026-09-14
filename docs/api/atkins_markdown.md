@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/markdown"
-}
+)
 ```
 
 Package markdown finds structure in a rendered markdown document without

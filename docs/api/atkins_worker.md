@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/worker"
-}
+)
 ```
 
 Package worker is the atkins CI/CD agent.

@@ -3,7 +3,7 @@
 ```go
 import (
 	"github.com/titpetric/atkins/server/blob"
-}
+)
 ```
 
 Package blob stores the bytes of job artefacts.
