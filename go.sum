@@ -36,8 +36,8 @@ github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkp
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/expr-lang/expr v1.17.8 h1:W1loDTT+0PQf5YteHSTpju2qfUfNoBt4yw9+wOEU9VM=
 github.com/expr-lang/expr v1.17.8/go.mod h1:8/vRC7+7HBzESEqt5kKpYXxrxkr31SaO8r40VO/1IT4=
-github.com/go-bridget/mig v0.6.4 h1:RkIgdjdkT6rHbw68PoI6/TEiOpoYz4HGV0GtgjQUzvU=
-github.com/go-bridget/mig v0.6.4/go.mod h1:IGTgbDev5Z7VgxYtOls1IjAozZabxVbtkEbsLGXRzvk=
+github.com/go-bridget/mig v0.6.5 h1:Z1uzHLlOKDM5yfJZE7AlmWuyo7Kw9qniMFRlwhm5Iho=
+github.com/go-bridget/mig v0.6.5/go.mod h1:IGTgbDev5Z7VgxYtOls1IjAozZabxVbtkEbsLGXRzvk=
 github.com/go-chi/chi/v5 v5.3.2 h1:5YQkICvTCSZ25hoRsyJazN0scjzKGiu4VAUc7H1o1nY=
 github.com/go-chi/chi/v5 v5.3.2/go.mod h1:R+tYY2hNuVUUjxoPtqUdgBqevM9s9njzkTLutVsOCto=
 github.com/go-sql-driver/mysql v1.8.1/go.mod h1:wEBSXgmK//2ZFJyE+qWnIsVGmvmEKlqwuVSjsCm7DZg=
