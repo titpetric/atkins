@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	charm.land/bubbles/v2 v2.2.1
-	charm.land/bubbletea/v2 v2.0.9
+	charm.land/bubbletea/v2 v2.0.10
 	github.com/a-h/templ v0.3.1020
 	github.com/creack/pty v1.1.24
 	github.com/expr-lang/expr v1.17.8
@@ -18,7 +18,7 @@ require (
 	github.com/titpetric/cli v0.6.1
 	github.com/titpetric/oida v0.4.1
 	github.com/titpetric/pdo v0.2.5
-	github.com/titpetric/platform v0.7.3
+	github.com/titpetric/platform v0.7.4
 	golang.org/x/crypto v0.57.0
 	golang.org/x/sync v0.23.0
 	golang.org/x/term v0.46.0
@@ -29,7 +29,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.6 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20260910203606-6c9e17dc7a16 // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260927222103-b78653fb9f29 // indirect
 	github.com/charmbracelet/x/ansi v0.11.8 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
@@ -57,7 +57,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
-	modernc.org/libc v1.77.0 // indirect
+	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 	modernc.org/sqlite v1.59.0 // indirect
