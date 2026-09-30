@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	_ "github.com/titpetric/platform/pkg/drivers"
-
 	"github.com/spf13/pflag"
 	"github.com/titpetric/cli"
 	"github.com/titpetric/platform"
@@ -22,8 +20,9 @@ type ServerOptions struct {
 	// Addr is the listen address.
 	Addr string
 
-	// Database is the platform DSN, e.g. sqlite://file:atkins.db or
-	// mysql://user:pass@tcp(host)/atkins.
+	// Database is the platform DSN, e.g. sqlite://file:atkins.db. The
+	// scheme has to be sqlite: main.go registers that driver and no
+	// other.
 	Database string
 
 	// ArtefactDir is where the bytes of job artefacts are stored.

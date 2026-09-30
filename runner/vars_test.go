@@ -3,9 +3,7 @@ package runner_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -59,7 +57,7 @@ func TestVariableEvaluation_DependencyOrdering(t *testing.T) {
 	}
 
 	err := runner.MergeVariables(ctx, decl)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	expected := map[string]any{
 		"plain_string":        "hello world",
@@ -105,7 +103,7 @@ func TestVariableEvaluation_ShellWithEnvDependency(t *testing.T) {
 	}
 
 	err := runner.MergeVariables(ctx, decl)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "titpetric", ctx.Variables.Get("username"), "vars should resolve env vars set in env section")
 	assert.Equal(t, "titpetric", ctx.Env["AUTH_USERNAME"], "env should be set in context")
@@ -129,7 +127,7 @@ func TestVariableEvaluation_EnvDependsOnVar(t *testing.T) {
 	}
 
 	err := runner.MergeVariables(ctx, decl)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "/opt/app", ctx.Variables.Get("base_path"))
 	assert.Equal(t, "/opt/app/bin", ctx.Env["APP_PATH"], "env should resolve ${{ }} refs to vars")
@@ -154,7 +152,7 @@ func TestVariableEvaluation_EnvShellWithPartialEnv(t *testing.T) {
 	}
 
 	err := runner.MergeVariables(ctx, decl)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "world", ctx.Env["FIRST"])
 	assert.Equal(t, "world", ctx.Env["SECOND"], "env $() should run with already-resolved env vars")
@@ -180,7 +178,7 @@ func TestVariableEvaluation_CrossDepChain(t *testing.T) {
 	}
 
 	err := runner.MergeVariables(ctx, decl)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "titpetric", ctx.Env["AUTH_USERNAME"])
 	assert.Equal(t, "titpetric", ctx.Variables.Get("username"))

@@ -5,8 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // TestHelpRequested covers the command lines that ask for the help
@@ -45,9 +44,9 @@ func TestHelpRequested(t *testing.T) {
 func TestHelpFlags(t *testing.T) {
 	flags := HelpFlags()
 
-	require.NotNil(t, flags.Lookup("exec"), "pipeline flag")
-	require.NotNil(t, flags.Lookup("signing-key"), "server flag")
-	require.NotNil(t, flags.Lookup("agent-id"), "worker flag")
+	assert.NotNil(t, flags.Lookup("exec"), "pipeline flag")
+	assert.NotNil(t, flags.Lookup("signing-key"), "server flag")
+	assert.NotNil(t, flags.Lookup("agent-id"), "worker flag")
 
 	assert.Equal(t, "bool", flags.Lookup("final").Value.Type())
 	assert.Equal(t, "string", flags.Lookup("exec").Value.Type())
@@ -57,7 +56,7 @@ func TestHelpFlags(t *testing.T) {
 // carries the usage line, every command, the flags and the schema.
 func TestWriteHelp(t *testing.T) {
 	var out bytes.Buffer
-	require.NoError(t, WriteHelp(&out))
+	assert.NoError(t, WriteHelp(&out))
 
 	doc := out.String()
 

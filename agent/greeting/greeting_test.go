@@ -5,10 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/agent"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestGreeter_NewGreeter(t *testing.T) {
@@ -136,7 +134,7 @@ func TestGreeter_LearnGreeting(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	g := agent.NewGreeter()
 

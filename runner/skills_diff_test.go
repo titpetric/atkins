@@ -3,7 +3,7 @@ package runner
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // TestDiffLines checks a file splits into lines that keep their newline,

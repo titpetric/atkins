@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/expr-lang/expr"
-	"github.com/stretchr/testify/assert"
 
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/runner"
 )
 

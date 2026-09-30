@@ -8,9 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/psexec"
 	"github.com/titpetric/atkins/runner"
 )
@@ -213,7 +211,7 @@ func TestPsexec_SpecialCharacters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := exec.Run(ctx, psexec.NewShellCommand(tt.cmd))
-			require.True(t, result.Success())
+			assert.True(t, result.Success())
 			assert.Contains(t, strings.TrimSpace(result.Output()), tt.expected)
 		})
 	}

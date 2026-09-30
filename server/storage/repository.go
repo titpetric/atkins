@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	ulid "github.com/oklog/ulid/v2"
 	"github.com/titpetric/oida"
-	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/model"
 )
@@ -56,7 +56,7 @@ func (s *RepositoryStorage) Ensure(ctx context.Context, userID string, req Repos
 
 	now := time.Now()
 	repository = &model.Repository{
-		ID:              ulid.String(),
+		ID:              ulid.Make().String(),
 		Slug:            slug,
 		RemoteURL:       req.RemoteURL,
 		DefaultBranch:   req.DefaultBranch,

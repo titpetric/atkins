@@ -14,13 +14,12 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/titpetric/platform/pkg/drivers"
+	_ "modernc.org/sqlite"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/titpetric/oida"
 	"github.com/titpetric/platform"
 
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server"
 	"github.com/titpetric/atkins/server/model"
 )
@@ -74,7 +73,7 @@ func testServerWith(t *testing.T, configure func(*server.Options)) string {
 	svc := platform.New(platform.NewTestOptions())
 	svc.Register(server.NewModule(opts))
 
-	require.NoError(t, svc.Start(context.Background()))
+	assert.NoError(t, svc.Start(context.Background()))
 	t.Cleanup(svc.Stop)
 
 	return svc.URL()
@@ -87,23 +86,23 @@ func call(t *testing.T, method, url, token string, payload, target any) int {
 	var body io.Reader
 	if payload != nil {
 		encoded, err := json.Marshal(payload)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		body = bytes.NewReader(encoded)
 	}
 
 	request, err := http.NewRequest(method, url, body)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	request.Header.Set("Content-Type", "application/json")
 	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
 	}
 
 	response, err := http.DefaultClient.Do(request)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer response.Body.Close()
 
 	if target != nil && response.StatusCode != http.StatusNoContent {
-		require.NoError(t, json.NewDecoder(response.Body).Decode(target))
+		assert.NoError(t, json.NewDecoder(response.Body).Decode(target))
 	} else {
 		_, _ = io.Copy(io.Discard, response.Body)
 	}
@@ -148,9 +147,9 @@ func register(t *testing.T, url string) tokenResponse {
 		"username": "ci",
 		"password": "correct-horse",
 	}, &token)
-	require.Equal(t, http.StatusCreated, status)
-	require.NotEmpty(t, token.Token)
-	require.NotEmpty(t, token.RefreshToken)
+	assert.Equal(t, http.StatusCreated, status)
+	assert.NotEmpty(t, token.Token)
+	assert.NotEmpty(t, token.RefreshToken)
 
 	return token
 }
@@ -169,7 +168,7 @@ func dispatch(t *testing.T, url, token, command, parentID string) dispatchRespon
 		"command":           command,
 		"parent_id":         parentID,
 	}, &response)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	return response
 }
@@ -218,13 +217,13 @@ func TestLogin(t *testing.T) {
 			"password": "correct-horse",
 			"hostname": "workstation",
 		}, &token)
-		require.Equal(t, http.StatusOK, status)
+		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, "ci", token.Username)
 		assert.NotEmpty(t, token.Token)
 
 		var whoami map[string]any
 		status = call(t, http.MethodGet, url+"/api/user/whoami", token.Token, nil, &whoami)
-		require.Equal(t, http.StatusOK, status)
+		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, "ci@example.com", whoami["email"])
 		assert.Equal(t, true, whoami["is_admin"])
 	})
@@ -238,7 +237,7 @@ func TestRefreshTokenRotates(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/user/refreshToken", "", map[string]string{
 		"refresh_token": token.RefreshToken,
 	}, &refreshed)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.NotEqual(t, token.RefreshToken, refreshed.RefreshToken)
 
 	// The spent refresh token no longer works.
@@ -253,7 +252,7 @@ func TestLogoutRevokesAccessToken(t *testing.T) {
 	token := register(t, url)
 
 	status := call(t, http.MethodPost, url+"/api/user/logout", token.Token, map[string]string{}, nil)
-	require.Equal(t, http.StatusNoContent, status)
+	assert.Equal(t, http.StatusNoContent, status)
 
 	// The access token has not expired, but its session is revoked.
 	status = call(t, http.MethodGet, url+"/api/user/whoami", token.Token, nil, nil)
@@ -273,7 +272,7 @@ func TestDispatchRecordsJob(t *testing.T) {
 
 	var stored map[string]any
 	status := call(t, http.MethodGet, url+"/api/job/"+job.JobID, token.Token, nil, &stored)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "docs", stored["working_directory"])
 	assert.Equal(t, "atkins test:build", stored["command"])
 }
@@ -292,7 +291,7 @@ func TestDispatchDeduplicatesRepository(t *testing.T) {
 		},
 		"command": "atkins",
 	}, &second)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	assert.Equal(t, first.RepositoryID, second.RepositoryID)
 }
@@ -350,7 +349,7 @@ func TestJobStatusSettlesOnce(t *testing.T) {
 		"exit_code": 2,
 		"error":     "step failed",
 	}, &settled)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, model.JobStatusFailed, settled["status"])
 	assert.Equal(t, float64(2), settled["exit_code"])
 
@@ -385,14 +384,14 @@ func TestClaimLeasesOnePendingJob(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 		"agent_id": "agent-1",
 	}, &claimed)
-	require.Equal(t, http.StatusOK, status)
-	require.NotNil(t, claimed.Job)
+	assert.Equal(t, http.StatusOK, status)
+	assert.NotNil(t, claimed.Job)
 	assert.Equal(t, job.JobID, claimed.Job.ID)
 	assert.Equal(t, model.JobStatusRunning, claimed.Job.Status)
 	assert.Equal(t, "agent-1", claimed.Job.AgentID)
 
 	// The repository travels with the job so the agent can clone it.
-	require.NotNil(t, claimed.Repository)
+	assert.NotNil(t, claimed.Repository)
 	assert.Equal(t, "github.com/titpetric/atkins", claimed.Repository.Slug)
 
 	// The queue is now empty for the next agent.
@@ -413,7 +412,7 @@ func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
 		"job": "build",
 		"ref": "v1.2.3",
 	}, &triggered)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	// A checkout can only be reported for a job an agent is running.
 	status = call(t, http.MethodPost, url+"/api/job/"+triggered.JobID+"/checkout", agent.Token, map[string]any{
@@ -429,20 +428,20 @@ func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
 		status = call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 			"agent_id": "agent-1",
 		}, &claimed)
-		require.Equal(t, http.StatusOK, status)
+		assert.Equal(t, http.StatusOK, status)
 	}
-	require.NotNil(t, claimed.Job)
-	require.Equal(t, triggered.JobID, claimed.Job.ID)
+	assert.NotNil(t, claimed.Job)
+	assert.Equal(t, triggered.JobID, claimed.Job.ID)
 
 	status = call(t, http.MethodPost, url+"/api/job/"+triggered.JobID+"/checkout", agent.Token, map[string]any{
 		"ref":        "v1.2.3",
 		"commit_sha": "0123456789abcdef0123456789abcdef01234567",
 	}, nil)
-	require.Equal(t, http.StatusNoContent, status)
+	assert.Equal(t, http.StatusNoContent, status)
 
 	var job map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+triggered.JobID, token.Token, nil, &job)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	// The tag says what was asked for; the sha says what ran, and only
 	// one of the two survives the tag being moved.
@@ -474,7 +473,7 @@ func TestClaimRespectsLabels(t *testing.T) {
 		"command":    "atkins build",
 		"labels":     []string{"linux", "arm64"},
 	}, &labelled)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	// An agent missing one of the labels does not get the job.
 	status = call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
@@ -488,8 +487,8 @@ func TestClaimRespectsLabels(t *testing.T) {
 		"agent_id": "arm64-agent",
 		"labels":   []string{"linux", "arm64", "docker"},
 	}, &claimed)
-	require.Equal(t, http.StatusOK, status)
-	require.NotNil(t, claimed.Job)
+	assert.Equal(t, http.StatusOK, status)
+	assert.NotNil(t, claimed.Job)
 	assert.Equal(t, labelled.JobID, claimed.Job.ID)
 }
 
@@ -503,7 +502,7 @@ func TestHeartbeatRequiresTheLeaseHolder(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 		"agent_id": "agent-1",
 	}, nil)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	status = call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/heartbeat", agent.Token, map[string]any{
 		"agent_id": "agent-1",
@@ -526,7 +525,7 @@ func TestListJobsFiltersByRoot(t *testing.T) {
 
 	var jobs []map[string]any
 	status := call(t, http.MethodGet, url+"/api/job?root_id="+parent.RootID, token.Token, nil, &jobs)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Len(t, jobs, 2)
 }
 
@@ -569,13 +568,13 @@ func TestModuleRecordsSweeps(t *testing.T) {
 	svc := platform.New(options)
 	svc.Register(server.NewModule(opts))
 
-	require.NoError(t, svc.Start(context.Background()))
+	assert.NoError(t, svc.Start(context.Background()))
 	defer svc.Stop()
 
 	var telemetry *platform.TelemetryModule
-	require.True(t, svc.Find(&telemetry))
+	assert.True(t, svc.Find(&telemetry))
 
-	require.Eventually(t, func() bool {
+	assert.Eventually(t, func() bool {
 		for _, trace := range telemetry.Tracer().Traces() {
 			if trace.Name == "atkins.reclaim" {
 				return true

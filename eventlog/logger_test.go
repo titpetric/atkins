@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestNewLogger_NilWhenEmpty(t *testing.T) {
@@ -22,7 +22,7 @@ func TestNewLogger_CreatesLogger(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 	assert.NotEmpty(t, logger.metadata.RunID)
 	assert.Equal(t, "test-pipeline", logger.metadata.Pipeline)
 	assert.Equal(t, "test.yml", logger.metadata.File)
@@ -35,12 +35,12 @@ func TestLogger_LogExec_Pass(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	logger.LogExec(ResultPass, "jobs.test-job.steps.0", "echo hello", 0.5, 100, nil)
 
 	events := logger.GetEvents()
-	require.Len(t, events, 1)
+	assert.Len(t, events, 1)
 	assert.Equal(t, "jobs.test-job.steps.0", events[0].ID)
 	assert.Equal(t, "echo hello", events[0].Run)
 	assert.Equal(t, ResultPass, events[0].Result)
@@ -56,13 +56,13 @@ func TestLogger_LogExec_Fail(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	testErr := assert.AnError
 	logger.LogExec(ResultFail, "jobs.test-job.steps.0", "bad command", 1.0, 150, testErr)
 
 	events := logger.GetEvents()
-	require.Len(t, events, 1)
+	assert.Len(t, events, 1)
 	assert.Equal(t, "jobs.test-job.steps.0", events[0].ID)
 	assert.Equal(t, "bad command", events[0].Run)
 	assert.Equal(t, ResultFail, events[0].Result)
@@ -78,12 +78,12 @@ func TestLogger_LogExec_Skip(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	logger.LogExec(ResultSkipped, "jobs.test-job.steps.0", "skipped step", 2.0, 0, nil)
 
 	events := logger.GetEvents()
-	require.Len(t, events, 1)
+	assert.Len(t, events, 1)
 	assert.Equal(t, "jobs.test-job.steps.0", events[0].ID)
 	assert.Equal(t, "skipped step", events[0].Run)
 	assert.Equal(t, ResultSkipped, events[0].Result)
@@ -109,7 +109,7 @@ func TestLogger_Write(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	logger.LogExec(ResultPass, "jobs.test-job.steps.0", "echo hello", 0.1, 100, nil)
 
@@ -131,15 +131,15 @@ func TestLogger_Write(t *testing.T) {
 	}
 
 	err := logger.Write(state, summary)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// Read and verify the file
 	data, err := os.ReadFile(tmpFile)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	var log Log
 	err = yaml.Unmarshal(data, &log)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.NotEmpty(t, log.Metadata.RunID)
 	assert.Equal(t, "test-pipeline", log.Metadata.Pipeline)
@@ -155,7 +155,7 @@ func TestLogger_GetElapsed(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	time.Sleep(10 * time.Millisecond)
 
@@ -170,12 +170,12 @@ func TestLogger_DebugGoroutineID(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", true)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	logger.LogExec(ResultPass, "jobs.test-job.steps.0", "echo hello", 0.1, 100, nil)
 
 	events := logger.GetEvents()
-	require.Len(t, events, 1)
+	assert.Len(t, events, 1)
 
 	// Goroutine ID should be non-zero when debug is enabled
 	assert.Greater(t, events[0].GoroutineID, uint64(0))
@@ -188,12 +188,12 @@ func TestLogger_NoGoroutineIDWithoutDebug(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	logger.LogExec(ResultPass, "jobs.test-job.steps.0", "echo hello", 0.1, 100, nil)
 
 	events := logger.GetEvents()
-	require.Len(t, events, 1)
+	assert.Len(t, events, 1)
 
 	// Goroutine ID should be zero when debug is disabled
 	assert.Equal(t, uint64(0), events[0].GoroutineID)
@@ -211,7 +211,7 @@ func TestLogger_LogCommand_Step(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	logger.LogCommand(LogEntry{
 		Type:       EventTypeStep,
@@ -223,7 +223,7 @@ func TestLogger_LogCommand_Step(t *testing.T) {
 		DurationMs: 100,
 	})
 
-	require.Len(t, logger.events, 1)
+	assert.Len(t, logger.events, 1)
 	cmd := logger.events[0]
 	assert.Equal(t, "jobs.test.steps.0", cmd.ID)
 	assert.Equal(t, EventTypeStep, cmd.Type)
@@ -243,7 +243,7 @@ func TestLogger_LogCommand_Substitution(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	logger.LogCommand(LogEntry{
 		Type:       EventTypeSubstitution,
@@ -256,7 +256,7 @@ func TestLogger_LogCommand_Substitution(t *testing.T) {
 		DurationMs: 50,
 	})
 
-	require.Len(t, logger.events, 1)
+	assert.Len(t, logger.events, 1)
 	cmd := logger.events[0]
 	assert.Equal(t, "subst-12345", cmd.ID)
 	assert.Equal(t, EventTypeSubstitution, cmd.Type)
@@ -272,7 +272,7 @@ func TestLogger_LogCommand_WithError(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	logger.LogCommand(LogEntry{
 		Type:       EventTypeStep,
@@ -285,7 +285,7 @@ func TestLogger_LogCommand_WithError(t *testing.T) {
 		DurationMs: 100,
 	})
 
-	require.Len(t, logger.events, 1)
+	assert.Len(t, logger.events, 1)
 	cmd := logger.events[0]
 	assert.Equal(t, 1, cmd.ExitCode)
 	assert.Equal(t, "command failed", cmd.Error)
@@ -298,7 +298,7 @@ func TestLogger_LogCommand_WithEnvDebug(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", true)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	env := []string{"FOO=bar", "BAZ=qux"}
 	logger.LogCommand(LogEntry{
@@ -312,7 +312,7 @@ func TestLogger_LogCommand_WithEnvDebug(t *testing.T) {
 		Env:        env,
 	})
 
-	require.Len(t, logger.events, 1)
+	assert.Len(t, logger.events, 1)
 	cmd := logger.events[0]
 	assert.Equal(t, env, cmd.Env)
 }
@@ -324,7 +324,7 @@ func TestLogger_LogCommand_NoEnvWithoutDebug(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	env := []string{"FOO=bar"}
 	logger.LogCommand(LogEntry{
@@ -337,7 +337,7 @@ func TestLogger_LogCommand_NoEnvWithoutDebug(t *testing.T) {
 		Env:        env,
 	})
 
-	require.Len(t, logger.events, 1)
+	assert.Len(t, logger.events, 1)
 	cmd := logger.events[0]
 	assert.Nil(t, cmd.Env)
 }
@@ -360,7 +360,7 @@ func TestLogger_Write_WithCommands(t *testing.T) {
 	})
 
 	logger := NewLogger(tmpFile, "test-pipeline", "test.yml", false)
-	require.NotNil(t, logger)
+	assert.NotNil(t, logger)
 
 	logger.LogExec(ResultPass, "jobs.test.steps.0", "step name", 0.1, 100, nil)
 	logger.LogCommand(LogEntry{
@@ -391,14 +391,14 @@ func TestLogger_Write_WithCommands(t *testing.T) {
 	}
 
 	err := logger.Write(state, nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	data, err := os.ReadFile(tmpFile)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	var log Log
 	err = yaml.Unmarshal(data, &log)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, log.Events, 3)
 	assert.Equal(t, EventTypeStep, log.Events[0].Type)

@@ -9,9 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -40,7 +38,7 @@ func newBrowser(t *testing.T, base string) *browser {
 	t.Helper()
 
 	jar, err := cookiejar.New(nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return &browser{t: t, base: base, client: &http.Client{Jar: jar}}
 }
@@ -51,11 +49,11 @@ func (b *browser) get(path string) (int, string) {
 	b.t.Helper()
 
 	response, err := b.client.Get(b.base + path)
-	require.NoError(b.t, err)
+	assert.NoError(b.t, err)
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
-	require.NoError(b.t, err)
+	assert.NoError(b.t, err)
 
 	return response.StatusCode, string(body)
 }
@@ -71,7 +69,7 @@ func (b *browser) hop(method, path string, form urlpkg.Values) *http.Response {
 	}
 
 	request, err := http.NewRequest(method, b.base+path, body)
-	require.NoError(b.t, err)
+	assert.NoError(b.t, err)
 	if form != nil {
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
@@ -84,7 +82,7 @@ func (b *browser) hop(method, path string, form urlpkg.Values) *http.Response {
 	}
 
 	response, err := client.Do(request)
-	require.NoError(b.t, err)
+	assert.NoError(b.t, err)
 	_, _ = io.Copy(io.Discard, response.Body)
 	response.Body.Close()
 
@@ -96,10 +94,10 @@ func (b *browser) csrf(path string) string {
 	b.t.Helper()
 
 	status, body := b.get(path)
-	require.Equal(b.t, http.StatusOK, status, path)
+	assert.Equal(b.t, http.StatusOK, status, path)
 
 	match := csrfPattern.FindStringSubmatch(body)
-	require.Len(b.t, match, 2, "no csrf token on "+path)
+	assert.Len(b.t, match, 2, "no csrf token on "+path)
 
 	return match[1]
 }
@@ -114,11 +112,11 @@ func (b *browser) post(from, path string, form urlpkg.Values) (int, string) {
 	form.Set("csrf_token", b.csrf(from))
 
 	response, err := b.client.PostForm(b.base+path, form)
-	require.NoError(b.t, err)
+	assert.NoError(b.t, err)
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
-	require.NoError(b.t, err)
+	assert.NoError(b.t, err)
 
 	return response.StatusCode, string(body)
 }
@@ -132,18 +130,18 @@ func (b *browser) login(email, password string) {
 	b.t.Helper()
 
 	status, body := b.get("/login")
-	require.Equal(b.t, http.StatusOK, status)
-	require.Contains(b.t, body, `name="password"`)
+	assert.Equal(b.t, http.StatusOK, status)
+	assert.Contains(b.t, body, `name="password"`)
 
 	response := b.hop(http.MethodPost, "/login", urlpkg.Values{
 		"email":    {email},
 		"password": {password},
 	})
-	require.Equal(b.t, http.StatusSeeOther, response.StatusCode)
+	assert.Equal(b.t, http.StatusSeeOther, response.StatusCode)
 
 	cookies := response.Cookies()
-	require.Len(b.t, cookies, 1)
-	require.True(b.t, cookies[0].HttpOnly)
+	assert.Len(b.t, cookies, 1)
+	assert.True(b.t, cookies[0].HttpOnly)
 }
 
 // openRegistration lets a second account be created.
@@ -174,7 +172,7 @@ func TestAdminPagesRefuseNonAdmins(t *testing.T) {
 		"username": "dev",
 		"password": "correct-horse",
 	}, nil)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	// The account is real and the session is real. It just isn't an admin.
 	dev := newBrowser(t, url)
@@ -258,7 +256,7 @@ func TestLogoutEndsTheSession(t *testing.T) {
 	operator.login("ci@example.com", "correct-horse")
 
 	status, _ := operator.get("/admin/user")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	_, _ = operator.post("/admin/user", "/logout", nil)
 
@@ -288,7 +286,7 @@ func TestFormsRefuseAMissingOrWrongCSRFToken(t *testing.T) {
 	var rules []map[string]any
 	admin := loginToken(t, url)
 	status := call(t, http.MethodGet, url+"/api/admin/repository", admin, nil, &rules)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Empty(t, rules)
 }
 
@@ -305,7 +303,7 @@ func TestFormsRefuseACrossOriginPost(t *testing.T) {
 
 	request, err := http.NewRequest(http.MethodPost, url+"/admin/allowlist",
 		strings.NewReader(urlpkg.Values{"pattern": {"github.com/**"}, "csrf_token": {token}}.Encode()))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("Origin", "https://evil.example.com")
 
@@ -314,7 +312,7 @@ func TestFormsRefuseACrossOriginPost(t *testing.T) {
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	response, err := client.Do(request)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer response.Body.Close()
 
 	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
@@ -331,7 +329,7 @@ func TestAllowlistFormLifecycle(t *testing.T) {
 		"pattern":     {"github.com/titpetric/*"},
 		"description": {"our repositories"},
 	})
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, body, "github.com/titpetric/*")
 	assert.Contains(t, body, "our repositories")
 	assert.Contains(t, body, "active")
@@ -369,7 +367,7 @@ func TestAllowlistPageEscapesAPattern(t *testing.T) {
 	operator.login("ci@example.com", "correct-horse")
 
 	status, body := operator.get("/admin/allowlist")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.NotContains(t, body, "<script>alert(1)</script>")
 	assert.Contains(t, body, "&lt;script&gt;")
 }
@@ -386,7 +384,7 @@ func TestSettingFormSetsAndResets(t *testing.T) {
 		"value":  {model.PolicyAllowlist},
 		"action": {"set"},
 	})
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, body, "overridden")
 	assert.Contains(t, body, `<option value="allowlist" selected`)
 
@@ -421,7 +419,7 @@ func TestUserFormTogglesFlags(t *testing.T) {
 		"username": "dev",
 		"password": "correct-horse",
 	}, &second)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	operator := newBrowser(t, url)
 	operator.login("ci@example.com", "correct-horse")
@@ -453,7 +451,7 @@ func TestUserFormRefusesToRemoveTheLastAdmin(t *testing.T) {
 	operator.login("ci@example.com", "correct-horse")
 
 	status, body := operator.get("/admin/user")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, body, "the last active admin")
 	assert.Contains(t, body, "disabled title=")
 
@@ -466,7 +464,7 @@ func TestUserFormRefusesToRemoveTheLastAdmin(t *testing.T) {
 
 	var whoami map[string]any
 	status = call(t, http.MethodGet, url+"/api/user/whoami", admin.Token, nil, &whoami)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, true, whoami["is_admin"])
 }
 
@@ -484,7 +482,7 @@ func TestSSHKeyFormLifecycle(t *testing.T) {
 		"host":        {"github.com"},
 		"private_key": {private},
 	})
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, body, "SHA256:")
 	assert.Contains(t, body, "ssh-ed25519")
 
@@ -499,7 +497,7 @@ func TestSSHKeyFormLifecycle(t *testing.T) {
 			base64Lines++
 		}
 	}
-	require.NotZero(t, base64Lines, "the fixture key has no body to look for")
+	assert.NotZero(t, base64Lines, "the fixture key has no body to look for")
 
 	keyID := attributeValue(t, body, `action="/admin/ssh-key/`)
 
@@ -538,16 +536,16 @@ func TestTriggerFormQueuesAJob(t *testing.T) {
 		"working_directory": {"../../etc"},
 		"csrf_token":        {operator.csrf("/admin/repository")},
 	})
-	require.Equal(t, http.StatusSeeOther, response.StatusCode)
+	assert.Equal(t, http.StatusSeeOther, response.StatusCode)
 
 	// Straight to the job page: watching it run is the next thing
 	// anybody wants.
 	location := response.Header.Get("Location")
-	require.True(t, strings.HasPrefix(location, "/job/"), location)
+	assert.True(t, strings.HasPrefix(location, "/job/"), location)
 
 	var job map[string]any
 	status := call(t, http.MethodGet, url+"/api"+location, admin.Token, nil, &job)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "atkins analyze", job["command"])
 	assert.Equal(t, model.JobStatusPending, job["status"])
 	assert.Equal(t, "", job["working_directory"])
@@ -566,7 +564,7 @@ func TestTriggerFormObeysTheAllowlist(t *testing.T) {
 	operator.login("ci@example.com", "correct-horse")
 
 	status, body := operator.get("/admin/repository")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, body, "the allowlist refuses this repository")
 	assert.NotContains(t, body, "/admin/repository/"+first.RepositoryID+"/trigger")
 
@@ -588,7 +586,7 @@ func TestRepositoryPageEscapesAJobCommand(t *testing.T) {
 	operator.login("ci@example.com", "correct-horse")
 
 	status, body := operator.get("/admin/repository")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.NotContains(t, body, "<script>alert(1)</script>")
 	assert.Contains(t, body, "&lt;script&gt;")
 }
@@ -632,7 +630,7 @@ func loginToken(t *testing.T, base string) string {
 		"email":    "ci@example.com",
 		"password": "correct-horse",
 	}, &token)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	return token.Token
 }
@@ -643,11 +641,11 @@ func attributeValue(t *testing.T, body, prefix string) string {
 	t.Helper()
 
 	index := strings.Index(body, prefix)
-	require.GreaterOrEqual(t, index, 0, prefix)
+	assert.GreaterOrEqual(t, index, 0, prefix)
 
 	rest := body[index+len(prefix):]
 	end := strings.IndexAny(rest, `"/`)
-	require.Greater(t, end, 0)
+	assert.Greater(t, end, 0)
 
 	return rest[:end]
 }

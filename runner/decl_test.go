@@ -3,9 +3,7 @@ package runner_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -29,7 +27,7 @@ func TestMergeSkillVariables_PreservesExistingKeys(t *testing.T) {
 	}
 
 	err := runner.MergeSkillVariables(ctx, decl)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// Existing keys must be preserved
 	assert.Equal(t, "from-caller", ctx.Variables.Get("name"))
@@ -49,6 +47,6 @@ func TestMergeSkillVariables_NilDecl(t *testing.T) {
 	}
 
 	err := runner.MergeSkillVariables(ctx, nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "value", ctx.Variables.Get("existing"))
 }

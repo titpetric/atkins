@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/titpetric/platform/pkg/ulid"
+	ulid "github.com/oklog/ulid/v2"
 )
 
 // Store holds artefact bytes under opaque keys.
@@ -124,7 +124,7 @@ func (d *Dir) Put(_ context.Context, key string, r io.Reader, limit int64) (Resu
 	// Write beside the target and rename: a reader can then only ever
 	// see a complete blob, and an interrupted upload leaves a .part
 	// file rather than a truncated artefact.
-	temporary := name + "." + ulid.String() + ".part"
+	temporary := name + "." + ulid.Make().String() + ".part"
 	file, err := os.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o640)
 	if err != nil {
 		return Result{}, err

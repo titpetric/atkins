@@ -5,9 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -24,7 +22,7 @@ func readJob(t *testing.T, url, token, jobID string) jobLinkView {
 
 	var job jobLinkView
 	status := call(t, http.MethodGet, url+"/api/job/"+jobID, token, nil, &job)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	return job
 }
@@ -34,7 +32,7 @@ func TestJobPayloadCarriesTheViewToken(t *testing.T) {
 	admin := register(t, url)
 
 	dispatched := dispatch(t, url, admin.Token, "atkins build", "")
-	require.NotEmpty(t, dispatched.ViewToken)
+	assert.NotEmpty(t, dispatched.ViewToken)
 
 	// The token the dispatch printed is rebuildable from the job itself,
 	// which is the whole point: a lost terminal is not a lost job.
@@ -46,8 +44,8 @@ func TestJobPayloadCarriesTheViewToken(t *testing.T) {
 	// is not left without a way to open it.
 	var listed []jobLinkView
 	status := call(t, http.MethodGet, url+"/api/job", admin.Token, nil, &listed)
-	require.Equal(t, http.StatusOK, status)
-	require.Len(t, listed, 1)
+	assert.Equal(t, http.StatusOK, status)
+	assert.Len(t, listed, 1)
 	assert.Equal(t, dispatched.ViewToken, listed[0].ViewToken)
 
 	// The link works in a browser with no session, which is what the
@@ -102,7 +100,7 @@ func TestIndexListsTheSignedInUsersJobs(t *testing.T) {
 	// page says where to sign in rather than listing the instance.
 	anonymous := newBrowser(t, url)
 	status, body := anonymous.get("/")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, body, "private on this server")
 	assert.NotContains(t, body, "atkins mine")
 
@@ -110,7 +108,7 @@ func TestIndexListsTheSignedInUsersJobs(t *testing.T) {
 	signed.login("dev@example.com", "correct-horse")
 
 	status, body = signed.get("/")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, body, "atkins mine")
 	assert.NotContains(t, body, "atkins theirs")
 
@@ -127,7 +125,7 @@ func TestIndexListsTheSignedInUsersJobs(t *testing.T) {
 	operator.login("ci@example.com", "correct-horse")
 
 	status, body = operator.get("/")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, body, "atkins mine")
 	assert.Contains(t, body, "atkins theirs")
 	assert.Equal(t, 1, strings.Count(body, "/job/"+theirs.JobID+"?t="))

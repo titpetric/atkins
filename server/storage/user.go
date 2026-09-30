@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	ulid "github.com/oklog/ulid/v2"
 	"github.com/titpetric/oida"
-	"github.com/titpetric/platform/pkg/ulid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/titpetric/atkins/server/model"
@@ -82,7 +82,7 @@ func (s *UserStorage) Create(ctx context.Context, req CreateRequest) (*model.Use
 
 	now := time.Now()
 	user := &model.User{
-		ID:       ulid.String(),
+		ID:       ulid.Make().String(),
 		Email:    email,
 		Username: username,
 		FullName: strings.TrimSpace(req.FullName),

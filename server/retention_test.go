@@ -5,9 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server"
 	"github.com/titpetric/atkins/server/model"
 )
@@ -19,7 +17,7 @@ func finish(t *testing.T, url, agentToken, jobID string, status model.JobStatus)
 	code := call(t, http.MethodPost, url+"/api/job/"+jobID+"/status", agentToken, map[string]any{
 		"status": status,
 	}, nil)
-	require.Equal(t, http.StatusOK, code)
+	assert.Equal(t, http.StatusOK, code)
 }
 
 // logCount reads how many output rows a job still has.
@@ -28,7 +26,7 @@ func logCount(t *testing.T, url, token, jobID string) int {
 
 	var entries []map[string]any
 	status := call(t, http.MethodGet, url+"/api/job/"+jobID+"/log", token, nil, &entries)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	return len(entries)
 }
@@ -48,7 +46,7 @@ func TestRetentionSweepDropsOutputAndKeepsTheJob(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/log", agent.Token, map[string]string{
 		"content": "hello\n",
 	}, nil)
-	require.Equal(t, http.StatusNoContent, status)
+	assert.Equal(t, http.StatusNoContent, status)
 
 	// A job still running is never old enough to sweep, whatever the
 	// window says.
@@ -59,7 +57,7 @@ func TestRetentionSweepDropsOutputAndKeepsTheJob(t *testing.T) {
 
 	finish(t, url, agent.Token, job.JobID, model.JobStatusPassed)
 
-	require.Eventually(t, func() bool {
+	assert.Eventually(t, func() bool {
 		return logCount(t, url, admin.Token, job.JobID) == 0
 	}, 5*time.Second, 20*time.Millisecond, "output was not swept")
 
@@ -67,13 +65,13 @@ func TestRetentionSweepDropsOutputAndKeepsTheJob(t *testing.T) {
 	// windows rather than one.
 	var stored map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+job.JobID, admin.Token, nil, &stored)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, model.JobStatusPassed, stored["status"])
 
 	// Until job.retention says otherwise.
 	setSetting(t, url, admin.Token, model.SettingJobRetention, "1ns")
 
-	require.Eventually(t, func() bool {
+	assert.Eventually(t, func() bool {
 		return call(t, http.MethodGet, url+"/api/job/"+job.JobID, admin.Token, nil, nil) == http.StatusNotFound
 	}, 5*time.Second, 20*time.Millisecond, "job record was not swept")
 }
@@ -91,7 +89,7 @@ func TestRetentionKeepsEverythingByDefault(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/log", agent.Token, map[string]string{
 		"content": "hello\n",
 	}, nil)
-	require.Equal(t, http.StatusNoContent, status)
+	assert.Equal(t, http.StatusNoContent, status)
 
 	finish(t, url, agent.Token, job.JobID, model.JobStatusFailed)
 

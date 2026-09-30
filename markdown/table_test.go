@@ -3,8 +3,7 @@ package markdown
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 const sampleTable = "| Flag      | What it does     |\n" +
@@ -20,7 +19,7 @@ func TestIsTable(t *testing.T) {
 
 func TestParseTable(t *testing.T) {
 	table, ok := ParseTable(sampleTable)
-	require.True(t, ok)
+	assert.True(t, ok)
 
 	assert.Equal(t, []string{"Flag", "What it does"}, table.Headers)
 	assert.Equal(t, [][]string{

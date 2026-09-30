@@ -5,9 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server"
 	"github.com/titpetric/atkins/server/model"
 )
@@ -20,10 +18,10 @@ func claim(t *testing.T, url, token, agentID string) claimResponse {
 	status := call(t, http.MethodPost, url+"/api/job/claim", token, map[string]any{
 		"agent_id": agentID,
 	}, &claimed)
-	require.Equal(t, http.StatusOK, status)
-	require.NotNil(t, claimed.Job)
-	require.NotNil(t, claimed.Job.StartedAt)
-	require.NotNil(t, claimed.Job.LeaseExpiresAt)
+	assert.Equal(t, http.StatusOK, status)
+	assert.NotNil(t, claimed.Job)
+	assert.NotNil(t, claimed.Job.StartedAt)
+	assert.NotNil(t, claimed.Job.LeaseExpiresAt)
 
 	return claimed
 }
@@ -58,7 +56,7 @@ func TestMaxDepthSettingTakesEffectWithoutRestart(t *testing.T) {
 
 	parent := dispatch(t, url, admin.Token, "atkins", "")
 	child := dispatch(t, url, admin.Token, "atkins", parent.JobID)
-	require.Equal(t, int64(1), child.Depth)
+	assert.Equal(t, int64(1), child.Depth)
 
 	setSetting(t, url, admin.Token, model.SettingJobMaxDepth, "1")
 
@@ -110,7 +108,7 @@ func TestConfiguredMaxDepthOutranksTheRegistryDefault(t *testing.T) {
 	// Resetting a setting that was never stored leaves the configured
 	// value in charge rather than falling back to the default of 3.
 	status = call(t, http.MethodDelete, url+"/api/admin/setting/"+model.SettingJobMaxDepth, admin.Token, nil, nil)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	status = call(t, http.MethodPost, url+"/api/dispatch", admin.Token, map[string]any{
 		"repository": map[string]string{"remote_url": "git@github.com:titpetric/atkins.git"},

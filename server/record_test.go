@@ -4,9 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -24,7 +22,7 @@ func recordRun(t *testing.T, url, token, command, agent string) dispatchResponse
 		"command": command,
 		"agent":   agent,
 	}, &response)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	return response
 }
@@ -35,7 +33,7 @@ func jobLog(t *testing.T, url, token, jobID string) []map[string]any {
 
 	var entries []map[string]any
 	status := call(t, http.MethodGet, url+"/api/job/"+jobID+"/log", token, nil, &entries)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	return entries
 }
@@ -59,7 +57,7 @@ func TestRecordedRunIsRunningAndNeverQueued(t *testing.T) {
 
 	var view map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+job.JobID, token.Token, nil, &view)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	// The machine that runs it holds the lease, so a run that dies
 	// without reporting is reclaimed the way a lost agent is.
@@ -100,12 +98,12 @@ func TestRecordedRunIsReportedByItsOwner(t *testing.T) {
 	assert.Equal(t, http.StatusOK, status)
 
 	entries := jobLog(t, url, token.Token, job.JobID)
-	require.Len(t, entries, 1)
+	assert.Len(t, entries, 1)
 	assert.Equal(t, "go:build ✓\n", entries[0]["content"])
 
 	var view map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+job.JobID, token.Token, nil, &view)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	// The exit code the shell saw is the exit code the job page shows.
 	assert.Equal(t, model.JobStatusFailed, view["status"])
@@ -170,7 +168,7 @@ func TestReportingOnAPublicInstanceStillRequiresOwnership(t *testing.T) {
 	job := recordRun(t, url, admin.Token, "atkins test", "laptop")
 
 	status := call(t, http.MethodGet, url+"/api/job/"+job.JobID, dev.Token, nil, nil)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	status = call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/status", dev.Token, map[string]any{
 		"status":    "passed",

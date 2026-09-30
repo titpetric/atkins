@@ -11,13 +11,12 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/titpetric/platform/pkg/drivers"
+	_ "modernc.org/sqlite"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/titpetric/platform"
 
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/blob"
 	"github.com/titpetric/atkins/server/model"
 	"github.com/titpetric/atkins/server/schema"
@@ -42,11 +41,11 @@ func testStorage(t *testing.T) (*storage.JobArtefactStorage, *blob.Dir, *sqlx.DB
 	ctx := t.Context()
 
 	db, err := storage.DB(ctx, connection)
-	require.NoError(t, err)
-	require.NoError(t, storage.Migrate(ctx, db, schema.Migrations()))
+	assert.NoError(t, err)
+	assert.NoError(t, storage.Migrate(ctx, db, schema.Migrations()))
 
 	blobs := blob.NewDir(filepath.Join(t.TempDir(), "artefacts"))
-	require.NoError(t, blobs.Prepare())
+	assert.NoError(t, blobs.Prepare())
 
 	return storage.NewJobArtefactStorage(db, blobs), blobs, db
 }
@@ -63,7 +62,7 @@ func store(t *testing.T, artefacts *storage.JobArtefactStorage, jobID, path, con
 		MaxSize:  1024,
 		MaxCount: 10,
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return artefact
 }
@@ -73,11 +72,11 @@ func contents(t *testing.T, artefacts *storage.JobArtefactStorage, artefact *mod
 	t.Helper()
 
 	reader, err := artefacts.Open(t.Context(), artefact)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer reader.Close()
 
 	body, err := io.ReadAll(reader)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return string(body)
 }
@@ -97,8 +96,8 @@ func TestCreateStoresRowAndBytes(t *testing.T) {
 	assert.Equal(t, `{"findings":3}`, contents(t, artefacts, artefact))
 
 	listed, err := artefacts.List(t.Context(), "job-1")
-	require.NoError(t, err)
-	require.Len(t, listed, 1)
+	assert.NoError(t, err)
+	assert.Len(t, listed, 1)
 	assert.Equal(t, artefact.ID, listed[0].ID)
 }
 
@@ -133,7 +132,7 @@ func TestCreateEnforcesTheSizeLimit(t *testing.T) {
 
 	// No row, and no half-written file: the two never disagree.
 	listed, err := artefacts.List(t.Context(), "job-1")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Empty(t, listed)
 
 	entries, err := os.ReadDir(filepath.Join(blobs.Root(), "job-1"))
@@ -153,7 +152,7 @@ func TestCreateEnforcesTheCountLimit(t *testing.T) {
 			MaxSize:  1024,
 			MaxCount: 2,
 		})
-		require.NoError(t, err, path)
+		assert.NoError(t, err, path)
 	}
 
 	_, err := artefacts.Create(t.Context(), storage.ArtefactRequest{
@@ -203,8 +202,8 @@ func TestCreateReplacesTheSamePath(t *testing.T) {
 	second := store(t, artefacts, "job-1", "scan.json", `{"run":2}`)
 
 	listed, err := artefacts.List(t.Context(), "job-1")
-	require.NoError(t, err)
-	require.Len(t, listed, 1)
+	assert.NoError(t, err)
+	assert.Len(t, listed, 1)
 	assert.Equal(t, second.ID, listed[0].ID)
 
 	// The superseded bytes are gone, not orphaned on the disk.
@@ -220,7 +219,7 @@ func TestGetIsScopedToTheJob(t *testing.T) {
 	artefact := store(t, artefacts, "job-1", "scan.json", "{}")
 
 	found, err := artefacts.Get(t.Context(), "job-1", artefact.ID)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, artefact.ID, found.ID)
 
 	// An ID from another job does not resolve here.
@@ -232,7 +231,7 @@ func TestOpenReportsSweptBytes(t *testing.T) {
 	artefacts, blobs, _ := testStorage(t)
 
 	artefact := store(t, artefacts, "job-1", "scan.json", "{}")
-	require.NoError(t, blobs.Remove(context.Background(), artefact.StorageKey))
+	assert.NoError(t, blobs.Remove(context.Background(), artefact.StorageKey))
 
 	// A row whose file an operator removed reads as a missing artefact,
 	// not as a server error.
@@ -250,15 +249,15 @@ func TestPruneExpired(t *testing.T) {
 	backdated := time.Now().Add(-2 * time.Hour)
 	_, err := db.ExecContext(t.Context(),
 		"UPDATE job_artefact SET created_at = ? WHERE id = ?", backdated, old.ID)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	swept, err := artefacts.PruneExpired(t.Context(), time.Now().Add(-time.Hour))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, int64(1), swept)
 
 	listed, err := artefacts.List(t.Context(), "job-1")
-	require.NoError(t, err)
-	require.Len(t, listed, 1)
+	assert.NoError(t, err)
+	assert.Len(t, listed, 1)
 	assert.Equal(t, fresh.ID, listed[0].ID)
 
 	// Retention is about the disk.
@@ -268,13 +267,13 @@ func TestPruneExpired(t *testing.T) {
 	// The row survives its bytes, so the page can still say the file
 	// existed and how big it was.
 	var count int
-	require.NoError(t, db.GetContext(t.Context(), &count,
+	assert.NoError(t, db.GetContext(t.Context(), &count,
 		"SELECT COUNT(*) FROM job_artefact WHERE id = ? AND deleted_at IS NOT NULL", old.ID))
 	assert.Equal(t, 1, count)
 
 	// A second pass has nothing left to do.
 	swept, err = artefacts.PruneExpired(t.Context(), time.Now().Add(-time.Hour))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, int64(0), swept)
 }
 
@@ -285,19 +284,19 @@ func TestCountIgnoresSweptArtefacts(t *testing.T) {
 	store(t, artefacts, "job-1", "two.json", "{}")
 
 	count, err := artefacts.Count(t.Context(), "job-1")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, int64(2), count)
 
 	_, err = db.ExecContext(t.Context(),
 		"UPDATE job_artefact SET created_at = ? WHERE path = ?", time.Now().Add(-2*time.Hour), "one.json")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	_, err = artefacts.PruneExpired(t.Context(), time.Now().Add(-time.Hour))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// A job whose artefacts were swept can produce new ones: the limit
 	// counts what is on the disk, not what ever was.
 	count, err = artefacts.Count(t.Context(), "job-1")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, int64(1), count)
 }

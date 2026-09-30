@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	ulid "github.com/oklog/ulid/v2"
 	"github.com/titpetric/oida"
-	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/blob"
 	"github.com/titpetric/atkins/server/model"
@@ -97,7 +97,7 @@ func (s *JobArtefactStorage) Create(ctx context.Context, req ArtefactRequest) (*
 		}
 	}
 
-	id := ulid.String()
+	id := ulid.Make().String()
 	key := blob.Key(req.JobID, id)
 
 	written, err := s.blobs.Put(ctx, key, req.Content, req.MaxSize)

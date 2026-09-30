@@ -8,10 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // recorded is one request the fake server saw.
@@ -93,13 +91,13 @@ func TestLoginStoresCredentials(t *testing.T) {
 		Password: "correct-horse",
 		Hostname: "workstation",
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "ci", credential.Username)
 	assert.Equal(t, "access", credential.Token)
 
 	// The credential is on disk, so the next command finds it.
 	reopened, err := client.Open("")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, fake.URL, reopened.Server())
 	assert.Equal(t, "ci", reopened.Username())
 }
@@ -113,7 +111,7 @@ func TestRegisterStoresCredentials(t *testing.T) {
 		Username: "ci",
 		Password: "correct-horse",
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	_, err = client.Open("")
 	assert.NoError(t, err)
@@ -128,10 +126,10 @@ func TestAPIErrorCarriesTheServerMessage(t *testing.T) {
 	}
 
 	_, err := client.New(fake.URL).Login(t.Context(), client.LoginRequest{Email: "ci@example.com"})
-	require.Error(t, err)
+	assert.Error(t, err)
 
 	var apiErr *client.APIError
-	require.ErrorAs(t, err, &apiErr)
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode)
 	assert.Equal(t, "invalid credentials", apiErr.Error())
 }
@@ -143,7 +141,7 @@ func TestAPIErrorFallsBackToTheRawBody(t *testing.T) {
 	}
 
 	_, err := client.New(fake.URL).Login(t.Context(), client.LoginRequest{})
-	require.Error(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "upstream exploded")
 }
 
@@ -160,13 +158,13 @@ func TestDispatchAndJobURL(t *testing.T) {
 
 	c := client.New(fake.URL)
 	_, err := c.Login(t.Context(), client.LoginRequest{Email: "ci@example.com"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	response, err := c.Dispatch(t.Context(), client.DispatchRequest{
 		Repository: client.RepositoryPayload{RemoteURL: "git@github.com:titpetric/atkins.git"},
 		Command:    "atkins build",
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "01ARZ3NDEKTSV4RRFFQ69G5FAV", response.JobID)
 
 	// The URL atkins prints carries the view token the server issued,
@@ -205,10 +203,10 @@ func TestExpiredTokenIsRefreshedFirst(t *testing.T) {
 
 	c := client.New(fake.URL)
 	_, err := c.Login(t.Context(), client.LoginRequest{Email: "ci@example.com"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	_, err = c.Dispatch(t.Context(), client.DispatchRequest{Command: "atkins"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	paths := make([]string, 0, len(fake.requests))
 	for _, request := range fake.requests {
@@ -221,7 +219,7 @@ func TestExpiredTokenIsRefreshedFirst(t *testing.T) {
 	assert.Equal(t, "Bearer fresh", last.Auth)
 
 	reopened, err := client.Open("")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, fake.URL, reopened.Server())
 }
 
@@ -232,10 +230,10 @@ func TestClaimReturnsNothingOnAnEmptyQueue(t *testing.T) {
 
 	c := client.New(fake.URL)
 	_, err := c.Enrol(t.Context(), client.EnrolRequest{Token: "shared", AgentID: "agent-1"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	claimed, err := c.Claim(t.Context(), "agent-1", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	// An empty poll is the normal case, not an error.
 	assert.Nil(t, claimed)
 }
@@ -257,11 +255,11 @@ func TestClaimReturnsTheJobAndItsRepository(t *testing.T) {
 
 	c := client.New(fake.URL)
 	_, err := c.Enrol(t.Context(), client.EnrolRequest{Token: "shared", AgentID: "agent-1"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	claimed, err := c.Claim(t.Context(), "agent-1", []string{"linux"})
-	require.NoError(t, err)
-	require.NotNil(t, claimed)
+	assert.NoError(t, err)
+	assert.NotNil(t, claimed)
 	assert.Equal(t, "job-1", claimed.Job.ID)
 	assert.Equal(t, "github.com/titpetric/atkins", claimed.Repository.Slug)
 
@@ -279,11 +277,11 @@ func TestAgentReporting(t *testing.T) {
 
 	c := client.New(fake.URL)
 	_, err := c.Enrol(t.Context(), client.EnrolRequest{Token: "shared", AgentID: "agent-1"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	require.NoError(t, c.Heartbeat(t.Context(), "job-1", "agent-1"))
-	require.NoError(t, c.AppendLog(t.Context(), "job-1", client.StreamOutput, "hello\n"))
-	require.NoError(t, c.ReportStatus(t.Context(), "job-1", client.JobStatusRequest{
+	assert.NoError(t, c.Heartbeat(t.Context(), "job-1", "agent-1"))
+	assert.NoError(t, c.AppendLog(t.Context(), "job-1", client.StreamOutput, "hello\n"))
+	assert.NoError(t, c.ReportStatus(t.Context(), "job-1", client.JobStatusRequest{
 		Status:   client.StatusFailed,
 		ExitCode: 3,
 		Error:    "step failed",
@@ -307,16 +305,16 @@ func TestPolicyAndSSHKeys(t *testing.T) {
 
 	c := client.New(fake.URL)
 	_, err := c.Enrol(t.Context(), client.EnrolRequest{Token: "shared", AgentID: "agent-1"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	policy, err := c.Policy(t.Context())
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, client.PolicyAllowlist, policy.Policy)
 	assert.Equal(t, []string{"github.com/titpetric/*"}, policy.Patterns)
 
 	keys, err := c.SSHKeys(t.Context())
-	require.NoError(t, err)
-	require.Len(t, keys, 1)
+	assert.NoError(t, err)
+	assert.Len(t, keys, 1)
 	assert.Equal(t, "PRIVATE", keys[0].PrivateKey)
 }
 
@@ -329,7 +327,7 @@ func TestLogoutForgetsTheCredentialEvenWhenTheServerFails(t *testing.T) {
 
 	c := client.New(fake.URL)
 	_, err := c.Login(t.Context(), client.LoginRequest{Email: "ci@example.com"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// Asking to log out of an unreachable server still logs you out here.
 	assert.Error(t, c.Logout(t.Context()))
@@ -345,9 +343,9 @@ func TestLogoutRevokesAndForgets(t *testing.T) {
 
 	c := client.New(fake.URL)
 	_, err := c.Login(t.Context(), client.LoginRequest{Email: "ci@example.com"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	require.NoError(t, c.Logout(t.Context()))
+	assert.NoError(t, c.Logout(t.Context()))
 
 	logout := fake.requests[len(fake.requests)-1]
 	assert.Equal(t, "refresh-access", logout.Body["refresh_token"])

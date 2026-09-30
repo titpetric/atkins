@@ -9,10 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // artefactServer captures one artefact upload, body and all.
@@ -86,7 +84,7 @@ func loggedIn(t *testing.T, server string) *client.Client {
 
 	c := client.New(server)
 	_, err := c.Login(t.Context(), client.LoginRequest{Email: "ci@example.com"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return c
 }
@@ -101,7 +99,7 @@ func TestUploadArtefactSendsTheFile(t *testing.T) {
 		Checksum:    "abc123",
 		Content:     strings.NewReader(`{"ok":true}`),
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "artefact-1", artefact.ID)
 
 	assert.Equal(t, "/api/job/job-1/artefact", fake.Path)
@@ -122,7 +120,7 @@ func TestUploadArtefactDefaultsTheContentType(t *testing.T) {
 		Path:    "core.dump",
 		Content: strings.NewReader("binary"),
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "application/octet-stream", fake.ContentType)
 }
@@ -137,10 +135,10 @@ func TestUploadArtefactReportsARefusal(t *testing.T) {
 		Path:    "core.dump",
 		Content: strings.NewReader("too much"),
 	})
-	require.Error(t, err)
+	assert.Error(t, err)
 
 	var apiErr *client.APIError
-	require.ErrorAs(t, err, &apiErr)
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Equal(t, http.StatusRequestEntityTooLarge, apiErr.StatusCode)
 	assert.Contains(t, apiErr.Error(), "artefact.max_size")
 }
@@ -160,7 +158,7 @@ func TestArtefactsLists(t *testing.T) {
 	c := loggedIn(t, fake.URL)
 
 	listed, err := c.Artefacts(t.Context(), "job-1")
-	require.NoError(t, err)
-	require.Len(t, listed, 1)
+	assert.NoError(t, err)
+	assert.Len(t, listed, 1)
 	assert.Equal(t, "scan.json", listed[0].Path)
 }

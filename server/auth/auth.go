@@ -12,7 +12,7 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/titpetric/platform/pkg/ulid"
+	ulid "github.com/oklog/ulid/v2"
 )
 
 // Errors returned when a token cannot be turned into claims.
@@ -60,7 +60,7 @@ func (j *JWT) Create(userID, sessionID string, ttl time.Duration) (string, error
 	claims := jwt.MapClaims{
 		"user_id":    userID,
 		"session_id": sessionID,
-		"jti":        ulid.String(),
+		"jti":        ulid.Make().String(),
 		"exp":        time.Now().Add(ttl).Unix(),
 	}
 

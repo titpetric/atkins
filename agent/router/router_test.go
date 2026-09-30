@@ -3,12 +3,10 @@ package router_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/agent"
 	"github.com/titpetric/atkins/agent/aliases"
 	"github.com/titpetric/atkins/agent/router"
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -266,7 +264,7 @@ func TestRouter_AliasToShell(t *testing.T) {
 
 	// First, teach the alias
 	correctionRoute := rtr.Route("alias server name to uname -n")
-	require.Equal(t, router.RouteCorrection, correctionRoute.Type)
+	assert.Equal(t, router.RouteCorrection, correctionRoute.Type)
 	assert.Equal(t, "server name", correctionRoute.Phrase)
 	assert.Equal(t, "uname -n", correctionRoute.AliasTask)
 

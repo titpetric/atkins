@@ -4,8 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // TestChunks covers splitting a transcript into log appends.
@@ -23,7 +22,7 @@ func TestChunks(t *testing.T) {
 
 		// The cut lands after a newline rather than mid-line, so a log
 		// entry is never half a line of somebody's build output.
-		require.Len(t, parts, 2)
+		assert.Len(t, parts, 2)
 		assert.Equal(t, "aaaa\nbbbb\n", parts[0])
 		assert.Equal(t, "cccc\n", parts[1])
 	})
@@ -33,7 +32,7 @@ func TestChunks(t *testing.T) {
 		// boundary to find, and must still be shipped rather than held.
 		parts := chunks(strings.Repeat("x", 25), 10)
 
-		require.Len(t, parts, 3)
+		assert.Len(t, parts, 3)
 		assert.Equal(t, strings.Repeat("x", 10), parts[0])
 		assert.Equal(t, strings.Repeat("x", 5), parts[2])
 	})

@@ -6,17 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/config"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestDefaultIsComplete(t *testing.T) {
 	// The embedded document is the source of every default, so a field
 	// missing from it would silently default to a zero value.
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, config.Version, cfg.Version)
 	// Dispatch is the one default that is off: logging in records what
@@ -46,7 +44,7 @@ func TestDefaultIsComplete(t *testing.T) {
 
 func TestDefaultValidates(t *testing.T) {
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NoError(t, cfg.Validate())
 }
 
@@ -54,19 +52,19 @@ func TestRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	cfg.Client.Server = "https://ci.example.com"
 	cfg.Agent.Labels = []string{"linux", "arm64"}
-	require.NoError(t, cfg.Save(path))
+	assert.NoError(t, cfg.Save(path))
 
 	// The document holds secrets; it must not be world readable.
 	info, err := os.Stat(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 
 	reloaded, err := config.LoadFile(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "https://ci.example.com", reloaded.Client.Server)
 	assert.Equal(t, []string{"linux", "arm64"}, reloaded.Agent.Labels)
 }
@@ -75,11 +73,11 @@ func TestPartialDocumentKeepsDefaults(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".atkins", "config.yml")
 
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
-	require.NoError(t, os.WriteFile(path, []byte("client:\n  server: https://ci.example.com\n"), 0o600))
+	assert.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	assert.NoError(t, os.WriteFile(path, []byte("client:\n  server: https://ci.example.com\n"), 0o600))
 
 	cfg, err := config.LoadFile(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "https://ci.example.com", cfg.Client.Server)
 	// Untouched fields keep the embedded defaults rather than becoming
@@ -90,7 +88,7 @@ func TestPartialDocumentKeepsDefaults(t *testing.T) {
 
 func TestEnvironmentOverlay(t *testing.T) {
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	cfg.Client.Server = "https://configured.example.com"
 
@@ -111,7 +109,7 @@ func TestEnvironmentOverlay(t *testing.T) {
 
 func TestEmptyEnvironmentLeavesConfigAlone(t *testing.T) {
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	cfg.Client.Server = "https://configured.example.com"
 	cfg.Server.LeaseTTL = 9 * time.Minute
@@ -126,7 +124,7 @@ func TestEmptyEnvironmentLeavesConfigAlone(t *testing.T) {
 
 func TestUnparseableEnvironmentIsIgnored(t *testing.T) {
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	before := cfg.Server.LeaseTTL
 	cfg.ApplyEnvironment([]string{"ATKINS_LEASE_TTL=not-a-duration"})
@@ -136,7 +134,7 @@ func TestUnparseableEnvironmentIsIgnored(t *testing.T) {
 
 func TestValidateFillsEmptyValues(t *testing.T) {
 	cfg := &config.Config{}
-	require.NoError(t, cfg.Validate())
+	assert.NoError(t, cfg.Validate())
 
 	assert.Equal(t, config.Version, cfg.Version)
 	assert.NotEmpty(t, cfg.Server.Addr)
@@ -171,7 +169,7 @@ func TestValidateRejectsBadValues(t *testing.T) {
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
 			cfg, err := config.Default()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			mutate(cfg)
 			assert.Error(t, cfg.Validate())
@@ -183,12 +181,12 @@ func TestDiscoverWalksUp(t *testing.T) {
 	root := t.TempDir()
 	nested := filepath.Join(root, "server", "api")
 
-	require.NoError(t, os.MkdirAll(nested, 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(root, ".atkins"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, ".atkins", "config.yml"), []byte("version: 1\n"), 0o600))
+	assert.NoError(t, os.MkdirAll(nested, 0o755))
+	assert.NoError(t, os.MkdirAll(filepath.Join(root, ".atkins"), 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(root, ".atkins", "config.yml"), []byte("version: 1\n"), 0o600))
 
 	found := config.Discover(nested)
-	require.NotEmpty(t, found)
+	assert.NotEmpty(t, found)
 	assert.Equal(t, filepath.Join(root, ".atkins", "config.yml"), found)
 }
 
@@ -203,10 +201,10 @@ func TestProjectPathForNewDocument(t *testing.T) {
 
 func TestFields(t *testing.T) {
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	fields := cfg.Fields()
-	require.NotEmpty(t, fields)
+	assert.NotEmpty(t, fields)
 
 	paths := make([]string, 0, len(fields))
 	for _, field := range fields {
@@ -222,41 +220,41 @@ func TestFields(t *testing.T) {
 
 func TestFieldSet(t *testing.T) {
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	lease, ok := cfg.Field("server.lease_ttl")
-	require.True(t, ok)
-	require.NoError(t, lease.Set("42m"))
+	assert.True(t, ok)
+	assert.NoError(t, lease.Set("42m"))
 	assert.Equal(t, 42*time.Minute, cfg.Server.LeaseTTL)
 	assert.Error(t, lease.Set("not-a-duration"))
 
 	labels, ok := cfg.Field("agent.labels")
-	require.True(t, ok)
-	require.NoError(t, labels.Set(" linux , arm64 "))
+	assert.True(t, ok)
+	assert.NoError(t, labels.Set(" linux , arm64 "))
 	assert.Equal(t, []string{"linux", "arm64"}, cfg.Agent.Labels)
 
 	dispatch, ok := cfg.Field("client.dispatch")
-	require.True(t, ok)
-	require.NoError(t, dispatch.Set("false"))
+	assert.True(t, ok)
+	assert.NoError(t, dispatch.Set("false"))
 	assert.False(t, cfg.Client.Dispatch)
 	assert.Error(t, dispatch.Set("maybe"))
 
 	depth, ok := cfg.Field("server.max_job_depth")
-	require.True(t, ok)
-	require.NoError(t, depth.Set("5"))
+	assert.True(t, ok)
+	assert.NoError(t, depth.Set("5"))
 	assert.Equal(t, int64(5), cfg.Server.MaxJobDepth)
 	assert.Error(t, depth.Set("many"))
 }
 
 func TestFieldSecretsAreMasked(t *testing.T) {
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	cfg.Server.SigningKey = "super-secret-value"
 
 	field, ok := cfg.Field("server.signing_key")
-	require.True(t, ok)
-	require.True(t, field.Secret)
+	assert.True(t, ok)
+	assert.True(t, field.Secret)
 
 	display := field.Display()
 	assert.NotContains(t, display, "secret")
@@ -266,10 +264,10 @@ func TestFieldSecretsAreMasked(t *testing.T) {
 
 func TestFieldDisplayMarksEmpty(t *testing.T) {
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	field, ok := cfg.Field("client.server")
-	require.True(t, ok)
+	assert.True(t, ok)
 	assert.Equal(t, "(not set)", field.Display())
 }
 

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	ulid "github.com/oklog/ulid/v2"
 	"github.com/titpetric/oida"
-	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/model"
 )
@@ -44,7 +44,7 @@ func (s *RepositoryRuleStorage) Create(ctx context.Context, userID string, req R
 
 	now := time.Now()
 	rule := &model.RepositoryRule{
-		ID:              ulid.String(),
+		ID:              ulid.Make().String(),
 		Pattern:         pattern,
 		Description:     strings.TrimSpace(req.Description),
 		IsActive:        true,

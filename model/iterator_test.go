@@ -3,9 +3,9 @@ package model
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestIterators_UnmarshalYAML_SingleString(t *testing.T) {
@@ -15,7 +15,7 @@ func TestIterators_UnmarshalYAML_SingleString(t *testing.T) {
 		For Iterators `yaml:"for"`
 	}
 	err := yaml.Unmarshal([]byte(input), &step)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, step.For, 1)
 	assert.Equal(t, Iterator("item in items"), step.For[0])
@@ -29,7 +29,7 @@ func TestIterators_UnmarshalYAML_AsSyntax(t *testing.T) {
 		For Iterators `yaml:"for"`
 	}
 	err := yaml.Unmarshal([]byte(input), &step)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, Iterators{"item in items"}, step.For)
 }
@@ -43,7 +43,7 @@ func TestIterators_UnmarshalYAML_List(t *testing.T) {
 		For Iterators `yaml:"for"`
 	}
 	err := yaml.Unmarshal([]byte(input), &step)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, step.For, 2)
 	assert.Equal(t, Iterator("goos in build.goos"), step.For[0])
@@ -57,7 +57,7 @@ func TestIterators_UnmarshalYAML_InlineList(t *testing.T) {
 		For Iterators `yaml:"for"`
 	}
 	err := yaml.Unmarshal([]byte(input), &step)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, step.For, 3)
 	assert.Equal(t, Iterator("a in as"), step.For[0])
@@ -80,7 +80,7 @@ func TestConditionals_UnmarshalYAML_SingleString(t *testing.T) {
 		If Conditionals `yaml:"if"`
 	}
 	err := yaml.Unmarshal([]byte(input), &step)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, step.If, 1)
 	assert.Equal(t, Condition("enabled == true"), step.If[0])
@@ -96,7 +96,7 @@ func TestConditionals_UnmarshalYAML_List(t *testing.T) {
 		If Conditionals `yaml:"if"`
 	}
 	err := yaml.Unmarshal([]byte(input), &step)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, step.If, 2)
 	assert.Equal(t, Condition("enabled == true"), step.If[0])
@@ -110,7 +110,7 @@ func TestConditionals_UnmarshalYAML_InlineList(t *testing.T) {
 		If Conditionals `yaml:"if"`
 	}
 	err := yaml.Unmarshal([]byte(input), &step)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, step.If, 2)
 	assert.Equal(t, Condition("a == 1"), step.If[0])

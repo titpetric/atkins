@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestCompactArgs(t *testing.T) {

@@ -5,10 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/helpdoc"
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 )
 
@@ -16,7 +14,7 @@ import (
 func TestSchema(t *testing.T) {
 	schema := helpdoc.Schema()
 
-	require.NotEmpty(t, schema)
+	assert.NotEmpty(t, schema)
 	assert.Equal(t, schema, strings.TrimSpace(schema))
 	assert.Contains(t, schema, "### One idea, several spellings")
 	assert.Contains(t, schema, "### Top level")
@@ -47,7 +45,7 @@ func TestSchemaDocumentsModelKeys(t *testing.T) {
 
 	for heading, tags := range sections {
 		keys := documentedKeys(t, helpdoc.Schema(), heading)
-		require.NotEmpty(t, keys, "no keys documented under %s", heading)
+		assert.NotEmpty(t, keys, "no keys documented under %s", heading)
 
 		for _, key := range keys {
 			assert.True(t, tags[key], "%s documents %q, which no model yaml tag declares", heading, key)
@@ -61,7 +59,7 @@ func documentedKeys(t *testing.T, schema, heading string) []string {
 	t.Helper()
 
 	_, rest, found := strings.Cut(schema, heading)
-	require.True(t, found, "heading %q not found", heading)
+	assert.True(t, found, "heading %q not found", heading)
 
 	if end := strings.Index(rest, "\n### "); end >= 0 {
 		rest = rest[:end]

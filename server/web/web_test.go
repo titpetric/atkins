@@ -6,9 +6,8 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -20,7 +19,7 @@ func render(t *testing.T, page templ.Component) string {
 	t.Helper()
 
 	var out strings.Builder
-	require.NoError(t, page.Render(t.Context(), &out))
+	assert.NoError(t, page.Render(t.Context(), &out))
 
 	return out.String()
 }
@@ -156,7 +155,7 @@ func TestChildrenOf(t *testing.T) {
 	}
 
 	children := childrenOf(jobs, "root")
-	require.Len(t, children, 2)
+	assert.Len(t, children, 2)
 	assert.Equal(t, "child-1", children[0].ID)
 	assert.Equal(t, "child-2", children[1].ID)
 

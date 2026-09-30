@@ -4,9 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -22,7 +20,7 @@ func registerUser(t *testing.T, url, adminToken, email, username string) tokenRe
 		"username": username,
 		"password": "correct-horse",
 	}, &user)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	return user
 }
@@ -43,7 +41,7 @@ func listJobs(t *testing.T, url, token string) []map[string]any {
 
 	var jobs []map[string]any
 	status := call(t, http.MethodGet, url+"/api/job", token, nil, &jobs)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	return jobs
 }
@@ -114,7 +112,7 @@ func TestUserSeesTheJobsTheirOwnRunDispatched(t *testing.T) {
 	// person who started it.
 	agent := enrol(t, url, "agent-1")
 	child := dispatch(t, url, agent.Token, "atkins analyzeTag", parent.JobID)
-	require.Equal(t, parent.RootID, child.RootID)
+	assert.Equal(t, parent.RootID, child.RootID)
 
 	status := call(t, http.MethodGet, url+"/api/job/"+child.JobID, dev.Token, nil, nil)
 	assert.Equal(t, http.StatusOK, status)
@@ -148,7 +146,7 @@ func TestPublicVisibilityRestoresTheSharedView(t *testing.T) {
 
 	// And it goes back without a restart, because it is a setting.
 	status = call(t, http.MethodDelete, url+"/api/admin/setting/"+model.SettingJobVisibility, admin.Token, nil, nil)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	status = call(t, http.MethodGet, url+"/api/job/"+theirs.JobID, dev.Token, nil, nil)
 	assert.Equal(t, http.StatusNotFound, status)
@@ -165,13 +163,13 @@ func TestJobLogIsScopedLikeTheJob(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/log", agent.Token, map[string]string{
 		"content": "AWS_SECRET_ACCESS_KEY=hunter2\n",
 	}, nil)
-	require.Equal(t, http.StatusNoContent, status)
+	assert.Equal(t, http.StatusNoContent, status)
 
 	status = call(t, http.MethodGet, url+"/api/job/"+job.JobID+"/log", dev.Token, nil, nil)
-	require.Equal(t, http.StatusNotFound, status)
+	assert.Equal(t, http.StatusNotFound, status)
 
 	var entries []map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+job.JobID+"/log", admin.Token, nil, &entries)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Len(t, entries, 1)
 }

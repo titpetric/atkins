@@ -3,9 +3,8 @@ package agent_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/titpetric/atkins/agent"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestPromptMode_PromptChar(t *testing.T) {

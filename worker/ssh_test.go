@@ -6,10 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestSanitizeName(t *testing.T) {
@@ -37,24 +35,24 @@ func TestWriteSSHKeys(t *testing.T) {
 		{Name: "github", Host: "github.com", PrivateKey: "PRIVATE-A"},
 		{Name: "gitlab", Host: "gitlab.com", PrivateKey: "PRIVATE-B"},
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	dir := filepath.Join(worker.opts.DataDir, "ssh")
 
 	// The directory holds credentials, and only its owner may read it.
 	info, err := os.Stat(dir)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o700), info.Mode().Perm())
 
 	for name, expected := range map[string]string{"github": "PRIVATE-A\n", "gitlab": "PRIVATE-B\n"} {
 		path := filepath.Join(dir, name)
 
 		contents, err := os.ReadFile(path)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, expected, string(contents))
 
 		info, err := os.Stat(path)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 	}
 
@@ -76,13 +74,13 @@ func TestWriteSSHKeysPinsHostKeys(t *testing.T) {
 	command, err := worker.writeSSHKeys([]client.AgentSSHKey{
 		{Name: "github", PrivateKey: "PRIVATE", KnownHosts: "github.com ssh-ed25519 AAAA"},
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Contains(t, command, "StrictHostKeyChecking=yes")
 	assert.NotContains(t, command, "accept-new")
 
 	known, err := os.ReadFile(filepath.Join(worker.opts.DataDir, "ssh", "known_hosts"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "github.com ssh-ed25519 AAAA\n", string(known))
 }
 
@@ -90,15 +88,15 @@ func TestWriteSSHKeysRemovesRevokedKeys(t *testing.T) {
 	worker := &Worker{opts: &Options{DataDir: t.TempDir()}}
 
 	_, err := worker.writeSSHKeys([]client.AgentSSHKey{{Name: "github", PrivateKey: "PRIVATE"}})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	path := filepath.Join(worker.opts.DataDir, "ssh", "github")
-	require.FileExists(t, path)
+	assert.FileExists(t, path)
 
 	// A key removed on the server has to stop working here too, so the
 	// directory is rebuilt rather than added to.
 	command, err := worker.writeSSHKeys(nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Empty(t, command)
 	assert.NoFileExists(t, path)

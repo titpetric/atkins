@@ -12,8 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // testDir returns a store over a temporary root.
@@ -21,7 +20,7 @@ func testDir(t *testing.T) *Dir {
 	t.Helper()
 
 	store := NewDir(filepath.Join(t.TempDir(), "artefacts"))
-	require.NoError(t, store.Prepare())
+	assert.NoError(t, store.Prepare())
 
 	return store
 }
@@ -33,7 +32,7 @@ func read(t *testing.T, contents io.ReadCloser) []byte {
 	defer contents.Close()
 
 	body, err := io.ReadAll(contents)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return body
 }
@@ -43,7 +42,7 @@ func TestPutAndOpen(t *testing.T) {
 	content := []byte(`{"findings": 3}`)
 
 	written, err := store.Put(t.Context(), Key("job-1", "artefact-1"), bytes.NewReader(content), 0)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, int64(len(content)), written.Size)
 
@@ -53,7 +52,7 @@ func TestPutAndOpen(t *testing.T) {
 	assert.Equal(t, hex.EncodeToString(sum[:]), written.Checksum)
 
 	contents, err := store.Open(t.Context(), Key("job-1", "artefact-1"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, content, read(t, contents))
 }
 
@@ -74,7 +73,7 @@ func TestPutStopsAtTheLimit(t *testing.T) {
 	// Exactly at the limit is stored.
 	written, err := store.Put(t.Context(), Key("job-1", "artefact-2"),
 		bytes.NewReader(bytes.Repeat([]byte("x"), 64)), 64)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, int64(64), written.Size)
 }
 
@@ -90,13 +89,13 @@ func TestRemoveIsIdempotent(t *testing.T) {
 
 	key := Key("job-1", "artefact-1")
 	_, err := store.Put(t.Context(), key, strings.NewReader("contents"), 0)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	require.NoError(t, store.Remove(t.Context(), key))
+	assert.NoError(t, store.Remove(t.Context(), key))
 
 	// Retention runs on a ticker and may see the same row twice;
 	// removing what is already gone is not a failure.
-	require.NoError(t, store.Remove(t.Context(), key))
+	assert.NoError(t, store.Remove(t.Context(), key))
 
 	// The job's directory goes with its last artefact.
 	assert.NoDirExists(t, filepath.Join(store.Root(), "job-1"))
@@ -121,13 +120,13 @@ func TestPutOverwritesTheSameKey(t *testing.T) {
 	key := Key("job-1", "artefact-1")
 
 	_, err := store.Put(t.Context(), key, strings.NewReader("first"), 0)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	_, err = store.Put(t.Context(), key, strings.NewReader("second"), 0)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	contents, err := store.Open(t.Context(), key)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, []byte("second"), read(t, contents))
 
 	assert.Empty(t, leftovers(t, store.Root()))
@@ -167,7 +166,7 @@ func leftovers(t *testing.T, root string) []string {
 	t.Helper()
 
 	var found []string
-	require.NoError(t, filepath.WalkDir(root, func(name string, entry os.DirEntry, err error) error {
+	assert.NoError(t, filepath.WalkDir(root, func(name string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

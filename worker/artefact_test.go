@@ -6,10 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -31,10 +29,10 @@ func TestCollectUploadsTheOutputDirectory(t *testing.T) {
 		`mkdir -p "$ATKINS_ARTEFACTS/reports" && echo '{"findings":3}' > "$ATKINS_ARTEFACTS/reports/scan.json"`))
 
 	_, status := fake.result()
-	require.Equal(t, client.StatusPassed, status.Status)
+	assert.Equal(t, client.StatusPassed, status.Status)
 
 	uploaded := fake.stored()
-	require.Contains(t, uploaded, "reports/scan.json")
+	assert.Contains(t, uploaded, "reports/scan.json")
 	assert.JSONEq(t, `{"findings":3}`, string(uploaded["reports/scan.json"]))
 }
 
@@ -51,7 +49,7 @@ func TestCollectMatchesDeclaredPatterns(t *testing.T) {
 		"*.json,out/*.txt"))
 
 	_, status := fake.result()
-	require.Equal(t, client.StatusPassed, status.Status)
+	assert.Equal(t, client.StatusPassed, status.Status)
 
 	uploaded := fake.stored()
 	assert.Contains(t, uploaded, "coverage.json")
@@ -75,11 +73,11 @@ func TestCollectRunsAfterAFailure(t *testing.T) {
 		`echo 'stack trace' > crash.log; exit 3`, "*.log"))
 
 	_, status := fake.result()
-	require.Equal(t, client.StatusFailed, status.Status)
+	assert.Equal(t, client.StatusFailed, status.Status)
 	assert.Equal(t, int64(3), status.ExitCode)
 
 	uploaded := fake.stored()
-	require.Contains(t, uploaded, "crash.log")
+	assert.Contains(t, uploaded, "crash.log")
 	assert.Contains(t, string(uploaded["crash.log"]), "stack trace")
 }
 
@@ -93,7 +91,7 @@ func TestCollectRunsAfterATimeout(t *testing.T) {
 		`echo 'partial' > progress.log; sleep 30`, "*.log"))
 
 	_, status := fake.result()
-	require.Equal(t, client.StatusTimeout, status.Status)
+	assert.Equal(t, client.StatusTimeout, status.Status)
 
 	// The job's context has expired by now: collection must not be
 	// cancelled with it, or a timeout would lose exactly the output
@@ -107,7 +105,7 @@ func TestCollectStaysInsideTheWorkspace(t *testing.T) {
 	worker := testWorker(t, fake)
 
 	secret := filepath.Join(t.TempDir(), "secret.txt")
-	require.NoError(t, os.WriteFile(secret, []byte("not yours"), 0o600))
+	assert.NoError(t, os.WriteFile(secret, []byte("not yours"), 0o600))
 
 	// A traversal pattern, and a symlink pointing out of the checkout.
 	// Collection walks the tree rather than expanding patterns against
@@ -117,7 +115,7 @@ func TestCollectStaysInsideTheWorkspace(t *testing.T) {
 		"../../*,/etc/*,**/*.txt"))
 
 	_, status := fake.result()
-	require.Equal(t, client.StatusPassed, status.Status)
+	assert.Equal(t, client.StatusPassed, status.Status)
 
 	uploaded := fake.stored()
 	assert.Contains(t, uploaded, "kept.txt")
@@ -135,7 +133,7 @@ func TestCollectUploadsNothingWhenNothingWasProduced(t *testing.T) {
 	worker.run(t.Context(), collecting(remote, "", "echo hello", "*.json"))
 
 	_, status := fake.result()
-	require.Equal(t, client.StatusPassed, status.Status)
+	assert.Equal(t, client.StatusPassed, status.Status)
 	assert.Empty(t, fake.stored())
 }
 
@@ -146,12 +144,12 @@ func TestCollectCleansUpTheOutputDirectory(t *testing.T) {
 
 	worker.run(t.Context(), job(remote, "", `echo kept > "$ATKINS_ARTEFACTS/kept.txt"`))
 
-	require.Contains(t, fake.stored(), "kept.txt")
+	assert.Contains(t, fake.stored(), "kept.txt")
 
 	// The staged copy would fill the agent's disk if it outlived the
 	// job, exactly as the work tree would.
 	entries, err := os.ReadDir(filepath.Join(worker.opts.DataDir, "work"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Empty(t, entries)
 }
 

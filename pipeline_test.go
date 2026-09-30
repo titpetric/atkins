@@ -6,40 +6,40 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestWorkingDirectory_ChangesDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, os.Chdir(originalDir))
 	})
 
 	configPath := filepath.Join(tmpDir, ".atkins.yml")
 	err = os.WriteFile(configPath, []byte("name: test\njobs:\n  default:\n    script:\n      - echo hello\n"), 0o644)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	cmd := Pipeline()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	cmd.Bind(fs)
 
 	err = fs.Parse([]string{"-w", tmpDir, "-l"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	err = cmd.Run(t.Context(), fs.Args())
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	currentDir, err := os.Getwd()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, tmpDir, currentDir)
 }
 
 func TestWorkingDirectory_InvalidDirectory(t *testing.T) {
 	originalDir, err := os.Getwd()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, os.Chdir(originalDir))
 	})
@@ -49,7 +49,7 @@ func TestWorkingDirectory_InvalidDirectory(t *testing.T) {
 	cmd.Bind(fs)
 
 	err = fs.Parse([]string{"-w", "/nonexistent/path/that/does/not/exist"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	err = cmd.Run(t.Context(), fs.Args())
 	assert.Error(t, err)
@@ -58,7 +58,7 @@ func TestWorkingDirectory_InvalidDirectory(t *testing.T) {
 
 func TestWorkingDirectory_EmptyIsNoOp(t *testing.T) {
 	originalDir, err := os.Getwd()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, os.Chdir(originalDir))
 	})
@@ -66,29 +66,29 @@ func TestWorkingDirectory_EmptyIsNoOp(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, ".atkins.yml")
 	err = os.WriteFile(configPath, []byte("name: test\njobs:\n  default:\n    script:\n      - echo hello\n"), 0o644)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	err = os.Chdir(tmpDir)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	cmd := Pipeline()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	cmd.Bind(fs)
 
 	err = fs.Parse([]string{"-l"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	err = cmd.Run(t.Context(), fs.Args())
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	currentDir, err := os.Getwd()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, tmpDir, currentDir)
 }
 
 func TestSkillJobInvocation(t *testing.T) {
 	originalDir, err := os.Getwd()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, os.Chdir(originalDir))
 	})
@@ -97,7 +97,7 @@ func TestSkillJobInvocation(t *testing.T) {
 
 	// Create .atkins/skills directory with a simple skill
 	skillsDir := filepath.Join(tmpDir, ".atkins", "skills")
-	require.NoError(t, os.MkdirAll(skillsDir, 0o755))
+	assert.NoError(t, os.MkdirAll(skillsDir, 0o755))
 
 	skillContent := `name: greet
 jobs:
@@ -105,18 +105,18 @@ jobs:
     steps:
       - echo hello
 `
-	require.NoError(t, os.WriteFile(filepath.Join(skillsDir, "greet.yml"), []byte(skillContent), 0o644))
+	assert.NoError(t, os.WriteFile(filepath.Join(skillsDir, "greet.yml"), []byte(skillContent), 0o644))
 
-	require.NoError(t, os.Chdir(tmpDir))
+	assert.NoError(t, os.Chdir(tmpDir))
 
 	// Invoke the skill by its ID (like "atkins greet")
 	cmd := Pipeline()
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	cmd.Bind(fs)
 
-	require.NoError(t, fs.Parse([]string{"--final", "--jail"}))
+	assert.NoError(t, fs.Parse([]string{"--final", "--jail"}))
 	err = cmd.Run(t.Context(), []string{"greet"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestMultipleJobsArguments(t *testing.T) {

@@ -4,9 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -471,13 +469,13 @@ func TestExpandForWithVariables(t *testing.T) {
 // createTempYaml creates a temporary YAML file for testing
 func createTempYaml(t *testing.T, content string) string {
 	tmpFile, err := os.CreateTemp("", "test-*.yml")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, tmpFile.Close())
 	})
 
 	_, err = tmpFile.WriteString(content)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return tmpFile.Name()
 }

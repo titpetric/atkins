@@ -3,8 +3,7 @@ package runner
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 	runnererrors "github.com/titpetric/atkins/runner/errors"
 )

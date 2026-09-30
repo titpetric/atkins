@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
-	"github.com/stretchr/testify/assert"
 
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/api"
 	"github.com/titpetric/atkins/server/model"
 )

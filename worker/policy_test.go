@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -49,7 +47,7 @@ func policyServer(t *testing.T, policy client.PolicyResponse, fail *bool) (*Work
 
 	c := client.New(server.URL)
 	_, err := c.Enrol(t.Context(), client.EnrolRequest{Token: "token", AgentID: "agent-1"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return &Worker{opts: &Options{AgentID: "agent-1"}, client: c}, &calls
 }
@@ -58,7 +56,7 @@ func TestAllowedUnderOpenPolicy(t *testing.T) {
 	worker, _ := policyServer(t, client.PolicyResponse{Policy: model.PolicyOpen}, nil)
 
 	allowed, err := worker.allowed(t.Context(), "github.com/anyone/anything")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.True(t, allowed)
 }
 
@@ -69,13 +67,13 @@ func TestAllowedUnderAllowlist(t *testing.T) {
 	}, nil)
 
 	allowed, err := worker.allowed(t.Context(), "github.com/titpetric/atkins")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.True(t, allowed)
 
 	// A job queued while its repository was listed must not run once
 	// the rule is gone; this is the agent's own gate on that.
 	allowed, err = worker.allowed(t.Context(), "github.com/someone/else")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.False(t, allowed)
 }
 
@@ -83,7 +81,7 @@ func TestAllowlistWithNoPatternsAdmitsNothing(t *testing.T) {
 	worker, _ := policyServer(t, client.PolicyResponse{Policy: model.PolicyAllowlist}, nil)
 
 	allowed, err := worker.allowed(t.Context(), "github.com/titpetric/atkins")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.False(t, allowed)
 }
 
@@ -103,7 +101,7 @@ func TestPolicyIsCached(t *testing.T) {
 
 	for range 5 {
 		_, err := worker.allowed(t.Context(), "github.com/titpetric/atkins")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	// The policy sits on the claim path; asking once per job would be

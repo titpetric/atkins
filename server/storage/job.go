@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	ulid "github.com/oklog/ulid/v2"
 	"github.com/titpetric/oida"
-	"github.com/titpetric/platform/pkg/ulid"
 
 	"github.com/titpetric/atkins/server/model"
 )
@@ -167,7 +167,7 @@ func (s *JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, er
 	ctx, span := oida.StartAuto(ctx, s.Create, oida.KindDatabase)
 	defer span.End()
 
-	id := ulid.String()
+	id := ulid.Make().String()
 	rootID := id
 	var depth int64
 

@@ -4,6 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	// The platform used to register the sql drivers for its callers and
+	// no longer does, so the binary picks the one it needs. modernc's
+	// sqlite is a pure Go translation and keeps CGO_ENABLED=0, which the
+	// release build in atkins.yml relies on.
+	_ "modernc.org/sqlite"
+
 	"github.com/titpetric/cli"
 
 	"github.com/titpetric/atkins/client"

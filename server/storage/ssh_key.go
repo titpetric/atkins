@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	ulid "github.com/oklog/ulid/v2"
 	"github.com/titpetric/oida"
-	"github.com/titpetric/platform/pkg/ulid"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/titpetric/atkins/server/model"
@@ -68,7 +68,7 @@ func (s *SSHKeyStorage) Create(ctx context.Context, userID string, req SSHKeyReq
 
 	now := time.Now()
 	key := &model.SSHKey{
-		ID:              ulid.String(),
+		ID:              ulid.Make().String(),
 		Name:            name,
 		Host:            strings.ToLower(strings.TrimSpace(req.Host)),
 		PrivateKey:      private,

@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestPipeline_Walk_Order(t *testing.T) {
@@ -24,7 +23,7 @@ func TestPipeline_Walk_Order(t *testing.T) {
 		return nil
 	})
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{"default", "build", "deploy", "test"}, visited)
 }
 
@@ -42,7 +41,7 @@ func TestPipeline_Walk_NoDefault(t *testing.T) {
 		return nil
 	})
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{"build", "test"}, visited)
 }
 
@@ -82,7 +81,7 @@ func TestJob_Walk(t *testing.T) {
 		return nil
 	})
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, []int{0, 1, 2}, indices)
 	assert.Len(t, cmds, 3)
 }
@@ -96,7 +95,7 @@ func TestJob_Walk_NilChildren(t *testing.T) {
 		return nil
 	})
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
 
@@ -121,7 +120,7 @@ func TestStep_Dispatch_Task(t *testing.T) {
 
 	err := step.Dispatch(d)
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, []string{"build"}, d.tasks)
 	assert.Empty(t, d.commands)
 }
@@ -132,7 +131,7 @@ func TestStep_Dispatch_SingleCommand(t *testing.T) {
 
 	err := step.Dispatch(d)
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Empty(t, d.tasks)
 	assert.Equal(t, []string{"echo hello"}, d.commands)
 }
@@ -143,7 +142,7 @@ func TestStep_Dispatch_MultipleCommands(t *testing.T) {
 
 	err := step.Dispatch(d)
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Empty(t, d.tasks)
 	assert.Equal(t, []string{"echo a", "echo b", "echo c"}, d.commands)
 }
@@ -156,7 +155,7 @@ func TestStep_Dispatch_ErrorPropagation(t *testing.T) {
 	errDispatcher := &errorDispatcher{err: expectedErr}
 
 	// Normal dispatch works
-	require.NoError(t, step.Dispatch(d))
+	assert.NoError(t, step.Dispatch(d))
 
 	// Error dispatch propagates
 	err := step.Dispatch(errDispatcher)

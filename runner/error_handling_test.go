@@ -6,9 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/runner"
 )
 
@@ -28,7 +26,7 @@ func TestErrorHandling(t *testing.T) {
 			fixture: "testdata/error-handling/step-stdout-exit1.yml",
 			checkErr: func(t *testing.T, err error) {
 				var execErr runner.ExecError
-				require.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
+				assert.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
 				assert.Equal(t, 1, execErr.LastExitCode)
 				assert.Contains(t, execErr.Output, "stdout error output")
 			},
@@ -38,7 +36,7 @@ func TestErrorHandling(t *testing.T) {
 			fixture: "testdata/error-handling/step-stderr-exit1.yml",
 			checkErr: func(t *testing.T, err error) {
 				var execErr runner.ExecError
-				require.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
+				assert.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
 				assert.Equal(t, 1, execErr.LastExitCode)
 				assert.Contains(t, execErr.Output, "stderr error output")
 			},
@@ -48,7 +46,7 @@ func TestErrorHandling(t *testing.T) {
 			fixture: "testdata/error-handling/step-mixed-exit1.yml",
 			checkErr: func(t *testing.T, err error) {
 				var execErr runner.ExecError
-				require.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
+				assert.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
 				assert.Equal(t, 1, execErr.LastExitCode)
 				// ExecError.Output prefers stderr over stdout when stderr is non-empty
 				assert.Contains(t, execErr.Output, "stderr line")
@@ -61,7 +59,7 @@ func TestErrorHandling(t *testing.T) {
 			fixture: "testdata/error-handling/step-cmd-exit1.yml",
 			checkErr: func(t *testing.T, err error) {
 				var execErr runner.ExecError
-				require.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
+				assert.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
 				assert.Equal(t, 1, execErr.LastExitCode)
 				assert.Contains(t, execErr.Output, "cmd error output")
 			},
@@ -72,7 +70,7 @@ func TestErrorHandling(t *testing.T) {
 			checkErr: func(t *testing.T, err error) {
 				// executeCommands continues on errors and returns the last error
 				var execErr runner.ExecError
-				require.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
+				assert.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
 				assert.Equal(t, 1, execErr.LastExitCode)
 			},
 		},
@@ -83,7 +81,7 @@ func TestErrorHandling(t *testing.T) {
 			fixture: "testdata/error-handling/step-multiline-exit1.yml",
 			checkErr: func(t *testing.T, err error) {
 				var execErr runner.ExecError
-				require.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
+				assert.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
 				assert.Equal(t, 1, execErr.LastExitCode)
 				assert.Contains(t, execErr.Output, "second line stderr")
 			},
@@ -96,7 +94,7 @@ func TestErrorHandling(t *testing.T) {
 			fixture: "testdata/error-handling/step-second-fails.yml",
 			checkErr: func(t *testing.T, err error) {
 				var execErr runner.ExecError
-				require.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
+				assert.True(t, errors.As(err, &execErr), "expected ExecError, got %T: %v", err, err)
 				assert.Equal(t, 1, execErr.LastExitCode)
 				assert.Contains(t, execErr.Output, "step two fails")
 				// step three's output should NOT appear in the error
@@ -244,18 +242,18 @@ func TestErrorHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := testdataFS.ReadFile(tt.fixture)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			pipelines, err := runner.LoadPipelineFromReader(strings.NewReader(string(data)))
-			require.NoError(t, err)
-			require.NotEmpty(t, pipelines)
+			assert.NoError(t, err)
+			assert.NotEmpty(t, pipelines)
 
 			err = runner.RunPipeline(t.Context(), pipelines[0], runner.PipelineOptions{
 				Jobs:         []string{"default"},
 				JSON:         true,
 				AllPipelines: pipelines,
 			})
-			require.Error(t, err, "expected pipeline to fail for %s", tt.fixture)
+			assert.Error(t, err, "expected pipeline to fail for %s", tt.fixture)
 			tt.checkErr(t, err)
 		})
 	}

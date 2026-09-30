@@ -6,10 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/agent/aliases"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 var fixtures = []struct {
@@ -56,7 +54,7 @@ func TestAliasStore_Add_Update(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	store := aliases.NewAliasStore()
 	store.Add("deploy", "docker:push")
@@ -73,7 +71,7 @@ func TestAliasStore_Match_CaseInsensitive(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	store := aliases.NewAliasStore()
 	store.Add("Server Name", "uname -n")
@@ -90,7 +88,7 @@ func TestAliasStore_Match_WithPunctuation(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	store := aliases.NewAliasStore()
 	store.Add("build it", "go:build")
@@ -107,7 +105,7 @@ func TestAliasStore_Match_WithFillerWords(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	store := aliases.NewAliasStore()
 	store.Add("server name", "uname -n")

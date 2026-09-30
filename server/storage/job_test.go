@@ -3,7 +3,7 @@ package storage
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestAgentAcceptsJob(t *testing.T) {

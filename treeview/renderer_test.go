@@ -3,9 +3,8 @@ package treeview
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/titpetric/atkins/colors"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestRenderNodeSummary(t *testing.T) {

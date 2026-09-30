@@ -9,14 +9,13 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/titpetric/platform/pkg/drivers"
+	_ "modernc.org/sqlite"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	ulid "github.com/oklog/ulid/v2"
 	"github.com/titpetric/platform"
-	"github.com/titpetric/platform/pkg/ulid"
 
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 	"github.com/titpetric/atkins/server/schema"
 )
@@ -39,8 +38,8 @@ func testStorage(t *testing.T) (*sqlx.DB, *JobStorage) {
 	platform.SetupConnections(os.Environ())
 
 	db, err := DB(t.Context(), connection)
-	require.NoError(t, err)
-	require.NoError(t, Migrate(t.Context(), db, schema.Migrations()))
+	assert.NoError(t, err)
+	assert.NoError(t, Migrate(t.Context(), db, schema.Migrations()))
 
 	return db, NewJobStorage(db, nil, 0, 0)
 }
@@ -55,7 +54,7 @@ func seedJob(t *testing.T, db *sqlx.DB, status model.JobStatus, finished time.Ti
 	t.Helper()
 
 	job := &model.Job{
-		ID:           ulid.String(),
+		ID:           ulid.Make().String(),
 		RepositoryID: "repository",
 		UserID:       "user",
 		Command:      "atkins build",
@@ -69,18 +68,18 @@ func seedJob(t *testing.T, db *sqlx.DB, status model.JobStatus, finished time.Ti
 		job.SetFinishedAt(finished)
 	}
 
-	require.NoError(t, client(db).Insert(t.Context(), model.JobTable, job))
+	assert.NoError(t, client(db).Insert(t.Context(), model.JobTable, job))
 
 	for seq := range logs {
 		entry := &model.JobLog{
-			ID:      ulid.String(),
+			ID:      ulid.Make().String(),
 			JobID:   job.ID,
 			Seq:     int64(seq),
 			Stream:  StreamOutput,
 			Content: "line\n",
 		}
 		entry.SetCreatedAt(finished)
-		require.NoError(t, client(db).Insert(t.Context(), model.JobLogTable, entry))
+		assert.NoError(t, client(db).Insert(t.Context(), model.JobLogTable, entry))
 	}
 
 	return job.ID
@@ -93,7 +92,7 @@ func countRows(t *testing.T, db *sqlx.DB, table string) int64 {
 	result, err := client(db).Get[struct {
 		Total int64 `db:"total"`
 	}](t.Context(), `SELECT COUNT(*) AS total FROM `+table)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return result.Total
 }
@@ -105,7 +104,7 @@ func countLogs(t *testing.T, db *sqlx.DB, jobID string) int64 {
 	result, err := client(db).Get[struct {
 		Total int64 `db:"total"`
 	}](t.Context(), `SELECT COUNT(*) AS total FROM `+model.JobLogTable+` WHERE job_id = ?`, jobID)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return result.Total
 }
@@ -118,7 +117,7 @@ func TestPurgeDropsOutputAndKeepsTheOutcome(t *testing.T) {
 	recent := seedJob(t, db, model.JobStatusPassed, now.Add(-1*time.Hour), 2)
 
 	result, err := jobs.Purge(t.Context(), RetentionRequest{Logs: 24 * time.Hour})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, int64(3), result.Logs)
 	assert.Equal(t, int64(0), result.Jobs)
@@ -131,7 +130,7 @@ func TestPurgeDropsOutputAndKeepsTheOutcome(t *testing.T) {
 	assert.Equal(t, int64(2), countLogs(t, db, recent))
 
 	stored, err := jobs.Get(t.Context(), old)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, model.JobStatusFailed, stored.Status)
 }
 
@@ -143,7 +142,7 @@ func TestPurgeDeletesJobsWithTheirOutput(t *testing.T) {
 	recent := seedJob(t, db, model.JobStatusPassed, now.Add(-1*time.Hour), 2)
 
 	result, err := jobs.Purge(t.Context(), RetentionRequest{Jobs: 24 * time.Hour})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, int64(1), result.Jobs)
 	assert.Equal(t, int64(4), result.Logs)
@@ -169,7 +168,7 @@ func TestPurgeLeavesUnsettledJobsAlone(t *testing.T) {
 		Jobs: time.Minute,
 		Logs: time.Minute,
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.True(t, result.Empty())
 	assert.Equal(t, int64(2), countRows(t, db, model.JobTable))
@@ -184,7 +183,7 @@ func TestPurgeWithoutWindowsDeletesNothing(t *testing.T) {
 	// Both windows default to keeping everything forever, and a sweep
 	// on a server that never configured one must be a no-op.
 	result, err := jobs.Purge(t.Context(), RetentionRequest{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.True(t, result.Empty())
 	assert.Equal(t, int64(1), countRows(t, db, model.JobTable))
@@ -205,7 +204,7 @@ func TestPurgeBatchesJobs(t *testing.T) {
 	// sweep of a year-old instance is a series of small deletes rather
 	// than one that holds the table for minutes.
 	first, err := jobs.Purge(t.Context(), request)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, int64(10), first.Jobs)
 	assert.Equal(t, int64(10), first.Logs)
 	assert.True(t, first.Partial)
@@ -215,17 +214,17 @@ func TestPurgeBatchesJobs(t *testing.T) {
 	var passes int
 	for countRows(t, db, model.JobTable) > 0 {
 		passes++
-		require.Less(t, passes, 10, "retention is not making progress")
+		assert.Less(t, passes, 10, "retention is not making progress")
 
 		_, err := jobs.Purge(t.Context(), request)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	assert.Equal(t, int64(0), countRows(t, db, model.JobLogTable))
 
 	// And the pass that finishes the backlog says so.
 	last, err := jobs.Purge(t.Context(), request)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.True(t, last.Empty())
 	assert.False(t, last.Partial)
 }
@@ -240,7 +239,7 @@ func TestPurgeBatchesLogs(t *testing.T) {
 	request := RetentionRequest{Logs: 24 * time.Hour, Batch: 5, MaxBatches: 2}
 
 	first, err := jobs.Purge(t.Context(), request)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, int64(10), first.Logs)
 	assert.True(t, first.Partial)
 	assert.Equal(t, int64(15), countLogs(t, db, job))
@@ -249,12 +248,12 @@ func TestPurgeBatchesLogs(t *testing.T) {
 	// pass over a job whose output is partly gone still makes progress
 	// instead of re-reading the same job forever.
 	second, err := jobs.Purge(t.Context(), request)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, int64(10), second.Logs)
 	assert.Equal(t, int64(5), countLogs(t, db, job))
 
 	third, err := jobs.Purge(t.Context(), request)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, int64(5), third.Logs)
 	assert.False(t, third.Partial)
 
@@ -271,7 +270,7 @@ func TestVisibleTo(t *testing.T) {
 	// agent's account, not to the human who started the run. It is
 	// still theirs to read.
 	child := &model.Job{
-		ID:           ulid.String(),
+		ID:           ulid.Make().String(),
 		ParentID:     root,
 		RootID:       root,
 		Depth:        1,
@@ -281,30 +280,30 @@ func TestVisibleTo(t *testing.T) {
 		Status:       model.JobStatusPassed,
 	}
 	child.SetCreatedAt(time.Now())
-	require.NoError(t, client(db).Insert(t.Context(), model.JobTable, child))
+	assert.NoError(t, client(db).Insert(t.Context(), model.JobTable, child))
 
 	stored, err := jobs.Get(t.Context(), root)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	visible, err := jobs.VisibleTo(t.Context(), stored, "user")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.True(t, visible)
 
 	visible, err = jobs.VisibleTo(t.Context(), stored, "stranger")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.False(t, visible)
 
 	visible, err = jobs.VisibleTo(t.Context(), child, "user")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.True(t, visible, "a user must see the jobs their own run dispatched")
 
 	visible, err = jobs.VisibleTo(t.Context(), child, "stranger")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.False(t, visible)
 
 	// Nothing is visible to nobody.
 	visible, err = jobs.VisibleTo(t.Context(), stored, "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.False(t, visible)
 }
 

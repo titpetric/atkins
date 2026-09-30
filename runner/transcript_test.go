@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -34,7 +32,7 @@ func TestTranscript(t *testing.T) {
 			AllPipelines: []*model.Pipeline{pipeline},
 			Transcript:   &transcript,
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		assert.Contains(t, transcript.String(), "transcript")
 		assert.Contains(t, transcript.String(), "greet")
@@ -61,7 +59,7 @@ func TestTranscript(t *testing.T) {
 			AllPipelines: []*model.Pipeline{pipeline},
 			Transcript:   &transcript,
 		})
-		require.Error(t, err)
+		assert.Error(t, err)
 
 		assert.Contains(t, transcript.String(), "boom")
 	})

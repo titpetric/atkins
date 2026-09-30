@@ -448,10 +448,10 @@ atkins server --signing-key "$(openssl rand -hex 32)" \
 
 The signing key is required: a server signing tokens with a known key is one anyone can mint an admin token for. Rotating it invalidates every issued token, which is the intended way to log everyone out.
 
-Migrations run on start. The database can be sqlite, MySQL or PostgreSQL:
+Migrations run on start. The binary registers one sql driver, modernc's pure Go sqlite, so the DSN scheme has to be `sqlite`. That keeps `CGO_ENABLED=0` for the release build, and it is the only driver the platform's connection provider is handed:
 
 ```bash
-atkins server --database "mysql://user:pass@tcp(db:3306)/atkins"
+atkins server --database "sqlite://file:/var/lib/atkins/atkins.db"
 ```
 
 ## Running an agent

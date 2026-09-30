@@ -6,10 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestPrompterReadsLines(t *testing.T) {
@@ -17,11 +15,11 @@ func TestPrompterReadsLines(t *testing.T) {
 	prompt := client.NewPrompterFrom(strings.NewReader("  ci@example.com  \nci\n"), &out)
 
 	email, err := prompt.Line("Email", "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "ci@example.com", email)
 
 	username, err := prompt.Line("Username", "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "ci", username)
 
 	assert.Contains(t, out.String(), "Email:")
@@ -34,7 +32,7 @@ func TestPrompterPrefersTheEnvironment(t *testing.T) {
 	prompt := client.NewPrompterFrom(strings.NewReader("typed@example.com\n"), &out)
 
 	email, err := prompt.Line("Email", client.EnvEmail)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "from-env@example.com", email)
 
 	// No prompt is shown when the value came from the environment.
@@ -52,7 +50,7 @@ func TestPrompterRefusesAPasswordWithoutATerminal(t *testing.T) {
 
 	t.Setenv(client.EnvPassword, "correct-horse")
 	password, err := prompt.Password("Password")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "correct-horse", password)
 }
 
@@ -63,7 +61,7 @@ func TestRunLogin(t *testing.T) {
 	t.Setenv(client.EnvEmail, "ci@example.com")
 	t.Setenv(client.EnvPassword, "correct-horse")
 
-	require.NoError(t, client.RunLogin(t.Context(), fake.URL))
+	assert.NoError(t, client.RunLogin(t.Context(), fake.URL))
 
 	login := fake.requests[0]
 	assert.Equal(t, "/api/user/login", login.Path)
@@ -71,7 +69,7 @@ func TestRunLogin(t *testing.T) {
 	assert.Equal(t, "correct-horse", login.Body["password"])
 
 	stored, err := client.Open("")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "ci", stored.Username())
 }
 
@@ -89,7 +87,7 @@ func TestRunRegister(t *testing.T) {
 	t.Setenv(client.EnvEmail, "ci@example.com")
 	t.Setenv(client.EnvPassword, "correct-horse")
 
-	require.NoError(t, client.RunRegister(t.Context(), fake.URL))
+	assert.NoError(t, client.RunRegister(t.Context(), fake.URL))
 
 	register := fake.requests[0]
 	assert.Equal(t, "/api/user/register", register.Path)
@@ -106,7 +104,7 @@ func TestRunRegisterRejectsAShortPassword(t *testing.T) {
 
 	// Caught at the prompt rather than after a round trip.
 	err := client.RunRegister(t.Context(), fake.URL)
-	require.Error(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least")
 	assert.Empty(t, fake.requests)
 }
@@ -118,9 +116,9 @@ func TestRunLogout(t *testing.T) {
 
 	t.Setenv(client.EnvEmail, "ci@example.com")
 	t.Setenv(client.EnvPassword, "correct-horse")
-	require.NoError(t, client.RunLogin(t.Context(), fake.URL))
+	assert.NoError(t, client.RunLogin(t.Context(), fake.URL))
 
-	require.NoError(t, client.RunLogout(t.Context(), ""))
+	assert.NoError(t, client.RunLogout(t.Context(), ""))
 
 	_, err := client.Open("")
 	assert.ErrorIs(t, err, client.ErrNotLoggedIn)

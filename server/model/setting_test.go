@@ -3,8 +3,7 @@ package model
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestParseBytes(t *testing.T) {
@@ -38,7 +37,7 @@ func TestParseBytes(t *testing.T) {
 				return
 			}
 
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, test.expected, parsed)
 		})
 	}
@@ -51,7 +50,7 @@ func TestArtefactSettingsAreRegistered(t *testing.T) {
 		SettingArtefactRetention,
 	} {
 		definition, ok := LookupSetting(name)
-		require.True(t, ok, "%s is not in the registry", name)
+		assert.True(t, ok, "%s is not in the registry", name)
 
 		// A default that fails its own validation would leave a fresh
 		// instance with a setting nobody can read.

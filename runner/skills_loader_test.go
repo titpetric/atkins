@@ -5,9 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/runner"
 )
 
@@ -16,11 +14,11 @@ import (
 func writeSkill(t *testing.T, dir, id, yaml, doc string) {
 	t.Helper()
 
-	require.NoError(t, os.MkdirAll(dir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, id+".yml"), []byte(yaml), 0o644))
+	assert.NoError(t, os.MkdirAll(dir, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(dir, id+".yml"), []byte(yaml), 0o644))
 
 	if doc != "" {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, id+".md"), []byte(doc), 0o644))
+		assert.NoError(t, os.WriteFile(filepath.Join(dir, id+".md"), []byte(doc), 0o644))
 	}
 }
 
@@ -49,8 +47,8 @@ jobs:
 	loader := runner.NewSkillsLoader(root, root)
 
 	skills, err := loader.Scan()
-	require.NoError(t, err)
-	require.Len(t, skills, 2)
+	assert.NoError(t, err)
+	assert.Len(t, skills, 2)
 
 	byID := map[string]*runner.Skill{}
 	for _, skill := range skills {
@@ -58,14 +56,14 @@ jobs:
 	}
 
 	goSkill := byID["go"]
-	require.NotNil(t, goSkill)
+	assert.NotNil(t, goSkill)
 	assert.False(t, goSkill.Active, "no go.mod above the temporary directory")
 	assert.Equal(t, "Builds and tests a Go module.", goSkill.Pipeline.Help)
 	assert.Equal(t, filepath.Join(skillsDir, "go.md"), goSkill.DocPath)
 	assert.Equal(t, "`atkins go:build` builds the module.", goSkill.Doc)
 
 	mdox := byID["mdox"]
-	require.NotNil(t, mdox)
+	assert.NotNil(t, mdox)
 	assert.True(t, mdox.Active, "a skill without when: is active everywhere")
 	assert.Empty(t, mdox.DocPath)
 	assert.Empty(t, mdox.Doc)
@@ -86,8 +84,8 @@ func TestSkillsLoader_ScanKeepsDirectoryOrder(t *testing.T) {
 	loader.AddSkillsDir(global)
 
 	skills, err := loader.Scan()
-	require.NoError(t, err)
-	require.Len(t, skills, 2)
+	assert.NoError(t, err)
+	assert.Len(t, skills, 2)
 	assert.Equal(t, "Local", skills[0].Pipeline.Name)
 	assert.Equal(t, "Global", skills[1].Pipeline.Name)
 }
@@ -114,8 +112,8 @@ jobs:
 	loader.AddSkillsDir(global)
 
 	pipelines, err := loader.Load()
-	require.NoError(t, err)
-	require.Len(t, pipelines, 1)
+	assert.NoError(t, err)
+	assert.Len(t, pipelines, 1)
 	assert.Equal(t, "Local", pipelines[0].Name)
 	assert.Equal(t, root, pipelines[0].Dir)
 }
@@ -141,7 +139,7 @@ jobs:
 	loader.AddSkillsDir(global)
 
 	pipelines, err := loader.Load()
-	require.NoError(t, err)
-	require.Len(t, pipelines, 1)
+	assert.NoError(t, err)
+	assert.Len(t, pipelines, 1)
 	assert.Equal(t, "Global", pipelines[0].Name)
 }

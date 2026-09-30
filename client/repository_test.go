@@ -6,10 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // gitRun runs one git command in dir, failing the test if it does.
@@ -23,7 +21,7 @@ func gitRun(t *testing.T, dir string, args ...string) {
 	)
 
 	output, err := cmd.CombinedOutput()
-	require.NoError(t, err, string(output))
+	assert.NoError(t, err, string(output))
 }
 
 // gitRepository creates a repository with one commit and an origin.
@@ -33,7 +31,7 @@ func gitRepository(t *testing.T, remote string) string {
 	dir := t.TempDir()
 
 	gitRun(t, dir, "init", "--initial-branch=main")
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "atkins.yml"), []byte("jobs: {}\n"), 0o644))
+	assert.NoError(t, os.WriteFile(filepath.Join(dir, "atkins.yml"), []byte("jobs: {}\n"), 0o644))
 	gitRun(t, dir, "add", ".")
 	gitRun(t, dir, "commit", "-m", "initial")
 	if remote != "" {
@@ -61,7 +59,7 @@ func TestDetectCheckout(t *testing.T) {
 	dir := gitRepository(t, "git@github.com:titpetric/atkins.git")
 
 	checkout, err := client.DetectCheckout(dir)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "git@github.com:titpetric/atkins.git", checkout.RemoteURL)
 	assert.Equal(t, "main", checkout.Branch)
@@ -79,10 +77,10 @@ func TestDetectCheckoutReportsSubdirectory(t *testing.T) {
 	dir := gitRepository(t, "git@github.com:titpetric/atkins.git")
 
 	nested := filepath.Join(dir, "server", "api")
-	require.NoError(t, os.MkdirAll(nested, 0o755))
+	assert.NoError(t, os.MkdirAll(nested, 0o755))
 
 	checkout, err := client.DetectCheckout(nested)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "server/api", checkout.WorkingDirectory)
 }
 
@@ -102,7 +100,7 @@ func TestDetectCheckoutOutsideRepository(t *testing.T) {
 func TestPublishable(t *testing.T) {
 	t.Run("accepts a clean checkout a remote has", func(t *testing.T) {
 		checkout, err := client.DetectCheckout(pushedRepository(t))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		assert.False(t, checkout.Dirty)
 		assert.False(t, checkout.Unpushed)
@@ -111,10 +109,10 @@ func TestPublishable(t *testing.T) {
 
 	t.Run("refuses uncommitted changes", func(t *testing.T) {
 		dir := pushedRepository(t)
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "atkins.yml"), []byte("jobs: {build: {}}\n"), 0o644))
+		assert.NoError(t, os.WriteFile(filepath.Join(dir, "atkins.yml"), []byte("jobs: {build: {}}\n"), 0o644))
 
 		checkout, err := client.DetectCheckout(dir)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		// An agent would check out the commit and build what is in it,
 		// which is not what is in front of the person dispatching.
@@ -124,20 +122,20 @@ func TestPublishable(t *testing.T) {
 
 	t.Run("refuses an untracked file", func(t *testing.T) {
 		dir := pushedRepository(t)
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "notes.md"), []byte("wip\n"), 0o644))
+		assert.NoError(t, os.WriteFile(filepath.Join(dir, "notes.md"), []byte("wip\n"), 0o644))
 
 		checkout, err := client.DetectCheckout(dir)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.ErrorIs(t, checkout.Publishable(), client.ErrDirtyCheckout)
 	})
 
 	t.Run("refuses a commit no remote has", func(t *testing.T) {
 		dir := pushedRepository(t)
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "atkins.yml"), []byte("jobs: {build: {}}\n"), 0o644))
+		assert.NoError(t, os.WriteFile(filepath.Join(dir, "atkins.yml"), []byte("jobs: {build: {}}\n"), 0o644))
 		gitRun(t, dir, "commit", "-am", "local only")
 
 		checkout, err := client.DetectCheckout(dir)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		assert.False(t, checkout.Dirty)
 		assert.True(t, checkout.Unpushed)
@@ -151,13 +149,13 @@ func TestPublishable(t *testing.T) {
 		// The question is whether the commit can be cloned, not whether
 		// the local branch has an upstream.
 		checkout, err := client.DetectCheckout(dir)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NoError(t, checkout.Publishable())
 	})
 
 	t.Run("refuses a repository nobody has pushed at all", func(t *testing.T) {
 		checkout, err := client.DetectCheckout(gitRepository(t, "git@github.com:titpetric/atkins.git"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		assert.ErrorIs(t, checkout.Publishable(), client.ErrUnpushedCheckout)
 	})
@@ -191,7 +189,7 @@ func TestDispatchFailsWithoutCredentials(t *testing.T) {
 	// Handing a run over is asked for, so being unable to is an error
 	// rather than a silent local run.
 	dispatched, err := client.Dispatch(t.Context(), client.DispatchOptions{})
-	require.Error(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, dispatched)
 }
 
@@ -199,7 +197,7 @@ func TestDispatchRespectsNoDispatch(t *testing.T) {
 	t.Setenv(client.EnvNoDispatch, "1")
 
 	dispatched, err := client.Dispatch(t.Context(), client.DispatchOptions{})
-	require.ErrorIs(t, err, client.ErrDispatchDisabled)
+	assert.ErrorIs(t, err, client.ErrDispatchDisabled)
 	assert.Nil(t, dispatched)
 }
 
@@ -216,7 +214,7 @@ func TestRecordSkipsWithoutCredentials(t *testing.T) {
 	assert.Empty(t, recorder.URL())
 
 	written, err := recorder.Write([]byte("output nobody records\n"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 22, written)
 
 	recorder.Finish(t.Context(), 0, nil)

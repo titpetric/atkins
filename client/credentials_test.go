@@ -6,10 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // credentialsFile points the store at a temporary file.
@@ -26,7 +24,7 @@ func TestLoadStoreWithoutFile(t *testing.T) {
 	credentialsFile(t)
 
 	store, err := client.LoadStore()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Empty(t, store.Default)
 	assert.Empty(t, store.Servers)
 
@@ -38,7 +36,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	path := credentialsFile(t)
 
 	store, err := client.LoadStore()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	store.Set(&client.Credential{
 		Server:       "https://ci.example.com",
@@ -47,19 +45,19 @@ func TestStoreRoundTrip(t *testing.T) {
 		RefreshToken: "refresh",
 		ExpiresAt:    time.Now().Add(time.Hour).Unix(),
 	})
-	require.NoError(t, store.Save())
+	assert.NoError(t, store.Save())
 
 	// Tokens are secrets; the file must not be world readable.
 	info, err := os.Stat(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 
 	reloaded, err := client.LoadStore()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "https://ci.example.com", reloaded.Default)
 
 	credential, ok := reloaded.Get("")
-	require.True(t, ok)
+	assert.True(t, ok)
 	assert.Equal(t, "ci", credential.Username)
 	assert.Equal(t, "access", credential.Token)
 
@@ -72,11 +70,11 @@ func TestStoreRemovePicksAnotherDefault(t *testing.T) {
 	credentialsFile(t)
 
 	store, err := client.LoadStore()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	store.Set(&client.Credential{Server: "https://one.example.com"})
 	store.Set(&client.Credential{Server: "https://two.example.com"})
-	require.Equal(t, "https://two.example.com", store.Default)
+	assert.Equal(t, "https://two.example.com", store.Default)
 
 	store.Remove("https://two.example.com")
 	assert.Equal(t, "https://one.example.com", store.Default)

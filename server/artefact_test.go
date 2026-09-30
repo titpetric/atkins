@@ -13,9 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server"
 	"github.com/titpetric/atkins/server/api"
 	"github.com/titpetric/atkins/server/model"
@@ -49,7 +47,7 @@ func uploadArtefact(t *testing.T, server, token, jobID string, upload artefactUp
 	endpoint := server + "/api/job/" + jobID + "/artefact?path=" + url.QueryEscape(upload.Path)
 
 	request, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(upload.Content))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	if upload.ContentType != "" {
 		request.Header.Set("Content-Type", upload.ContentType)
@@ -62,11 +60,11 @@ func uploadArtefact(t *testing.T, server, token, jobID string, upload artefactUp
 	}
 
 	response, err := http.DefaultClient.Do(request)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer response.Body.Close()
 
 	if target != nil && response.StatusCode < http.StatusBadRequest {
-		require.NoError(t, json.NewDecoder(response.Body).Decode(target))
+		assert.NoError(t, json.NewDecoder(response.Body).Decode(target))
 	} else {
 		_, _ = io.Copy(io.Discard, response.Body)
 	}
@@ -80,17 +78,17 @@ func fetch(t *testing.T, target, token string) (int, []byte, http.Header) {
 	t.Helper()
 
 	request, err := http.NewRequest(http.MethodGet, target, nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
 	}
 
 	response, err := http.DefaultClient.Do(request)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return response.StatusCode, body, response.Header
 }
@@ -107,7 +105,7 @@ func artefacts(t *testing.T, server, token, jobID string) []artefactView {
 
 	var listed []artefactView
 	status := call(t, http.MethodGet, server+"/api/job/"+jobID+"/artefact", token, nil, &listed)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	return listed
 }
@@ -127,7 +125,7 @@ func TestArtefactRoundTrip(t *testing.T) {
 		Checksum:    checksum(content),
 		Content:     content,
 	}, &stored)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	assert.Equal(t, "reports/scan.json", stored.Path)
 	assert.Equal(t, int64(len(content)), stored.Size)
@@ -137,13 +135,13 @@ func TestArtefactRoundTrip(t *testing.T) {
 	assert.Equal(t, checksum(content), stored.Checksum)
 
 	listed := artefacts(t, url, admin.Token, job.JobID)
-	require.Len(t, listed, 1)
+	assert.Len(t, listed, 1)
 	assert.Equal(t, stored.ID, listed[0].ID)
 	// The location of the bytes on the server is not part of the view.
 	assert.NotContains(t, listed[0].URL, "storage_key")
 
 	status, body, header := fetch(t, url+listed[0].URL, admin.Token)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, content, body)
 	assert.Equal(t, "application/json", header.Get("Content-Type"))
 	// A job's own output must never render as a page in the server's
@@ -165,10 +163,10 @@ func TestArtefactAppearsOnTheJobPage(t *testing.T) {
 		Path:    "coverage.txt",
 		Content: content,
 	}, &stored)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	status, page, _ := fetch(t, url+"/job/"+job.JobID+"?t="+job.ViewToken, "")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, string(page), "coverage.txt")
 
 	// The link on the page has to work in a browser, which carries no
@@ -178,7 +176,7 @@ func TestArtefactAppearsOnTheJobPage(t *testing.T) {
 	assert.Contains(t, string(page), download)
 
 	status, body, _ := fetch(t, url+download+"?t="+job.ViewToken, "")
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, content, body)
 
 	// And no wider than the page: without the token the bytes are not
@@ -201,7 +199,7 @@ func TestArtefactUploadIsAgentOnly(t *testing.T) {
 		"username": "dev",
 		"password": "correct-horse",
 	}, &human)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	status = uploadArtefact(t, url, human.Token, job.JobID, artefactUpload{
 		Path:    "planted.json",
@@ -291,7 +289,7 @@ func TestArtefactRejectsTooMany(t *testing.T) {
 			Path:    path,
 			Content: []byte("{}"),
 		}, nil)
-		require.Equal(t, http.StatusCreated, status, path)
+		assert.Equal(t, http.StatusCreated, status, path)
 	}
 
 	status := uploadArtefact(t, url, agent.Token, job.JobID, artefactUpload{
@@ -341,22 +339,22 @@ func TestArtefactReplacesTheSamePath(t *testing.T) {
 		Path:    "scan.json",
 		Content: []byte(`{"run": 1}`),
 	}, &first)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	var second artefactView
 	status = uploadArtefact(t, url, agent.Token, job.JobID, artefactUpload{
 		Path:    "scan.json",
 		Content: []byte(`{"run": 2}`),
 	}, &second)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	// One scan.json, holding the newer bytes.
 	listed := artefacts(t, url, admin.Token, job.JobID)
-	require.Len(t, listed, 1)
+	assert.Len(t, listed, 1)
 	assert.Equal(t, second.ID, listed[0].ID)
 
 	status, body, _ := fetch(t, url+second.URL, admin.Token)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.JSONEq(t, `{"run": 2}`, string(body))
 
 	// The superseded artefact is gone rather than merely hidden.
@@ -376,7 +374,7 @@ func TestArtefactDownloadNeedsAuthentication(t *testing.T) {
 		Path:    "scan.json",
 		Content: []byte("{}"),
 	}, &stored)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	status, _, _ = fetch(t, url+stored.URL, "")
 	assert.Equal(t, http.StatusUnauthorized, status)
@@ -398,7 +396,7 @@ func TestArtefactsAreScopedLikeTheJob(t *testing.T) {
 		Path:    "scan.json",
 		Content: []byte(`{"findings": 3}`),
 	}, &stored)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	// An account that has never seen the job is told the same thing the
 	// job endpoint tells it: nothing here. Authentication alone is not
@@ -412,13 +410,13 @@ func TestArtefactsAreScopedLikeTheJob(t *testing.T) {
 
 	// The person who dispatched it reads it as before.
 	status, body, _ = fetch(t, url+stored.URL, admin.Token)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.JSONEq(t, `{"findings": 3}`, string(body))
 
 	// And a public instance is shared again, artefacts included.
 	setSetting(t, url, admin.Token, model.SettingJobVisibility, model.VisibilityPublic)
 
-	require.Len(t, artefacts(t, url, dev.Token, job.JobID), 1)
+	assert.Len(t, artefacts(t, url, dev.Token, job.JobID), 1)
 
 	status, _, _ = fetch(t, url+stored.URL, dev.Token)
 	assert.Equal(t, http.StatusOK, status)
@@ -437,7 +435,7 @@ func TestArtefactBelongsToOneJob(t *testing.T) {
 		Path:    "scan.json",
 		Content: []byte("{}"),
 	}, &stored)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	// An artefact ID from one job does not resolve under another.
 	status, _, _ = fetch(t, url+"/api/job/"+second.JobID+"/artefact/"+stored.ID, admin.Token)
@@ -456,11 +454,11 @@ func TestDispatchNormalizesArtefactPatterns(t *testing.T) {
 		// deal with later.
 		"artefacts": []string{"reports/*.json", "../../etc/passwd", " ./coverage.out "},
 	}, &dispatched)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	var job map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+dispatched.JobID, admin.Token, nil, &job)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "reports/*.json,coverage.out", job["artefact_paths"])
 }
 
@@ -476,7 +474,7 @@ func TestArtefactSizeSettingIsValidated(t *testing.T) {
 
 	var settings []map[string]any
 	status = call(t, http.MethodGet, url+"/api/admin/setting", admin.Token, nil, &settings)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	var found bool
 	for _, setting := range settings {
@@ -515,9 +513,9 @@ func TestArtefactRetentionSweepsTheBytes(t *testing.T) {
 		Path:    "scan.json",
 		Content: []byte(`{"findings": 3}`),
 	}, &stored)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
-	require.FileExists(t, filepath.Join(root, job.JobID, stored.ID))
+	assert.FileExists(t, filepath.Join(root, job.JobID, stored.ID))
 
 	// Retention is read on every pass, so shortening it here is what
 	// the setting is for — and it starts the window at a point the test
@@ -526,7 +524,7 @@ func TestArtefactRetentionSweepsTheBytes(t *testing.T) {
 
 	// The sweep is on a ticker, so wait for it rather than for a
 	// fixed sleep to be long enough.
-	require.Eventually(t, func() bool {
+	assert.Eventually(t, func() bool {
 		return len(artefacts(t, url, admin.Token, job.JobID)) == 0
 	}, 5*time.Second, 25*time.Millisecond)
 
@@ -546,6 +544,6 @@ func TestArtefactEmptyListForAJobWithNone(t *testing.T) {
 	// An empty list rather than null: a caller should be able to range
 	// over it without a nil check.
 	status, body, _ := fetch(t, url+"/api/job/"+job.JobID+"/artefact", admin.Token)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "[]", strings.TrimSpace(string(body)))
 }

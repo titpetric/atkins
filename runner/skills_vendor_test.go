@@ -6,17 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/runner"
 )
 
 // writeFile creates a file and any parent directories it needs.
 func writeFile(t *testing.T, path, contents string) {
 	t.Helper()
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
-	require.NoError(t, os.WriteFile(path, []byte(contents), 0o644))
+	assert.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	assert.NoError(t, os.WriteFile(path, []byte(contents), 0o644))
 }
 
 // vendorFixture creates a repository and a source skills directory,
@@ -29,8 +27,8 @@ func vendorFixture(t *testing.T) (root, source string) {
 	root = filepath.Join(base, "repo")
 	source = filepath.Join(base, "home", ".atkins", "skills")
 
-	require.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o755))
-	require.NoError(t, os.MkdirAll(source, 0o755))
+	assert.NoError(t, os.MkdirAll(filepath.Join(root, ".git"), 0o755))
+	assert.NoError(t, os.MkdirAll(source, 0o755))
 
 	return root, source
 }
@@ -79,10 +77,10 @@ func TestFindRepositoryRoot(t *testing.T) {
 	t.Run("finds root from a subdirectory", func(t *testing.T) {
 		root, _ := vendorFixture(t)
 		sub := filepath.Join(root, "server", "web")
-		require.NoError(t, os.MkdirAll(sub, 0o755))
+		assert.NoError(t, os.MkdirAll(sub, 0o755))
 
 		found, err := runner.FindRepositoryRoot(sub)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, root, found)
 	})
 
@@ -91,13 +89,13 @@ func TestFindRepositoryRoot(t *testing.T) {
 		writeFile(t, filepath.Join(base, ".git"), "gitdir: /elsewhere/.git/worktrees/x\n")
 
 		found, err := runner.FindRepositoryRoot(base)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, base, found)
 	})
 
 	t.Run("errors outside a repository", func(t *testing.T) {
 		_, err := runner.FindRepositoryRoot(t.TempDir())
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 }
 
@@ -110,7 +108,7 @@ func TestVendorerPlan(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"docker", "go"}, vendorIDs(result.Found))
 		assert.Equal(t, []string{"go"}, vendorIDs(result.Used))
 		assert.Equal(t, "go.mod", result.Used[0].Reason)
@@ -119,10 +117,10 @@ func TestVendorerPlan(t *testing.T) {
 	t.Run("matches when: files in a subdirectory", func(t *testing.T) {
 		root, source := vendorFixture(t)
 		writeFile(t, filepath.Join(source, "schema.yml"), "when:\n  files:\n    - schema/\njobs:\n  migrate:\n    steps:\n      - run: mig migrate\n")
-		require.NoError(t, os.MkdirAll(filepath.Join(root, "modules", "users", "schema"), 0o755))
+		assert.NoError(t, os.MkdirAll(filepath.Join(root, "modules", "users", "schema"), 0o755))
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"schema"}, vendorIDs(result.Used))
 		assert.Equal(t, filepath.Join("modules", "users", "schema"), result.Used[0].Reason)
 	})
@@ -133,7 +131,7 @@ func TestVendorerPlan(t *testing.T) {
 		writeFile(t, filepath.Join(root, "server", "schema", "user.up.sql"), "CREATE TABLE user (id INT);\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"schema"}, vendorIDs(result.Used))
 		assert.Equal(t, filepath.Join("server", "schema", "user.up.sql"), result.Used[0].Reason)
 	})
@@ -141,11 +139,11 @@ func TestVendorerPlan(t *testing.T) {
 	t.Run("leaves a glob in when: files unmatched by an empty folder", func(t *testing.T) {
 		root, source := vendorFixture(t)
 		writeFile(t, filepath.Join(source, "schema.yml"), migrationSkill)
-		require.NoError(t, os.MkdirAll(filepath.Join(root, "docs", "schema"), 0o755))
+		assert.NoError(t, os.MkdirAll(filepath.Join(root, "docs", "schema"), 0o755))
 		writeFile(t, filepath.Join(root, "docs", "schema", "jobs.md"), "# Jobs\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Empty(t, result.Used)
 	})
 
@@ -155,7 +153,7 @@ func TestVendorerPlan(t *testing.T) {
 		writeFile(t, filepath.Join(root, "runner", "testdata", "go.mod"), "module fixture\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Empty(t, result.Used)
 	})
 
@@ -164,7 +162,7 @@ func TestVendorerPlan(t *testing.T) {
 		writeFile(t, filepath.Join(source, "notes.yml"), "jobs:\n  default:\n    steps:\n      - run: echo hi\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"notes"}, vendorIDs(result.Used))
 		assert.Equal(t, "always active", result.Used[0].Reason)
 	})
@@ -175,7 +173,7 @@ func TestVendorerPlan(t *testing.T) {
 		writeFile(t, filepath.Join(root, "atkins.yml"), "name: Example\njobs:\n  release:\n    steps:\n      - task: docker:build\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"docker"}, vendorIDs(result.Used))
 		assert.Equal(t, "referenced by atkins.yml", result.Used[0].Reason)
 	})
@@ -186,7 +184,7 @@ func TestVendorerPlan(t *testing.T) {
 		writeFile(t, filepath.Join(root, "app", ".atkins.yml"), "name: App\njobs:\n  ship:\n    depends_on: [\"docker:build\"]\n    steps:\n      - run: echo ship\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"docker"}, vendorIDs(result.Used))
 	})
 
@@ -194,10 +192,10 @@ func TestVendorerPlan(t *testing.T) {
 		root, source := vendorFixture(t)
 		writeFile(t, filepath.Join(source, "docker.yml"), dockerSkill)
 		writeFile(t, filepath.Join(source, "release.yml"), "when:\n  files:\n    - .github/\njobs:\n  default:\n    steps:\n      - task: :docker:build\n")
-		require.NoError(t, os.MkdirAll(filepath.Join(root, ".github"), 0o755))
+		assert.NoError(t, os.MkdirAll(filepath.Join(root, ".github"), 0o755))
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"docker", "release"}, vendorIDs(result.Used))
 		assert.Equal(t, "referenced by release", result.Used[0].Reason)
 	})
@@ -208,10 +206,10 @@ func TestVendorerPlan(t *testing.T) {
 		writeFile(t, filepath.Join(root, "atkins.yml"), "name: Example\njobs:\n  build:\n    steps:\n      - run: echo build\n  default:\n    steps:\n      - task: build\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		// The skill is still used, but because it has no when: block,
 		// not because the pipeline's own `build` job was mistaken for it.
-		require.Equal(t, []string{"build"}, vendorIDs(result.Used))
+		assert.Equal(t, []string{"build"}, vendorIDs(result.Used))
 		assert.Equal(t, "always active", result.Used[0].Reason)
 	})
 
@@ -219,7 +217,7 @@ func TestVendorerPlan(t *testing.T) {
 		root, _ := vendorFixture(t)
 
 		result, err := runner.NewVendorer(filepath.Join(root, "missing"), root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Empty(t, result.Found)
 		assert.Empty(t, result.Used)
 	})
@@ -229,7 +227,7 @@ func TestVendorerPlan(t *testing.T) {
 		source := filepath.Join(root, ".atkins", "skills")
 
 		_, err := runner.NewVendorer(source, root).Plan()
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 }
 
@@ -241,8 +239,8 @@ func TestVendorerPlanDiff(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
-		require.Len(t, result.Used, 1)
+		assert.NoError(t, err)
+		assert.Len(t, result.Used, 1)
 
 		skill := result.Used[0]
 		assert.Equal(t, runner.VendorNew, skill.Status)
@@ -259,8 +257,8 @@ func TestVendorerPlanDiff(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
-		require.Len(t, result.Used, 1)
+		assert.NoError(t, err)
+		assert.Len(t, result.Used, 1)
 
 		skill := result.Used[0]
 		assert.Equal(t, runner.VendorCurrent, skill.Status)
@@ -278,8 +276,8 @@ func TestVendorerPlanDiff(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
-		require.Len(t, result.Used, 1)
+		assert.NoError(t, err)
+		assert.Len(t, result.Used, 1)
 
 		skill := result.Used[0]
 		assert.Equal(t, runner.VendorChanged, skill.Status)
@@ -296,7 +294,7 @@ func TestVendorerPlanDiff(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Empty(t, result.Installed)
 
 		_, err = os.Stat(filepath.Join(root, ".atkins"))
@@ -312,11 +310,11 @@ func TestVendorerRun(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		result, err := runner.NewVendorer(source, root).Run()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"go"}, result.Installed)
 
 		vendored, err := os.ReadFile(filepath.Join(root, ".atkins", "skills", "go.yml"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, goSkill, string(vendored))
 	})
 
@@ -326,10 +324,10 @@ func TestVendorerRun(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		_, err := runner.NewVendorer(source, root).Run()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		result, err := runner.NewVendorer(source, root).Run()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Empty(t, result.Installed)
 		assert.Empty(t, result.Pending())
 	})
@@ -342,11 +340,11 @@ func TestVendorerRun(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		result, err := runner.NewVendorer(source, root).Run()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"go"}, result.Installed)
 
 		vendored, err := os.ReadFile(filepath.Join(root, ".atkins", "skills", "go.yml"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, goSkill, string(vendored))
 	})
 
@@ -355,7 +353,7 @@ func TestVendorerRun(t *testing.T) {
 		writeFile(t, filepath.Join(source, "go.yml"), goSkill)
 
 		result, err := runner.NewVendorer(source, root).Run()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Empty(t, result.Installed)
 
 		_, err = os.Stat(filepath.Join(root, ".atkins"))
@@ -368,7 +366,7 @@ func TestVendorerRun(t *testing.T) {
 		writeFile(t, filepath.Join(root, ".atkins", "skills", "deploy.yml"), "jobs:\n  default:\n    steps:\n      - task: docker:build\n")
 
 		result, err := runner.NewVendorer(source, root).Run()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"docker"}, result.Installed)
 	})
 }
@@ -386,11 +384,11 @@ func TestVendorerRunCompanion(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		result, err := runner.NewVendorer(source, root).Run()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, []string{"go"}, result.Installed)
 
 		vendored, err := os.ReadFile(filepath.Join(root, ".atkins", "skills", "go.md"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, guide, string(vendored))
 	})
 
@@ -403,8 +401,8 @@ func TestVendorerRunCompanion(t *testing.T) {
 		writeFile(t, filepath.Join(root, ".atkins", "skills", "go.md"), "stale\n")
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
-		require.Len(t, result.Used, 1)
+		assert.NoError(t, err)
+		assert.Len(t, result.Used, 1)
 		assert.Equal(t, runner.VendorChanged, result.Used[0].Status)
 		assert.Equal(t, []string{"go"}, result.Pending())
 		assert.Contains(t, result.Used[0].Diff, "stale")
@@ -417,11 +415,11 @@ func TestVendorerRunCompanion(t *testing.T) {
 		writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
 
 		_, err := runner.NewVendorer(source, root).Run()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		result, err := runner.NewVendorer(source, root).Plan()
-		require.NoError(t, err)
-		require.Len(t, result.Used, 1)
+		assert.NoError(t, err)
+		assert.Len(t, result.Used, 1)
 		assert.Equal(t, runner.VendorCurrent, result.Used[0].Status)
 		assert.Empty(t, result.Pending())
 	})

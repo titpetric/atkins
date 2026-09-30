@@ -4,9 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/titpetric/atkins/colors"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 const renderDoc = "# Title\n\n" + sampleTable + "\n\nA trailing paragraph.\n"

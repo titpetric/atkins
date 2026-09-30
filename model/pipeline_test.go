@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	yaml "gopkg.in/yaml.v3"
 
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 )
 

@@ -6,10 +6,9 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/titpetric/atkins/helpdoc"
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
@@ -65,7 +64,7 @@ func testOptions() *helpdoc.Options {
 // it, in the order a reader can stop reading at.
 func TestWrite(t *testing.T) {
 	var out bytes.Buffer
-	require.NoError(t, helpdoc.Write(&out, testOptions()))
+	assert.NoError(t, helpdoc.Write(&out, testOptions()))
 
 	doc := out.String()
 
@@ -84,7 +83,7 @@ func TestWrite(t *testing.T) {
 	offset := 0
 	for _, section := range sections {
 		index := strings.Index(doc[offset:], section)
-		require.GreaterOrEqual(t, index, 0, "%q missing or out of order", section)
+		assert.GreaterOrEqual(t, index, 0, "%q missing or out of order", section)
 		offset += index
 	}
 }
@@ -93,7 +92,7 @@ func TestWrite(t *testing.T) {
 // markdown companion and its jobs, and that an inactive one says so.
 func TestWriteRendersSkills(t *testing.T) {
 	var out bytes.Buffer
-	require.NoError(t, helpdoc.Write(&out, testOptions()))
+	assert.NoError(t, helpdoc.Write(&out, testOptions()))
 
 	doc := out.String()
 
@@ -118,13 +117,13 @@ func TestWriteIsPlainWithoutColor(t *testing.T) {
 	opts := testOptions()
 
 	var plain bytes.Buffer
-	require.NoError(t, helpdoc.Write(&plain, opts))
+	assert.NoError(t, helpdoc.Write(&plain, opts))
 	assert.NotContains(t, plain.String(), "\x1b[")
 
 	opts.Color = true
 
 	var colored bytes.Buffer
-	require.NoError(t, helpdoc.Write(&colored, opts))
+	assert.NoError(t, helpdoc.Write(&colored, opts))
 	assert.Contains(t, colored.String(), "\x1b[")
 }
 
@@ -132,7 +131,7 @@ func TestWriteIsPlainWithoutColor(t *testing.T) {
 // and its default, and that an empty default stays empty.
 func TestWriteFlagTable(t *testing.T) {
 	var out bytes.Buffer
-	require.NoError(t, helpdoc.Write(&out, testOptions()))
+	assert.NoError(t, helpdoc.Write(&out, testOptions()))
 
 	doc := out.String()
 
@@ -146,7 +145,7 @@ func TestWriteFlagTable(t *testing.T) {
 // an empty table.
 func TestWriteWithoutSkills(t *testing.T) {
 	var out bytes.Buffer
-	require.NoError(t, helpdoc.Write(&out, &helpdoc.Options{}))
+	assert.NoError(t, helpdoc.Write(&out, &helpdoc.Options{}))
 
 	doc := out.String()
 

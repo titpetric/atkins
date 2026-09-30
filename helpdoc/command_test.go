@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/titpetric/atkins/helpdoc"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // TestCommand checks a command carries the flag set it was given.

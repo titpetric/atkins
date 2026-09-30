@@ -15,10 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/client"
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -61,7 +59,7 @@ func gitRepository(t *testing.T) *testRepository {
 			"GIT_COMMITTER_NAME=atkins", "GIT_COMMITTER_EMAIL=atkins@example.com",
 		)
 		out, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(out))
+		assert.NoError(t, err, string(out))
 
 		return strings.TrimSpace(string(out))
 	}
@@ -69,7 +67,7 @@ func gitRepository(t *testing.T) *testRepository {
 	commit := func(marker, message string) string {
 		t.Helper()
 
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "marker.txt"), []byte(marker+"\n"), 0o644))
+		assert.NoError(t, os.WriteFile(filepath.Join(dir, "marker.txt"), []byte(marker+"\n"), 0o644))
 		run("add", ".")
 		run("commit", "-m", message)
 
@@ -77,8 +75,8 @@ func gitRepository(t *testing.T) *testRepository {
 	}
 
 	run("init", "--initial-branch=main")
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "sub"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "sub", "marker.txt"), []byte("in-sub\n"), 0o644))
+	assert.NoError(t, os.MkdirAll(filepath.Join(dir, "sub"), 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(dir, "sub", "marker.txt"), []byte("in-sub\n"), 0o644))
 
 	repository := &testRepository{Path: dir}
 	repository.First = commit("first", "initial")
@@ -248,7 +246,7 @@ func testWorker(t *testing.T, fake *agentServer) *Worker {
 		JobTimeout:        time.Minute,
 		Shell:             "/bin/sh",
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return worker
 }
@@ -365,7 +363,7 @@ func TestRunChecksOutWhatTheJobNamed(t *testing.T) {
 			worker.run(t.Context(), checkoutJob(repository.Path, test.ref, 0, `cat marker.txt; echo "branch=$ATKINS_BRANCH"`))
 
 			output, status := fake.result()
-			require.Equal(t, client.StatusPassed, status.Status, output)
+			assert.Equal(t, client.StatusPassed, status.Status, output)
 			assert.Contains(t, output, test.marker)
 			assert.Contains(t, output, "branch="+test.branch+"\n")
 
@@ -410,7 +408,7 @@ func TestRunClonesShallowWhenAskedTo(t *testing.T) {
 				`cat marker.txt; git rev-list --count HEAD`))
 
 			output, status := fake.result()
-			require.Equal(t, client.StatusPassed, status.Status, output)
+			assert.Equal(t, client.StatusPassed, status.Status, output)
 			assert.Contains(t, output, "tagged")
 			assert.Contains(t, output, fmt.Sprintf("%d\n", depth))
 			assert.Equal(t, repository.Tagged, fake.checkedOut().CommitSHA)
@@ -430,14 +428,14 @@ func TestShallowJobLeavesTheCacheComplete(t *testing.T) {
 	// cost the next one the history it already has.
 	cache := filepath.Join(worker.opts.DataDir, "repos", "local", "demo.git")
 	count, err := worker.gitOutput(t.Context(), cache, "rev-list", "--count", "refs/heads/main")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "3", count)
 
 	// And a full job after a shallow one still gets the whole history.
 	worker.run(t.Context(), checkoutJob(repository.Path, "", 0, "git rev-list --count HEAD"))
 
 	output, status := fake.result()
-	require.Equal(t, client.StatusPassed, status.Status, output)
+	assert.Equal(t, client.StatusPassed, status.Status, output)
 	assert.Contains(t, output, "3\n")
 }
 
@@ -450,7 +448,7 @@ func TestRunExportsTheCheckoutEnvironment(t *testing.T) {
 		`echo "ref=$ATKINS_REF sha=$ATKINS_COMMIT_SHA revision=$ATKINS_REVISION branch=$ATKINS_BRANCH"`))
 
 	output, status := fake.result()
-	require.Equal(t, client.StatusPassed, status.Status, output)
+	assert.Equal(t, client.StatusPassed, status.Status, output)
 	assert.Contains(t, output, "ref="+testTag)
 	assert.Contains(t, output, "sha="+repository.Tagged)
 	// ATKINS_REVISION keeps its name and now always holds a resolved
@@ -483,7 +481,7 @@ func TestRunExportsTheJobEnvironment(t *testing.T) {
 	worker.run(t.Context(), job(remote, "", `echo "job=$ATKINS_JOB_ID ci=$CI nodispatch=$ATKINS_NO_DISPATCH repo=$ATKINS_REPOSITORY"`))
 
 	output, status := fake.result()
-	require.Equal(t, client.StatusPassed, status.Status)
+	assert.Equal(t, client.StatusPassed, status.Status)
 	assert.Contains(t, output, "job=01ARZ3NDEKTSV4RRFFQ69G5FAV")
 	assert.Contains(t, output, "ci=true")
 	// Without this the atkins an agent runs would dispatch straight
@@ -509,7 +507,7 @@ func TestRunWithholdsTheAgentCredentials(t *testing.T) {
 	worker.run(t.Context(), job(remote, "", "env | sort"))
 
 	output, status := fake.result()
-	require.Equal(t, client.StatusPassed, status.Status)
+	assert.Equal(t, client.StatusPassed, status.Status)
 	assert.NotContains(t, output, "enrolment-secret")
 	assert.NotContains(t, output, "signing-secret")
 	assert.NotContains(t, output, "database-secret")
@@ -639,7 +637,7 @@ func TestRunCleansUpTheWorkTree(t *testing.T) {
 
 	// A checkout per job would fill the disk if it outlived the job.
 	entries, err := os.ReadDir(filepath.Join(worker.opts.DataDir, "work"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Empty(t, entries)
 }
 
@@ -677,12 +675,12 @@ func TestSecondJobFetchesTheCachedRepository(t *testing.T) {
 	worker.run(t.Context(), job(remote, "", "echo first"))
 
 	cache := filepath.Join(worker.opts.DataDir, "repos", "local", "demo.git")
-	require.DirExists(t, cache)
+	assert.DirExists(t, cache)
 
 	// Drop a marker into the cache: a second job must reuse this
 	// directory rather than clone over it.
 	marker := filepath.Join(cache, "atkins-cache-marker")
-	require.NoError(t, os.WriteFile(marker, []byte("kept"), 0o644))
+	assert.NoError(t, os.WriteFile(marker, []byte("kept"), 0o644))
 
 	worker.run(t.Context(), job(remote, "", "echo second"))
 

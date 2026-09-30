@@ -6,10 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/agent/history"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 func TestShellHistory_NewShellHistory(t *testing.T) {
@@ -26,7 +24,7 @@ func TestShellHistory_Add(t *testing.T) {
 
 	// Create the .atkins directory
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	h := history.NewShellHistory()
 	h.Add("ls -la", 0, 100*time.Millisecond, "/home/user")
@@ -44,7 +42,7 @@ func TestShellHistory_Match(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	h := history.NewShellHistory()
 	h.Add("git status", 0, 50*time.Millisecond, "/repo")
@@ -78,7 +76,7 @@ func TestShellHistory_FindExact(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	h := history.NewShellHistory()
 	h.Add("echo hello", 0, 10*time.Millisecond, "/home")
@@ -87,7 +85,7 @@ func TestShellHistory_FindExact(t *testing.T) {
 
 	// Find exact should return most recent
 	entry := h.FindExact("echo hello")
-	require.NotNil(t, entry)
+	assert.NotNil(t, entry)
 	assert.Equal(t, "echo hello", entry.Command)
 
 	// Not found
@@ -102,7 +100,7 @@ func TestShellHistory_MatchLimit(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	h := history.NewShellHistory()
 
@@ -123,7 +121,7 @@ func TestShellHistory_MatchDedupe(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	err := os.MkdirAll(filepath.Join(tmpDir, ".atkins"), 0o755)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	h := history.NewShellHistory()
 	h.Add("echo test", 0, 10*time.Millisecond, "/home")

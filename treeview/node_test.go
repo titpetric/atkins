@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // TestNewNode tests creating a new node

@@ -4,9 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -22,13 +20,13 @@ func TestTriggerQueuesAJobByName(t *testing.T) {
 		"job":    "analyze",
 		"params": map[string]any{"tag": "v1.2.3"},
 	}, &triggered)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 	assert.NotEmpty(t, triggered.JobID)
 	assert.Equal(t, seed.RepositoryID, triggered.RepositoryID)
 
 	var job map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+triggered.JobID, admin.Token, nil, &job)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	// A job name becomes the invocation, so a trigger payload stays a
 	// name rather than a shell string.
@@ -49,11 +47,11 @@ func TestTriggerAcceptsAnExplicitCommand(t *testing.T) {
 		"ref":               "refs/tags/v1.2.3",
 		"clone_depth":       1,
 	}, &triggered)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	var job map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+triggered.JobID, admin.Token, nil, &job)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "atkins -f ci/nightly.yml build", job["command"])
 	assert.Equal(t, "server", job["working_directory"])
 	assert.Equal(t, "refs/tags/v1.2.3", job["ref"])
@@ -72,11 +70,11 @@ func TestTriggerAcceptsATag(t *testing.T) {
 		"job": "analyzeTag",
 		"ref": "v1.2.3",
 	}, &triggered)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	var job map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+triggered.JobID, admin.Token, nil, &job)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "v1.2.3", job["ref"])
 	assert.Empty(t, job["commit_sha"])
 }
@@ -102,11 +100,11 @@ func TestTriggerFoldsTheDeprecatedFields(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			var triggered dispatchResponse
 			status := call(t, http.MethodPost, url+"/api/repository/"+seed.RepositoryID+"/trigger", admin.Token, testcase.payload, &triggered)
-			require.Equal(t, http.StatusCreated, status)
+			assert.Equal(t, http.StatusCreated, status)
 
 			var job map[string]any
 			status = call(t, http.MethodGet, url+"/api/job/"+triggered.JobID, admin.Token, nil, &job)
-			require.Equal(t, http.StatusOK, status)
+			assert.Equal(t, http.StatusOK, status)
 			assert.Equal(t, testcase.ref, job["ref"])
 		})
 	}
@@ -127,7 +125,7 @@ func TestTriggerNestsUnderADispatchingJob(t *testing.T) {
 			"parent_id": parent.JobID,
 			"params":    map[string]any{"tag": tag},
 		}, &child)
-		require.Equal(t, http.StatusCreated, status)
+		assert.Equal(t, http.StatusCreated, status)
 		assert.Equal(t, parent.JobID, child.ParentID)
 		assert.Equal(t, parent.RootID, child.RootID)
 		assert.Equal(t, int64(1), child.Depth)
@@ -135,7 +133,7 @@ func TestTriggerNestsUnderADispatchingJob(t *testing.T) {
 
 	var jobs []map[string]any
 	status := call(t, http.MethodGet, url+"/api/job?root_id="+parent.RootID, admin.Token, nil, &jobs)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Len(t, jobs, 3)
 }
 
@@ -198,8 +196,8 @@ func TestListRepositories(t *testing.T) {
 
 	var repositories []map[string]any
 	status := call(t, http.MethodGet, url+"/api/repository", admin.Token, nil, &repositories)
-	require.Equal(t, http.StatusOK, status)
-	require.Len(t, repositories, 1)
+	assert.Equal(t, http.StatusOK, status)
+	assert.Len(t, repositories, 1)
 	assert.Equal(t, seed.RepositoryID, repositories[0]["id"])
 	assert.Equal(t, "github.com/titpetric/atkins", repositories[0]["slug"])
 }
@@ -215,24 +213,24 @@ func TestRetryCopiesAFinishedJob(t *testing.T) {
 		"status":    model.JobStatusFailed,
 		"exit_code": 2,
 	}, nil)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	var retried dispatchResponse
 	status = call(t, http.MethodPost, url+"/api/job/"+original.JobID+"/retry", admin.Token, nil, &retried)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 	assert.NotEqual(t, original.JobID, retried.JobID)
 	assert.Equal(t, model.JobStatusPending, retried.Status)
 
 	var copied map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+retried.JobID, admin.Token, nil, &copied)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "atkins build", copied["command"])
 	assert.Equal(t, "docs", copied["working_directory"])
 
 	// The original keeps its outcome: retrying is not forgetting.
 	var previous map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+original.JobID, admin.Token, nil, &previous)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, model.JobStatusFailed, previous["status"])
 	assert.Equal(t, float64(2), previous["exit_code"])
 }
@@ -258,11 +256,11 @@ func TestRetryKeepsTheParent(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/job/"+child.JobID+"/status", agent.Token, map[string]any{
 		"status": model.JobStatusTimeout,
 	}, nil)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 
 	var retried dispatchResponse
 	status = call(t, http.MethodPost, url+"/api/job/"+child.JobID+"/retry", admin.Token, nil, &retried)
-	require.Equal(t, http.StatusCreated, status)
+	assert.Equal(t, http.StatusCreated, status)
 
 	// A re-run child stays under the job that dispatched it.
 	assert.Equal(t, parent.JobID, retried.ParentID)
@@ -277,7 +275,7 @@ func TestCancelSettlesAPendingJob(t *testing.T) {
 
 	var cancelled map[string]any
 	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/cancel", admin.Token, nil, &cancelled)
-	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, model.JobStatusCancelled, cancelled["status"])
 
 	// A cancelled job is off the queue.

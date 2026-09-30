@@ -10,9 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/psexec"
 )
 
@@ -22,8 +20,8 @@ func TestExecutor_Start(t *testing.T) {
 
 	cmd := psexec.NewCommand("echo", "started")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
-	require.NotNil(t, proc)
+	assert.NoError(t, err)
+	assert.NotNil(t, proc)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	result := proc.Wait()
@@ -36,7 +34,7 @@ func TestProcess_PTY(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("echo test")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	pty := proc.PTY()
@@ -51,7 +49,7 @@ func TestProcess_Read(t *testing.T) {
 
 	cmd := psexec.NewCommand("echo", "read test")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	buf := make([]byte, 1024)
@@ -69,7 +67,7 @@ func TestProcess_Write(t *testing.T) {
 
 	cmd := psexec.NewCommand("cat")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	n, err := proc.Write([]byte("write test\n"))
@@ -90,7 +88,7 @@ func TestProcess_Close(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("sleep 10")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	err = proc.Close()
 	assert.NoError(t, err)
@@ -108,7 +106,7 @@ func TestProcess_Wait(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("echo done")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	result := proc.Wait()
@@ -121,7 +119,7 @@ func TestProcess_Wait_Failure(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("exit 5")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	result := proc.Wait()
@@ -135,7 +133,7 @@ func TestProcess_Done(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("echo done")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	done := proc.Done()
@@ -155,7 +153,7 @@ func TestProcess_Resize(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("sleep 0.1")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	err = proc.Resize(40, 120)
@@ -170,7 +168,7 @@ func TestProcess_Signal(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("sleep 10")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	err = proc.Signal(syscall.SIGTERM)
@@ -201,7 +199,7 @@ func TestProcess_PID(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("sleep 0.1")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	pid := proc.PID()
@@ -216,7 +214,7 @@ func TestProcess_Pipe(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("echo 'piped'")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	var output bytes.Buffer
@@ -232,7 +230,7 @@ func TestProcess_Pipe_WithStdin(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("head -1")
 	proc, err := exec.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	input := bytes.NewReader([]byte("input line\n"))
@@ -249,7 +247,7 @@ func TestProcess_Pipe_Failure(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("exit 3")
 	proc, err := executor.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	err = proc.Pipe(nil, nil)
@@ -262,11 +260,11 @@ func TestProcess_ContextCancellation_KillsProcess(t *testing.T) {
 
 	cmd := psexec.NewShellCommand("sleep 60")
 	proc, err := executor.Start(ctx, cmd)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	defer func() { assert.NoError(t, proc.Close()) }()
 
 	pid := proc.PID()
-	require.Greater(t, pid, 0)
+	assert.Greater(t, pid, 0)
 
 	// Cancel context
 	cancel()

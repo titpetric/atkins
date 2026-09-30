@@ -8,10 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v3"
 
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/model"
 )
 
@@ -167,7 +166,7 @@ func TestListPipelinesJSON(t *testing.T) {
 	// Capture stdout
 	old := os.Stdout
 	r, w, err := os.Pipe()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	os.Stdout = w
 
 	err = ListPipelinesJSON([]*model.Pipeline{mainPipeline})
@@ -175,7 +174,7 @@ func TestListPipelinesJSON(t *testing.T) {
 	assert.NoError(t, w.Close())
 	os.Stdout = old
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	var buf bytes.Buffer
 	_, copyErr := io.Copy(&buf, r)
@@ -184,9 +183,9 @@ func TestListPipelinesJSON(t *testing.T) {
 
 	// Verify it's valid JSON
 	var parsed []OutputSection
-	require.NoError(t, json.Unmarshal([]byte(output), &parsed), "output: %s", output)
+	assert.NoError(t, json.Unmarshal([]byte(output), &parsed), "output: %s", output)
 
-	require.Len(t, parsed, 1)
+	assert.Len(t, parsed, 1)
 	assert.Equal(t, "Main", parsed[0].Desc)
 }
 
@@ -202,7 +201,7 @@ func TestListPipelinesYAML(t *testing.T) {
 	// Capture stdout
 	old := os.Stdout
 	r, w, err := os.Pipe()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	os.Stdout = w
 
 	err = ListPipelinesYAML([]*model.Pipeline{mainPipeline})
@@ -210,7 +209,7 @@ func TestListPipelinesYAML(t *testing.T) {
 	assert.NoError(t, w.Close())
 	os.Stdout = old
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	var buf bytes.Buffer
 	_, copyErr := io.Copy(&buf, r)
@@ -219,8 +218,8 @@ func TestListPipelinesYAML(t *testing.T) {
 
 	// Verify it's valid YAML
 	var parsed []OutputSection
-	require.NoError(t, yaml.Unmarshal([]byte(output), &parsed), "output: %s", output)
+	assert.NoError(t, yaml.Unmarshal([]byte(output), &parsed), "output: %s", output)
 
-	require.Len(t, parsed, 1)
+	assert.Len(t, parsed, 1)
 	assert.Equal(t, "Main", parsed[0].Desc)
 }

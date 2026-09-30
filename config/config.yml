@@ -41,7 +41,8 @@ server:
   # Listen address.
   addr: ":8080"
 
-  # Database DSN. sqlite, mysql and postgres are supported.
+  # Database DSN. The binary registers the sqlite driver only, so the
+  # scheme has to be sqlite.
   database: "sqlite://file:atkins.db"
 
   # Named platform connection to prefer, falling back to the default.

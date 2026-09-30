@@ -6,8 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/psexec"
 )
 

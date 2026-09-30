@@ -7,10 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/titpetric/atkins/config"
+	"github.com/titpetric/atkins/internal/assert"
 )
 
 // runMenu drives the menu with scripted input and returns what it drew.
@@ -18,12 +16,12 @@ func runMenu(t *testing.T, path, input string) string {
 	t.Helper()
 
 	menu, err := config.NewMenu(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	var out bytes.Buffer
 	menu.SetIO(strings.NewReader(input), &out)
 
-	require.NoError(t, menu.Run())
+	assert.NoError(t, menu.Run())
 
 	return out.String()
 }
@@ -48,13 +46,13 @@ func TestMenuEditsAndWrites(t *testing.T) {
 	runMenu(t, path, "1\nhttps://ci.example.com\nw\n")
 
 	saved, err := config.LoadFile(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "https://ci.example.com", saved.Client.Server)
 
 	// The document can hold a signing key, so it is written for its
 	// owner only.
 	info, err := os.Stat(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 }
 
@@ -112,9 +110,9 @@ func TestMenuOnAnExistingDocument(t *testing.T) {
 	path := filepath.Join(dir, ".atkins", "config.yml")
 
 	cfg, err := config.Default()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	cfg.Client.Server = "https://existing.example.com"
-	require.NoError(t, cfg.Save(path))
+	assert.NoError(t, cfg.Save(path))
 
 	output := runMenu(t, path, "q\n")
 	assert.Contains(t, output, "https://existing.example.com")
@@ -125,7 +123,7 @@ func TestMenuEndsOnExhaustedInput(t *testing.T) {
 
 	// A piped stdin that runs out means "done", not an error loop.
 	menu, err := config.NewMenu(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	var out bytes.Buffer
 	menu.SetIO(strings.NewReader(""), &out)

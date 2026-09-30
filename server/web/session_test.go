@@ -6,9 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/server/model"
 )
 
@@ -17,7 +15,7 @@ func signedHandlers(t *testing.T) *Handlers {
 	t.Helper()
 
 	handlers, err := NewHandlers(Options{SigningKey: "test-signing-key"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return handlers
 }
@@ -26,7 +24,7 @@ func TestCookieValueRoundTrips(t *testing.T) {
 	handlers := signedHandlers(t)
 
 	id, err := handlers.sessionID(handlers.cookieValue("01ARZ3NDEKTSV4RRFFQ69G5FAV"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "01ARZ3NDEKTSV4RRFFQ69G5FAV", id)
 }
 
@@ -57,7 +55,7 @@ func TestCookieValueRefusesAnUnsignedID(t *testing.T) {
 // anybody can compute, so a server with no key must trust no cookie.
 func TestSigningKeyIsRequired(t *testing.T) {
 	handlers, err := NewHandlers(Options{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	request := httptest.NewRequest(http.MethodGet, "/admin/user", nil)
 	request.AddCookie(&http.Cookie{Name: sessionCookie, Value: handlers.cookieValue("session-1")})
@@ -148,7 +146,7 @@ func TestSetSessionCookieIsHardened(t *testing.T) {
 	handlers.setSessionCookie(recorder, httptest.NewRequest(http.MethodGet, "/", nil), &model.Session{ID: "session-1"})
 
 	cookies := recorder.Result().Cookies()
-	require.Len(t, cookies, 1)
+	assert.Len(t, cookies, 1)
 
 	cookie := cookies[0]
 	assert.Equal(t, sessionCookie, cookie.Name)
@@ -162,6 +160,6 @@ func TestSetSessionCookieIsHardened(t *testing.T) {
 	tls := httptest.NewRequest(http.MethodGet, "/", nil)
 	tls.Header.Set("X-Forwarded-Proto", "https")
 	handlers.setSessionCookie(secure, tls, &model.Session{ID: "session-1"})
-	require.Len(t, secure.Result().Cookies(), 1)
+	assert.Len(t, secure.Result().Cookies(), 1)
 	assert.True(t, secure.Result().Cookies()[0].Secure)
 }
