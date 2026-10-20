@@ -9,9 +9,9 @@ import (
 
 // settings holds the client configuration for this process.
 //
-// The package reads configuration rather than the environment so that
+// The package reads configuration and leaves the environment alone, so
 // .atkins/config.yml is the source of truth and ATKINS_* is only the
-// overlay the config package already applied. Commands that never call
+// overlay the `config` package already applied. Commands that never call
 // Configure still work: the zero value behaves as an unconfigured
 // machine, which is the historical behaviour.
 var settings struct {

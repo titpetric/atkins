@@ -6,11 +6,11 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// ensureDeclInitialized ensures that the Decl is initialized and that vars/include
-// are properly decoded from the YAML node. This handles the case where embedded *Decl
+// ensureDeclInitialized ensures that the Decl exists and that vars/include
+// decode properly from the YAML node. This handles the case where embedded *Decl
 // pointers might not be properly unmarshalled.
 //
-// This helper should be called in UnmarshalYAML for any type that embeds *Decl.
+// Call this helper in UnmarshalYAML for any type that embeds *Decl.
 func ensureDeclInitialized(node *yaml.Node, decl **Decl) error {
 	if *decl == nil {
 		*decl = &Decl{}

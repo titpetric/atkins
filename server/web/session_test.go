@@ -29,7 +29,7 @@ func TestCookieValueRoundTrips(t *testing.T) {
 }
 
 // TestCookieValueRefusesAnUnsignedID is the point of signing it. A ULID
-// is time-ordered and partly guessable, so a cookie that were only the
+// is time-ordered and partly guessable, so a cookie holding only the
 // session id would let somebody walk onto a session by writing one down.
 func TestCookieValueRefusesAnUnsignedID(t *testing.T) {
 	handlers := signedHandlers(t)
@@ -64,8 +64,8 @@ func TestSigningKeyIsRequired(t *testing.T) {
 	assert.ErrorIs(t, err, errNoSession)
 }
 
-// TestCSRFTokenIsScopedToItsSession stops a cookie value being replayed
-// as a CSRF token, and one session's token being used against another.
+// TestCSRFTokenIsScopedToItsSession stops anyone replaying a cookie value
+// as a CSRF token, or using one session's token against another.
 func TestCSRFTokenIsScopedToItsSession(t *testing.T) {
 	handlers := signedHandlers(t)
 
@@ -86,7 +86,7 @@ func TestAdminRedirectsAnAnonymousVisitorToLogin(t *testing.T) {
 	handler(recorder, httptest.NewRequest(http.MethodGet, "/admin/user?page=2", nil))
 
 	assert.Equal(t, http.StatusSeeOther, recorder.Code)
-	// Where they were going is preserved, so signing in lands them there.
+	// The login keeps their destination, so signing in lands them there.
 	assert.Contains(t, recorder.Header().Get("Location"), "next=%2Fadmin%2Fuser%3Fpage%3D2")
 }
 
@@ -132,7 +132,7 @@ func TestIsTLS(t *testing.T) {
 	plain := httptest.NewRequest(http.MethodGet, "/", nil)
 	assert.False(t, isTLS(plain))
 
-	// A proxy that terminated TLS says so, and the cookie should be
+	// A proxy that terminated TLS says so, and the cookie then carries
 	// Secure even though this hop is not.
 	proxied := httptest.NewRequest(http.MethodGet, "/", nil)
 	proxied.Header.Set("X-Forwarded-Proto", "https")

@@ -6,11 +6,11 @@ import (
 )
 ```
 
-Package auth issues and validates the access tokens the atkins CLI
+Package `auth` issues and validates the access tokens the atkins CLI
 presents to the CI/CD server.
 
-Access tokens are short-lived HS256 JWTs. They carry the session they
-were issued from, so revoking a session (logout) is enough to stop the
+Access tokens are short-lived HS256 JWTs. They carry the session that
+issued them, so revoking a session (logout) is enough to stop the
 refresh flow without keeping a revocation list of every access token.
 
 ## Types
@@ -70,7 +70,7 @@ const ViewTokenLength = 22
 <summary><code>var ErrEmptyToken, ErrEmptySecret, ErrInvalidToken</code></summary>
 
 ```go
-// Errors returned when a token cannot be turned into claims.
+// Claims returns these errors for a token it cannot decode.
 var (
 	ErrEmptyToken   = errors.New("empty token")
 	ErrEmptySecret  = errors.New("empty signing secret")
@@ -89,42 +89,42 @@ var (
 - `func (*JWT) ValidViewToken (jobID,presented string) bool`
 - `func (*JWT) ViewToken (jobID string) string`
 
-### NewJWT
+### `NewJWT`
 
-NewJWT returns a JWT signer for the given secret.
+`NewJWT` returns a JWT signer for the given secret.
 
 ```go
 func NewJWT(secret string) *JWT
 ```
 
-### Claims
+### `Claims`
 
-Claims validates a token and returns its claims. A leading "Bearer "
-is accepted so callers can pass the Authorization header verbatim.
+`Claims` validates a token and returns its claims. It accepts a leading
+"Bearer " so callers can pass the Authorization header verbatim.
 
 ```go
 func (*JWT) Claims(token string) (*Claims, error)
 ```
 
-### Create
+### `Create`
 
-Create returns a signed access token for a user and session.
+`Create` returns a signed access token for a user and session.
 
 ```go
 func (*JWT) Create(userID, sessionID string, ttl time.Duration) (string, error)
 ```
 
-### UserID
+### `UserID`
 
-UserID returns the user a token belongs to.
+`UserID` returns the user a token belongs to.
 
 ```go
 func (*JWT) UserID(token string) (string, error)
 ```
 
-### ValidViewToken
+### `ValidViewToken`
 
-ValidViewToken reports whether presented is the view token for jobID.
+`ValidViewToken` reports whether presented is the view token for jobID.
 
 A server with no signing key validates nothing: it cannot mint a
 token either, so accepting one would be accepting anything.
@@ -133,15 +133,15 @@ token either, so accepting one would be accepting anything.
 func (*JWT) ValidViewToken(jobID, presented string) bool
 ```
 
-### ViewToken
+### `ViewToken`
 
-ViewToken returns the unguessable half of a job page URL.
+`ViewToken` returns the unguessable half of a job page URL.
 
-It is derived rather than stored: an HMAC of the job ID under the
-server's signing key. There is no column to migrate, nothing extra to
-leak from a database dump, and rotating the signing key invalidates
-every outstanding link at once — which is already the documented way
-to revoke access to an instance.
+ViewToken derives the token and stores nothing: an HMAC of the job ID
+under the server's signing key. There is no column to migrate, nothing
+extra to leak from a database dump, and rotating the signing key
+invalidates every outstanding link at once, which matches the
+documented way to revoke access to an instance.
 
 ```go
 func (*JWT) ViewToken(jobID string) string

@@ -13,7 +13,7 @@ import (
 // Without it, exec.CommandContext signals only the shell it started. A
 // job's real work is that shell's children, and they inherit the pipes
 // the agent is reading, so killing the shell alone leaves the agent
-// blocked on output from processes nothing is going to stop — and a
+// blocked on output from processes nothing is going to stop - and a
 // job timeout stops meaning anything.
 func setProcessGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

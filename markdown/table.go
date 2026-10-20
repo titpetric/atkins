@@ -43,7 +43,7 @@ func ParseTable(section string) (*Table, bool) {
 }
 
 // isRow reports whether a line is a pipe-delimited table row: it starts
-// and ends with `|`, once surrounding space is trimmed.
+// and ends with `|`, once TrimSpace strips the surrounding space.
 func isRow(line string) bool {
 	line = strings.TrimSpace(line)
 	return len(line) > 1 && strings.HasPrefix(line, "|") && strings.HasSuffix(line, "|")

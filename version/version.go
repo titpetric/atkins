@@ -52,7 +52,7 @@ func Run(info Info) error {
 		fmt.Printf("  Branch:      %s\n", info.Branch)
 	}
 
-	// Get build info from embedded metadata
+	// Get build information from embedded metadata
 	exePath, err := os.Executable()
 	var bi *buildinfo.BuildInfo
 	if err == nil {

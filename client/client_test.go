@@ -214,7 +214,7 @@ func TestExpiredTokenIsRefreshedFirst(t *testing.T) {
 	}
 	assert.Equal(t, []string{"/api/user/login", "/api/user/refreshToken", "/api/dispatch"}, paths)
 
-	// The rotated token was used, and persisted for next time.
+	// The client uses the rotated token and persists it for next time.
 	last := fake.requests[len(fake.requests)-1]
 	assert.Equal(t, "Bearer fresh", last.Auth)
 
@@ -234,7 +234,7 @@ func TestClaimReturnsNothingOnAnEmptyQueue(t *testing.T) {
 
 	claimed, err := c.Claim(t.Context(), "agent-1", nil)
 	assert.NoError(t, err)
-	// An empty poll is the normal case, not an error.
+	// An empty poll is the normal case and carries no error.
 	assert.Nil(t, claimed)
 }
 

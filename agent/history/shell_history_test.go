@@ -83,7 +83,7 @@ func TestShellHistory_FindExact(t *testing.T) {
 	h.Add("echo world", 0, 10*time.Millisecond, "/home")
 	h.Add("echo hello", 0, 10*time.Millisecond, "/home") // Duplicate
 
-	// Find exact should return most recent
+	// FindExact returns the most recent entry
 	entry := h.FindExact("echo hello")
 	assert.NotNil(t, entry)
 	assert.Equal(t, "echo hello", entry.Command)
@@ -109,7 +109,7 @@ func TestShellHistory_MatchLimit(t *testing.T) {
 		h.Add("cmd"+string(rune('a'+i)), 0, 10*time.Millisecond, "/home")
 	}
 
-	// Match should return at most 10
+	// Match returns at most 10
 	matches := h.Match("cmd")
 	assert.LessOrEqual(t, len(matches), 10)
 }

@@ -99,7 +99,7 @@ func TestFindRepositoryRoot(t *testing.T) {
 	})
 }
 
-// TestVendorerPlan covers which skills a repository is found to use.
+// TestVendorerPlan covers which skills Plan finds a repository using.
 func TestVendorerPlan(t *testing.T) {
 	t.Run("matches when: files in the repository root", func(t *testing.T) {
 		root, source := vendorFixture(t)
@@ -207,8 +207,8 @@ func TestVendorerPlan(t *testing.T) {
 
 		result, err := runner.NewVendorer(source, root).Plan()
 		assert.NoError(t, err)
-		// The skill is still used, but because it has no when: block,
-		// not because the pipeline's own `build` job was mistaken for it.
+		// The repository still uses the skill because it has no when:
+		// block; the pipeline's own `build` job does not count as a match.
 		assert.Equal(t, []string{"build"}, vendorIDs(result.Used))
 		assert.Equal(t, "always active", result.Used[0].Reason)
 	})
@@ -372,7 +372,7 @@ func TestVendorerRun(t *testing.T) {
 }
 
 // TestVendorerRunCompanion covers the markdown companion beside a skill
-// file: it is installed with the skill, counted in the diff, and a
+// file: Install copies it with the skill, the diff counts it, and a
 // change to it alone is enough to make the skill out of date.
 func TestVendorerRunCompanion(t *testing.T) {
 	const guide = "`atkins go:build` builds the module.\n"

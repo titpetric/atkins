@@ -25,7 +25,7 @@ func (m Model) getFixTask(task *model.ResolvedTask) *model.ResolvedTask {
 }
 
 // runPipeline executes the task silently and returns the result with duration.
-// Silent mode suppresses tree display; only error messages are captured.
+// Silent mode suppresses tree display and captures only error messages.
 // The progress channel receives job lifecycle events during execution.
 // The context allows cancellation via Escape or Ctrl+C.
 func (m Model) runPipeline(ctx context.Context, task *model.ResolvedTask, progressCh chan runner.JobProgressEvent) tea.Cmd {
@@ -54,7 +54,7 @@ func (m Model) runPipeline(ctx context.Context, task *model.ResolvedTask, progre
 }
 
 // runAutofixPipeline runs the fix task and then signals completion.
-// Silent mode suppresses tree display; only error messages are captured.
+// Silent mode suppresses tree display and captures only error messages.
 // The context allows cancellation via Escape or Ctrl+C.
 func (m Model) runAutofixPipeline(ctx context.Context, originalTask, fixTask *model.ResolvedTask, progressCh chan runner.JobProgressEvent) tea.Cmd {
 	return func() tea.Msg {
@@ -93,7 +93,7 @@ func (m Model) runShellCommand(ctx context.Context, command string) tea.Cmd {
 
 		exitCode := 0
 		if err != nil {
-			// Check if it was a context cancellation
+			// Check for a context cancellation
 			if ctx.Err() == context.Canceled {
 				return ShellDoneMsg{
 					Command:  command,

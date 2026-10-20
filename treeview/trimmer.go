@@ -62,7 +62,7 @@ func (t *Trimmer) SetViewportWidth(width int) {
 var argPattern = regexp.MustCompile(`(-+[\w-]+=)("[^"]*"|[^\s]+)`)
 
 // CompactArgs trims long argument values in a command string.
-// Arguments longer than maxArgLen are replaced with <...N chars>.
+// It replaces an argument longer than maxArgLen with <...N chars>.
 func CompactArgs(cmd string, maxArgLen int) string {
 	if maxArgLen <= 0 {
 		return cmd
@@ -152,14 +152,14 @@ func trimWithANSI(s string, targetLen int) string {
 		visualCount++
 	}
 
-	// Append reset code if we were in the middle of colored text
+	// Append a reset code in case the label ends inside colored text
 	result.WriteString("\033[0m")
 
 	return result.String()
 }
 
 // TrimLabel applies both compaction and viewport trimming to a label.
-// - maxArgLen: maximum length for argument values before compaction
+// - maxArgLen: length limit for argument values before compaction
 // - prefixLen: visual length of the prefix (indentation, branch chars).
 func (t *Trimmer) TrimLabel(label string, maxArgLen, prefixLen int) string {
 	// First, compact arguments

@@ -10,10 +10,10 @@ steps in parallel.
 With atkins you can:
 
 - define pipelines, jobs and steps and run them
-- provide project or system skills via `.atkins/skills`
+- add project or system skills in `.atkins/skills`
 - run individual pipelines as executables
-- attach to a CI/CD server with `atkins --login https://domain`, so every
-  run you make locally is recorded as a job, and `atkins --dispatch` hands
+- attach to a CI/CD server with `atkins --login https://domain`, so the server
+  records every local run as a job, and `atkins --dispatch` hands
   one to an agent instead
 
 It's driven by yaml syntax, and supports shell interpolation with `$(...)`, and
@@ -21,7 +21,7 @@ yaml friendly variable interpolation: `name: ${{app.name}}`.
 
 `atkins --help` prints the whole reference in one document: every command and
 flag, the skills installed on the machine with the jobs each contributes, and
-the atkins.yml schema. Redirected to a file it is markdown.
+the atkins.yml schema. Redirected to a file, the output is markdown.
 
 ## Documentation
 

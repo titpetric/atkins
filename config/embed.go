@@ -6,9 +6,9 @@ import (
 
 // RuntimeDefaultConfig is the default configuration document, embedded
 // so an unconfigured install still has a complete and valid set of
-// values rather than a scatter of zero values.
+// values and no scatter of zero values.
 //
-// It is also what `atkins --config` writes when a project has no
+// The configuration menu also writes it when a project has no
 // .atkins/config.yml yet, comments and all, so the file a user first
 // opens explains itself.
 //

@@ -27,7 +27,7 @@ type Workspace struct {
 	Checkout Checkout
 
 	// Artefacts is the directory the job copies files into to have them
-	// kept. It sits beside the work tree rather than inside it, so
+	// kept. It sits beside the work tree, outside it, so
 	// staging a file does not dirty the checkout the job is testing.
 	Artefacts string
 
@@ -43,23 +43,24 @@ type Workspace struct {
 //
 // Ref is the effective ref: the one the job named, or the default branch
 // resolved for a job that named nothing. CommitSHA is what that ref
-// pointed at when the job ran — a tag moves, so a run recorded as
-// "v1.2.3" alone cannot be reproduced later.
+// pointed at when the job ran - a tag moves, so nobody can reproduce a
+// run that records "v1.2.3" alone.
 type Checkout struct {
 	Ref       string
 	CommitSHA string
 
-	// Branch is set when Ref named a branch and empty for a tag or a
+	// Branch holds the branch name when Ref named a branch and is empty for a tag or a
 	// bare commit. A job reads it as ATKINS_BRANCH.
 	Branch string
 }
 
 // prepare produces a checkout for a job.
 //
-// Clones are cached per repository under <DataDir>/repos, so the second
-// job for a repository fetches instead of downloading it again. Each
-// job then gets its own work tree built from that cache, which keeps
-// concurrent jobs from fighting over one checkout.
+// The agent caches clones per repository in a cache directory under
+// DataDir, so the second job for a repository fetches and skips
+// downloading it again. Each job then gets its own work tree built from
+// that cache, which keeps concurrent jobs from fighting over one
+// checkout.
 func (w *Worker) prepare(ctx context.Context, job *jobContext) (*Workspace, error) {
 	cache, err := w.cacheRepository(ctx, job)
 	if err != nil {
@@ -89,8 +90,8 @@ func (w *Worker) prepare(ctx context.Context, job *jobContext) (*Workspace, erro
 	}
 
 	// The output directory exists before the command starts, so a
-	// pipeline can copy into it without first testing whether it is
-	// there.
+	// pipeline can copy into it without first testing whether it
+	// exists.
 	artefacts := root + artefactSuffix
 	if err := os.MkdirAll(artefacts, 0o755); err != nil {
 		return nil, fmt.Errorf("create artefact directory: %w", err)
@@ -107,8 +108,8 @@ func (w *Worker) prepare(ctx context.Context, job *jobContext) (*Workspace, erro
 // ATKINS_REVISION keeps the name it has always had and holds the same
 // resolved sha as ATKINS_COMMIT_SHA, so a pipeline reading either can
 // pin an artefact to a commit even when the job named a branch or a
-// moving tag. The checkout reported here is the one the agent produced
-// rather than the one the job asked for.
+// moving tag. The checkout reported here is the one the agent produced,
+// whatever ref the job named.
 func (w *Workspace) environment() runner.Env {
 	env := runner.Env{
 		"ATKINS_WORKSPACE":  w.Root,
@@ -137,7 +138,7 @@ const artefactSuffix = ".artefacts"
 // clean path relative to the repository root, or "" for the root.
 //
 // The server sanitizes this before storing it, so this is the second
-// gate on the same decision. It is worth having: the value arrives over
+// gate on the same decision. It earns its place: the value arrives over
 // the network and is about to become a directory the agent runs a shell
 // command in, and an agent should not be one server bug away from
 // executing outside its checkout.
@@ -158,11 +159,11 @@ func CleanWorkingDirectory(dir string) string {
 // cacheRepository clones or updates the mirror for a repository and
 // returns its path.
 //
-// The mirror is always complete, whatever depth a job asks for. It is
-// the agent's copy of the remote rather than any one job's checkout: a
-// shallow cache would have to be deepened the first time a job named an
-// older tag, and deepening repeatedly costs more than never having
-// thrown the objects away.
+// The mirror is always complete, whatever depth a job requests. It
+// holds the agent's copy of the remote and belongs to no one job's
+// checkout: the agent would have to deepen a shallow cache the first
+// time a job named an older tag, and deepening repeatedly costs more
+// than never having thrown the objects away.
 func (w *Worker) cacheRepository(ctx context.Context, job *jobContext) (string, error) {
 	remote := CloneURL(job.Repository.RemoteURL, job.Repository.Slug, w.opts.PreferHTTPS)
 	if remote == "" {
@@ -184,7 +185,7 @@ func (w *Worker) cacheRepository(ctx context.Context, job *jobContext) (string, 
 	}
 
 	// A mirror carries every ref, so a later job can check out a tag or
-	// a branch that didn't exist when the cache was created.
+	// a branch that didn't exist when the agent created the cache.
 	if out, err := w.git(ctx, "", "clone", "--mirror", remote, cache); err != nil {
 		// Leave nothing half-cloned behind, or the next job would
 		// mistake the debris for a usable cache.
@@ -198,12 +199,13 @@ func (w *Worker) cacheRepository(ctx context.Context, job *jobContext) (string, 
 // resolve turns the ref a job named into a commit.
 //
 // Resolution happens against the cache, where refs carry the names the
-// remote gives them, and it happens exactly once: the work tree is then
-// built around the sha, so a tag that moves between resolving it and
-// checking it out cannot split one job across two commits.
+// remote assigns them, and it happens exactly once: the agent then
+// builds the work tree around the sha, so a tag that moves between
+// resolving it and checking it out cannot split one job across two
+// commits.
 //
-// A named ref that does not resolve is a failure, not an invitation to
-// build something else. Falling through to the default branch is how a
+// A named ref that does not resolve fails the job, and the agent builds
+// nothing else in its place. Falling through to the default branch is how a
 // typo in a tag name turns into a green run of the wrong code.
 func (w *Worker) resolve(ctx context.Context, cache string, job *jobContext) (*Checkout, error) {
 	requested := strings.TrimSpace(job.Job.Ref)
@@ -220,7 +222,7 @@ func (w *Worker) resolve(ctx context.Context, cache string, job *jobContext) (*C
 	}
 
 	// Naming the ref matters. "checkout failed" for a tag nobody pushed
-	// sends whoever reads it looking at the agent instead of at the tag.
+	// sends whoever reads it looking at the agent when the tag is at fault.
 	return nil, fmt.Errorf("ref %q not found in %s", requested, job.Repository.Slug)
 }
 
@@ -265,8 +267,8 @@ func (w *Worker) revision(ctx context.Context, dir, candidate string) string {
 
 // refCandidates expands a ref into what it could name, in git's own
 // order: a fully qualified ref as given, then a tag, then a branch, then
-// anything else rev-parse understands — which is what lets a bare commit
-// sha work without being declared as one.
+// anything else rev-parse understands - so a bare commit sha works
+// without a declaration saying it's one.
 func refCandidates(ref string) []string {
 	if strings.HasPrefix(ref, "refs/") {
 		return []string{ref}
@@ -282,8 +284,8 @@ func branchName(candidate string) string {
 	return ""
 }
 
-// cloneDepth clamps a requested depth. A negative depth is a bad payload
-// rather than an instruction, and 0 means the whole history.
+// cloneDepth clamps a requested depth. A negative depth is a bad payload,
+// which the agent ignores, and 0 means the whole history.
 func cloneDepth(depth int64) int64 {
 	if depth < 0 {
 		return 0
@@ -293,10 +295,10 @@ func cloneDepth(depth int64) int64 {
 
 // workTree builds the job's work tree from the cache, at one commit.
 //
-// Depth belongs here and never on the cache. The cache is shared by
-// every job for a repository, so one job asking for a single commit must
-// not leave the next one refetching history the agent had already paid
-// for; the work tree is thrown away when the job ends, so limiting it
+// Depth belongs here and never on the cache. Every job for a repository
+// shares the cache, so one job requesting a single commit must not leave
+// the next one refetching history the agent had already paid for; the
+// agent throws the work tree away when the job ends, so limiting it
 // costs nothing later.
 func (w *Worker) workTree(ctx context.Context, cache, root, sha string, depth int64) error {
 	if depth > 0 {
@@ -313,8 +315,8 @@ func (w *Worker) fullWorkTree(ctx context.Context, cache, root, sha string) erro
 	}
 
 	// A clone takes branches and tags. A commit the mirror holds under
-	// anything else — refs/pull/*, say — is not in the clone, so fetch it
-	// rather than fail on a ref that demonstrably resolved a moment ago.
+	// anything else - refs/pull/*, say - is missing from the clone, so fetch
+	// it, and don't fail on a ref that demonstrably resolved a moment ago.
 	if w.revision(ctx, root, sha) == "" {
 		if out, err := w.git(ctx, root, "fetch", "--quiet", "--no-tags", "origin", sha); err != nil {
 			return fmt.Errorf("fetch %s: %w\n%s", sha, err, out)
@@ -326,10 +328,10 @@ func (w *Worker) fullWorkTree(ctx context.Context, cache, root, sha string) erro
 
 // shallowWorkTree builds a work tree holding depth commits of history.
 //
-// `git clone` ignores --depth for a local path — it hardlinks the whole
-// object store instead — so the shallow work tree is assembled by hand:
-// an empty repository, then a depth-limited fetch of the one commit that
-// was already resolved.
+// `git clone` ignores --depth for a local path - it hardlinks the whole
+// object store - so this function assembles the shallow work tree by
+// hand: an empty repository, then a depth-limited fetch of the one
+// commit resolve already chose.
 func (w *Worker) shallowWorkTree(ctx context.Context, cache, root, sha string, depth int64) error {
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return fmt.Errorf("create work tree: %w", err)
@@ -341,9 +343,10 @@ func (w *Worker) shallowWorkTree(ctx context.Context, cache, root, sha string, d
 		return fmt.Errorf("add cache remote: %w\n%s", err, out)
 	}
 
-	// allowAnySHA1InWant lets the fetch name the commit rather than the
-	// ref it came from: the ref was resolved against this cache already,
-	// and resolving it a second time is a chance for it to have moved.
+	// allowAnySHA1InWant lets the fetch name the commit itself, not the
+	// ref it came from: resolve already resolved the ref against this
+	// cache, and resolving it a second time is a chance for it to have
+	// moved.
 	out, err := w.git(ctx, root,
 		"-c", "uploadpack.allowAnySHA1InWant=true",
 		"fetch", "--quiet", "--depth", strconv.FormatInt(depth, 10), "origin", sha)
@@ -356,7 +359,7 @@ func (w *Worker) shallowWorkTree(ctx context.Context, cache, root, sha string, d
 
 // checkout detaches the work tree at a commit.
 //
-// Detaching is deliberate: a job builds one commit, and leaving a branch
+// The work tree stays detached: a job builds one commit, and leaving a branch
 // checked out would suggest the job has somewhere to push it back to.
 func (w *Worker) checkout(ctx context.Context, root, sha string) error {
 	if out, err := w.git(ctx, root, "checkout", "--force", "--detach", sha); err != nil {
@@ -366,8 +369,8 @@ func (w *Worker) checkout(ctx context.Context, root, sha string) error {
 }
 
 // cachePath turns a repository slug into a relative directory path.
-// Slugs are `host/owner/name`, which nests naturally; anything odd is
-// flattened so it cannot escape the cache root.
+// Slugs are `host/owner/name`, which nests naturally; cachePath flattens
+// anything odd so it cannot escape the cache root.
 func cachePath(slug string) string {
 	clean := filepath.ToSlash(filepath.Clean("/" + strings.TrimSpace(slug)))
 	return strings.TrimPrefix(clean, "/") + ".git"
@@ -388,7 +391,7 @@ func CloneURL(remoteURL, slug string, preferHTTPS bool) string {
 		return remoteURL
 	}
 
-	// Only rewrite when the slug names a host: `github.com/owner/repo`
+	// Only rewrite when the slug names a host: `github.com/owner/name`
 	// converts cleanly, `some-local-path` does not.
 	host, _, found := strings.Cut(slug, "/")
 	if !found || !strings.Contains(host, ".") {
@@ -404,9 +407,8 @@ func isSSHRemote(remoteURL string) bool {
 		(strings.Contains(remoteURL, "@") && strings.Contains(remoteURL, ":") && !strings.Contains(remoteURL, "://"))
 }
 
-// git runs a git command, returning its combined output. It is for the
-// commands whose output is only ever read by a human diagnosing a
-// failure.
+// git runs a git command, returning its combined output. It serves the
+// commands whose output only a human diagnosing a failure ever reads.
 func (w *Worker) git(ctx context.Context, dir string, args ...string) (string, error) {
 	out, err := w.gitCommand(ctx, dir, args...).CombinedOutput()
 	return strings.TrimSpace(string(out)), err

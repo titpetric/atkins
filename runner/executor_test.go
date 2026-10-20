@@ -79,11 +79,11 @@ func TestExecuteStepWithForLoop(t *testing.T) {
 
 			assert.Equal(t, tt.expectedCount, len(iterations), "expected %d iterations", tt.expectedCount)
 
-			// Verify iteration variables are set correctly
+			// Verify the iteration variables
 			for i, iter := range iterations {
 				assert.NotNil(t, iter.Variables, "Iteration %d has nil variables", i)
 
-				// For simple pattern, check if the loop variable is set
+				// For simple pattern, check that the loop variable exists
 				if len(tt.step.For) > 0 {
 					switch string(tt.step.For[0]) {
 					case "item in fruits":
@@ -485,7 +485,7 @@ func TestValidateJobRequirements(t *testing.T) {
 			ctx := &runner.ExecutionContext{
 				Variables: runner.NewContextVariables(tt.variables),
 			}
-			// Ensure job name is set (already set by test case)
+			// Ensure job name is present (the test case sets it)
 
 			err := runner.ValidateJobRequirements(ctx, tt.job)
 
@@ -650,7 +650,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 			For:  model.Iterators{"item in testBinaries"},
 		}
 
-		// Job variables are merged into context BEFORE step execution
+		// Job variables merge into context BEFORE step execution
 		ctx := &runner.ExecutionContext{
 			Variables: runner.NewContextVariables(map[string]any{
 				"testBinaries": "runner.test\nmodel.test\ntreeview.test",
@@ -738,7 +738,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 		stepCtx.Step = job.Steps[0]
 		stepCtx.Env = make(map[string]string)
 
-		// Verify variables are copied correctly
+		// Verify the copy carries the variables
 		assert.Equal(t, testBinariesValue, stepCtx.Variables.Get("testBinaries"), "stepCtx should have testBinaries after Copy()")
 
 		// Step 3: Call ExpandFor - it should find testBinaries
@@ -753,7 +753,7 @@ func TestJobVariablesInForLoop(t *testing.T) {
 func TestStepVarsWithLoopVariable(t *testing.T) {
 	t.Run("step vars with loop variable should be interpolated per iteration", func(t *testing.T) {
 		// This tests the fix for BUG 2: step-level vars like `path: $(dirname "${{item}}")`
-		// should be interpolated with the loop variable available
+		// interpolate with the loop variable available
 
 		step := &model.Step{
 			Name: "test step",
@@ -797,7 +797,7 @@ func TestStepVarsWithLoopVariable(t *testing.T) {
 			err := runner.MergeVariables(iterCtx, step.Decl)
 			assert.NoError(t, err)
 
-			// The path should now be interpolated with the item value
+			// The path now holds the interpolated item value
 			expectedPath := expectedItems[i] + "/subdir"
 			assert.Equal(t, expectedPath, iterCtx.Variables.Get("path"),
 				"path should be interpolated with item=%s", expectedItems[i])
@@ -1114,8 +1114,8 @@ func TestTaskStep_MultipleTaskNames(t *testing.T) {
 
 func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
 	t.Run("CurrentStep should be set to iteration node during execution", func(t *testing.T) {
-		// This tests the fix for BUG 1: output should go to the correct iteration node,
-		// not be overwritten by subsequent iterations
+		// This tests the fix for BUG 1: output goes to the correct iteration node,
+		// and later iterations do not overwrite it
 
 		// Create a simple context with a CurrentStep set
 		parentNode := treeview.NewNode("parent")
@@ -1137,11 +1137,11 @@ func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
 			execCtx.CurrentStep = iterNode1
 			defer func() { execCtx.CurrentStep = originalStep }()
 
-			// During execution, CurrentStep should be iterNode1
+			// During execution, CurrentStep is iterNode1
 			assert.Equal(t, iterNode1, execCtx.CurrentStep)
 		}()
 
-		// After first iteration, should be restored to parent
+		// After first iteration, CurrentStep returns to parent
 		assert.Equal(t, parentNode, execCtx.CurrentStep)
 
 		// Second iteration
@@ -1150,11 +1150,11 @@ func TestCurrentStepSetCorrectlyInIteration(t *testing.T) {
 			execCtx.CurrentStep = iterNode2
 			defer func() { execCtx.CurrentStep = originalStep }()
 
-			// During execution, CurrentStep should be iterNode2
+			// During execution, CurrentStep is iterNode2
 			assert.Equal(t, iterNode2, execCtx.CurrentStep)
 		}()
 
-		// After second iteration, should be restored to parent
+		// After second iteration, CurrentStep returns to parent
 		assert.Equal(t, parentNode, execCtx.CurrentStep)
 	})
 }
@@ -1243,10 +1243,10 @@ func TestExecuteJob_DirBeforeVars(t *testing.T) {
 		// Tests the case where dir depends on a var that comes from a subshell:
 		// - dir: ${{workdir}}
 		// - vars: { workdir: "$(echo /tmp)", files_in_wd: "$(ls)" }
-		// The evaluation order should be:
-		// 1. Evaluate workdir (dir depends on it)
-		// 2. Evaluate dir with workdir available
-		// 3. Evaluate files_in_wd with dir set as cwd
+		// The expected resolution order:
+		// 1. Resolve workdir (dir depends on it)
+		// 2. Resolve dir with workdir available
+		// 3. Resolve files_in_wd with dir as cwd
 		tmpDir, err := os.MkdirTemp("", "test-workdir-*")
 		assert.NoError(t, err)
 		defer os.RemoveAll(tmpDir)
@@ -1365,7 +1365,7 @@ func TestExecuteStepWithForLoop_DetachParallel(t *testing.T) {
 	err := executor.ExecuteJob(t.Context(), ctx)
 	assert.NoError(t, err)
 
-	// All files should be created when detach completes
+	// All files exist when detach completes
 	for _, item := range []string{"a", "b", "c", "d"} {
 		_, err := os.Stat(tmpDir + "/" + item + ".done")
 		assert.NoError(t, err, "iteration %s should complete", item)
@@ -1419,7 +1419,7 @@ func TestExecuteStepWithForLoop_DetachContinuesOnError(t *testing.T) {
 func TestExecuteStepWithForLoop_ContextCancellation(t *testing.T) {
 	job := &model.Job{
 		Name:    "test_job",
-		Timeout: "1ms", // Very short timeout to trigger cancellation
+		Timeout: "1ms", // Short timeout to trigger cancellation
 		Steps: []*model.Step{
 			{
 				// Command that would take too long
@@ -1566,7 +1566,7 @@ func TestExecuteJob_ForLoop(t *testing.T) {
 		err := executor.ExecuteJob(context.Background(), ctx)
 		assert.NoError(t, err)
 
-		// "skip" iteration should be excluded, leaving 2 iterations
+		// The if condition drops the "skip" iteration, leaving 2 iterations
 		children := jobNode.GetChildren()
 		assert.Len(t, children, 2)
 	})

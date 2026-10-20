@@ -7,7 +7,7 @@ import (
 )
 
 // TestDiffLines checks a file splits into lines that keep their newline,
-// with no phantom line for the trailing one, which is what keeps the
+// with no phantom line for the trailing one, and that keeps the
 // vendoring line counts off by nothing.
 func TestDiffLines(t *testing.T) {
 	tests := []struct {

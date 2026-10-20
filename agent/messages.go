@@ -34,7 +34,7 @@ type AutofixDoneMsg struct {
 	Duration     time.Duration
 }
 
-// RetryMsg signals a task should be retried.
+// RetryMsg signals that the model retries a task.
 type RetryMsg struct {
 	Task *model.ResolvedTask
 }
@@ -58,5 +58,5 @@ type JobProgressMsg struct {
 	Event runner.JobProgressEvent
 }
 
-// JobProgressClosedMsg signals the progress channel was closed.
+// JobProgressClosedMsg signals that the progress channel has closed.
 type JobProgressClosedMsg struct{}

@@ -95,7 +95,7 @@ steps:
 	// Check that Decl is not nil
 	assert.NotNil(t, job.Decl)
 
-	// Check that Vars are loaded
+	// Check that Vars load
 	assert.NotNil(t, job.Vars)
 	assert.Equal(t, "file1.test\nfile2.test", job.Vars["testBinaries"])
 	assert.Equal(t, 42, job.Vars["count"])
@@ -118,7 +118,7 @@ vars:
 	// Check that Decl is not nil
 	assert.NotNil(t, step.Decl)
 
-	// Check that Vars are loaded
+	// Check that Vars load
 	assert.NotNil(t, step.Vars)
 	assert.Equal(t, "value123", step.Vars["myVar"])
 	assert.Equal(t, 42, step.Vars["count"])
@@ -144,7 +144,7 @@ jobs:
 	// Check that Decl is not nil
 	assert.NotNil(t, pipeline.Decl)
 
-	// Check that Vars are loaded
+	// Check that Vars load
 	assert.NotNil(t, pipeline.Vars)
 	assert.Equal(t, "global_value", pipeline.Vars["globalVar"])
 	assert.Equal(t, "1.0.0", pipeline.Vars["version"])
@@ -219,7 +219,7 @@ include:
 	// Check that Decl is not nil
 	assert.NotNil(t, step.Decl)
 
-	// Check that Include is loaded
+	// Check that Include loads
 	assert.NotNil(t, step.Include)
 	assert.Len(t, step.Include.Files, 1)
 	assert.Equal(t, tmpFile.Name(), step.Include.Files[0])
@@ -250,7 +250,7 @@ steps:
 	// Check that IsRootLevel correctly identifies nested jobs
 	assert.False(t, job.IsRootLevel())
 
-	// Check that root level jobs are identified correctly
+	// Check the root level job detection
 	job.Name = "rootjob"
 	assert.True(t, job.IsRootLevel())
 }
@@ -273,7 +273,7 @@ env:
 	// Check that Decl is not nil
 	assert.NotNil(t, step.Decl)
 
-	// Check that Env is loaded
+	// Check that Env loads
 	assert.NotNil(t, step.Env)
 	assert.NotNil(t, step.Env.Vars)
 	assert.Equal(t, "myvalue", step.Env.Vars["MY_VAR"])
@@ -300,7 +300,7 @@ steps:
 	// Check that Decl is not nil
 	assert.NotNil(t, job.Decl)
 
-	// Check that Env is loaded
+	// Check that Env loads
 	assert.NotNil(t, job.Env)
 	assert.NotNil(t, job.Env.Vars)
 	assert.Equal(t, "job_env_value", job.Env.Vars["JOB_ENV_VAR"])
@@ -436,7 +436,7 @@ cmds:
 	err := yaml.Unmarshal([]byte(yamlContent), &step)
 	assert.NoError(t, err)
 
-	// Check that Cmds are loaded
+	// Check that Cmds load
 	assert.Equal(t, 3, len(step.Cmds))
 	assert.Equal(t, "echo \"step 1\"", step.Cmds[0])
 	assert.Equal(t, "echo \"step 2\"", step.Cmds[1])
@@ -457,7 +457,7 @@ cmd: docker compose down
 	err := yaml.Unmarshal([]byte(yamlContent), &job)
 	assert.NoError(t, err)
 
-	// Check that a synthetic step was created
+	// Check for the synthetic step
 	assert.NotNil(t, job.Steps)
 	assert.Len(t, job.Steps, 1)
 	assert.Equal(t, "docker compose down", job.Steps[0].Run)
@@ -477,7 +477,7 @@ run: go test ./...
 	err := yaml.Unmarshal([]byte(yamlContent), &job)
 	assert.NoError(t, err)
 
-	// Check that a synthetic step was created
+	// Check for the synthetic step
 	assert.NotNil(t, job.Steps)
 	assert.Len(t, job.Steps, 1)
 	assert.Equal(t, "go test ./...", job.Steps[0].Run)
@@ -496,7 +496,7 @@ run: should be ignored
 	err := yaml.Unmarshal([]byte(yamlContent), &job)
 	assert.NoError(t, err)
 
-	// Check that cmd was used for the synthetic step
+	// Check that the synthetic step uses cmd
 	assert.NotNil(t, job.Steps)
 	assert.Len(t, job.Steps, 1)
 	assert.Equal(t, "docker compose up", job.Steps[0].Run)
@@ -515,10 +515,10 @@ steps:
 	err := yaml.Unmarshal([]byte(yamlContent), &job)
 	assert.NoError(t, err)
 
-	// Check that the explicit steps are used, not synthetic
+	// Check that the job keeps the explicit steps and adds no synthetic one
 	assert.Len(t, job.Steps, 1)
 	assert.Equal(t, "echo \"explicit step\"", job.Steps[0].Run)
-	assert.False(t, job.Passthru) // Should not be set when using explicit steps
+	assert.False(t, job.Passthru) // Stays false with explicit steps
 }
 
 // TestJobUnmarshalYAML_NoSyntheticStepWithExistingCmds tests no synthetic step when cmds exist
@@ -534,9 +534,9 @@ cmds:
 	err := yaml.Unmarshal([]byte(yamlContent), &job)
 	assert.NoError(t, err)
 
-	// Check that the explicit cmds are used, not synthetic
+	// Check that the job keeps the explicit cmds and adds no synthetic step
 	assert.Len(t, job.Cmds, 1)
-	assert.Nil(t, job.Steps) // Steps should not be created
+	assert.Nil(t, job.Steps) // No steps get created
 }
 
 // TestJobUnmarshalYAML_StringShorthand tests string shorthand creates synthetic step
@@ -547,7 +547,7 @@ func TestJobUnmarshalYAML_StringShorthand(t *testing.T) {
 	err := yaml.Unmarshal([]byte(yamlContent), &job)
 	assert.NoError(t, err)
 
-	// Check that a synthetic step was created
+	// Check for the synthetic step
 	assert.NotNil(t, job.Steps)
 	assert.Len(t, job.Steps, 1)
 	assert.Equal(t, "docker compose up -d", job.Steps[0].Run)

@@ -219,7 +219,7 @@ func (e *Executor) printSkillList() {
 	}
 
 	output := runner.ListPipelines(pipelines)
-	// Print line by line, trimming trailing newline
+	// Print each line through the output, trimming the trailing newline
 	for _, line := range strings.Split(strings.TrimSuffix(output, "\n"), "\n") {
 		e.out.Info(line)
 	}

@@ -19,7 +19,7 @@ type SlashCommand struct {
 	Handler     func(m *Model, args string) (Model, tea.Cmd)
 }
 
-// SlashRegistry wraps the generic registry to implement CommandLookup.
+// SlashRegistry wraps the generic registry and satisfies CommandLookup.
 type SlashRegistry struct {
 	*registry.Registry[*SlashCommand]
 }

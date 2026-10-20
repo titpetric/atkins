@@ -8,10 +8,10 @@ import (
 )
 
 // Render redraws every GFM pipe table in a markdown document as a
-// bordered ANSI table, colours every ATX heading that was not already
-// coloured by the caller, and leaves everything else untouched.
+// bordered ANSI table, colours every ATX heading the caller left plain,
+// and leaves everything else untouched.
 //
-// With color false the document is returned exactly as it was written,
+// With color false Render returns the document byte for byte,
 // so `atkins --help > help.md` or a piped `atkins --help | less` still
 // gets plain markdown a table-aware reader can parse.
 func Render(doc string, color bool) string {
@@ -56,8 +56,8 @@ func colorizeHeading(line string) string {
 var codeSpan = regexp.MustCompile("`([^`]+)`")
 
 // render draws the table with box-drawing borders: a bright header row,
-// dim borders, and an inline code span in each cell coloured the way a
-// job or flag name is coloured everywhere else in the document.
+// dim borders, and an inline code span in each cell coloured the way the
+// rest of the document colours a job or flag name.
 func (t *Table) render() string {
 	cols := len(t.Headers)
 
@@ -98,8 +98,8 @@ func (t *Table) render() string {
 }
 
 // colorizeRow renders every cell's inline code spans in orange, the
-// header row in bright white. A cell with no code span is left plain: a
-// column like "What it does" is prose, not a value.
+// header row in bright white. A cell with no code span stays plain: a
+// column like "What it does" holds prose.
 func colorizeRow(cells []string, header bool) []string {
 	out := make([]string, len(cells))
 	for i, cell := range cells {

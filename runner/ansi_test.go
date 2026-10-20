@@ -19,7 +19,7 @@ func TestSanitize_PlainText(t *testing.T) {
 }
 
 func TestSanitize_ColorSequencesPreserved(t *testing.T) {
-	// Colors should be preserved in output
+	// Output keeps the colors
 	input := "\033[33m∅\033[0m  colors\n\033[32m✓\033[0m  model (6ms)"
 	lines, err := Sanitize(input)
 	assert.NoError(t, err)
@@ -43,7 +43,7 @@ func TestSanitize_CarriageReturnPartialOverwrite(t *testing.T) {
 }
 
 func TestSanitize_CarriageReturnWithColors(t *testing.T) {
-	// Colors should be preserved after \r processing
+	// Colors survive \r processing
 	input := "old text\r\033[32mnew\033[0m"
 	lines, err := Sanitize(input)
 	assert.NoError(t, err)
@@ -51,7 +51,7 @@ func TestSanitize_CarriageReturnWithColors(t *testing.T) {
 }
 
 func TestSanitize_256ColorPreserved(t *testing.T) {
-	// 256-color sequence should be preserved
+	// Output keeps the 256-color sequence
 	input := "\033[38;5;208morange\033[0m text"
 	lines, err := Sanitize(input)
 	assert.NoError(t, err)
@@ -90,7 +90,7 @@ func TestSanitize_CursorUpClearPartial(t *testing.T) {
 }
 
 func TestSanitize_CursorUpClearMultiple(t *testing.T) {
-	// Multiple cursor up + clear sequences (progressive updates)
+	// Repeated cursor up + clear sequences (progressive updates)
 	input := "v1\n\033[1A\033[Jv2\n\033[1A\033[Jv3"
 	lines, err := Sanitize(input)
 	assert.NoError(t, err)
@@ -98,7 +98,7 @@ func TestSanitize_CursorUpClearMultiple(t *testing.T) {
 }
 
 func TestSanitize_CursorUpClearWithColors(t *testing.T) {
-	// Colors should be preserved through cursor up + clear
+	// Colors survive cursor up + clear
 	input := "\033[32mold\033[0m\n\033[1A\033[J\033[33mnew\033[0m"
 	lines, err := Sanitize(input)
 	assert.NoError(t, err)

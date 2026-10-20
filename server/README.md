@@ -87,24 +87,24 @@ bearing: templ emits its imports as two single-line statements that
 `splint fix` merges, and generating afterwards would leave the
 committed files permanently one `fmt` behind.
 
-The generated `*_templ.go` files are committed, exactly as
-`model/types.mig.go` is, so `go build` and `go test` need no extra tool
-and neither does CI. They say `DO NOT EDIT`: change the `.templ` and
-regenerate. For the same reason there is no `templ generate -check` gate
-— a check would fail on formatting the formatters have not run yet.
+The repository commits the generated `*_templ.go` files, exactly as it
+commits `model/types.mig.go`, so `go build` and `go test` need no extra
+tool and neither does CI. They say `DO NOT EDIT`: change the `.templ` and
+regenerate. For the same reason the build has no `templ generate -check`
+gate: a check would fail on formatting the formatters have not run yet.
 
-Components are unexported and named `<thing>View`, because `Handlers`
-already has exported `Index` and `Job` methods. They take their data as
-a `*<thing>Page` struct, and whatever else they need is passed in rather
-than reached for: `Links` carries the job, artefact and listing URLs,
+Components start lowercase and take the name `<thing>View`, because
+`Handlers` already has exported `Index` and `Job` methods. They take
+their data as a `*<thing>Page` struct, and the caller passes in whatever
+else they need: `Links` carries the job, artefact and listing URLs,
 because a package-level component cannot call a method on `Handlers` and
 whether a link needs a view token is a runtime setting. Render tests
-construct a `Links{}` rather than a `Handlers` full of storage pointers
-they never call.
+construct a `Links{}` and skip building a `Handlers` full of storage
+pointers they never call.
 
-Escaping is templ's, which means it is the compiler's: an interpolated
-value is escaped for the context it lands in, and there is no raw-HTML
-escape hatch anywhere in this package.
+Escaping belongs to templ, and so to its compiler: the compiler escapes
+an interpolated value for the context it lands in, and this package has
+no raw-HTML escape hatch anywhere.
 
 ## Database access
 
@@ -117,39 +117,38 @@ return client(s.db).Get[model.User](ctx, query, id)
 ```
 
 A `*pdo.PDO` is request-scoped and not safe for concurrent use, so every
-storage method allocates one over the shared `*sqlx.DB` pool. Storage
+storage method creates one over the shared `*sqlx.DB` pool. Storage
 functions are transaction-agnostic: the same call joins an open
 transaction or runs standalone, so `Claim` composes without a second
 code path.
 
 The pool comes from the platform's connection provider, named `atkins`
 (`PLATFORM_DB_ATKINS`) and falling back to `PLATFORM_DB_DEFAULT`.
-`Options.Connection` overrides the name, which is how the module tests
-give each case its own database: the platform caches pools by name for
+`Options.Connection` overrides the name. The module tests use it to set
+a separate database for each case: the platform caches pools by name for
 the life of the process.
 
 ## Artefacts
 
-A job's output splits in two. `job_artefact` holds what the file is —
-job, path, size, media type, SHA256 — and `blob` holds the bytes,
+A job's output splits in two. `job_artefact` holds what the file is:
+job, path, size, media type and SHA256. `blob` holds the bytes,
 addressed by the `storage_key` on the row.
 
-The split is what keeps an object store backend to one interface: `Put`,
+The split keeps an object store backend to one interface: `Put`,
 `Open`, `Remove` over a key namespace, with no SQL and no handler near
-it. `blob.Dir` writes under a root directory, which is the right first
-backend and probably the right one for most installs — the database is
-already on a disk, artefacts are written once and read rarely, and a
-directory is something an operator can back up without asking anybody
-for a bucket.
+it. `blob.Dir` writes under a root directory. That fits as the first
+backend and fits most installs too: the database already sits on a
+disk, the server writes artefacts once and reads them rarely, and an
+operator can back up a directory without a bucket from anybody.
 
-`JobArtefactStorage` owns both halves so they cannot drift: bytes are
-written before the row exists, and removed if the insert fails; a
-retention sweep removes bytes first and then soft deletes the row, so
-the failure mode is a row that reads as "swept" rather than a file
-nothing will ever clean up.
+`JobArtefactStorage` owns both halves so they cannot drift: it writes
+the bytes before the row exists, and removes them if the insert fails; a
+retention sweep removes bytes first and then soft deletes the row. The
+failure mode is a row that reads as "swept", and never a file nothing
+will clean up.
 
-The count and size limits are settings rather than constants, because
-the moment they matter is the moment a disk is filling, and that is the
+The count and size limits are settings and not constants, because the
+moment they matter is the moment a disk is filling, and that is the
 worst moment to need a redeploy.
 
 ## Lifecycle
@@ -158,153 +157,152 @@ worst moment to need a redeploy.
 artefact root, and starts two background sweeps. `Mount` registers
 routes. `Stop` cancels both and waits for them.
 
-A root the server cannot create is fatal at start-up rather than a
-surprise on the first job that produces a file.
+A root the server cannot create fails the start-up, so the first job
+that produces a file meets no surprise.
 
-The lease sweep is the reason an agent can die without stranding a job:
-a `running` job whose `lease_expires_at` has passed is moved to
-`timeout` and can be retried. It carries the artefact retention pass
-too, which reads its setting on every tick rather than at start-up.
+The lease sweep lets an agent die without stranding a job: it moves a
+`running` job whose `lease_expires_at` has passed to `timeout`, and a
+client can retry it. The lease sweep carries the artefact retention pass
+too, which reads its setting on every tick, and not once at start-up.
 
 The retention sweep applies `job.retention` and `job.log_retention`. It
-is a second ticker rather than another statement in the first, because
-the two have nothing in common but a timer: reclaiming is one cheap
-UPDATE that has to happen within a lease of an agent dying, and
-retention walks two tables about as often as a log file is worth
-rotating. Its cadence is `Options.RetentionInterval`, a start-up flag,
-while the windows are settings — the cadence is a property of the
-machine, the windows are policy.
+runs on a second ticker, separate from the first, because the two share
+nothing but a timer: reclaiming is one cheap UPDATE that has to happen
+within a lease of an agent dying, and retention walks two tables about
+as often as a log file is worth rotating. Its cadence is
+`Options.RetentionInterval`, a start-up flag, while the windows are
+settings: the cadence is a property of the machine, the windows are
+policy.
 
 `JobStorage.Purge` deletes in bounded batches and stops after
 `DefaultRetentionBatches` of them, reporting `Partial` so the next tick
-knows there is more. A first sweep of an instance that has been running
-for a year is therefore a series of small deletes rather than one that
-holds `job_log` for minutes. The batch for expired output is selected
-from `job_log` joined to `job`, not from `job`: selecting jobs and
-deleting their logs would keep re-reading jobs whose output was already
-gone, and a large backlog would never be worked through.
+sees more work waiting. A first sweep of an instance that has run for a
+year makes a series of small deletes, and none of them holds `job_log`
+for minutes. The batch for expired output selects from `job_log` joined
+to `job`, and never from `job` alone: selecting jobs and deleting their
+logs would keep re-reading jobs with no output left, and a
+large backlog would never drain.
 
-Neither window touches a job that has not settled. A pending job is not
-old, it is waiting.
+Neither window touches a job that has not settled. A pending job is
+waiting, and age does not apply to it.
 
 ## Authentication and roles
 
 Access tokens are short-lived HS256 JWTs carrying `user_id`,
-`session_id` and a `jti`. Refresh tokens are 32 random bytes stored on
-the session row and rotated on every use.
+`session_id` and a `jti`. Refresh tokens are 32 random bytes that the
+server stores on the session row and rotates on every use.
 
-Binding the access token to a session is what makes logout immediate:
-the middleware rejects a token whose session is revoked, rather than
-waiting for the token to expire. It also avoids keeping a revocation
-list of every access token ever issued.
+Binding the access token to a session makes logout immediate: the
+middleware rejects a token whose session carries a revocation, without waiting for
+the token to expire. It also avoids keeping a revocation list of every
+access token the server ever issued.
 
-Three flags on `user`, rather than a role table, because there are three
-things to decide:
+The `user` row has three flags and no role table, because the server
+makes three decisions:
 
-- `is_admin` gates `/api/admin/*`. The API refuses to remove the last
-  active admin, so an instance cannot be locked out of itself.
-- `is_agent` gates the queue and the deploy keys. It is reachable only
-  through `/api/agent/enrol` with the shared token, never through
-  registration, so a self-registered account cannot promote itself into
-  reading private keys.
+- `is_admin` gates `/api/admin/*`. The API refuses removal of the last
+  active admin, so an instance cannot lock itself out.
+- `is_agent` gates the queue and the deploy keys. Only
+  `/api/agent/enrol` with the shared token sets it, never registration,
+  so a self-registered account cannot promote itself into reading
+  private keys.
 - `is_active` gates every authenticated call.
 
-Agents are excluded from the human user count. An agent enrolling before
-any human therefore neither claims the bootstrap admin slot nor closes
-registration behind it.
+The human user count leaves out agents. An agent enrolling before any
+human neither claims the bootstrap admin slot nor closes registration
+behind it.
 
-The invariant that there is always one way back in lives in
+The invariant that one way back in always exists lives in
 `storage.UserStorage.GuardLastAdmin`, not in a handler. Both the JSON
-API and the admin pages change these flags, and an instance that can be
-locked out through one door is locked out either way.
+API and the admin pages change these flags, and an instance that one
+door can lock out stays locked out either way.
 
 ## Browser sessions
 
 The admin pages need a session; the CLI login issues a bearer token. The
-cookie names a row in the same `session` table rather than introducing a
-second authentication system:
+cookie names a row in the same `session` table, so the server runs one
+authentication system:
 
 ```text
 atkins_session = <session id>.<HMAC-SHA256(signing key, "cookie\0" + id)>
 ```
 
-The signature is what makes it safe to name a session in a cookie: a
-ULID is time-ordered and partly guessable, so an unsigned id would be
-an invitation. Everything else follows from the row — revoked, expired,
-user deactivated — so signing out of the browser has the same effect as
+The signature makes it safe to name a session in a cookie: a ULID is
+time-ordered and partly guessable, so an unsigned id would be an
+invitation. Everything else follows from the row (revoked, expired, user
+deactivated), so signing out of the browser has the same effect as
 `atkins --logout`, and rotating the signing key ends both.
 
 The cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` over TLS,
-including behind a proxy that sets `X-Forwarded-Proto`. It is not
-`Secure` over plain http, because a `Secure` cookie is never sent back
-and the instance on `localhost:3200` has to be usable.
+including behind a proxy that sets `X-Forwarded-Proto`. Over plain http
+the cookie drops `Secure`, because a browser never sends a `Secure`
+cookie back there and the instance on `localhost:3200` has to work.
 
 CSRF is `HMAC(signing key, "csrf\0" + session id)` in a hidden field.
 Deriving it costs no storage and no second cookie, and the purpose
-prefix means the cookie value and the CSRF token are not each other. A
-post is refused unless it carries the token, and separately unless its
-`Origin` is either absent or this host — `SameSite` covers browsers that
+prefix keeps the cookie value and the CSRF token distinct. The server
+refuses a post unless it carries the token, and separately unless its
+`Origin` is either absent or this host. `SameSite` covers browsers that
 honour it, the origin check covers those that don't, and the token
 covers a same-site injection that can reach the form but not read it.
 
-`/job/{ULID}` stays outside all of this. atkins prints one URL and a
+`/job/{ULID}` stays outside this scheme. atkins prints one URL and a
 person pastes it into a browser; putting a login in front of that would
-break the only interaction the tool asks for.
+break the only interaction the tool needs from a person.
 
 ## Policy
 
-`repository.policy` is `open` or `allowlist`. Under `allowlist`, a
-dispatch is refused unless an active `repository_rule` pattern matches
-the repository slug.
+`repository.policy` is `open` or `allowlist`. Under `allowlist`, the
+server refuses a dispatch unless an active `repository_rule` pattern
+matches the repository slug.
 
-The rule is enforced in two places on purpose. The server refuses the
-dispatch, and the agent checks again before cloning: a job can outlive
-the rule that admitted it, and a repository removed from the allowlist
-must not be built by a job queued while it was still listed. An agent
-that cannot read the policy refuses to run, so a server outage does not
-turn an allowlist into an open door.
+Two places enforce the rule. The server refuses the dispatch, and the
+agent checks again before cloning: a job can outlive the rule that
+admitted it, and a job queued while a repository sat on the allowlist
+must not build it after its removal. An agent that cannot read the
+policy does not run the job, so a server outage does not turn an allowlist
+into an open door.
 
-Settings are typed and validated against a registry in
-`model/setting.go`, cached in memory by `storage.SettingStorage` because
-they are read on the dispatch path, and fall back to a registry default
-so the table is empty on a fresh instance.
+Settings carry types and pass validation against a registry in
+`model/setting.go`. `storage.SettingStorage` caches them in memory
+because the dispatch path reads them, and each falls back to a registry
+default so the table is empty on a fresh instance.
 
 ## Visibility
 
 `job.visibility` is `private` or `public`, and it governs two surfaces.
 
 Over the API, `private` narrows job reads to the caller: their own jobs,
-and everything under a job tree they started. The tree half is not
-decoration — a pipeline that clears `ATKINS_NO_DISPATCH` queues its
-children under the agent's credentials, so scoping on `user_id` alone
-would hide a fan-out from the person who started it. Admins and agents
-are exempt: an admin is what the flag is for, and an agent works the
-whole queue. A job the caller may not read is a 404, because "not
-yours" and "not here" must look the same.
+and everything under a job tree they started. The tree half matters: a
+pipeline that clears `ATKINS_NO_DISPATCH` queues its children under the
+agent's credentials, so scoping on `user_id` alone would hide a fan-out
+from the person who started it. Admins and agents skip the check: the
+flag exists for admins, and an agent works the whole queue. A job the
+caller may not read returns 404, because "not yours" and "not here" must
+look the same.
 
 The pages have no session to check, so `private` checks a per-job token
-in the URL instead: `auth.JWT.ViewToken` is an HMAC of the job ID under
-the signing key. Deriving it rather than storing it means no column to
+in the URL: `auth.JWT.ViewToken` is an HMAC of the job ID under the
+signing key. Deriving it, with nothing stored, means no column to
 migrate, nothing extra in a database dump, and one way to revoke every
-outstanding link — rotate the signing key, which already revokes every
-access token. The token rides in the URL because the requirement it has
-to keep meeting is that atkins prints one line a human pastes into a
-browser.
+outstanding link: rotate the signing key, which already revokes every
+access token. The token rides in the URL because atkins has to keep
+printing one line a human pastes into a browser.
 
 Under `private` the index page lists nothing: no token can scope a
-listing and there is no session to scope it by, so `GET /api/job` is
-the listing. The page still answers — it is the front door, and the
+listing and no session exists to scope it by, so `GET /api/job` is
+the listing. The page still answers as the front door, and the
 compose health check probes it.
 
 ## Deploy keys
 
 `ssh_key` rows carry the private half, and it leaves this package only
-through `GET /api/agent/ssh-key`. Admin listings — the JSON one and the
-page — are projected to `api.SSHKeyView`, which has no private field at
-all. The projection is the guard, not a `json:"-"` tag somebody can
+through `GET /api/agent/ssh-key`. Admin listings, the JSON one and the
+page, project to `api.SSHKeyView`, which has no private field at all.
+The projection guards the key, with no `json:"-"` tag somebody can
 forget to add, and a template cannot render a field that isn't there.
-`api.UserView` is the same idea for password hashes.
+`api.UserView` applies the same idea to password hashes.
 
-Keys are parsed on create so a bad paste is a 400 rather than a failed
-job an hour later, and the public half and SHA256 fingerprint are
-derived rather than asked for.
+The server parses keys on create, so a bad paste returns 400 at once and
+never becomes a failed job an hour later. The server derives the public
+half and SHA256 fingerprint from the private key.

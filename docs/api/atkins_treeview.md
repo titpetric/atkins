@@ -63,7 +63,7 @@ type Node struct {
 	UpdatedAt    time.Time
 	StartOffset  float64 // Seconds offset from run start
 	Duration     float64 // Duration in seconds
-	If           string  // Condition that was evaluated (for conditional steps)
+	If           string  // Condition the step evaluates (for conditional steps)
 	Children     []*Node
 	Dependencies []string
 	Deferred     bool
@@ -130,7 +130,7 @@ type Trimmer struct {
 <summary><code>const DefaultMaxArgLen</code></summary>
 
 ```go
-// DefaultMaxArgLen is the default maximum length for argument values before compaction.
+// DefaultMaxArgLen is the default length limit for argument values before compaction.
 const DefaultMaxArgLen = 25
 ```
 
@@ -228,576 +228,576 @@ const (
 - `func (Status) Label () string`
 - `func (Status) String () string`
 
-### BuildFromPipeline
+### `BuildFromPipeline`
 
-BuildFromPipeline constructs a complete tree from a pipeline.
-Returns the root node ready to be rendered.
+`BuildFromPipeline` constructs a complete tree from a pipeline.
+Returns the root node ready for rendering.
 
 ```go
 func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*model.Job, string) ([]string, error)) (*Node, error)
 ```
 
-### CompactArgList
+### `CompactArgList`
 
-CompactArgList truncates a space-separated argument list to fit within
+`CompactArgList` truncates a space-separated argument list to fit within
 maxWidth characters, replacing trailing arguments with <...N more>.
 
 ```go
 func CompactArgList(args []string, maxWidth int) string
 ```
 
-### CompactArgs
+### `CompactArgs`
 
-CompactArgs trims long argument values in a command string.
-Arguments longer than maxArgLen are replaced with <...N chars>.
+`CompactArgs` trims long argument values in a command string.
+It replaces an argument longer than maxArgLen with <...N chars>.
 
 ```go
 func CompactArgs(cmd string, maxArgLen int) string
 ```
 
-### CountLines
+### `CountLines`
 
-CountLines returns the number of lines the tree will render.
+`CountLines` returns the number of lines the tree will render.
 
 ```go
 func CountLines(root *Node) int
 ```
 
-### NewBuilder
+### `NewBuilder`
 
-NewBuilder creates a new tree builder.
+`NewBuilder` creates a new tree builder.
 
 ```go
 func NewBuilder(pipelineName string) *Builder
 ```
 
-### NewCmdNode
+### `NewCmdNode`
 
-NewCmdNode creates a new command node as a child of a step.
+`NewCmdNode` creates a new command node as a child of a step.
 
 ```go
 func NewCmdNode(name string) *Node
 ```
 
-### NewDisplay
+### `NewDisplay`
 
-NewDisplay creates a new display manager.
+`NewDisplay` creates a new display manager.
 
 ```go
 func NewDisplay() *Display
 ```
 
-### NewDisplayWithFinal
+### `NewDisplayWithFinal`
 
-NewDisplayWithFinal creates a new display manager with final-only mode.
+`NewDisplayWithFinal` creates a new display manager with final-only mode.
 
 ```go
 func NewDisplayWithFinal(finalOnly bool) *Display
 ```
 
-### NewExecutionTree
+### `NewExecutionTree`
 
-NewExecutionTree creates a new execution tree with a root node.
+`NewExecutionTree` creates a new execution tree with a root node.
 
 ```go
 func NewExecutionTree(pipelineName string) *ExecutionTree
 ```
 
-### NewJobNode
+### `NewJobNode`
 
-NewJobNode creates a new job node.
+`NewJobNode` creates a new job node.
 
 ```go
 func NewJobNode(name string, nested bool) *Node
 ```
 
-### NewNode
+### `NewNode`
 
-NewNode creates a new tree node.
-Multi-line names are trimmed to the first line with a summary suffix.
+`NewNode` creates a new tree node.
+It trims a multi-line name to the first line with a summary suffix.
 
 ```go
 func NewNode(name string) *Node
 ```
 
-### NewPendingStepNode
+### `NewPendingStepNode`
 
-NewPendingStepNode creates a new step node with pending status.
+`NewPendingStepNode` creates a new step node with pending status.
 
 ```go
 func NewPendingStepNode(name string, deferred, summarize bool) *Node
 ```
 
-### NewRenderer
+### `NewRenderer`
 
-NewRenderer creates a new tree renderer.
+`NewRenderer` creates a new tree renderer.
 
 ```go
 func NewRenderer() *Renderer
 ```
 
-### NewSilentDisplay
+### `NewSilentDisplay`
 
-NewSilentDisplay creates a display that produces no output.
-Used when JSON/YAML output mode is enabled.
+`NewSilentDisplay` creates a display that produces no output.
+Used for JSON/YAML output mode.
 
 ```go
 func NewSilentDisplay() *Display
 ```
 
-### NewStepNode
+### `NewStepNode`
 
-NewStepNode creates a new step node.
+`NewStepNode` creates a new step node.
 
 ```go
 func NewStepNode(name string, deferred bool) *Node
 ```
 
-### NewTreeNode
+### `NewTreeNode`
 
-NewTreeNode creates a new tree node.
+`NewTreeNode` creates a new tree node.
 
 ```go
 func NewTreeNode(name string) *TreeNode
 ```
 
-### NewTrimmer
+### `NewTrimmer`
 
-NewTrimmer creates a new trimmer with detected viewport width.
+`NewTrimmer` creates a new trimmer with detected viewport width.
 
 ```go
 func NewTrimmer() *Trimmer
 ```
 
-### SortByOrder
+### `SortByOrder`
 
-SortByOrder returns the job names from the set in the order specified by orderList.
-Jobs in the set that are not in orderList are appended at the end.
+`SortByOrder` returns the job names from the set in the order specified by orderList.
+Jobs in the set that orderList does not list go at the end.
 
 ```go
 func SortByOrder(jobSet map[string]bool, orderList []string) []string
 ```
 
-### SortJobsByDepth
+### `SortJobsByDepth`
 
-SortJobsByDepth sorts job names by ':' depth, then alphabetically.
-Depth is determined by the count of ':' separators in the job name.
+`SortJobsByDepth` sorts job names by ':' depth, then alphabetically.
+Depth is the count of ':' separators in the job name.
 
 ```go
 func SortJobsByDepth(jobNames []string) []string
 ```
 
-### TrimMultilineLabel
+### `TrimMultilineLabel`
 
-TrimMultilineLabel trims a multi-line string to its first line,
+`TrimMultilineLabel` trims a multi-line string to its first line,
 appending a summary of remaining lines (e.g., "[... and 7 more]").
 
 ```go
 func TrimMultilineLabel(label string) string
 ```
 
-### AddJob
+### `AddJob`
 
-AddJob adds a job node to the tree with all its steps.
+`AddJob` adds a job node to the tree with all its steps.
 
 ```go
 func (*Builder) AddJob(job *model.Job, deps []string, jobName string) *TreeNode
 ```
 
-### AddJobWithSummary
+### `AddJobWithSummary`
 
-AddJobWithSummary adds a job node to the tree with summarization enabled.
+`AddJobWithSummary` adds a job node to the tree with summarization enabled.
 
 ```go
 func (*Builder) AddJobWithSummary(job *model.Job, deps []string, jobName string) *TreeNode
 ```
 
-### AddJobWithoutSteps
+### `AddJobWithoutSteps`
 
-AddJobWithoutSteps adds a job node to the tree without steps (steps should be added manually afterwards).
+`AddJobWithoutSteps` adds a job node to the tree without steps (the caller adds steps afterwards).
 
 ```go
 func (*Builder) AddJobWithoutSteps(deps []string, jobName string, nested bool) *TreeNode
 ```
 
-### Root
+### `Root`
 
-Root returns the root node.
+`Root` returns the root node.
 
 ```go
 func (*Builder) Root() *Node
 ```
 
-### Cleanup
+### `Cleanup`
 
-Cleanup is a no-op kept for API compatibility.
+`Cleanup` is a no-op kept for API compatibility.
 
 ```go
 func (*Display) Cleanup()
 ```
 
-### Invalidate
+### `Invalidate`
 
-Invalidate resets the line counter so the next Render does not
-roll back over output that was produced outside the tree (e.g. by
+`Invalidate` resets the line counter so the next Render does not
+roll back over output from outside the tree (for example from
 an interactive command).
 
 ```go
 func (*Display) Invalidate()
 ```
 
-### IsTerminal
+### `IsTerminal`
 
-IsTerminal returns whether stdout is a TTY.
+`IsTerminal` returns whether stdout is a TTY.
 
 ```go
 func (*Display) IsTerminal() bool
 ```
 
-### Render
+### `Render`
 
-Render outputs the tree, updating in-place if previously rendered.
+`Render` outputs the tree, updating in-place after the first render.
 
 ```go
 func (*Display) Render(root *Node)
 ```
 
-### RenderFinal
+### `RenderFinal`
 
-RenderFinal clears the live-updating tree and prints the full tree statically.
-This should be called when execution completes so the output is scrollable.
+`RenderFinal` clears the live-updating tree and prints the full tree statically.
+Call it when execution completes so the output is scrollable.
 
 ```go
 func (*Display) RenderFinal(root *Node)
 ```
 
-### RenderStatic
+### `RenderStatic`
 
-RenderStatic displays a static tree view (for list).
+`RenderStatic` displays a static tree view (for list).
 
 ```go
 func (*Display) RenderStatic(root *Node)
 ```
 
-### AddJob
+### `AddJob`
 
-AddJob adds a job node to the tree.
+`AddJob` adds a job node to the tree.
 
 ```go
 func (*ExecutionTree) AddJob(job *model.Job) *TreeNode
 ```
 
-### AddJobWithDeps
+### `AddJobWithDeps`
 
-AddJobWithDeps adds a job node to the tree with dependencies.
+`AddJobWithDeps` adds a job node to the tree with dependencies.
 
 ```go
 func (*ExecutionTree) AddJobWithDeps(jobName string, deps []string) *TreeNode
 ```
 
-### CountLines
+### `CountLines`
 
-CountLines returns the number of lines the tree will render.
+`CountLines` returns the number of lines the tree will render.
 
 ```go
 func (*ExecutionTree) CountLines() int
 ```
 
-### RenderTree
+### `RenderTree`
 
-RenderTree renders the entire tree to a string (live rendering).
+`RenderTree` renders the entire tree to a string (live rendering).
 
 ```go
 func (*ExecutionTree) RenderTree() string
 ```
 
-### AddChild
+### `AddChild`
 
-AddChild adds a child node.
+`AddChild` adds a child node.
 
 ```go
 func (*Node) AddChild(child *Node)
 ```
 
-### AddChildren
+### `AddChildren`
 
-AddChildren adds multiple child nodes.
+`AddChildren` adds child nodes.
 
 ```go
 func (*Node) AddChildren(children ...*Node)
 ```
 
-### ClearChildren
+### `ClearChildren`
 
-ClearChildren removes all child nodes.
+`ClearChildren` removes all child nodes.
 
 ```go
 func (*Node) ClearChildren()
 ```
 
-### GetChildren
+### `GetChildren`
 
-GetChildren returns a copy of the children slice (thread-safe).
+`GetChildren` returns a copy of the children slice (thread-safe).
 
 ```go
 func (*Node) GetChildren() []*Node
 ```
 
-### GetDependencies
+### `GetDependencies`
 
-GetDependencies returns a copy of the dependencies slice (thread-safe).
+`GetDependencies` returns a copy of the dependencies slice (thread-safe).
 
 ```go
 func (*Node) GetDependencies() []string
 ```
 
-### GetIf
+### `GetIf`
 
-GetIf returns the condition string (thread-safe).
+`GetIf` returns the condition string (thread-safe).
 
 ```go
 func (*Node) GetIf() string
 ```
 
-### GetName
+### `GetName`
 
-GetName returns the node name (thread-safe).
+`GetName` returns the node name (thread-safe).
 
 ```go
 func (*Node) GetName() string
 ```
 
-### GetOutput
+### `GetOutput`
 
-GetOutput returns a copy of the output lines (thread-safe).
+`GetOutput` returns a copy of the output lines (thread-safe).
 
 ```go
 func (*Node) GetOutput() []string
 ```
 
-### GetStatus
+### `GetStatus`
 
-GetStatus returns the node's status (thread-safe).
+`GetStatus` returns the node's status (thread-safe).
 
 ```go
 func (*Node) GetStatus() Status
 ```
 
-### HasChildren
+### `HasChildren`
 
-HasChildren returns true or false if the node has children.
+`HasChildren` returns true or false if the node has children.
 
 ```go
 func (*Node) HasChildren() bool
 ```
 
-### IsQuiet
+### `IsQuiet`
 
-IsQuiet returns the quiet flag (thread-safe).
+`IsQuiet` returns the quiet flag (thread-safe).
 
 ```go
 func (*Node) IsQuiet() bool
 ```
 
-### IsSummarize
+### `IsSummarize`
 
-IsSummarize returns the summarize flag (thread-safe).
+`IsSummarize` returns the summarize flag (thread-safe).
 
 ```go
 func (*Node) IsSummarize() bool
 ```
 
-### Label
+### `Label`
 
-Label returns the node label with color formatting. Thread-safe.
+`Label` returns the node label with color formatting. Thread-safe.
 
 ```go
 func (*Node) Label() string
 ```
 
-### SetDuration
+### `SetDuration`
 
-SetDuration sets the duration in seconds. Nil-safe: no-op on nil receiver.
+`SetDuration` sets the duration in seconds. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetDuration(duration float64)
 ```
 
-### SetID
+### `SetID`
 
-SetID sets the node ID. Nil-safe: no-op on nil receiver.
+`SetID` sets the node ID. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetID(id string)
 ```
 
-### SetIf
+### `SetIf`
 
-SetIf sets the condition string that was evaluated. Nil-safe: no-op on nil receiver.
+`SetIf` sets the evaluated condition string. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetIf(condition string)
 ```
 
-### SetName
+### `SetName`
 
-SetName sets the display name of a node. Nil-safe: no-op on nil receiver.
-Multi-line names are trimmed to the first line with a summary suffix.
+`SetName` sets the display name of a node. Nil-safe: no-op on nil receiver.
+It trims a multi-line name to the first line with a summary suffix.
 
 ```go
 func (*Node) SetName(name string)
 ```
 
-### SetOutput
+### `SetOutput`
 
-SetOutput sets the output lines for this node (from command execution).
+`SetOutput` sets the output lines for this node (from command execution).
 
 ```go
 func (*Node) SetOutput(lines []string)
 ```
 
-### SetQuiet
+### `SetQuiet`
 
-SetQuiet sets the quiet flag. Nil-safe: no-op on nil receiver.
+`SetQuiet` sets the quiet flag. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetQuiet(quiet bool)
 ```
 
-### SetStartOffset
+### `SetStartOffset`
 
-SetStartOffset sets the start offset from run start. Nil-safe: no-op on nil receiver.
+`SetStartOffset` sets the start offset from run start. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetStartOffset(offset float64)
 ```
 
-### SetStatus
+### `SetStatus`
 
-SetStatus updates a node's status thread-safely. Nil-safe: no-op on nil receiver.
+`SetStatus` updates a node's status thread-safely. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetStatus(status Status)
 ```
 
-### SetSummarize
+### `SetSummarize`
 
-SetSummarize sets the summarize flag. Nil-safe: no-op on nil receiver.
+`SetSummarize` sets the summarize flag. Nil-safe: no-op on nil receiver.
 
 ```go
 func (*Node) SetSummarize(summarize bool)
 ```
 
-### StatusColor
+### `StatusColor`
 
-StatusColor will return the status indicator for the node.
+`StatusColor` will return the status indicator for the node.
 The indicator contains ANSI color sequences. Thread-safe.
 
 ```go
 func (*Node) StatusColor() string
 ```
 
-### Render
+### `Render`
 
-Render converts a node to a string representation during execution (shows status for all nodes).
+`Render` converts a node to a string representation during execution (shows status for all nodes).
 
 ```go
 func (*Renderer) Render(root *Node) string
 ```
 
-### RenderStatic
+### `RenderStatic`
 
-RenderStatic renders a static tree (for list views) without spinners.
+`RenderStatic` renders a static tree (for list views) without spinners.
 
 ```go
 func (*Renderer) RenderStatic(root *Node) string
 ```
 
-### AddStep
+### `AddStep`
 
-AddStep adds a step node to a job.
+`AddStep` adds a step node to a job.
 
 ```go
 func (*TreeNode) AddStep(stepName string) *TreeNode
 ```
 
-### AddStepDeferred
+### `AddStepDeferred`
 
-AddStepDeferred adds a deferred step node to a job.
+`AddStepDeferred` adds a deferred step node to a job.
 
 ```go
 func (*TreeNode) AddStepDeferred(stepName string) *TreeNode
 ```
 
-### GetChildren
+### `GetChildren`
 
-GetChildren returns the children of a node.
+`GetChildren` returns the children of a node.
 
 ```go
 func (*TreeNode) GetChildren() []*TreeNode
 ```
 
-### GetName
+### `GetName`
 
-GetName returns the name of the node.
+`GetName` returns the name of the node.
 
 ```go
 func (*TreeNode) GetName() string
 ```
 
-### GetStatus
+### `GetStatus`
 
-GetStatus returns the status of the node.
+`GetStatus` returns the status of the node.
 
 ```go
 func (*TreeNode) GetStatus() Status
 ```
 
-### SetStatus
+### `SetStatus`
 
-SetStatus updates a node's status.
+`SetStatus` updates a node's status.
 
 ```go
 func (*TreeNode) SetStatus(status Status)
 ```
 
-### GetViewportWidth
+### `GetViewportWidth`
 
-GetViewportWidth returns the current viewport width.
+`GetViewportWidth` returns the current viewport width.
 
 ```go
 func (*Trimmer) GetViewportWidth() int
 ```
 
-### RefreshViewport
+### `RefreshViewport`
 
-RefreshViewport re-detects the terminal width (call before each render).
+`RefreshViewport` re-detects the terminal width (call before each render).
 
 ```go
 func (*Trimmer) RefreshViewport()
 ```
 
-### SetViewportWidth
+### `SetViewportWidth`
 
-SetViewportWidth sets a custom viewport width (useful for testing).
+`SetViewportWidth` sets a custom viewport width (useful for testing).
 
 ```go
 func (*Trimmer) SetViewportWidth(width int)
 ```
 
-### TrimLabel
+### `TrimLabel`
 
-TrimLabel applies both compaction and viewport trimming to a label.
-- maxArgLen: maximum length for argument values before compaction
+`TrimLabel` applies both compaction and viewport trimming to a label.
+- maxArgLen: length limit for argument values before compaction
 - prefixLen: visual length of the prefix (indentation, branch chars).
 
 ```go
 func (*Trimmer) TrimLabel(label string, maxArgLen, prefixLen int) string
 ```
 
-### TrimToViewport
+### `TrimToViewport`
 
-TrimToViewport trims a line to fit within the viewport width.
+`TrimToViewport` trims a line to fit within the viewport width.
 It accounts for ANSI escape codes and adds "..." suffix when trimmed.
 The prefixLen parameter indicates how many visual characters of prefix
 (indentation, branch characters) are already used.
@@ -806,17 +806,17 @@ The prefixLen parameter indicates how many visual characters of prefix
 func (*Trimmer) TrimToViewport(line string, prefixLen int) string
 ```
 
-### Label
+### `Label`
 
-Label returns a lowercase readable label for the Status (for logging/serialization).
+`Label` returns a lowercase readable label for the Status (for logging/serialization).
 
 ```go
 func (Status) Label() string
 ```
 
-### String
+### `String`
 
-String returns a colored string representation of the Status for display.
+`String` returns a colored string representation of the Status for display.
 
 ```go
 func (Status) String() string

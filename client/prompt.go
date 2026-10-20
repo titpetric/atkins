@@ -11,8 +11,8 @@ import (
 	"golang.org/x/term"
 )
 
-// ErrNoTerminal is returned when a password is needed but stdin isn't a
-// terminal and no environment override was provided.
+// ErrNoTerminal reports a password prompt on a stdin that isn't a
+// terminal, with no environment override set.
 var ErrNoTerminal = errors.New("stdin is not a terminal: set ATKINS_PASSWORD to log in non-interactively")
 
 // Environment overrides for non-interactive login and registration.
@@ -35,7 +35,7 @@ type Prompter struct {
 
 // NewPrompter returns a Prompter over stdin and stderr.
 //
-// Prompts go to stderr so that `atkins --login` can be used in a
+// Prompts go to stderr so that `atkins --login` works in a
 // pipeline without the prompt text landing in captured stdout.
 func NewPrompter() *Prompter {
 	return &Prompter{
@@ -48,7 +48,7 @@ func NewPrompter() *Prompter {
 // NewPrompterFrom returns a Prompter reading from in and writing to out.
 //
 // The reader is not a terminal, so Password refuses unless the value
-// comes from the environment — which is the behaviour a script gets,
+// comes from the environment. A script gets this behaviour,
 // and the behaviour worth testing.
 func NewPrompterFrom(in io.Reader, out io.Writer) *Prompter {
 	return &Prompter{
@@ -59,7 +59,7 @@ func NewPrompterFrom(in io.Reader, out io.Writer) *Prompter {
 }
 
 // Line prompts for a value, returning the trimmed input. When env names
-// a set environment variable, its value is used and no prompt is shown.
+// a set environment variable, Line returns its value and shows no prompt.
 func (p *Prompter) Line(label, env string) (string, error) {
 	if env != "" {
 		if value := os.Getenv(env); value != "" {

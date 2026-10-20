@@ -42,7 +42,7 @@ Atkins supports two interchangeable syntax styles:
 | GitHub Actions | `jobs:`      | `steps:`, `run:` |
 | Taskfile       | `tasks:`     | `cmds:`, `cmd:`  |
 
-Both styles can be mixed in the same file.
+One file can mix both styles.
 
 ## See Also
 

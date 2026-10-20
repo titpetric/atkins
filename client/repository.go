@@ -7,12 +7,12 @@ import (
 	"strings"
 )
 
-// ErrNotARepository is returned when a directory is not inside a git
-// work tree. Dispatch is skipped in that case: without a repository
+// ErrNotARepository reports a directory outside any git work tree.
+// Dispatch skips that case: without a repository
 // there is nothing for another machine to check out.
 var ErrNotARepository = errors.New("not inside a git repository")
 
-// Errors reported when a checkout cannot be reproduced elsewhere.
+// Errors for a checkout that no other machine can reproduce.
 var (
 	// ErrDirtyCheckout is a work tree with uncommitted changes.
 	ErrDirtyCheckout = errors.New("the working tree has uncommitted changes")
@@ -22,7 +22,7 @@ var (
 )
 
 // Checkout is what the client reports about the working copy a run
-// happens in. It is the whole of what the server needs to reproduce the
+// happens in. The server needs exactly this to reproduce the
 // run elsewhere: which repository, where inside it, at what revision.
 type Checkout struct {
 	// Root is the absolute path of the repository work tree.
@@ -51,10 +51,10 @@ type Checkout struct {
 // Publishable reports whether another machine could reproduce this
 // checkout from the repository's remote.
 //
-// A dispatched run names the commit it was started from, so a tree that
+// A dispatched run names the commit it starts from, so a tree that
 // only exists on this disk queues a job that fails in `git checkout`
-// minutes later. The refusal belongs here, where the fix — commit and
-// push, or run locally — is still in front of the person.
+// minutes later. The refusal belongs here, where the fix (commit and
+// push, or run locally) is still in front of the person.
 func (c *Checkout) Publishable() error {
 	switch {
 	case c.Dirty:
@@ -67,10 +67,10 @@ func (c *Checkout) Publishable() error {
 
 // Payload converts the checkout into a dispatch payload.
 //
-// The ref is the commit rather than the branch. A dispatched run belongs
+// The ref is the commit and never the branch. A dispatched run belongs
 // to the code in front of the person who started it, and a branch name
 // would let the agent build whatever that branch has moved to by the
-// time the job is claimed.
+// time an agent claims the job.
 func (c *Checkout) Payload() RepositoryPayload {
 	ref := c.Revision
 	if ref == "" {
@@ -86,7 +86,8 @@ func (c *Checkout) Payload() RepositoryPayload {
 
 // DetectCheckout inspects the git work tree containing dir.
 //
-// A repository with no remote is rejected along with a plain directory:
+// DetectCheckout rejects a repository with no remote along with a plain
+// directory:
 // the point of dispatch is that some other machine can fetch the same
 // code, and a purely local repository fails that test.
 func DetectCheckout(dir string) (*Checkout, error) {
@@ -134,8 +135,8 @@ func detectRemoteURL(dir string) string {
 // detectUnpushed reports whether HEAD is missing from every remote.
 //
 // The question is which commit, not which branch: a commit reachable
-// from any remote ref can be cloned, whatever the local branch is
-// called and whether or not it tracks anything.
+// from any remote ref is available to clone, whatever the local branch's
+// name and whether it tracks anything.
 func detectUnpushed(dir string) bool {
 	// A repository with no commits has nothing to push and nothing to
 	// dispatch; the empty revision is what reports that.
@@ -145,8 +146,8 @@ func detectUnpushed(dir string) bool {
 	return git(dir, "rev-list", "-n", "1", "HEAD", "--not", "--remotes") != ""
 }
 
-// detectDefaultBranch reads origin's HEAD, e.g. `origin/main`. It is
-// advisory: a checkout without a cached remote HEAD reports nothing.
+// detectDefaultBranch reads origin's HEAD, e.g. `origin/main`. The value
+// is advisory: a checkout without a cached remote HEAD reports nothing.
 func detectDefaultBranch(dir string) string {
 	head := git(dir, "rev-parse", "--abbrev-ref", "origin/HEAD")
 	if head == "" {

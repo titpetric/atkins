@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Command represents a command to be executed.
+// Command describes a command for an Executor to run.
 type Command struct {
 	// Name is the command or executable name.
 	Name string
@@ -14,17 +14,17 @@ type Command struct {
 	// Dir is the working directory for the command.
 	Dir string
 	// Env is the environment variables for the command.
-	// Each entry should be in the form "KEY=VALUE".
+	// Each entry takes the form "KEY=VALUE".
 	Env []string
 	// Stdin is an optional reader for process input.
 	Stdin io.Reader
 	// Stdout is an optional writer for stdout.
-	// If nil, output is captured in Result.
+	// If nil, Result captures the output.
 	Stdout io.Writer
 	// Stderr is an optional writer for stderr.
-	// If nil, output is captured in Result.
+	// If nil, Result captures the output.
 	Stderr io.Writer
-	// Timeout is the maximum duration for the command.
+	// Timeout is the longest the command may run.
 	// Zero means no timeout.
 	Timeout time.Duration
 	// UsePTY enables pseudo-terminal allocation for the command.

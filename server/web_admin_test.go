@@ -13,7 +13,7 @@ import (
 	"github.com/titpetric/atkins/server/model"
 )
 
-// adminPages are the five pages the admin UI is made of.
+// adminPages are the five pages that make up the admin UI.
 var adminPages = []string{
 	"/admin/repository",
 	"/admin/allowlist",
@@ -25,8 +25,8 @@ var adminPages = []string{
 // csrfPattern finds the token a page hands to its forms.
 var csrfPattern = regexp.MustCompile(`name="csrf_token" value="([^"]+)"`)
 
-// browser stands in for a person with a cookie jar. The admin pages are
-// driven the way a browser drives them — form posts and redirects — so
+// browser stands in for a person with a cookie jar. The tests drive the
+// admin pages the way a browser drives them (form posts and redirects), so
 // the tests exercise the same path a person does.
 type browser struct {
 	t      *testing.T
@@ -123,8 +123,8 @@ func (b *browser) post(from, path string, form urlpkg.Values) (int, string) {
 
 // login signs the browser in and leaves the cookie in the jar.
 //
-// It stops at the redirect rather than following it: a non-admin logs
-// in perfectly well and is then refused the page it lands on, and that
+// It stops at the redirect and does not follow it: a non-admin logs
+// in perfectly well and the page it lands on then refuses it, and that
 // is a case worth being able to set up.
 func (b *browser) login(email, password string) {
 	b.t.Helper()
@@ -144,7 +144,7 @@ func (b *browser) login(email, password string) {
 	assert.True(b.t, cookies[0].HttpOnly)
 }
 
-// openRegistration lets a second account be created.
+// openRegistration lets a second account register.
 func openRegistration(t *testing.T, url, token string) {
 	t.Helper()
 	setSetting(t, url, token, model.SettingRegistrationOpen, "true")
@@ -225,8 +225,8 @@ func TestLoginRefusesBadCredentials(t *testing.T) {
 		"password": {"wrong"},
 	})
 
-	// The form comes back with a message rather than a redirect, and
-	// nothing is set on the way out.
+	// The form returns a message and no redirect, and the handler sets
+	// nothing on the way out.
 	assert.Equal(t, http.StatusOK, response.StatusCode)
 	assert.Empty(t, response.Cookies())
 
@@ -266,7 +266,7 @@ func TestLogoutEndsTheSession(t *testing.T) {
 }
 
 // TestFormsRefuseAMissingOrWrongCSRFToken is the whole reason the token
-// exists: a session cookie is sent with a cross-site post too.
+// exists: a browser sends a session cookie with a cross-site post too.
 func TestFormsRefuseAMissingOrWrongCSRFToken(t *testing.T) {
 	url := testServer(t)
 	register(t, url)
@@ -282,7 +282,7 @@ func TestFormsRefuseAMissingOrWrongCSRFToken(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, response.StatusCode)
 	}
 
-	// And nothing was written.
+	// And the store holds nothing new.
 	var rules []map[string]any
 	admin := loginToken(t, url)
 	status := call(t, http.MethodGet, url+"/api/admin/repository", admin, nil, &rules)
@@ -336,7 +336,7 @@ func TestAllowlistFormLifecycle(t *testing.T) {
 
 	ruleID := attributeValue(t, body, `action="/admin/allowlist/`)
 
-	// A duplicate is refused, and says so on the page.
+	// The page refuses a duplicate, and says so.
 	_, body = operator.post("/admin/allowlist", "/admin/allowlist", urlpkg.Values{
 		"pattern": {"github.com/titpetric/*"},
 	})
@@ -356,7 +356,7 @@ func TestAllowlistFormLifecycle(t *testing.T) {
 }
 
 // TestAllowlistPageEscapesAPattern proves the escaping end to end: the
-// pattern is written through the API and rendered by the page.
+// test writes the pattern through the API and the page renders it.
 func TestAllowlistPageEscapesAPattern(t *testing.T) {
 	url := testServer(t)
 	admin := register(t, url)
@@ -392,7 +392,7 @@ func TestSettingFormSetsAndResets(t *testing.T) {
 	_, body = operator.get("/admin/allowlist")
 	assert.Contains(t, body, "nothing will run")
 
-	// A value the registry refuses is reported, not stored.
+	// The page reports a value the registry refuses, and stores nothing.
 	_, body = operator.post("/admin/setting", "/admin/setting", urlpkg.Values{
 		"name":   {model.SettingJobMaxDepth},
 		"value":  {"many"},
@@ -436,7 +436,7 @@ func TestUserFormTogglesFlags(t *testing.T) {
 	})
 	assert.Contains(t, body, "dev: active is now false")
 
-	// The deactivated account is stopped at the door.
+	// The door stops the deactivated account.
 	status = call(t, http.MethodGet, url+"/api/user/whoami", second.Token, nil, nil)
 	assert.Equal(t, http.StatusForbidden, status)
 }
@@ -455,7 +455,7 @@ func TestUserFormRefusesToRemoveTheLastAdmin(t *testing.T) {
 	assert.Contains(t, body, "the last active admin")
 	assert.Contains(t, body, "disabled title=")
 
-	// A disabled button is a courtesy, not a control.
+	// A disabled button is a courtesy; the control lives in the API.
 	_, body = operator.post("/admin/user", "/admin/user/"+admin.UserID, urlpkg.Values{
 		"field": {"admin"},
 		"value": {"false"},
@@ -486,10 +486,10 @@ func TestSSHKeyFormLifecycle(t *testing.T) {
 	assert.Contains(t, body, "SHA256:")
 	assert.Contains(t, body, "ssh-ed25519")
 
-	// The page renders the key it was just given, and none of what it
-	// renders is the half that matters. (The empty textarea's
-	// placeholder mentions the PEM header, so the check is on the body
-	// of the key rather than on its banner.)
+	// The page renders the key the form just submitted, and none of what
+	// it renders is the private half. (The empty textarea's placeholder
+	// mentions the PEM header, so the check looks at the body of the key
+	// and skips its banner.)
 	base64Lines := 0
 	for _, line := range strings.Split(strings.TrimSpace(private), "\n") {
 		if len(line) > 20 && !strings.HasPrefix(line, "-----") {
@@ -512,7 +512,7 @@ func TestSSHKeyFormLifecycle(t *testing.T) {
 	assert.Contains(t, body, "Key removed")
 	assert.Contains(t, body, "No deploy keys")
 
-	// A key that does not parse is refused at the form.
+	// The form refuses a key that does not parse.
 	_, body = operator.post("/admin/ssh-key", "/admin/ssh-key", urlpkg.Values{
 		"name":        {"broken"},
 		"private_key": {"not a key at all"},
@@ -531,8 +531,8 @@ func TestTriggerFormQueuesAJob(t *testing.T) {
 
 	response := operator.hop(http.MethodPost, "/admin/repository/"+first.RepositoryID+"/trigger", urlpkg.Values{
 		"job": {"analyze"},
-		// An agent cd's into this, so the escape has to be dropped here
-		// as it is on /api/dispatch.
+		// An agent cd's into this, so the handler has to drop the escape
+		// here, the same as /api/dispatch.
 		"working_directory": {"../../etc"},
 		"csrf_token":        {operator.csrf("/admin/repository")},
 	})
@@ -551,8 +551,8 @@ func TestTriggerFormQueuesAJob(t *testing.T) {
 	assert.Equal(t, "", job["working_directory"])
 }
 
-// TestTriggerFormObeysTheAllowlist: the button is hidden for a refused
-// repository, and posting anyway is still refused.
+// TestTriggerFormObeysTheAllowlist: the page hides the button for a
+// refused repository, and the server still refuses a post sent anyway.
 func TestTriggerFormObeysTheAllowlist(t *testing.T) {
 	url := testServer(t)
 	admin := register(t, url)
@@ -575,7 +575,7 @@ func TestTriggerFormObeysTheAllowlist(t *testing.T) {
 }
 
 // TestRepositoryPageEscapesAJobCommand: a command is whatever a client
-// dispatched, and it is rendered on this page.
+// dispatched, and this page renders it.
 func TestRepositoryPageEscapesAJobCommand(t *testing.T) {
 	url := testServer(t)
 	admin := register(t, url)
@@ -594,9 +594,10 @@ func TestRepositoryPageEscapesAJobCommand(t *testing.T) {
 // TestJobPagesStayOpen guards the one thing the admin gate must not
 // cover: atkins prints a job URL and a person pastes it into a browser.
 //
-// "Open" means no *session* is required, not that anything goes. A
-// private instance still wants the view token from the printed URL —
-// what must never happen is a job page redirecting a visitor to /login.
+// "Open" means the page requires no *session*, and not that anything
+// goes. A private instance still requires the view token from the
+// printed URL; what must never happen is a job page redirecting a
+// visitor to /login.
 func TestJobPagesStayOpen(t *testing.T) {
 	url := testServer(t)
 	admin := register(t, url)
@@ -608,14 +609,14 @@ func TestJobPagesStayOpen(t *testing.T) {
 	status, _ := anonymous.get("/job/" + job.JobID + "?t=" + job.ViewToken)
 	assert.Equal(t, http.StatusOK, status)
 
-	// Without the token it is refused on its own terms — a 403 about the
-	// link, not a redirect into the admin login.
+	// Without the token the page refuses on its own terms: a 403 about
+	// the link, and no redirect into the admin login.
 	status, body := anonymous.get("/job/" + job.JobID)
 	assert.Equal(t, http.StatusForbidden, status)
 	assert.NotContains(t, body, "/login")
 
-	// The front page answers rather than refusing: it is what a health
-	// check probes, and a private instance simply lists nothing.
+	// The front page answers and does not refuse: a health check probes
+	// it, and a private instance simply lists nothing.
 	status, _ = anonymous.get("/")
 	assert.Equal(t, http.StatusOK, status)
 }
@@ -636,7 +637,7 @@ func loginToken(t *testing.T, base string) string {
 }
 
 // attributeValue pulls the id out of the first form action matching a
-// prefix, which is how these tests find the row they just created.
+// prefix; these tests find the row they just created that way.
 func attributeValue(t *testing.T, body, prefix string) string {
 	t.Helper()
 

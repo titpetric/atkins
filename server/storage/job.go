@@ -23,12 +23,12 @@ const defaultListLimit = 100
 type JobStorage struct {
 	db *sqlx.DB
 
-	// settings is consulted per use rather than read once here.
-	// `job.max_depth` and `job.lease_ttl` are documented as runtime
-	// configuration an admin changes without a restart, and a value
-	// captured at start-up would make that documentation false. A nil
-	// settings store leaves the configured values in charge, which is
-	// what a test constructing storage directly wants.
+	// The storage reads settings on every use, and never once here.
+	// The documentation lists `job.max_depth` and `job.lease_ttl` as
+	// runtime configuration an admin changes without a restart, and a
+	// value captured at start-up would make that documentation false. A
+	// nil settings store leaves the configured values in charge, which
+	// suits a test constructing storage directly.
 	settings *SettingStorage
 
 	// maxDepth bounds how deep a job tree may nest. A pipeline that
@@ -65,7 +65,7 @@ func NewJobStorage(db *sqlx.DB, settings *SettingStorage, maxDepth int64, leaseT
 //
 // Precedence is the same for both of these: a stored setting is an
 // admin's decision and wins; a configured value is the operator's and
-// comes next; the registry default is nobody's, and is what is left.
+// comes next; the registry default is nobody's, and covers the rest.
 func (s *JobStorage) MaxDepth() int64 {
 	if stored, ok := s.override(model.SettingJobMaxDepth); ok {
 		if parsed, err := strconv.ParseInt(stored, 10, 64); err == nil && parsed > 0 {
@@ -102,7 +102,7 @@ func (s *JobStorage) LeaseTTL() time.Duration {
 }
 
 // override reads a setting an admin has actually stored. A setting
-// nobody has touched reports false rather than its registry default,
+// nobody has touched reports false and not its registry default,
 // so a default cannot outrank a configured value.
 func (s *JobStorage) override(name string) (string, bool) {
 	if s.settings == nil {
@@ -120,9 +120,9 @@ type JobRequest struct {
 	RepositoryID string
 	UserID       string
 
-	// WorkingDirectory is relative to the repository root. It is where
-	// the agent runs the command, and it is what lets one repository
-	// carry many independently dispatched projects.
+	// WorkingDirectory is relative to the repository root. The agent
+	// runs the command there, and it lets one repository carry many
+	// independently dispatched projects.
 	WorkingDirectory string
 
 	// Command is the atkins invocation to run, verbatim.
@@ -130,8 +130,8 @@ type JobRequest struct {
 
 	// Ref is what to check out: a branch, a tag, a commit sha or a
 	// fully qualified refname. Empty means the repository's default
-	// branch, resolved by the agent when the job runs rather than here,
-	// so a nightly trigger follows the branch it is pointed at.
+	// branch, which the agent resolves when the job runs and Create
+	// leaves alone, so a nightly trigger follows the branch it names.
 	Ref string
 
 	// CloneDepth limits the history of the job's work tree. 0 is the
@@ -147,10 +147,10 @@ type JobRequest struct {
 	// exits, relative to the directory it ran in.
 	Artefacts []string
 
-	// AgentID names the machine already running the job. Set, the job
-	// is created running and leased to it rather than pending: it is a
-	// run happening somewhere the queue cannot reach — `atkins` on a
-	// laptop — which reports its own log and outcome.
+	// AgentID names the machine already running the job. Set, Create
+	// stores the job as running and leased to it, and skips pending:
+	// this is a run somewhere the queue cannot reach (`atkins` on a
+	// laptop), which reports its own log and outcome.
 	//
 	// The lease is what makes that safe to trust. A local run that dies
 	// without reporting stops renewing, and the server reclaims it as a
@@ -160,8 +160,8 @@ type JobRequest struct {
 
 // Create records a dispatched job.
 //
-// Depth and root are derived from the parent rather than trusted from
-// the client: a job that lies about its depth would sidestep the
+// Create derives depth and root from the parent and never trusts the
+// client for them: a job that lies about its depth would sidestep the
 // runaway-dispatch limit.
 func (s *JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, error) {
 	ctx, span := oida.StartAuto(ctx, s.Create, oida.KindDatabase)
@@ -205,7 +205,7 @@ func (s *JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, er
 		CloneDepth:       req.CloneDepth,
 		Labels:           strings.Join(req.Labels, ","),
 		Params:           params,
-		// Patterns are normalized on the way in, so an agent reading
+		// Create normalizes patterns on the way in, so an agent reading
 		// the column never has to decide what `../../etc` means.
 		ArtefactPaths: model.JoinArtefactPatterns(req.Artefacts),
 		Status:        model.JobStatusPending,
@@ -240,7 +240,7 @@ func (s *JobStorage) Get(ctx context.Context, id string) (*model.Job, error) {
 //
 // The claim runs in a transaction and the UPDATE re-asserts
 // `status = 'pending'`, so two agents racing for the same row produce
-// one winner and one empty poll rather than a job running twice.
+// one winner and one empty poll, and never a job running twice.
 func (s *JobStorage) Claim(ctx context.Context, agentID string, labels []string) (*model.Job, error) {
 	ctx, span := oida.StartAuto(ctx, s.Claim, oida.KindDatabase)
 	defer span.End()
@@ -314,15 +314,15 @@ type CheckoutRequest struct {
 	// branch the agent resolved for a job that named none.
 	Ref string
 
-	// CommitSHA is the commit the work tree was placed at.
+	// CommitSHA is the commit the agent checked the work tree out at.
 	CommitSHA string
 }
 
 // RecordCheckout stores what an agent checked out for a job.
 //
-// It is guarded on the job still running, so a late report from an agent
-// whose lease was already swept cannot rewrite the checkout of the run
-// that replaced it.
+// The write requires the job to still be running, so a late report from
+// an agent whose lease the sweep already took cannot rewrite the
+// checkout of the run that replaced it.
 func (s *JobStorage) RecordCheckout(ctx context.Context, jobID string, req CheckoutRequest) error {
 	ctx, span := oida.StartAuto(ctx, s.RecordCheckout, oida.KindDatabase)
 	defer span.End()
@@ -352,7 +352,7 @@ type StatusRequest struct {
 
 // Finish settles a job into a terminal state.
 //
-// The update is guarded on the job not already being terminal so a late
+// The update requires the job to not already be terminal so a late
 // report from a timed-out agent can't overwrite the outcome the server
 // already recorded.
 func (s *JobStorage) Finish(ctx context.Context, jobID string, req StatusRequest) (*model.Job, error) {
@@ -382,7 +382,7 @@ func (s *JobStorage) Finish(ctx context.Context, jobID string, req StatusRequest
 }
 
 // ReclaimExpired marks running jobs whose lease has lapsed as timed out
-// and returns how many were reclaimed. The server runs this on a ticker
+// and returns how many it reclaimed. The server runs this on a ticker
 // so an agent that disappears mid-job doesn't strand its work.
 func (s *JobStorage) ReclaimExpired(ctx context.Context) (int64, error) {
 	ctx, span := oida.StartAuto(ctx, s.ReclaimExpired, oida.KindDatabase)
@@ -412,8 +412,8 @@ type ListFilter struct {
 
 	// ViewerID restricts the listing to what one user may see: their
 	// own jobs, and everything under a job tree they started. Empty
-	// means the caller may see everything, which is what an admin, an
-	// agent and a public instance all are.
+	// means the caller may see everything, as an admin, an agent and
+	// any user of a public instance can.
 	ViewerID string
 }
 
@@ -444,8 +444,8 @@ func (s *JobStorage) List(ctx context.Context, filter ListFilter) ([]model.Job, 
 	if filter.ViewerID != "" {
 		// A job's owner is whoever dispatched it, and a job dispatched
 		// from inside a running pipeline belongs to the agent's
-		// account rather than to the human who started the pipeline.
-		// Scoping on user_id alone would therefore hide a user's own
+		// account, and not to the human who started the pipeline.
+		// Scoping on user_id alone would hide a user's own
 		// fan-out from them, so the root of the tree decides too.
 		where = append(where, `(user_id = ? OR root_id IN (SELECT id FROM `+model.JobTable+` WHERE user_id = ?))`)
 		args = append(args, filter.ViewerID, filter.ViewerID)
@@ -464,8 +464,8 @@ func (s *JobStorage) List(ctx context.Context, filter ListFilter) ([]model.Job, 
 
 // VisibleTo reports whether a user may read one job.
 //
-// It is the single-job form of ListFilter.ViewerID, and answers the
-// same question: the job is theirs, or it belongs to a tree they
+// VisibleTo is the single-job form of ListFilter.ViewerID, and answers
+// the same question: the job is theirs, or it belongs to a tree they
 // started. Callers who may see everything should not call this.
 func (s *JobStorage) VisibleTo(ctx context.Context, job *model.Job, userID string) (bool, error) {
 	if job == nil || userID == "" {
@@ -475,7 +475,7 @@ func (s *JobStorage) VisibleTo(ctx context.Context, job *model.Job, userID strin
 		return true, nil
 	}
 
-	// A root job has already been checked by its own user_id.
+	// The user_id check already covers a root job.
 	if job.RootID == "" || job.RootID == job.ID {
 		return false, nil
 	}
@@ -483,8 +483,8 @@ func (s *JobStorage) VisibleTo(ctx context.Context, job *model.Job, userID strin
 	root, err := s.Get(ctx, job.RootID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// The root has been swept by retention. Whatever the child
-			// belonged to is gone; fall back to the child's own owner,
+			// Retention already swept the root. Whatever the child
+			// belonged to has vanished; fall back to the child's own owner,
 			// which has already said no.
 			return false, nil
 		}
@@ -498,7 +498,7 @@ func (s *JobStorage) VisibleTo(ctx context.Context, job *model.Job, userID strin
 // may run a job requiring jobLabels (a comma separated list).
 //
 // A job with no labels runs anywhere. A job with labels needs the agent
-// to advertise all of them, so `linux,arm64` does not land on an amd64
+// to advertise every one of them, so `linux,arm64` does not land on an amd64
 // box that only claims `linux`.
 func agentAcceptsJob(agentLabels []string, jobLabels string) bool {
 	required := splitLabels(jobLabels)

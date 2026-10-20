@@ -25,8 +25,8 @@ const (
 	VendorChanged VendorStatus = "changed"
 )
 
-// VendorSkill is a candidate skill file, with the reason it was picked
-// for vendoring once it has been matched against a repository.
+// VendorSkill is a candidate skill file, with the reason Plan picks it
+// for vendoring once it matches against a repository.
 type VendorSkill struct {
 	// ID is the skill namespace, taken from the file name.
 	ID string
@@ -35,13 +35,13 @@ type VendorSkill struct {
 	Path string
 
 	// DocPath is the markdown companion beside Path, empty when the
-	// skill carries none. It is installed alongside the skill file.
+	// skill carries none. Install copies it alongside the skill file.
 	DocPath string
 
 	// Pipeline is the parsed skill.
 	Pipeline *model.Pipeline
 
-	// Reason records why the skill is used here, e.g. the path that
+	// Reason records why the repository uses the skill, e.g. the path that
 	// satisfied its when: block, or the pipeline that references it.
 	Reason string
 
@@ -60,10 +60,10 @@ type VendorSkill struct {
 
 // VendorResult reports what a vendoring run found, matched and wrote.
 type VendorResult struct {
-	// SourceDir is the skills directory that was read.
+	// SourceDir is the skills directory Plan reads.
 	SourceDir string
 
-	// TargetDir is the repository directory that was written to.
+	// TargetDir is the repository directory Install writes to.
 	TargetDir string
 
 	// Found are all skills available in SourceDir.
@@ -89,8 +89,8 @@ func (r *VendorResult) Pending() []string {
 	return pending
 }
 
-// vendorSkipDirs are directory names not descended into when looking for
-// when: matches and pipeline files. Dot directories are skipped too, so
+// vendorSkipDirs are directory names the walk skips when looking for
+// when: matches and pipeline files. The walk skips dot directories too, so
 // the repository's own .atkins/ never matches a skill against itself.
 var vendorSkipDirs = []string{
 	"node_modules",
@@ -112,7 +112,7 @@ type Vendorer struct {
 	// Root is the repository root, the folder holding .git.
 	Root string
 
-	// TargetDir is where skills are written, Root/.atkins/skills.
+	// TargetDir is where Install writes skills, Root/.atkins/skills.
 	TargetDir string
 
 	// SkipDirs are directory names not descended into.
@@ -138,7 +138,7 @@ func FindRepositoryRoot(startDir string) (string, error) {
 	}
 
 	for {
-		// A worktree or a submodule has .git as a file, not a folder.
+		// A worktree or a submodule has .git as a file in place of a folder.
 		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
 			return dir, nil
 		}
@@ -169,8 +169,8 @@ func (v *Vendorer) Run() (*VendorResult, error) {
 // Plan reads the source skills and decides which of them this
 // repository uses, without writing anything.
 //
-// A skill is used when its when: block matches a path anywhere in the
-// repository, when it has no when: block at all (it is active
+// The repository uses a skill when its when: block matches a path anywhere
+// in the repository, when it has no when: block at all (it's active
 // everywhere), or when a pipeline in the repository - or another
 // selected skill - references one of its jobs.
 func (v *Vendorer) Plan() (*VendorResult, error) {
@@ -269,8 +269,8 @@ func (v *Vendorer) Plan() (*VendorResult, error) {
 // compare diffs a skill against the copy the repository carries, and
 // records what installing it would change.
 //
-// A skill is its YAML file and the markdown companion beside it, so both
-// are compared and the counts are the sum. The status is New when the
+// A skill is its YAML file and the markdown companion beside it, so
+// compare diffs both and sums the counts. The status is New when the
 // repository has no copy of the YAML file, and Changed when either file
 // differs.
 func (v *Vendorer) compare(skill *VendorSkill) {
@@ -293,7 +293,7 @@ func (v *Vendorer) compare(skill *VendorSkill) {
 
 // Install copies the selected skills into TargetDir, creating it when it
 // doesn't exist, and overwrites a vendored copy that has drifted from
-// its source. Vendored skills are tracked files like any other, so
+// its source. Git tracks vendored skills like any other file, so
 // reverting an unwanted change is the user's call, not this command's.
 func (v *Vendorer) Install(result *VendorResult) error {
 	if len(result.Pending()) == 0 {
@@ -397,7 +397,7 @@ func (v *Vendorer) walk() ([]string, error) {
 	return dirs, nil
 }
 
-// matchWhen reports whether a skill's when: block is satisfied anywhere
+// matchWhen reports whether a skill's when: block matches anywhere
 // in the repository, and by what. A skill without when: is active
 // everywhere, so it matches by definition.
 func (v *Vendorer) matchWhen(pipeline *model.Pipeline, dirs []string) (reason string, matched bool) {
@@ -435,7 +435,7 @@ func (v *Vendorer) matchWhen(pipeline *model.Pipeline, dirs []string) (reason st
 }
 
 // pipelineFiles returns the pipeline files carried by the repository:
-// the config files in the walked directories, plus the project's own
+// the configuration files in the walked directories, plus the project's own
 // skills, which the walk skips along with the rest of .atkins/.
 func (v *Vendorer) pipelineFiles(dirs []string) []string {
 	var files []string

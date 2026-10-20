@@ -26,8 +26,8 @@ type Job struct {
 	Timeout     string       `yaml:"timeout,omitempty"`  // e.g., "10m", "300s"
 	Summarize   bool         `yaml:"summarize,omitempty"`
 	Quiet       bool         `yaml:"quiet,omitempty"`
-	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, output is printed with tree indentation
-	TTY         bool         `yaml:"tty,omitempty"`         // If true, allocate a PTY for all steps (enables color output)
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation
+	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for all steps (enables color output)
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 
 	Name   string `yaml:"-"`
@@ -64,8 +64,8 @@ func (j *Job) IsRootLevel() bool {
 	return true
 }
 
-// ShouldShow returns true if the job should be displayed in the tree output.
-// Root jobs are shown by default. Nested jobs are hidden unless Show is true.
+// ShouldShow returns true if the tree output displays the job.
+// The tree shows root jobs by default and hides nested jobs unless Show is true.
 func (j *Job) ShouldShow() bool {
 	// Always show if explicitly marked with show: true
 	if j.Show != nil {
@@ -92,7 +92,7 @@ func (j *Job) UnmarshalYAML(node *yaml.Node) error {
 		return err
 	}
 
-	// Ensure Decl is initialized and vars/include are properly decoded
+	// Ensure Decl exists and vars/include decode properly
 	if err := ensureDeclInitialized(node, &j.Decl); err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (j *Job) UnmarshalYAML(node *yaml.Node) error {
 	j.Run = strings.TrimSpace(j.Run)
 	j.Cmd = strings.TrimSpace(j.Cmd)
 
-	// Convert job-level Cmd or Run into a synthetic step if no steps/cmds are defined
+	// Convert job-level Cmd or Run into a synthetic step if the job defines no steps/cmds
 	// This ensures `cmd: task down` works the same as `steps: [task down]`
 	if j.Steps == nil && j.Cmds == nil {
 		cmd := j.Cmd

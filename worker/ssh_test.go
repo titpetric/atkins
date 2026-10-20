@@ -14,7 +14,7 @@ func TestSanitizeName(t *testing.T) {
 	assert.Equal(t, "github", sanitizeName("github"))
 	assert.Equal(t, "deploy_key-1.pem", sanitizeName("deploy_key-1.pem"))
 
-	// A name is turned into a file name, so separators and traversal
+	// The agent turns a name into a file name, so separators and traversal
 	// have to stop being separators and traversal.
 	assert.Equal(t, "etc-passwd", sanitizeName("../etc/passwd"))
 	assert.Equal(t, "a-b", sanitizeName("a/b"))
@@ -58,12 +58,12 @@ func TestWriteSSHKeys(t *testing.T) {
 
 	assert.Contains(t, command, "IdentitiesOnly=yes")
 	assert.Contains(t, command, "BatchMode=yes")
-	// Nothing pinned, so trust on first use rather than prompting.
+	// Nothing pinned, so trust on first use and never prompt.
 	assert.Contains(t, command, "StrictHostKeyChecking=accept-new")
 	assert.Contains(t, command, "-i "+filepath.Join(dir, "github"))
 	assert.Contains(t, command, "-i "+filepath.Join(dir, "gitlab"))
 
-	// Identities are offered in a stable order, so a failure is
+	// ssh presents identities in a stable order, so a failure is
 	// reproducible.
 	assert.Less(t, strings.Index(command, "github"), strings.Index(command, "gitlab"))
 }
@@ -94,7 +94,7 @@ func TestWriteSSHKeysRemovesRevokedKeys(t *testing.T) {
 	assert.FileExists(t, path)
 
 	// A key removed on the server has to stop working here too, so the
-	// directory is rebuilt rather than added to.
+	// agent rebuilds the directory and does not add to it.
 	command, err := worker.writeSSHKeys(nil)
 	assert.NoError(t, err)
 

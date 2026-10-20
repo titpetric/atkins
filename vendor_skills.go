@@ -13,10 +13,10 @@ import (
 // runVendor handles `atkins --vendor`, which copies the skills this
 // repository uses out of $HOME/.atkins/skills and into .atkins/skills
 // next to .git, so a clone or a CI agent runs the same jobs as the
-// machine the pipeline was written on.
+// machine where the pipeline originated.
 //
-// It reports what it would do and writes nothing until --write is
-// given, so the selection can be read before the tree changes.
+// It reports what it would do and writes nothing until the user passes
+// --write, so the user can review the selection before the tree changes.
 func runVendor(dir string, opts *Options) error {
 	if opts.Jail {
 		return fmt.Errorf("%s --vendor reads $HOME/.atkins/skills, which --jail excludes", colors.BrightRed("ERROR:"))
@@ -76,7 +76,7 @@ func runVendor(dir string, opts *Options) error {
 
 // printVendorSkill reports one selected skill: a checkmark when the
 // vendored copy already matches, and the lines a write would add and
-// remove when it doesn't. Debug adds the reason the skill was selected
+// remove when it doesn't. Debug adds the reason for selecting the skill
 // and the diff the counts come from.
 func printVendorSkill(skill *runner.VendorSkill, width int, debug bool) {
 	reason := ""

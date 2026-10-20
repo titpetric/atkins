@@ -15,7 +15,7 @@ type Greeter struct {
 	groups []GreetingGroup
 }
 
-// NewGreeter creates a greeter with built-in defaults merged with user config.
+// NewGreeter creates a greeter with built-in defaults merged with user configuration.
 func NewGreeter() *Greeter {
 	g := &Greeter{
 		groups: defaultGreetingGroups(),
@@ -171,7 +171,7 @@ var fortunePatterns = [][]string{
 	{"quote"},
 }
 
-// MatchFortune returns true if the input is asking for a fortune.
+// MatchFortune returns true if the input requests a fortune.
 func MatchFortune(input string) bool {
 	lower := strings.ToLower(strings.TrimRight(strings.TrimSpace(input), "!?.,; "))
 	words := strings.Fields(lower)
@@ -196,7 +196,7 @@ func MatchFortune(input string) bool {
 }
 
 // LearnGreeting parses input like "ciao is a greeting" and adds the word.
-// Returns true if a new greeting was learned.
+// It returns true if it learned a new greeting.
 func (g *Greeter) LearnGreeting(input string) (string, bool) {
 	lower := strings.ToLower(strings.TrimSpace(input))
 

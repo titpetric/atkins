@@ -19,7 +19,7 @@ const (
 	stateResolved                      // resolution complete
 )
 
-// VarPromise represents a lazy variable that is evaluated on first access.
+// VarPromise represents a lazy variable that resolves on first access.
 type VarPromise struct {
 	value any
 	raw   any
@@ -38,7 +38,7 @@ func newPendingPromise(raw any) *VarPromise {
 	return &VarPromise{raw: raw, state: statePending}
 }
 
-// ContextVariables provides thread-safe variable storage with Promise-based lazy evaluation.
+// ContextVariables holds variables in thread-safe storage with Promise-based lazy evaluation.
 type ContextVariables struct {
 	promises        map[string]*VarPromise
 	resolver        func(string) (string, error)
@@ -60,7 +60,7 @@ func NewContextVariables(values map[string]any) *ContextVariables {
 }
 
 // NewContextVariablesWithResolver creates a ContextVariables with pending values
-// that are evaluated lazily on first access via Get().
+// that resolve lazily on first access via Get().
 func NewContextVariablesWithResolver(pending map[string]any, resolver func(string) (string, error)) *ContextVariables {
 	cv := &ContextVariables{
 		promises: make(map[string]*VarPromise),
@@ -127,7 +127,7 @@ func (v *ContextVariables) IsResolved(key string) bool {
 
 // resolve evaluates a single promise, detecting cycles via the resolving state.
 // The resolver may call back into Get() for other variables (dependency chain).
-// If re-entry hits the same promise (cycle), it returns an error instead of deadlocking.
+// If re-entry hits the same promise (cycle), it returns an error and does not deadlock.
 func (v *ContextVariables) resolve(p *VarPromise, resolver func(string) (string, error)) (any, error) {
 	p.mu.Lock()
 
@@ -138,7 +138,7 @@ func (v *ContextVariables) resolve(p *VarPromise, resolver func(string) (string,
 		return val, err
 
 	case stateResolving:
-		// Re-entrant call — this is a cycle.
+		// Re-entrant call - this is a cycle.
 		// Store the error on the promise so ResolveAll surfaces it.
 		p.err = fmt.Errorf("circular variable dependency detected for %q", p.raw)
 		p.value = p.raw
@@ -152,7 +152,7 @@ func (v *ContextVariables) resolve(p *VarPromise, resolver func(string) (string,
 		raw := p.raw
 		p.mu.Unlock()
 
-		// Resolve outside the lock — the resolver may call Get() on other vars
+		// Resolve outside the lock - the resolver may call Get() on other vars
 		var value any
 		var err error
 
@@ -170,7 +170,7 @@ func (v *ContextVariables) resolve(p *VarPromise, resolver func(string) (string,
 
 		p.mu.Lock()
 		if p.state == stateResolved && p.err != nil {
-			// Cycle was detected during resolution — preserve the cycle error
+			// Resolution hit a cycle - preserve the cycle error
 			val, cycleErr := p.value, p.err
 			p.mu.Unlock()
 			return val, cycleErr

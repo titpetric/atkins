@@ -36,7 +36,7 @@ type Event struct {
 	// Step event fields
 	Run         string `yaml:"run,omitempty"`
 	Result      Result `yaml:"result,omitempty"`
-	GoroutineID uint64 `yaml:"goroutine_id,omitempty"` // Only when debug is enabled
+	GoroutineID uint64 `yaml:"goroutine_id,omitempty"` // Only with debug on
 
 	// Command event fields
 	Command  string   `yaml:"command,omitempty"`   // The actual command executed
@@ -68,7 +68,7 @@ type StateNode struct {
 	ID        string       `json:"id,omitempty" yaml:"id,omitempty"`
 	Status    string       `json:"status" yaml:"status"` // Readable string: pending, running, passed, failed, skipped, conditional
 	Result    Result       `json:"result,omitempty" yaml:"result,omitempty"`
-	If        string       `json:"if,omitempty" yaml:"if,omitempty"` // Condition that was evaluated
+	If        string       `json:"if,omitempty" yaml:"if,omitempty"` // Condition the step evaluates
 	CreatedAt time.Time    `json:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 	Start     float64      `json:"start,omitempty" yaml:"start,omitempty"`       // Seconds offset from run start
@@ -103,14 +103,14 @@ type Log struct {
 	Summary  *RunSummary `yaml:"summary,omitempty"`
 }
 
-// RunSummary provides aggregate statistics for the run.
+// RunSummary holds totals for the run.
 type RunSummary struct {
 	Duration     float64 `yaml:"duration"`               // Total duration in seconds
 	TotalSteps   int     `yaml:"total_steps"`            // Total steps executed
 	PassedSteps  int     `yaml:"passed_steps"`           // Steps that passed
 	FailedSteps  int     `yaml:"failed_steps"`           // Steps that failed
-	SkippedSteps int     `yaml:"skipped_steps"`          // Steps that were skipped
-	Result       Result  `yaml:"result"`                 // Overall result
+	SkippedSteps int     `yaml:"skipped_steps"`          // Steps the run skips
+	Result       Result  `yaml:"result"`                 // Result of the whole run
 	MemoryAlloc  uint64  `yaml:"memory_alloc,omitempty"` // Memory allocated in bytes
 	Goroutines   int     `yaml:"goroutines,omitempty"`   // Number of goroutines running
 }

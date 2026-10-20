@@ -41,7 +41,7 @@ func TestBuildListOutput(t *testing.T) {
 		t.Fatalf("expected 3 sections, got %d", len(output))
 	}
 
-	// First section should be main pipeline
+	// First section is the main pipeline
 	if output[0].Desc != "Main Pipeline" {
 		t.Errorf("expected first section to be 'Main Pipeline', got %s", output[0].Desc)
 	}
@@ -54,12 +54,12 @@ func TestBuildListOutput(t *testing.T) {
 		t.Errorf("expected first command to be 'default', got %s", output[0].Cmds[0].ID)
 	}
 
-	// Second section should be aliases
+	// Second section is aliases
 	if output[1].Desc != "Aliases" {
 		t.Errorf("expected second section to be 'Aliases', got %s", output[1].Desc)
 	}
 
-	// Third section should be go skill
+	// Third section is the go skill
 	if output[2].Desc != "Go Skill" {
 		t.Errorf("expected third section to be 'Go Skill', got %s", output[2].Desc)
 	}
@@ -145,7 +145,7 @@ func TestBuildAliasesSection(t *testing.T) {
 		t.Fatalf("expected 2 aliases, got %d: %+v", len(section.Cmds), section.Cmds)
 	}
 
-	// Check aliases are sorted
+	// Check aliases come sorted
 	if section.Cmds[0].ID != "go" {
 		t.Errorf("expected first alias to be 'go', got %s", section.Cmds[0].ID)
 	}

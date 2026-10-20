@@ -15,8 +15,8 @@ import (
 //
 // The server refuses a disallowed dispatch, so this is a second gate on
 // the same decision. It matters because a job outlives the rule that
-// admitted it: a repository removed from the allowlist must not be
-// built by a job that was queued while it was still listed.
+// admitted it: a job queued while the allowlist still listed its
+// repository must not build it after the rule goes.
 type policy struct {
 	mu        sync.RWMutex
 	value     client.PolicyResponse
@@ -24,8 +24,8 @@ type policy struct {
 	loaded    bool
 }
 
-// policyTTL is how long a fetched policy is trusted before refreshing.
-// Short, because it is the thing standing between a revoked rule and a
+// policyTTL is how long the agent trusts a fetched policy before refreshing.
+// Short, because it stands between a revoked rule and a
 // clone that shouldn't happen.
 const policyTTL = 30 * time.Second
 
@@ -55,8 +55,8 @@ func (w *Worker) refresh(ctx context.Context) error {
 
 // allowed reports whether the agent may build a repository.
 //
-// A policy it could not fetch is treated as a refusal. An agent that
-// cannot tell what it is allowed to run should run nothing; the
+// A policy it could not fetch counts as a refusal. An agent that
+// cannot tell what it may run runs nothing; the
 // alternative is that a server outage turns an allowlist into an
 // open door.
 func (w *Worker) allowed(ctx context.Context, slug string) (bool, error) {
@@ -81,7 +81,7 @@ func (w *Worker) allowed(ctx context.Context, slug string) (bool, error) {
 }
 
 // logPolicy reports the policy in force at start-up, so an operator can
-// see from the logs whether the agent is gated.
+// see from the logs whether a policy gates the agent.
 func (w *Worker) logPolicy(ctx context.Context) {
 	if err := w.refresh(ctx); err != nil {
 		log.Printf("[agent] could not read the repository policy: %v", err)

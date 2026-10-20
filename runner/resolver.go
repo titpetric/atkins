@@ -102,8 +102,8 @@ func (r *Resolver) buildOrder() ([]string, error) {
 }
 
 // buildRequiredOrder returns only the declaration dependency closure needed by
-// roots. Unlike buildOrder it deliberately ignores unrelated declarations, so
-// loop preparation does not evaluate (or reject) iteration-dependent values.
+// roots. Unlike buildOrder it ignores unrelated declarations, so
+// loop preparation does not resolve (or reject) iteration-dependent values.
 func (r *Resolver) buildRequiredOrder(roots []string) ([]string, error) {
 	deps := make(map[string][]string)
 	for k, v := range r.vars {

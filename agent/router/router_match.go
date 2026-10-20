@@ -153,7 +153,7 @@ func (r *Router) FindMatches(keywords []string) []string {
 	var matches []string
 
 	for _, kw := range allKW {
-		// Skip very short keywords to avoid matching too many things
+		// Skip one-character keywords to avoid matching too many things
 		if len(kw) < 2 {
 			continue
 		}

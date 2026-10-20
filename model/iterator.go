@@ -10,7 +10,7 @@ import (
 
 // Iterator represents a single for-loop iteration specification,
 // using format "item in items" or "(idx, item) in items". The alternative
-// "items as item" syntax is normalized to "item in items" when decoded.
+// "items as item" syntax decodes to the normalized "item in items".
 type Iterator string
 
 // Iterators is a slice of Iterator with custom YAML unmarshalling

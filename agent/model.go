@@ -277,7 +277,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.runLogIdx >= 0 && m.runLogIdx < len(m.log) {
 				m.log[m.runLogIdx].Progress = m.execProgress.StatusLine(time.Now())
 			}
-			// Check if we're being cancelled
+			// Check for cancellation
 			cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
 			durStr := view.FormatJobDuration(msg.Event.Duration)
 			bc := formatBreadcrumb(msg.Event.Parents, msg.Event.JobName)
@@ -301,7 +301,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ExecutionDoneMsg:
-		// Check if execution was cancelled (check context before clearing it)
+		// Check whether execution got cancelled (check context before clearing it)
 		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
 
 		// Clean up cancellation context
@@ -309,8 +309,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.execCancel = nil
 
 		// Drain any remaining progress events from the buffered channel.
-		// The channel is closed (defer) before ExecutionDoneMsg is returned,
-		// so this won't block — it just processes any buffered events that
+		// A defer closes the channel before the command returns ExecutionDoneMsg,
+		// so this won't block: it just processes any buffered events that
 		// bubbletea hasn't consumed yet.
 		if m.progressCh != nil && m.execProgress != nil {
 			for ev := range m.progressCh {
@@ -333,7 +333,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// Log any jobs that were still running when cancelled
+		// Log any jobs still running at cancellation
 		if cancelled && m.execProgress != nil {
 			now := time.Now()
 			for name, rj := range m.execProgress.Running {
@@ -420,7 +420,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(m.spinner.Tick, waitForJobProgress(progressCh), m.runAutofixPipeline(ctx, msg.OriginalTask, msg.FixTask, progressCh))
 
 	case AutofixDoneMsg:
-		// Check if autofix was cancelled (check context before clearing it)
+		// Check whether autofix got cancelled (check context before clearing it)
 		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
 
 		// Clean up cancellation context
@@ -493,7 +493,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.runShellCommand(ctx, msg.Command)
 
 	case ShellDoneMsg:
-		// Check if shell command was cancelled (check context before clearing it)
+		// Check whether the shell command got cancelled (check context before clearing it)
 		cancelled := m.execCtx != nil && m.execCtx.Err() == context.Canceled
 
 		// Clean up cancellation context
@@ -774,7 +774,7 @@ func (m Model) handleSubmit() (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case router.RouteMultiTask:
-		// Run multiple tasks in sequence
+		// Run the tasks in sequence
 		if len(route.Tasks) == 0 {
 			m.appendLog("prompt", "> "+input)
 			m.appendLog("error", "No tasks to run")

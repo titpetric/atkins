@@ -4,95 +4,95 @@ import (
 	"errors"
 )
 
-// Errors returned by the storage layer. Handlers map these onto status
-// codes; anything not listed here is a 5xx as far as the API is concerned.
+// The storage layer returns these errors. Handlers map them onto status
+// codes; the API reports anything not listed here as a 5xx.
 var (
-	// ErrInvalidCredentials is returned when the email/password pair
-	// does not match an active user. It is deliberately the same error
-	// for "no such user" and "wrong password" so the login endpoint
-	// cannot be used to enumerate accounts.
+	// ErrInvalidCredentials reports an email/password pair that does
+	// not match an active user. "No such user" and "wrong password"
+	// share this one error so nobody can probe the login endpoint for
+	// account names.
 	ErrInvalidCredentials = errors.New("invalid credentials")
 
-	// ErrUserInactive is returned when a user exists but has been
-	// deactivated. Login is refused.
+	// ErrUserInactive reports a user that exists but is inactive. Login
+	// refuses that user.
 	ErrUserInactive = errors.New("user is not active")
 
-	// ErrEmailTaken is returned when registering an existing email.
+	// ErrEmailTaken reports a registration with an existing email.
 	ErrEmailTaken = errors.New("email already registered")
 
-	// ErrUsernameTaken is returned when registering an existing username.
+	// ErrUsernameTaken reports a registration with an existing username.
 	ErrUsernameTaken = errors.New("username already taken")
 
-	// ErrRegistrationClosed is returned when registration is disabled
-	// and at least one user already exists.
+	// ErrRegistrationClosed reports a registration attempt while the
+	// registration setting is off and at least one user already exists.
 	ErrRegistrationClosed = errors.New("registration is closed")
 
-	// ErrSessionExpired is returned when a refresh token is past its
-	// expiry. The client has to log in again.
+	// ErrSessionExpired reports a refresh token past its expiry. The
+	// client has to log in again.
 	ErrSessionExpired = errors.New("session expired")
 
-	// ErrSessionRevoked is returned when a refresh token belongs to a
-	// session that was logged out.
+	// ErrSessionRevoked reports a refresh token that belongs to a
+	// logged-out session.
 	ErrSessionRevoked = errors.New("session revoked")
 
-	// ErrInvalidRepository is returned when a dispatch request carries
-	// no usable git remote.
+	// ErrInvalidRepository reports a dispatch request that carries no
+	// usable git remote.
 	ErrInvalidRepository = errors.New("invalid repository")
 
-	// ErrMaxDepthExceeded is returned when a job tries to dispatch a
-	// child past the configured nesting limit. It's the backstop
-	// against a pipeline that dispatches itself forever.
+	// ErrMaxDepthExceeded reports a job dispatching a child past the
+	// nesting limit from the server settings. It's the backstop against
+	// a pipeline that dispatches itself forever.
 	ErrMaxDepthExceeded = errors.New("maximum job depth exceeded")
 
-	// ErrRepositoryNotAllowed is returned when the server runs an
-	// allowlist policy and no rule matches the repository.
+	// ErrRepositoryNotAllowed reports a repository that matches no rule
+	// while the server runs an allowlist policy.
 	ErrRepositoryNotAllowed = errors.New("repository is not on the allowlist")
 
-	// ErrInvalidPattern is returned for an empty allowlist pattern.
+	// ErrInvalidPattern reports an empty allowlist pattern.
 	ErrInvalidPattern = errors.New("pattern is required")
 
-	// ErrRuleNotFound is returned when an allowlist rule does not
-	// exist, or has already been deleted.
+	// ErrRuleNotFound reports an allowlist rule that does not exist, or
+	// that a delete already removed.
 	ErrRuleNotFound = errors.New("repository rule not found")
 
-	// ErrSSHKeyNotFound is returned when an ssh key does not exist.
+	// ErrSSHKeyNotFound reports an ssh key that does not exist.
 	ErrSSHKeyNotFound = errors.New("ssh key not found")
 
-	// ErrInvalidSSHKey is returned when a submitted key is not a
-	// usable private key.
+	// ErrInvalidSSHKey reports a submitted key that is not a usable
+	// private key.
 	ErrInvalidSSHKey = errors.New("not a usable ssh private key")
 
-	// ErrInvalidArtefactPath is returned when an upload names a file
-	// that could not be inside the job's directory.
+	// ErrInvalidArtefactPath reports an upload that names a file which
+	// could not sit inside the job's directory.
 	ErrInvalidArtefactPath = errors.New("artefact path must be relative to the job directory")
 
-	// ErrArtefactTooLarge is returned when an upload runs past
-	// artefact.max_size. The bytes written so far are discarded.
+	// ErrArtefactTooLarge reports an upload that runs past
+	// artefact.max_size. The store discards the bytes written so far.
 	ErrArtefactTooLarge = errors.New("artefact is larger than artefact.max_size")
 
-	// ErrTooManyArtefacts is returned when a job has already stored
-	// artefact.max_count files. It is the per-job backstop against a
+	// ErrTooManyArtefacts reports a job that already stores
+	// artefact.max_count files. This is the per-job backstop against a
 	// pipeline that uploads in a loop.
 	ErrTooManyArtefacts = errors.New("job has reached artefact.max_count")
 
-	// ErrChecksumMismatch is returned when the bytes received do not
-	// hash to the checksum the agent declared, which means the upload
-	// was truncated or altered in flight.
+	// ErrChecksumMismatch reports received bytes that do not hash to the
+	// checksum the agent declared: something truncated or altered the
+	// upload in flight.
 	ErrChecksumMismatch = errors.New("artefact checksum does not match the uploaded bytes")
 
-	// ErrArtefactNotFound is returned when an artefact does not exist,
-	// belongs to another job, or has been swept by retention.
+	// ErrArtefactNotFound reports an artefact that does not exist,
+	// belongs to another job, or that retention already swept.
 	ErrArtefactNotFound = errors.New("artefact not found")
 
-	// ErrForbidden is returned when a user is authenticated but not
-	// permitted to perform the action.
+	// ErrForbidden reports a signed-in user who lacks the permission
+	// for the action.
 	ErrForbidden = errors.New("insufficient permissions")
 
-	// ErrLastAdmin is returned when a flag change would leave the
-	// instance with no active admin, and therefore no way back in.
+	// ErrLastAdmin reports a flag change that would leave the instance
+	// with no active admin, and so with no way back in.
 	ErrLastAdmin = errors.New("refusing to remove the last active admin; promote someone else first")
 
-	// ErrInvalidAgentToken is returned when agent enrolment presents
-	// the wrong token, or the server has no enrolment token set.
+	// ErrInvalidAgentToken reports an agent enrolment that presents the
+	// wrong token, or a server with no enrolment token set.
 	ErrInvalidAgentToken = errors.New("invalid agent enrolment token")
 )

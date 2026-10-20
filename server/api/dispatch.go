@@ -20,7 +20,7 @@ import (
 // which repository, where inside its work tree, and which atkins command.
 type DispatchRequest struct {
 	// Repository identifies the git repository the client is working
-	// on. The remote URL is normalized into a slug server-side, so ssh
+	// on. The server normalizes the remote URL into a slug, so ssh
 	// and https clones of the same repository are one repository.
 	Repository RepositoryPayload `json:"repository"`
 
@@ -51,12 +51,12 @@ type DispatchRequest struct {
 	Artefacts []string `json:"artefacts"`
 
 	// Agent names the machine already running this command. Set, the
-	// job is recorded as running there instead of queued for an agent
-	// to claim, and the caller reports its log and its outcome.
+	// server records the job as running there, with no queue entry for
+	// an agent to claim, and the caller reports its log and its outcome.
 	//
-	// It is how a run on somebody's laptop is on the server at all: the
-	// pipeline executes where it was started, and the history does not
-	// depend on whether that machine could hand the work over.
+	// This puts a run on somebody's laptop on the server at all: the
+	// pipeline executes where it started, and the history does not
+	// depend on whether that machine could pass the work on.
 	Agent string `json:"agent"`
 }
 
@@ -65,8 +65,8 @@ type RepositoryPayload struct {
 	RemoteURL string `json:"remote_url"`
 
 	// Ref is what to check out: a branch, a tag, a commit sha or a
-	// fully qualified refname. The atkins client sends the commit it is
-	// on, so a dispatched run builds the code in front of whoever
+	// fully qualified refname. The atkins client sends its current
+	// commit, so a dispatched run builds the code in front of whoever
 	// started it.
 	Ref string `json:"ref"`
 
@@ -89,9 +89,9 @@ func (p RepositoryPayload) CheckoutRef() string {
 
 // DispatchResponse is what /api/dispatch returns.
 //
-// The CLI puts JobID into ATKINS_JOB_ID for the run it is about to
-// perform, and reports the outcome back to /api/job/{id}/status. The
-// server records the job; atkins decides what to do with it.
+// The CLI puts JobID into ATKINS_JOB_ID for the run it starts next, and
+// reports the outcome back to /api/job/{id}/status. The server records
+// the job; atkins decides what to do with it.
 type DispatchResponse struct {
 	JobID          string `json:"job_id"`
 	ParentID       string `json:"parent_id,omitempty"`
@@ -111,11 +111,11 @@ type DispatchResponse struct {
 // JobView is a job as the API returns it: the stored row, plus how to
 // open it in a browser.
 //
-// The token is derived from the job id and the signing key rather than
-// stored, so returning it to a caller who has just been allowed to read
-// the job withholds nothing: they can already read the output and the
-// artefacts the page shows. Leaving it out only meant that whoever lost
-// the URL atkins printed could no longer open a job they own.
+// The server derives the token from the job id and the signing key and
+// stores nothing, so returning it to a caller who may read the job
+// withholds nothing: they can already read the output and the artefacts
+// the page shows. Leaving it out would only mean that whoever lost the
+// URL atkins printed could not open a job they own.
 type JobView struct {
 	*model.Job
 
@@ -123,8 +123,8 @@ type JobView struct {
 	// instance, which needs none.
 	ViewToken string `json:"view_token,omitempty"`
 
-	// URL is the page for this job, token and all. It is relative to
-	// this server, the way an artefact's URL is.
+	// URL is the page for this job, token and all. The path is relative
+	// to this server, the way an artefact's URL is.
 	URL string `json:"url"`
 }
 
@@ -148,15 +148,15 @@ type JobStatusRequest struct {
 
 // JobCheckoutRequest is the body of /api/job/{jobID}/checkout.
 //
-// It is the agent answering the question the job asked. A job may name a
-// tag, and a tag moves; without the commit that tag pointed at, a run
-// cannot be reproduced once it has.
+// The agent sends it to record the commit a job's ref resolved to. A job
+// may name a tag, and a tag moves; without the commit that tag pointed
+// at, nobody can reproduce a run once the tag moves.
 type JobCheckoutRequest struct {
 	// Ref is the effective ref, which is the one the job named unless
 	// it named none and the agent resolved the default branch.
 	Ref string `json:"ref"`
 
-	// CommitSHA is the commit the work tree was placed at.
+	// CommitSHA is the commit the agent checked the work tree out at.
 	CommitSHA string `json:"commit_sha"`
 }
 
@@ -165,15 +165,16 @@ type ClaimRequest struct {
 	// AgentID identifies the worker taking the lease.
 	AgentID string `json:"agent_id"`
 
-	// Labels are what the agent can offer. A job requiring labels only
-	// lands on an agent advertising all of them.
+	// Labels are what the agent supports. A job requiring labels only
+	// lands on an agent advertising every one of them.
 	Labels []string `json:"labels"`
 }
 
-// ClaimResponse is returned when an agent leases a job.
+// ClaimResponse is what the claim endpoint returns when an agent leases
+// a job.
 //
-// The repository is included rather than referenced: the agent's very
-// next act is to clone it, and making it ask again for the remote URL
+// It carries the repository in full, with no reference to look up: the
+// agent's next act is to clone it, and making it ask again for the remote URL
 // would be a round trip that buys nothing.
 type ClaimResponse struct {
 	Job        *model.Job        `json:"job"`
@@ -205,7 +206,7 @@ func (s *Handlers) dispatch(w http.ResponseWriter, r *http.Request) error {
 		return requestError(http.StatusBadRequest, model.ErrInvalidRepository)
 	}
 
-	// Check the allowlist before the repository row is created: a
+	// Check the allowlist before creating the repository row: a
 	// refused repository should leave no trace beyond the 403.
 	allowed, err := s.allowedRepository(r, slug)
 	if err != nil {
@@ -351,7 +352,7 @@ func (s *Handlers) listJobs(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// A listing carries the same links a single read does: finding a job
-	// here and then having no way to open it is the gap this closes.
+	// here and then having no way to open it: this closes that gap.
 	views := make([]JobView, 0, len(jobs))
 	for i := range jobs {
 		views = append(views, s.jobView(&jobs[i]))

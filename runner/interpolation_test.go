@@ -64,7 +64,7 @@ func TestInterpolation(t *testing.T) {
 			expectError: false,
 		},
 
-		// Missing variables (should return original)
+		// Missing variables (returns the original)
 		{
 			name:        "missing variable",
 			cmd:         "echo ${{ missing }}",

@@ -9,11 +9,11 @@ import (
 )
 
 // runtimeConfig is the effective configuration for this invocation:
-// the embedded document from config.RuntimeDefaultConfig, overlaid with
+// the embedded document from `config.RuntimeDefaultConfig`, overlaid with
 // the user and project documents, then with the environment.
 //
-// It is loaded once and shared, so every command sees the same values
-// and a config error is reported once rather than per subsystem.
+// atkins loads it once and shares it, so every command sees the same values
+// and a configuration error surfaces once and never per subsystem.
 var runtimeConfig *config.Config
 
 // loadRuntimeConfig resolves the configuration for a working directory.
@@ -34,11 +34,11 @@ func loadRuntimeConfig(dir string) (*config.Config, error) {
 	return runtimeConfig, nil
 }
 
-// runConfig handles `atkins --config`, the configuration menu.
+// runConfig runs the configuration menu.
 //
-// It edits the project document — .atkins/config.yml, created from the
-// embedded default when absent — rather than the merged view, so what
-// is written back is only what this project chose.
+// It edits the project document (.atkins/config.yml, created from the
+// embedded default when absent) and leaves the merged view alone, so the
+// saved file holds only what this project chose.
 func runConfig(dir string) error {
 	path := config.ProjectPath(dir)
 

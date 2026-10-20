@@ -9,7 +9,7 @@ type Options struct {
 	// Name is the executable name in the usage line.
 	Name string
 
-	// Version is printed under the usage line, empty to leave it out.
+	// Version prints under the usage line, empty to leave it out.
 	Version string
 
 	// Commands are the subcommands, the default one first.
@@ -20,7 +20,7 @@ type Options struct {
 	// directory does not activate.
 	Skills []*runner.Skill
 
-	// SkillDirs are the directories the skills were read from, in
+	// SkillDirs are the directories the skills come from, in
 	// precedence order, printed so a reader knows where to add one.
 	SkillDirs []string
 

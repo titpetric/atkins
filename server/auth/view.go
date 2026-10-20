@@ -13,17 +13,17 @@ import (
 const ViewTokenLength = 22
 
 // viewTokenDomain separates view tokens from anything else the signing
-// key is ever used for, so a token minted here can never be mistaken
-// for a token minted elsewhere under the same secret.
+// key ever signs, so a token minted here never matches a token minted
+// elsewhere under the same secret.
 const viewTokenDomain = "atkins:job-view:"
 
 // ViewToken returns the unguessable half of a job page URL.
 //
-// It is derived rather than stored: an HMAC of the job ID under the
-// server's signing key. There is no column to migrate, nothing extra to
-// leak from a database dump, and rotating the signing key invalidates
-// every outstanding link at once — which is already the documented way
-// to revoke access to an instance.
+// ViewToken derives the token and stores nothing: an HMAC of the job ID
+// under the server's signing key. There is no column to migrate, nothing
+// extra to leak from a database dump, and rotating the signing key
+// invalidates every outstanding link at once, which matches the
+// documented way to revoke access to an instance.
 func (j *JWT) ViewToken(jobID string) string {
 	if j.secret == "" || jobID == "" {
 		return ""

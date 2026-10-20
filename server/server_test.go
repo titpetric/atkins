@@ -33,8 +33,8 @@ const testAgentToken = "test-agent-token"
 // testServer starts a platform instance with the atkins module mounted
 // against a throwaway sqlite database.
 //
-// The database is a file rather than :memory: because the platform gives
-// sqlite a 10 connection pool, and every connection to an in-memory
+// The database is a file and not :memory: because the platform opens
+// sqlite with a 10 connection pool, and every connection to an in-memory
 // sqlite database is a separate, empty database.
 func testServer(t *testing.T) string {
 	return testServerWith(t, nil)
@@ -47,7 +47,7 @@ func testServerWith(t *testing.T, configure func(*server.Options)) string {
 
 	// The platform caches connection pools by name for the life of the
 	// process, so each test claims a name of its own and gets a fresh
-	// database instead of the previous test's fixtures.
+	// database and never the previous test's fixtures.
 	connection := "atkins_test_" + strconv.Itoa(int(connectionSeq.Add(1)))
 	dsn := "sqlite://file:" + filepath.Join(t.TempDir(), "atkins.db")
 	t.Setenv("PLATFORM_DB_"+strings.ToUpper(connection), dsn)
@@ -57,7 +57,7 @@ func testServerWith(t *testing.T, configure func(*server.Options)) string {
 	opts.Connection = connection
 	opts.SigningKey = "test-signing-key"
 	opts.AgentToken = testAgentToken
-	// Artefact bytes go somewhere the test owns, rather than into an
+	// Artefact bytes go somewhere the test owns, and stay out of an
 	// `artefacts` directory beside the package source.
 	opts.ArtefactDir = filepath.Join(t.TempDir(), "artefacts")
 	// Off by default: the bootstrap path (no users yet) is what the
@@ -178,7 +178,7 @@ func TestRegisterBootstrapsFirstUserOnly(t *testing.T) {
 
 	register(t, url)
 
-	// Registration is closed once a user exists.
+	// Registration closes once a user exists.
 	status := call(t, http.MethodPost, url+"/api/user/register", "", map[string]string{
 		"email":    "second@example.com",
 		"username": "second",
@@ -240,7 +240,7 @@ func TestRefreshTokenRotates(t *testing.T) {
 	assert.Equal(t, http.StatusOK, status)
 	assert.NotEqual(t, token.RefreshToken, refreshed.RefreshToken)
 
-	// The spent refresh token no longer works.
+	// The spent refresh token stops working.
 	status = call(t, http.MethodPost, url+"/api/user/refreshToken", "", map[string]string{
 		"refresh_token": token.RefreshToken,
 	}, nil)
@@ -254,7 +254,7 @@ func TestLogoutRevokesAccessToken(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/user/logout", token.Token, map[string]string{}, nil)
 	assert.Equal(t, http.StatusNoContent, status)
 
-	// The access token has not expired, but its session is revoked.
+	// The access token has not expired, but logout revoked its session.
 	status = call(t, http.MethodGet, url+"/api/user/whoami", token.Token, nil, nil)
 	assert.Equal(t, http.StatusUnauthorized, status)
 }
@@ -283,7 +283,7 @@ func TestDispatchDeduplicatesRepository(t *testing.T) {
 
 	first := dispatch(t, url, token.Token, "atkins", "")
 
-	// The same repository over https rather than ssh is one repository.
+	// The same repository over https and over ssh is one repository.
 	var second dispatchResponse
 	status := call(t, http.MethodPost, url+"/api/dispatch", token.Token, map[string]any{
 		"repository": map[string]string{
@@ -312,7 +312,7 @@ func TestDispatchStopsRunawayNesting(t *testing.T) {
 	url := testServer(t)
 	token := register(t, url)
 
-	// MaxJobDepth defaults to 3, so the fourth generation is refused.
+	// MaxJobDepth defaults to 3, so the server refuses the fourth generation.
 	parent := dispatch(t, url, token.Token, "atkins", "")
 	for range 3 {
 		parent = dispatch(t, url, token.Token, "atkins", parent.JobID)
@@ -414,7 +414,7 @@ func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
 	}, &triggered)
 	assert.Equal(t, http.StatusCreated, status)
 
-	// A checkout can only be reported for a job an agent is running.
+	// An agent can only report a checkout for a job under its lease.
 	status = call(t, http.MethodPost, url+"/api/job/"+triggered.JobID+"/checkout", agent.Token, map[string]any{
 		"ref":        "v1.2.3",
 		"commit_sha": "0123456789abcdef0123456789abcdef01234567",
@@ -443,8 +443,8 @@ func TestJobCheckoutRecordsTheResolvedCommit(t *testing.T) {
 	status = call(t, http.MethodGet, url+"/api/job/"+triggered.JobID, token.Token, nil, &job)
 	assert.Equal(t, http.StatusOK, status)
 
-	// The tag says what was asked for; the sha says what ran, and only
-	// one of the two survives the tag being moved.
+	// The tag says what the dispatch named; the sha says what ran, and
+	// only one of the two survives a moved tag.
 	assert.Equal(t, "v1.2.3", job["ref"])
 	assert.Equal(t, "0123456789abcdef0123456789abcdef01234567", job["commit_sha"])
 }
@@ -538,11 +538,12 @@ func TestModuleRequiresSigningKey(t *testing.T) {
 
 // TestModuleRecordsSweeps pins the sweeps onto the host's recorder.
 //
-// A sweep runs on a ticker rather than on a request, so nothing upstream
-// opens a trace for it, and the storage spans it makes would be dropped
-// without the module finding the platform's tracer itself. Recording an
-// unmounted background trace is easy to lose in a refactor and invisible
-// until someone opens the dashboard, so it is asserted here.
+// A sweep runs on a ticker and not on a request, so nothing upstream
+// opens a trace for it, and the platform would drop the storage spans
+// it makes unless the module finds the platform's tracer itself.
+// Recording an unmounted background trace is easy to lose in a refactor
+// and invisible until someone opens the dashboard, so this test asserts
+// it.
 func TestModuleRecordsSweeps(t *testing.T) {
 	connection := "atkins_test_" + strconv.Itoa(int(connectionSeq.Add(1)))
 	dsn := "sqlite://file:" + filepath.Join(t.TempDir(), "atkins.db")
@@ -558,7 +559,7 @@ func TestModuleRecordsSweeps(t *testing.T) {
 	opts.ReclaimInterval = 10 * time.Millisecond
 	opts.RetentionInterval = 0
 
-	// NewOptions rather than the literal NewTestOptions carries: the sweep
+	// NewOptions and not the literal NewTestOptions carries: the sweep
 	// spans land in a ring buffer, and the literal sizes it at zero. The
 	// service name is the one serve.go records under.
 	options := platform.NewTestOptions()

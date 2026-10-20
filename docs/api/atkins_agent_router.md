@@ -12,7 +12,7 @@ import (
 <summary><code>type CommandLookup</code></summary>
 
 ```go
-// CommandLookup provides command existence checking.
+// CommandLookup reports whether a command exists.
 type CommandLookup interface {
 	HasCommand(name string) bool
 }
@@ -37,16 +37,16 @@ type Route struct {
 	Fortune     string                      // Fortune text for RouteFortune
 	Phrase      string                      // Phrase for RouteCorrection
 	AliasTask   string                      // Alias target for RouteCorrection
-	Ambiguous   bool                        // Multiple matches found
+	Ambiguous   bool                        // More than one match found
 	Matches     []string                    // Matching skills when ambiguous
 	HistMatches []history.ShellHistoryEntry // Shell history matches
 
 	// Multi-task support (chained commands)
-	Tasks []*model.ResolvedTask // Multiple tasks for RouteMultiTask
+	Tasks []*model.ResolvedTask // The chained tasks for RouteMultiTask
 
 	// Fuzzy match confirmation
 	Suggestion string // Suggested correction for RouteConfirm
-	Original   string // Original input that was fuzzy matched
+	Original   string // Original input that fuzzy matching corrected
 }
 ```
 
@@ -67,7 +67,7 @@ type RouteType int
 
 ```go
 // Router implements the centralized routing logic based on structure.d2.
-// Flow: Prompt → Is alias? → Semantic parsing → Match (skills/targets)?
+// Flow: Prompt -> Is alias? -> Semantic parsing -> Match (skills/targets)?
 type Router struct {
 	resolver *runner.TaskResolver
 	skills   []*model.Pipeline
@@ -98,7 +98,7 @@ const (
 	RouteAlias                // Resolved via alias
 	RouteSlash                // Slash command (explicit or natural language)
 	RouteTask                 // Skill/task execution
-	RouteMultiTask            // Multiple tasks (chained with && or "then")
+	RouteMultiTask            // Chained tasks (with && or "then")
 	RouteShell                // Shell command execution
 	RouteGreeting             // Greeting response
 	RouteCorrection           // Store a correction/alias
@@ -124,82 +124,82 @@ const (
 - `func (*Router) SetLastCommand (input string, failed bool)`
 - `func (*Router) ShellHistory () *history.ShellHistory`
 
-### NewRouter
+### `NewRouter`
 
-NewRouter creates a new router with all dependencies.
+`NewRouter` creates a new router with all dependencies.
 
 ```go
 func NewRouter(resolver *runner.TaskResolver, skills []*model.Pipeline, commands CommandLookup) *Router
 ```
 
-### Aliases
+### `Aliases`
 
-Aliases returns the alias store.
+`Aliases` returns the alias store.
 
 ```go
 func (*Router) Aliases() *aliases.Aliases
 ```
 
-### AvailableSkills
+### `AvailableSkills`
 
-AvailableSkills returns a list of available skill names.
+`AvailableSkills` returns a list of available skill names.
 
 ```go
 func (*Router) AvailableSkills() []string
 ```
 
-### FindMatches
+### `FindMatches`
 
-FindMatches returns all skills matching the input keywords.
+`FindMatches` returns all skills matching the input keywords.
 
 ```go
 func (*Router) FindMatches(keywords []string) []string
 ```
 
-### Greeter
+### `Greeter`
 
-Greeter returns the greeter.
+`Greeter` returns the greeter.
 
 ```go
 func (*Router) Greeter() *greeting.Greeter
 ```
 
-### LastCommand
+### `LastCommand`
 
-LastCommand returns the last command input.
+`LastCommand` returns the last command input.
 
 ```go
 func (*Router) LastCommand() string
 ```
 
-### Route
+### `Route`
 
-Route processes user input following the structure.d2 flow:
-1. Is alias? → Replace with alias
+`Route` processes user input following the structure.d2 flow:
+1. Is alias? -> Replace with alias
 2. Semantic parsing
 3. Match prompt (skills & targets)?
-- single match → execute
-- multiple matches → ambiguous
-- shell expression → shell exec (requires $ prefix)
-- greeting → greeting response
-- store correction → save alias
-- none → failure.
+- single match -> execute
+- more than one match -> ambiguous
+- shell expression -> shell exec (requires $ prefix)
+- greeting -> greeting response
+- store correction -> save alias
+- none -> failure.
 
 ```go
 func (*Router) Route(input string) *Route
 ```
 
-### SetLastCommand
+### `SetLastCommand`
 
-SetLastCommand records the last command for retry functionality.
+`SetLastCommand` records the last command for retry functionality.
 
 ```go
 func (*Router) SetLastCommand(input string, failed bool)
 ```
 
-### ShellHistory
+### `ShellHistory`
 
-ShellHistory returns the shell history.
+`ShellHistory` returns the shell history.
 
 ```go
 func (*Router) ShellHistory() *history.ShellHistory

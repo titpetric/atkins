@@ -19,7 +19,7 @@ func (e *Executor) executeCommands(ctx context.Context, stepCtx *ExecutionContex
 		return nil
 	}
 
-	// If step has multiple commands, update child nodes individually
+	// If step has more than one command, update child nodes individually
 	var cmdNodes []*treeview.Node
 	if stepNode != nil {
 		cmdNodes = stepNode.GetChildren()
@@ -94,7 +94,7 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 	}
 	defer func() { stepCtx.CurrentStep = originalStep }()
 
-	// Handle cmds: if step has multiple commands and child nodes exist, execute each command individually
+	// cmds: if step has more than one command and child nodes exist, execute each command individually
 	err := e.executeCommand(ctx, stepCtx, step, cmd)
 
 	// Calculate duration
@@ -139,11 +139,11 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		}
 	}
 
-	// Determine if interactive mode should be used (live streaming with stdin)
+	// Determine if interactive mode applies (live streaming with stdin)
 	// Check step interactive flag first, then job interactive flag
 	isInteractive := step.Interactive || (execCtx.Job != nil && execCtx.Job.Interactive)
 
-	// Determine if output should be captured for display with tree indentation
+	// Determine whether to capture output for display with tree indentation
 	// Check step passthru flag first, then job passthru flag
 	shouldPassthru := step.Passthru || (execCtx.Job != nil && execCtx.Job.Passthru)
 
@@ -171,7 +171,7 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		result = executor.Run(ctx, shellCmd)
 		execCtx.Display.Invalidate()
 	} else if shouldPassthru && execCtx.CurrentStep != nil {
-		// If passthru is enabled, capture output to the node for display with tree indentation
+		// With passthru on, capture output to the node for display with tree indentation
 		writer = NewLineCapturingWriter()
 		shellCmd.Stdout = writer
 		shellCmd.Stderr = writer
@@ -252,8 +252,8 @@ func IsEchoCommand(cmd string) bool {
 }
 
 // interpolateVariables interpolates all string variables in a map using $(exec) and ${{ var }} syntax.
-// Non-string values are passed through unchanged.
-// Variables are evaluated in dependency order using topological sort.
+// Non-string values pass through unchanged.
+// It resolves variables in dependency order using topological sort.
 // Returns the interpolated map or an error if interpolation fails.
 func interpolateVariables(ctx *ExecutionContext, vars map[string]any) (map[string]any, error) {
 	if vars == nil {

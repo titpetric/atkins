@@ -458,7 +458,7 @@ type SettingDefinition struct {
 <summary><code>type SettingKind</code></summary>
 
 ```go
-// SettingKind is how a setting's value is validated and parsed.
+// SettingKind selects how the server checks and parses a setting's value.
 type SettingKind string
 ```
 
@@ -513,8 +513,8 @@ type User struct {
 <summary><code>const DefaultContentType</code></summary>
 
 ```go
-// DefaultContentType is what an artefact is served as when the agent
-// could not tell what it uploaded.
+// DefaultContentType is the media type the server sends for an artefact
+// when the agent could not tell what it uploaded.
 const DefaultContentType = "application/octet-stream"
 ```
 
@@ -554,7 +554,7 @@ const JobTable = "`job`"
 <summary><code>const MaxArtefactPathLength</code></summary>
 
 ```go
-// MaxArtefactPathLength bounds the name an artefact is stored under.
+// MaxArtefactPathLength bounds the name the server stores an artefact under.
 // The value is a path, not prose; anything longer is a mistake or an
 // attempt to fill a column.
 const MaxArtefactPathLength = 512
@@ -657,7 +657,7 @@ const (
 	KindEnum     SettingKind = "enum"
 
 	// KindBytes is a size, written the way an operator thinks about
-	// one: 32MB rather than 33554432.
+	// one: 32MB, and never 33554432.
 	KindBytes SettingKind = "bytes"
 )
 ```
@@ -685,19 +685,19 @@ const (
 	// heartbeat before the server reclaims it.
 	SettingJobLeaseTTL = "job.lease_ttl"
 
-	// SettingJobRetention is how long a finished job's row is kept.
-	// Zero keeps it forever. Deleting a job takes its output with it.
+	// SettingJobRetention is how long the server keeps a finished job's
+	// row. Zero keeps it forever. Deleting a job takes its output with it.
 	SettingJobRetention = "job.retention"
 
-	// SettingJobLogRetention is how long a finished job's output is
-	// kept. Zero keeps it forever. It is separate from
+	// SettingJobLogRetention is how long the server keeps a finished
+	// job's output. Zero keeps it forever. It stays separate from
 	// SettingJobRetention because output is the part that grows without
 	// bound, and an outcome is worth keeping long after the lines that
 	// produced it stop being interesting.
 	SettingJobLogRetention = "job.log_retention"
 
-	// SettingJobVisibility is "private" or "public": whether a job is
-	// readable only by the user who dispatched it, or by anyone.
+	// SettingJobVisibility is "private" or "public": whether only the
+	// user who dispatched a job can read it, or anyone can.
 	SettingJobVisibility = "job.visibility"
 
 	// SettingArtefactMaxSize bounds one uploaded artefact.
@@ -707,7 +707,7 @@ const (
 	// keep.
 	SettingArtefactMaxCount = "artefact.max_count"
 
-	// SettingArtefactRetention is how long artefact bytes are kept.
+	// SettingArtefactRetention is how long the server keeps artefact bytes.
 	// Zero follows job.retention.
 	SettingArtefactRetention = "artefact.retention"
 )
@@ -722,14 +722,14 @@ const (
 // Repository policy values.
 const (
 	// PolicyOpen builds any repository a logged-in user dispatches.
-	// It is the default: a personal instance has no third party to
+	// This is the default: a personal instance has no third party to
 	// defend against, and requiring a rule before the first run would
 	// make the tool feel broken.
 	PolicyOpen RepositoryPolicy = "open"
 
 	// PolicyAllowlist builds only repositories matching an active
-	// rule. With no rules configured, nothing runs — which is the
-	// point of turning it on.
+	// rule. With no rules set up, nothing runs, and an operator turns
+	// it on for exactly that.
 	PolicyAllowlist RepositoryPolicy = "allowlist"
 )
 ```
@@ -780,10 +780,10 @@ const (
 	// requires the per-job token atkins prints as part of the URL.
 	VisibilityPrivate JobVisibility = "private"
 
-	// VisibilityPublic is the single-team instance the CI/CD server was
-	// first written for: every authenticated user reads every job, and
-	// the job page opens for anyone holding the URL. It is a choice an
-	// admin makes, not the state an instance starts in.
+	// VisibilityPublic is the single-team instance the CI/CD server
+	// first targeted: every authenticated user reads every job, and the
+	// job page opens for anyone holding the URL. An admin picks it; a
+	// new instance starts private.
 	VisibilityPublic JobVisibility = "public"
 )
 ```
@@ -996,96 +996,96 @@ var UserPrimaryFields = []string{"id"}
 <summary><code>var ErrInvalidCredentials, ErrUserInactive, ErrEmailTaken, ErrUsernameTaken, ErrRegistrationClosed, ErrSessionExpired, ErrSessionRevoked, ErrInvalidRepository, ErrMaxDepthExceeded, ErrRepositoryNotAllowed, ErrInvalidPattern, ErrRuleNotFound, ErrSSHKeyNotFound, ErrInvalidSSHKey, ErrInvalidArtefactPath, ErrArtefactTooLarge, ErrTooManyArtefacts, ErrChecksumMismatch, ErrArtefactNotFound, ErrForbidden, ErrLastAdmin, ErrInvalidAgentToken</code></summary>
 
 ```go
-// Errors returned by the storage layer. Handlers map these onto status
-// codes; anything not listed here is a 5xx as far as the API is concerned.
+// The storage layer returns these errors. Handlers map them onto status
+// codes; the API reports anything not listed here as a 5xx.
 var (
-	// ErrInvalidCredentials is returned when the email/password pair
-	// does not match an active user. It is deliberately the same error
-	// for "no such user" and "wrong password" so the login endpoint
-	// cannot be used to enumerate accounts.
+	// ErrInvalidCredentials reports an email/password pair that does
+	// not match an active user. "No such user" and "wrong password"
+	// share this one error so nobody can probe the login endpoint for
+	// account names.
 	ErrInvalidCredentials = errors.New("invalid credentials")
 
-	// ErrUserInactive is returned when a user exists but has been
-	// deactivated. Login is refused.
+	// ErrUserInactive reports a user that exists but is inactive. Login
+	// refuses that user.
 	ErrUserInactive = errors.New("user is not active")
 
-	// ErrEmailTaken is returned when registering an existing email.
+	// ErrEmailTaken reports a registration with an existing email.
 	ErrEmailTaken = errors.New("email already registered")
 
-	// ErrUsernameTaken is returned when registering an existing username.
+	// ErrUsernameTaken reports a registration with an existing username.
 	ErrUsernameTaken = errors.New("username already taken")
 
-	// ErrRegistrationClosed is returned when registration is disabled
-	// and at least one user already exists.
+	// ErrRegistrationClosed reports a registration attempt while the
+	// registration setting is off and at least one user already exists.
 	ErrRegistrationClosed = errors.New("registration is closed")
 
-	// ErrSessionExpired is returned when a refresh token is past its
-	// expiry. The client has to log in again.
+	// ErrSessionExpired reports a refresh token past its expiry. The
+	// client has to log in again.
 	ErrSessionExpired = errors.New("session expired")
 
-	// ErrSessionRevoked is returned when a refresh token belongs to a
-	// session that was logged out.
+	// ErrSessionRevoked reports a refresh token that belongs to a
+	// logged-out session.
 	ErrSessionRevoked = errors.New("session revoked")
 
-	// ErrInvalidRepository is returned when a dispatch request carries
-	// no usable git remote.
+	// ErrInvalidRepository reports a dispatch request that carries no
+	// usable git remote.
 	ErrInvalidRepository = errors.New("invalid repository")
 
-	// ErrMaxDepthExceeded is returned when a job tries to dispatch a
-	// child past the configured nesting limit. It's the backstop
-	// against a pipeline that dispatches itself forever.
+	// ErrMaxDepthExceeded reports a job dispatching a child past the
+	// nesting limit from the server settings. It's the backstop against
+	// a pipeline that dispatches itself forever.
 	ErrMaxDepthExceeded = errors.New("maximum job depth exceeded")
 
-	// ErrRepositoryNotAllowed is returned when the server runs an
-	// allowlist policy and no rule matches the repository.
+	// ErrRepositoryNotAllowed reports a repository that matches no rule
+	// while the server runs an allowlist policy.
 	ErrRepositoryNotAllowed = errors.New("repository is not on the allowlist")
 
-	// ErrInvalidPattern is returned for an empty allowlist pattern.
+	// ErrInvalidPattern reports an empty allowlist pattern.
 	ErrInvalidPattern = errors.New("pattern is required")
 
-	// ErrRuleNotFound is returned when an allowlist rule does not
-	// exist, or has already been deleted.
+	// ErrRuleNotFound reports an allowlist rule that does not exist, or
+	// that a delete already removed.
 	ErrRuleNotFound = errors.New("repository rule not found")
 
-	// ErrSSHKeyNotFound is returned when an ssh key does not exist.
+	// ErrSSHKeyNotFound reports an ssh key that does not exist.
 	ErrSSHKeyNotFound = errors.New("ssh key not found")
 
-	// ErrInvalidSSHKey is returned when a submitted key is not a
-	// usable private key.
+	// ErrInvalidSSHKey reports a submitted key that is not a usable
+	// private key.
 	ErrInvalidSSHKey = errors.New("not a usable ssh private key")
 
-	// ErrInvalidArtefactPath is returned when an upload names a file
-	// that could not be inside the job's directory.
+	// ErrInvalidArtefactPath reports an upload that names a file which
+	// could not sit inside the job's directory.
 	ErrInvalidArtefactPath = errors.New("artefact path must be relative to the job directory")
 
-	// ErrArtefactTooLarge is returned when an upload runs past
-	// artefact.max_size. The bytes written so far are discarded.
+	// ErrArtefactTooLarge reports an upload that runs past
+	// artefact.max_size. The store discards the bytes written so far.
 	ErrArtefactTooLarge = errors.New("artefact is larger than artefact.max_size")
 
-	// ErrTooManyArtefacts is returned when a job has already stored
-	// artefact.max_count files. It is the per-job backstop against a
+	// ErrTooManyArtefacts reports a job that already stores
+	// artefact.max_count files. This is the per-job backstop against a
 	// pipeline that uploads in a loop.
 	ErrTooManyArtefacts = errors.New("job has reached artefact.max_count")
 
-	// ErrChecksumMismatch is returned when the bytes received do not
-	// hash to the checksum the agent declared, which means the upload
-	// was truncated or altered in flight.
+	// ErrChecksumMismatch reports received bytes that do not hash to the
+	// checksum the agent declared: something truncated or altered the
+	// upload in flight.
 	ErrChecksumMismatch = errors.New("artefact checksum does not match the uploaded bytes")
 
-	// ErrArtefactNotFound is returned when an artefact does not exist,
-	// belongs to another job, or has been swept by retention.
+	// ErrArtefactNotFound reports an artefact that does not exist,
+	// belongs to another job, or that retention already swept.
 	ErrArtefactNotFound = errors.New("artefact not found")
 
-	// ErrForbidden is returned when a user is authenticated but not
-	// permitted to perform the action.
+	// ErrForbidden reports a signed-in user who lacks the permission
+	// for the action.
 	ErrForbidden = errors.New("insufficient permissions")
 
-	// ErrLastAdmin is returned when a flag change would leave the
-	// instance with no active admin, and therefore no way back in.
+	// ErrLastAdmin reports a flag change that would leave the instance
+	// with no active admin, and so with no way back in.
 	ErrLastAdmin = errors.New("refusing to remove the last active admin; promote someone else first")
 
-	// ErrInvalidAgentToken is returned when agent enrolment presents
-	// the wrong token, or the server has no enrolment token set.
+	// ErrInvalidAgentToken reports an agent enrolment that presents the
+	// wrong token, or a server with no enrolment token set.
 	ErrInvalidAgentToken = errors.New("invalid agent enrolment token")
 )
 ```
@@ -1368,129 +1368,130 @@ var (
 - `func (*User) Update (opts ...QueryOption) string`
 - `func (SettingDefinition) ValidateSetting (value string) error`
 
-### ArtefactContentType
+### `ArtefactContentType`
 
-ArtefactContentType sanitizes a client-declared media type.
+`ArtefactContentType` sanitizes a client-declared media type.
 
-It is echoed back on download, so a header the agent invented must
-not be able to carry a newline into the response.
+The server echoes the value back on download, so a header the agent
+invented must not carry a newline into the response.
 
 ```go
 func ArtefactContentType(value string) string
 ```
 
-### ArtefactPath
+### `ArtefactPath`
 
-ArtefactPath normalizes the name a pipeline gave a file into a clean
+`ArtefactPath` normalizes the name a pipeline gave a file into a clean
 path relative to the directory the job ran in, or "" when the name
 cannot mean that.
 
-This is the same decision cleanWorkingDirectory makes, and it is made
-here for the same reason: the value arrives over the network and ends
-up addressing bytes on the server's disk. An absolute path or a `..`
-escape is rejected outright rather than repaired, because a caller
-asking for `../../etc/passwd` should be told no, not quietly handed
-`etc/passwd`.
+This is the same decision cleanWorkingDirectory makes, for the same
+reason: the value arrives over the network and then addresses bytes on
+the server's disk. ArtefactPath rejects an absolute path or a `..`
+escape outright and never repairs it: a caller that names
+`../../etc/passwd` gets a refusal, and never a quiet `etc/passwd`.
 
 ```go
 func ArtefactPath(value string) string
 ```
 
-### ArtefactPattern
+### `ArtefactPattern`
 
-ArtefactPattern normalizes one collection glob, or returns "".
+`ArtefactPattern` normalizes one collection glob, or returns "".
 
-A pattern is a path with `*` and `**` in it, so it is held to exactly
-the same rules as a path: relative, no `..`, no leading separator.
+A pattern is a path with `*` and `**` in it, so the same rules apply
+as for a path: relative, no `..`, no leading separator.
 
 ```go
 func ArtefactPattern(value string) string
 ```
 
-### ArtefactPatterns
+### `ArtefactPatterns`
 
-ArtefactPatterns parses the comma separated artefact_paths column
+`ArtefactPatterns` parses the comma separated artefact_paths column
 into the globs an agent should collect, dropping anything that could
 not name a file inside the checkout.
 
-Patterns are validated where they are read rather than only where
-they are written: a pattern can be stored by one version of the
-server and read by another, and the agent is the one that touches the
-filesystem.
+ArtefactPatterns checks patterns where the server reads them, on top
+of where it writes them: one version of the server can store a
+pattern and another can read it, and the agent is the one that touches
+the filesystem.
 
 ```go
 func ArtefactPatterns(value string) []string
 ```
 
-### CleanWorkingDirectory
+### `CleanWorkingDirectory`
 
-CleanWorkingDirectory normalizes a caller-supplied path into a clean
+`CleanWorkingDirectory` normalizes a caller-supplied path into a clean
 path relative to the repository root.
 
-An agent will cd into this, so an absolute path or a `..` escape is
-dropped rather than stored: the value only ever means "somewhere
-inside this checkout". Every route that queues a job goes through
-here, because a guard on one of them is no guard at all.
+An agent will cd into this, so CleanWorkingDirectory drops an absolute
+path or a `..` escape and never stores it: the value only ever means
+"somewhere inside this checkout". Every route that queues a job calls
+it, because a guard on one of them is no guard at all.
 
 ```go
 func CleanWorkingDirectory(dir string) string
 ```
 
-### JobLink
+### `JobLink`
 
-JobLink is where a job's page lives on the server.
+`JobLink` is where a job's page lives on the server.
 
-It is here rather than in the page package because two sides build the
+It lives here and outside the page package because two sides build the
 same link: the pages, for every job they point at, and the API, for
-callers that read a job and want to hand a person somewhere to look.
+callers that read a job and point a person somewhere to look.
 A link that differs between them is a link that works in one place and
 403s in the other.
 
-The path is server-relative on purpose. The server is reached through
-whatever hostname the operator put in front of it, and inventing one
-here would be a guess; the caller already knows which server it asked.
+The path is server-relative. Clients reach the server through whatever
+hostname the operator put in front of it, and inventing one here would
+be a guess; the caller already holds the address of the server it
+called.
 
 ```go
 func JobLink(jobID, viewToken string) string
 ```
 
-### JoinArtefactPatterns
+### `JoinArtefactPatterns`
 
-JoinArtefactPatterns renders patterns for the artefact_paths column,
+`JoinArtefactPatterns` renders patterns for the artefact_paths column,
 keeping only the ones that survive validation.
 
 ```go
 func JoinArtefactPatterns(patterns []string) string
 ```
 
-### LookupSetting
+### `LookupSetting`
 
-LookupSetting returns the definition for a name.
+`LookupSetting` returns the definition for a name.
 
 ```go
 func LookupSetting(name string) (SettingDefinition, bool)
 ```
 
-### MatchArtefactPath
+### `MatchArtefactPath`
 
-MatchArtefactPath reports whether a path relative to the job's
+`MatchArtefactPath` reports whether a path relative to the job's
 directory matches a collection pattern. `*` matches within a path
 segment, `**` across segments, exactly as the repository allowlist
 patterns do.
 
-Unlike MatchRepository this is case-sensitive: repository slugs are
-lowercased on the way in, filenames are not, and `*.JSON` collecting
-`scan.json` on one agent and not another would be worse than strict.
+Unlike MatchRepository this is case-sensitive: the server lowercases
+repository slugs on the way in and leaves filenames alone, and
+`*.JSON` collecting `scan.json` on one agent and not another would be
+worse than strict.
 
 ```go
 func MatchArtefactPath(pattern, value string) bool
 ```
 
-### MatchRepository
+### `MatchRepository`
 
-MatchRepository reports whether a repository slug matches a pattern.
+`MatchRepository` reports whether a repository slug matches a pattern.
 
-Patterns are written against the normalized slug (`host/owner/name`):
+Patterns match against the normalized slug (`host/owner/name`):
 
 ```go
 github.com/titpetric/atkins   one repository
@@ -1500,2122 +1501,2122 @@ github.com/**                 every repository on one host
 ```
 
 `*` matches within a path segment; `**` crosses segments. Matching is
-case-insensitive because slugs are lowercased.
+case-insensitive because slugs are lowercase.
 
 ```go
 func MatchRepository(pattern, slug string) bool
 ```
 
-### ParseBytes
+### `ParseBytes`
 
-ParseBytes reads a size written as a plain number of bytes or with a
+`ParseBytes` reads a size written as a plain number of bytes or with a
 KB/MB/GB suffix. The units are powers of 1024: this bounds a file on
-a disk, and disks are measured the way `ls -lh` measures them.
+a disk, and `ls -lh` measures disks that way.
 
 ```go
 func ParseBytes(value string) (int64, error)
 ```
 
-### RepositorySlug
+### `RepositorySlug`
 
-RepositorySlug normalizes a git remote URL into a stable identity of
+`RepositorySlug` normalizes a git remote URL into a stable identity of
 the form `host/owner/name`. The slug is what the server deduplicates
 on, so `git@github.com:titpetric/atkins.git` and
 `https://github.com/titpetric/atkins` are one repository.
 
-An unrecognized remote is returned trimmed and lowercased rather than
-rejected; a private or self-hosted remote should still be usable
-without the server knowing its URL shape.
+RepositorySlug returns an unrecognized remote trimmed and lowercased
+and does not reject it; a private or self-hosted remote stays usable
+without the server recognizing its URL shape.
 
 ```go
 func RepositorySlug(remoteURL string) string
 ```
 
-### SettingDefinitions
+### `SettingDefinitions`
 
-SettingDefinitions returns the registry.
+`SettingDefinitions` returns the registry.
 
 ```go
 func SettingDefinitions() []SettingDefinition
 ```
 
-### TerminalJobStatus
+### `TerminalJobStatus`
 
-TerminalJobStatus reports whether status is a settled state.
+`TerminalJobStatus` reports whether status is a settled state.
 
 ```go
 func TerminalJobStatus(status JobStatus) bool
 ```
 
-### TerminalJobStatuses
+### `TerminalJobStatuses`
 
-TerminalJobStatuses returns the states a job settles into. Retention
+`TerminalJobStatuses` returns the states a job settles into. Retention
 sweeps use it: a job that has not settled is never old enough to
-delete, however long ago it was queued.
+delete, no matter how old its queue time.
 
 ```go
 func TerminalJobStatuses() []JobStatus
 ```
 
-### ValidJobStatus
+### `ValidJobStatus`
 
-ValidJobStatus reports whether status is a known job status.
+`ValidJobStatus` reports whether status is a known job status.
 
 ```go
 func ValidJobStatus(status JobStatus) bool
 ```
 
-### ValidJobVisibility
+### `ValidJobVisibility`
 
-ValidJobVisibility reports whether visibility is a known value.
+`ValidJobVisibility` reports whether visibility is a known value.
 
 ```go
 func ValidJobVisibility(visibility JobVisibility) bool
 ```
 
-### ValidRepositoryPolicy
+### `ValidRepositoryPolicy`
 
-ValidRepositoryPolicy reports whether policy is a known value.
+`ValidRepositoryPolicy` reports whether policy is a known value.
 
 ```go
 func ValidRepositoryPolicy(policy RepositoryPolicy) bool
 ```
 
-### WithColumns
+### `WithColumns`
 
-WithColumns will set the columns to use for the query.
+`WithColumns` will set the columns to use for the query.
 
 ```go
 func WithColumns(cols []string) QueryOption
 ```
 
-### WithLimit
+### `WithLimit`
 
-WithLimit will set the limit clause parameters for the query.
+`WithLimit` will set the limit clause parameters for the query.
 
 ```go
 func WithLimit(start, offset int) QueryOption
 ```
 
-### WithOrderBy
+### `WithOrderBy`
 
-WithOrderBy will set the order by clause for the query.
+`WithOrderBy` will set the order by clause for the query.
 
 ```go
 func WithOrderBy(clause string) QueryOption
 ```
 
-### WithStatement
+### `WithStatement`
 
-WithStatement will change the statement for the query.
+`WithStatement` will change the statement for the query.
 
 ```go
 func WithStatement(stmt string) QueryOption
 ```
 
-### WithTable
+### `WithTable`
 
-WithTable will set the table name for the query.
+`WithTable` will set the table name for the query.
 
 ```go
 func WithTable(name string) QueryOption
 ```
 
-### WithWhere
+### `WithWhere`
 
-WithWhere will set the where condition for the query.
+`WithWhere` will set the where condition for the query.
 
 ```go
 func WithWhere(clause string) QueryOption
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*Job) Delete(opts ...QueryOption) string
 ```
 
-### GetAgentID
+### `GetAgentID`
 
-GetAgentID will return the value of AgentID.
+`GetAgentID` will return the value of AgentID.
 
 ```go
 func (*Job) GetAgentID() string
 ```
 
-### GetArtefactPaths
+### `GetArtefactPaths`
 
-GetArtefactPaths will return the value of ArtefactPaths.
+`GetArtefactPaths` will return the value of ArtefactPaths.
 
 ```go
 func (*Job) GetArtefactPaths() string
 ```
 
-### GetCloneDepth
+### `GetCloneDepth`
 
-GetCloneDepth will return the value of CloneDepth.
+`GetCloneDepth` will return the value of CloneDepth.
 
 ```go
 func (*Job) GetCloneDepth() int64
 ```
 
-### GetCommand
+### `GetCommand`
 
-GetCommand will return the value of Command.
+`GetCommand` will return the value of Command.
 
 ```go
 func (*Job) GetCommand() string
 ```
 
-### GetCommitSha
+### `GetCommitSha`
 
-GetCommitSha will return the value of CommitSha.
+`GetCommitSha` will return the value of CommitSha.
 
 ```go
 func (*Job) GetCommitSha() string
 ```
 
-### GetCreatedAt
+### `GetCreatedAt`
 
-GetCreatedAt will return the value of CreatedAt.
+`GetCreatedAt` will return the value of CreatedAt.
 
 ```go
 func (*Job) GetCreatedAt() *time.Time
 ```
 
-### GetDepth
+### `GetDepth`
 
-GetDepth will return the value of Depth.
+`GetDepth` will return the value of Depth.
 
 ```go
 func (*Job) GetDepth() int64
 ```
 
-### GetError
+### `GetError`
 
-GetError will return the value of Error.
+`GetError` will return the value of Error.
 
 ```go
 func (*Job) GetError() string
 ```
 
-### GetExitCode
+### `GetExitCode`
 
-GetExitCode will return the value of ExitCode.
+`GetExitCode` will return the value of ExitCode.
 
 ```go
 func (*Job) GetExitCode() int64
 ```
 
-### GetFinishedAt
+### `GetFinishedAt`
 
-GetFinishedAt will return the value of FinishedAt.
+`GetFinishedAt` will return the value of FinishedAt.
 
 ```go
 func (*Job) GetFinishedAt() *time.Time
 ```
 
-### GetID
+### `GetID`
 
-GetID will return the value of ID.
+`GetID` will return the value of ID.
 
 ```go
 func (*Job) GetID() string
 ```
 
-### GetLabels
+### `GetLabels`
 
-GetLabels will return the value of Labels.
+`GetLabels` will return the value of Labels.
 
 ```go
 func (*Job) GetLabels() string
 ```
 
-### GetLeaseExpiresAt
+### `GetLeaseExpiresAt`
 
-GetLeaseExpiresAt will return the value of LeaseExpiresAt.
+`GetLeaseExpiresAt` will return the value of LeaseExpiresAt.
 
 ```go
 func (*Job) GetLeaseExpiresAt() *time.Time
 ```
 
-### GetParams
+### `GetParams`
 
-GetParams will return the value of Params.
+`GetParams` will return the value of Params.
 
 ```go
 func (*Job) GetParams() string
 ```
 
-### GetParentID
+### `GetParentID`
 
-GetParentID will return the value of ParentID.
+`GetParentID` will return the value of ParentID.
 
 ```go
 func (*Job) GetParentID() string
 ```
 
-### GetRef
+### `GetRef`
 
-GetRef will return the value of Ref.
+`GetRef` will return the value of Ref.
 
 ```go
 func (*Job) GetRef() string
 ```
 
-### GetRepositoryID
+### `GetRepositoryID`
 
-GetRepositoryID will return the value of RepositoryID.
+`GetRepositoryID` will return the value of RepositoryID.
 
 ```go
 func (*Job) GetRepositoryID() string
 ```
 
-### GetRootID
+### `GetRootID`
 
-GetRootID will return the value of RootID.
+`GetRootID` will return the value of RootID.
 
 ```go
 func (*Job) GetRootID() string
 ```
 
-### GetStartedAt
+### `GetStartedAt`
 
-GetStartedAt will return the value of StartedAt.
+`GetStartedAt` will return the value of StartedAt.
 
 ```go
 func (*Job) GetStartedAt() *time.Time
 ```
 
-### GetStatus
+### `GetStatus`
 
-GetStatus will return the value of Status.
+`GetStatus` will return the value of Status.
 
 ```go
 func (*Job) GetStatus() string
 ```
 
-### GetUpdatedAt
+### `GetUpdatedAt`
 
-GetUpdatedAt will return the value of UpdatedAt.
+`GetUpdatedAt` will return the value of UpdatedAt.
 
 ```go
 func (*Job) GetUpdatedAt() *time.Time
 ```
 
-### GetUserID
+### `GetUserID`
 
-GetUserID will return the value of UserID.
+`GetUserID` will return the value of UserID.
 
 ```go
 func (*Job) GetUserID() string
 ```
 
-### GetWorkingDirectory
+### `GetWorkingDirectory`
 
-GetWorkingDirectory will return the value of WorkingDirectory.
+`GetWorkingDirectory` will return the value of WorkingDirectory.
 
 ```go
 func (*Job) GetWorkingDirectory() string
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*Job) Insert(opts ...QueryOption) string
 ```
 
-### IsTerminal
+### `IsTerminal`
 
-IsTerminal reports whether the job has settled.
+`IsTerminal` reports whether the job has settled.
 
 ```go
 func (*Job) IsTerminal() bool
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*Job) Select(opts ...QueryOption) string
 ```
 
-### SetAgentID
+### `SetAgentID`
 
-SetAgentID sets AgentID to the provided value.
+`SetAgentID` sets AgentID to the provided value.
 
 ```go
 func (*Job) SetAgentID(val string)
 ```
 
-### SetArtefactPaths
+### `SetArtefactPaths`
 
-SetArtefactPaths sets ArtefactPaths to the provided value.
+`SetArtefactPaths` sets ArtefactPaths to the provided value.
 
 ```go
 func (*Job) SetArtefactPaths(val string)
 ```
 
-### SetCloneDepth
+### `SetCloneDepth`
 
-SetCloneDepth sets CloneDepth to the provided value.
+`SetCloneDepth` sets CloneDepth to the provided value.
 
 ```go
 func (*Job) SetCloneDepth(val int64)
 ```
 
-### SetCommand
+### `SetCommand`
 
-SetCommand sets Command to the provided value.
+`SetCommand` sets Command to the provided value.
 
 ```go
 func (*Job) SetCommand(val string)
 ```
 
-### SetCommitSha
+### `SetCommitSha`
 
-SetCommitSha sets CommitSha to the provided value.
+`SetCommitSha` sets CommitSha to the provided value.
 
 ```go
 func (*Job) SetCommitSha(val string)
 ```
 
-### SetCreatedAt
+### `SetCreatedAt`
 
-SetCreatedAt sets CreatedAt to the provided value.
+`SetCreatedAt` sets CreatedAt to the provided value.
 
 ```go
 func (*Job) SetCreatedAt(stamp time.Time)
 ```
 
-### SetDepth
+### `SetDepth`
 
-SetDepth sets Depth to the provided value.
+`SetDepth` sets Depth to the provided value.
 
 ```go
 func (*Job) SetDepth(val int64)
 ```
 
-### SetError
+### `SetError`
 
-SetError sets Error to the provided value.
+`SetError` sets Error to the provided value.
 
 ```go
 func (*Job) SetError(val string)
 ```
 
-### SetExitCode
+### `SetExitCode`
 
-SetExitCode sets ExitCode to the provided value.
+`SetExitCode` sets ExitCode to the provided value.
 
 ```go
 func (*Job) SetExitCode(val int64)
 ```
 
-### SetFinishedAt
+### `SetFinishedAt`
 
-SetFinishedAt sets FinishedAt to the provided value.
+`SetFinishedAt` sets FinishedAt to the provided value.
 
 ```go
 func (*Job) SetFinishedAt(stamp time.Time)
 ```
 
-### SetID
+### `SetID`
 
-SetID sets ID to the provided value.
+`SetID` sets ID to the provided value.
 
 ```go
 func (*Job) SetID(val string)
 ```
 
-### SetLabels
+### `SetLabels`
 
-SetLabels sets Labels to the provided value.
+`SetLabels` sets Labels to the provided value.
 
 ```go
 func (*Job) SetLabels(val string)
 ```
 
-### SetLeaseExpiresAt
+### `SetLeaseExpiresAt`
 
-SetLeaseExpiresAt sets LeaseExpiresAt to the provided value.
+`SetLeaseExpiresAt` sets LeaseExpiresAt to the provided value.
 
 ```go
 func (*Job) SetLeaseExpiresAt(stamp time.Time)
 ```
 
-### SetParams
+### `SetParams`
 
-SetParams sets Params to the provided value.
+`SetParams` sets Params to the provided value.
 
 ```go
 func (*Job) SetParams(val string)
 ```
 
-### SetParentID
+### `SetParentID`
 
-SetParentID sets ParentID to the provided value.
+`SetParentID` sets ParentID to the provided value.
 
 ```go
 func (*Job) SetParentID(val string)
 ```
 
-### SetRef
+### `SetRef`
 
-SetRef sets Ref to the provided value.
+`SetRef` sets Ref to the provided value.
 
 ```go
 func (*Job) SetRef(val string)
 ```
 
-### SetRepositoryID
+### `SetRepositoryID`
 
-SetRepositoryID sets RepositoryID to the provided value.
+`SetRepositoryID` sets RepositoryID to the provided value.
 
 ```go
 func (*Job) SetRepositoryID(val string)
 ```
 
-### SetRootID
+### `SetRootID`
 
-SetRootID sets RootID to the provided value.
+`SetRootID` sets RootID to the provided value.
 
 ```go
 func (*Job) SetRootID(val string)
 ```
 
-### SetStartedAt
+### `SetStartedAt`
 
-SetStartedAt sets StartedAt to the provided value.
+`SetStartedAt` sets StartedAt to the provided value.
 
 ```go
 func (*Job) SetStartedAt(stamp time.Time)
 ```
 
-### SetStatus
+### `SetStatus`
 
-SetStatus sets Status to the provided value.
+`SetStatus` sets Status to the provided value.
 
 ```go
 func (*Job) SetStatus(val string)
 ```
 
-### SetUpdatedAt
+### `SetUpdatedAt`
 
-SetUpdatedAt sets UpdatedAt to the provided value.
+`SetUpdatedAt` sets UpdatedAt to the provided value.
 
 ```go
 func (*Job) SetUpdatedAt(stamp time.Time)
 ```
 
-### SetUserID
+### `SetUserID`
 
-SetUserID sets UserID to the provided value.
+`SetUserID` sets UserID to the provided value.
 
 ```go
 func (*Job) SetUserID(val string)
 ```
 
-### SetWorkingDirectory
+### `SetWorkingDirectory`
 
-SetWorkingDirectory sets WorkingDirectory to the provided value.
+`SetWorkingDirectory` sets WorkingDirectory to the provided value.
 
 ```go
 func (*Job) SetWorkingDirectory(val string)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*Job) Update(opts ...QueryOption) string
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*JobArtefact) Delete(opts ...QueryOption) string
 ```
 
-### GetAgentID
+### `GetAgentID`
 
-GetAgentID will return the value of AgentID.
+`GetAgentID` will return the value of AgentID.
 
 ```go
 func (*JobArtefact) GetAgentID() string
 ```
 
-### GetChecksum
+### `GetChecksum`
 
-GetChecksum will return the value of Checksum.
+`GetChecksum` will return the value of Checksum.
 
 ```go
 func (*JobArtefact) GetChecksum() string
 ```
 
-### GetContentType
+### `GetContentType`
 
-GetContentType will return the value of ContentType.
+`GetContentType` will return the value of ContentType.
 
 ```go
 func (*JobArtefact) GetContentType() string
 ```
 
-### GetCreatedAt
+### `GetCreatedAt`
 
-GetCreatedAt will return the value of CreatedAt.
+`GetCreatedAt` will return the value of CreatedAt.
 
 ```go
 func (*JobArtefact) GetCreatedAt() *time.Time
 ```
 
-### GetDeletedAt
+### `GetDeletedAt`
 
-GetDeletedAt will return the value of DeletedAt.
+`GetDeletedAt` will return the value of DeletedAt.
 
 ```go
 func (*JobArtefact) GetDeletedAt() *time.Time
 ```
 
-### GetID
+### `GetID`
 
-GetID will return the value of ID.
+`GetID` will return the value of ID.
 
 ```go
 func (*JobArtefact) GetID() string
 ```
 
-### GetJobID
+### `GetJobID`
 
-GetJobID will return the value of JobID.
+`GetJobID` will return the value of JobID.
 
 ```go
 func (*JobArtefact) GetJobID() string
 ```
 
-### GetPath
+### `GetPath`
 
-GetPath will return the value of Path.
+`GetPath` will return the value of Path.
 
 ```go
 func (*JobArtefact) GetPath() string
 ```
 
-### GetSize
+### `GetSize`
 
-GetSize will return the value of Size.
+`GetSize` will return the value of Size.
 
 ```go
 func (*JobArtefact) GetSize() int64
 ```
 
-### GetStorageKey
+### `GetStorageKey`
 
-GetStorageKey will return the value of StorageKey.
+`GetStorageKey` will return the value of StorageKey.
 
 ```go
 func (*JobArtefact) GetStorageKey() string
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*JobArtefact) Insert(opts ...QueryOption) string
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*JobArtefact) Select(opts ...QueryOption) string
 ```
 
-### SetAgentID
+### `SetAgentID`
 
-SetAgentID sets AgentID to the provided value.
+`SetAgentID` sets AgentID to the provided value.
 
 ```go
 func (*JobArtefact) SetAgentID(val string)
 ```
 
-### SetChecksum
+### `SetChecksum`
 
-SetChecksum sets Checksum to the provided value.
+`SetChecksum` sets Checksum to the provided value.
 
 ```go
 func (*JobArtefact) SetChecksum(val string)
 ```
 
-### SetContentType
+### `SetContentType`
 
-SetContentType sets ContentType to the provided value.
+`SetContentType` sets ContentType to the provided value.
 
 ```go
 func (*JobArtefact) SetContentType(val string)
 ```
 
-### SetCreatedAt
+### `SetCreatedAt`
 
-SetCreatedAt sets CreatedAt to the provided value.
+`SetCreatedAt` sets CreatedAt to the provided value.
 
 ```go
 func (*JobArtefact) SetCreatedAt(stamp time.Time)
 ```
 
-### SetDeletedAt
+### `SetDeletedAt`
 
-SetDeletedAt sets DeletedAt to the provided value.
+`SetDeletedAt` sets DeletedAt to the provided value.
 
 ```go
 func (*JobArtefact) SetDeletedAt(stamp time.Time)
 ```
 
-### SetID
+### `SetID`
 
-SetID sets ID to the provided value.
+`SetID` sets ID to the provided value.
 
 ```go
 func (*JobArtefact) SetID(val string)
 ```
 
-### SetJobID
+### `SetJobID`
 
-SetJobID sets JobID to the provided value.
+`SetJobID` sets JobID to the provided value.
 
 ```go
 func (*JobArtefact) SetJobID(val string)
 ```
 
-### SetPath
+### `SetPath`
 
-SetPath sets Path to the provided value.
+`SetPath` sets Path to the provided value.
 
 ```go
 func (*JobArtefact) SetPath(val string)
 ```
 
-### SetSize
+### `SetSize`
 
-SetSize sets Size to the provided value.
+`SetSize` sets Size to the provided value.
 
 ```go
 func (*JobArtefact) SetSize(val int64)
 ```
 
-### SetStorageKey
+### `SetStorageKey`
 
-SetStorageKey sets StorageKey to the provided value.
+`SetStorageKey` sets StorageKey to the provided value.
 
 ```go
 func (*JobArtefact) SetStorageKey(val string)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*JobArtefact) Update(opts ...QueryOption) string
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*JobLog) Delete(opts ...QueryOption) string
 ```
 
-### GetContent
+### `GetContent`
 
-GetContent will return the value of Content.
+`GetContent` will return the value of Content.
 
 ```go
 func (*JobLog) GetContent() string
 ```
 
-### GetCreatedAt
+### `GetCreatedAt`
 
-GetCreatedAt will return the value of CreatedAt.
+`GetCreatedAt` will return the value of CreatedAt.
 
 ```go
 func (*JobLog) GetCreatedAt() *time.Time
 ```
 
-### GetID
+### `GetID`
 
-GetID will return the value of ID.
+`GetID` will return the value of ID.
 
 ```go
 func (*JobLog) GetID() string
 ```
 
-### GetJobID
+### `GetJobID`
 
-GetJobID will return the value of JobID.
+`GetJobID` will return the value of JobID.
 
 ```go
 func (*JobLog) GetJobID() string
 ```
 
-### GetSeq
+### `GetSeq`
 
-GetSeq will return the value of Seq.
+`GetSeq` will return the value of Seq.
 
 ```go
 func (*JobLog) GetSeq() int64
 ```
 
-### GetStream
+### `GetStream`
 
-GetStream will return the value of Stream.
+`GetStream` will return the value of Stream.
 
 ```go
 func (*JobLog) GetStream() string
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*JobLog) Insert(opts ...QueryOption) string
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*JobLog) Select(opts ...QueryOption) string
 ```
 
-### SetContent
+### `SetContent`
 
-SetContent sets Content to the provided value.
+`SetContent` sets Content to the provided value.
 
 ```go
 func (*JobLog) SetContent(val string)
 ```
 
-### SetCreatedAt
+### `SetCreatedAt`
 
-SetCreatedAt sets CreatedAt to the provided value.
+`SetCreatedAt` sets CreatedAt to the provided value.
 
 ```go
 func (*JobLog) SetCreatedAt(stamp time.Time)
 ```
 
-### SetID
+### `SetID`
 
-SetID sets ID to the provided value.
+`SetID` sets ID to the provided value.
 
 ```go
 func (*JobLog) SetID(val string)
 ```
 
-### SetJobID
+### `SetJobID`
 
-SetJobID sets JobID to the provided value.
+`SetJobID` sets JobID to the provided value.
 
 ```go
 func (*JobLog) SetJobID(val string)
 ```
 
-### SetSeq
+### `SetSeq`
 
-SetSeq sets Seq to the provided value.
+`SetSeq` sets Seq to the provided value.
 
 ```go
 func (*JobLog) SetSeq(val int64)
 ```
 
-### SetStream
+### `SetStream`
 
-SetStream sets Stream to the provided value.
+`SetStream` sets Stream to the provided value.
 
 ```go
 func (*JobLog) SetStream(val string)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*JobLog) Update(opts ...QueryOption) string
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*Migrations) Delete(opts ...QueryOption) string
 ```
 
-### GetFilename
+### `GetFilename`
 
-GetFilename will return the value of Filename.
+`GetFilename` will return the value of Filename.
 
 ```go
 func (*Migrations) GetFilename() string
 ```
 
-### GetProject
+### `GetProject`
 
-GetProject will return the value of Project.
+`GetProject` will return the value of Project.
 
 ```go
 func (*Migrations) GetProject() string
 ```
 
-### GetStatementIndex
+### `GetStatementIndex`
 
-GetStatementIndex will return the value of StatementIndex.
+`GetStatementIndex` will return the value of StatementIndex.
 
 ```go
 func (*Migrations) GetStatementIndex() int64
 ```
 
-### GetStatus
+### `GetStatus`
 
-GetStatus will return the value of Status.
+`GetStatus` will return the value of Status.
 
 ```go
 func (*Migrations) GetStatus() string
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*Migrations) Insert(opts ...QueryOption) string
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*Migrations) Select(opts ...QueryOption) string
 ```
 
-### SetFilename
+### `SetFilename`
 
-SetFilename sets Filename to the provided value.
+`SetFilename` sets Filename to the provided value.
 
 ```go
 func (*Migrations) SetFilename(val string)
 ```
 
-### SetProject
+### `SetProject`
 
-SetProject sets Project to the provided value.
+`SetProject` sets Project to the provided value.
 
 ```go
 func (*Migrations) SetProject(val string)
 ```
 
-### SetStatementIndex
+### `SetStatementIndex`
 
-SetStatementIndex sets StatementIndex to the provided value.
+`SetStatementIndex` sets StatementIndex to the provided value.
 
 ```go
 func (*Migrations) SetStatementIndex(val int64)
 ```
 
-### SetStatus
+### `SetStatus`
 
-SetStatus sets Status to the provided value.
+`SetStatus` sets Status to the provided value.
 
 ```go
 func (*Migrations) SetStatus(val string)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*Migrations) Update(opts ...QueryOption) string
 ```
 
-### Apply
+### `Apply`
 
-Apply will use passed query options to populate the query.
+`Apply` will use passed query options to populate the query.
 
 ```go
 func (*QueryConfig) Apply(opts ...QueryOption) *QueryConfig
 ```
 
-### WithColumns
+### `WithColumns`
 
-WithColumns will set the columns to use for the query.
+`WithColumns` will set the columns to use for the query.
 
 ```go
 func (*QueryConfig) WithColumns(cols []string) QueryOption
 ```
 
-### WithLimit
+### `WithLimit`
 
-WithLimit will set the limit clause parameters for the query.
+`WithLimit` will set the limit clause parameters for the query.
 
 ```go
 func (*QueryConfig) WithLimit(start, offset int) QueryOption
 ```
 
-### WithOrderBy
+### `WithOrderBy`
 
-WithOrderBy will set the order by clause for the query.
+`WithOrderBy` will set the order by clause for the query.
 
 ```go
 func (*QueryConfig) WithOrderBy(clause string) QueryOption
 ```
 
-### WithStatement
+### `WithStatement`
 
-WithStatement will change the statement for the query.
+`WithStatement` will change the statement for the query.
 
 ```go
 func (*QueryConfig) WithStatement(stmt string) QueryOption
 ```
 
-### WithTable
+### `WithTable`
 
-WithTable will set the table name for the query.
+`WithTable` will set the table name for the query.
 
 ```go
 func (*QueryConfig) WithTable(name string) QueryOption
 ```
 
-### WithWhere
+### `WithWhere`
 
-WithWhere will set the where condition for the query.
+`WithWhere` will set the where condition for the query.
 
 ```go
 func (*QueryConfig) WithWhere(clause string) QueryOption
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*Repository) Delete(opts ...QueryOption) string
 ```
 
-### GetCreatedAt
+### `GetCreatedAt`
 
-GetCreatedAt will return the value of CreatedAt.
+`GetCreatedAt` will return the value of CreatedAt.
 
 ```go
 func (*Repository) GetCreatedAt() *time.Time
 ```
 
-### GetCreatedByUserID
+### `GetCreatedByUserID`
 
-GetCreatedByUserID will return the value of CreatedByUserID.
+`GetCreatedByUserID` will return the value of CreatedByUserID.
 
 ```go
 func (*Repository) GetCreatedByUserID() string
 ```
 
-### GetDefaultBranch
+### `GetDefaultBranch`
 
-GetDefaultBranch will return the value of DefaultBranch.
+`GetDefaultBranch` will return the value of DefaultBranch.
 
 ```go
 func (*Repository) GetDefaultBranch() string
 ```
 
-### GetDeletedAt
+### `GetDeletedAt`
 
-GetDeletedAt will return the value of DeletedAt.
+`GetDeletedAt` will return the value of DeletedAt.
 
 ```go
 func (*Repository) GetDeletedAt() *time.Time
 ```
 
-### GetID
+### `GetID`
 
-GetID will return the value of ID.
+`GetID` will return the value of ID.
 
 ```go
 func (*Repository) GetID() string
 ```
 
-### GetIsActive
+### `GetIsActive`
 
-GetIsActive will return the value of IsActive.
+`GetIsActive` will return the value of IsActive.
 
 ```go
 func (*Repository) GetIsActive() bool
 ```
 
-### GetRemoteURL
+### `GetRemoteURL`
 
-GetRemoteURL will return the value of RemoteURL.
+`GetRemoteURL` will return the value of RemoteURL.
 
 ```go
 func (*Repository) GetRemoteURL() string
 ```
 
-### GetSlug
+### `GetSlug`
 
-GetSlug will return the value of Slug.
+`GetSlug` will return the value of Slug.
 
 ```go
 func (*Repository) GetSlug() string
 ```
 
-### GetUpdatedAt
+### `GetUpdatedAt`
 
-GetUpdatedAt will return the value of UpdatedAt.
+`GetUpdatedAt` will return the value of UpdatedAt.
 
 ```go
 func (*Repository) GetUpdatedAt() *time.Time
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*Repository) Insert(opts ...QueryOption) string
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*Repository) Select(opts ...QueryOption) string
 ```
 
-### SetCreatedAt
+### `SetCreatedAt`
 
-SetCreatedAt sets CreatedAt to the provided value.
+`SetCreatedAt` sets CreatedAt to the provided value.
 
 ```go
 func (*Repository) SetCreatedAt(stamp time.Time)
 ```
 
-### SetCreatedByUserID
+### `SetCreatedByUserID`
 
-SetCreatedByUserID sets CreatedByUserID to the provided value.
+`SetCreatedByUserID` sets CreatedByUserID to the provided value.
 
 ```go
 func (*Repository) SetCreatedByUserID(val string)
 ```
 
-### SetDefaultBranch
+### `SetDefaultBranch`
 
-SetDefaultBranch sets DefaultBranch to the provided value.
+`SetDefaultBranch` sets DefaultBranch to the provided value.
 
 ```go
 func (*Repository) SetDefaultBranch(val string)
 ```
 
-### SetDeletedAt
+### `SetDeletedAt`
 
-SetDeletedAt sets DeletedAt to the provided value.
+`SetDeletedAt` sets DeletedAt to the provided value.
 
 ```go
 func (*Repository) SetDeletedAt(stamp time.Time)
 ```
 
-### SetID
+### `SetID`
 
-SetID sets ID to the provided value.
+`SetID` sets ID to the provided value.
 
 ```go
 func (*Repository) SetID(val string)
 ```
 
-### SetIsActive
+### `SetIsActive`
 
-SetIsActive sets IsActive to the provided value.
+`SetIsActive` sets IsActive to the provided value.
 
 ```go
 func (*Repository) SetIsActive(val bool)
 ```
 
-### SetRemoteURL
+### `SetRemoteURL`
 
-SetRemoteURL sets RemoteURL to the provided value.
+`SetRemoteURL` sets RemoteURL to the provided value.
 
 ```go
 func (*Repository) SetRemoteURL(val string)
 ```
 
-### SetSlug
+### `SetSlug`
 
-SetSlug sets Slug to the provided value.
+`SetSlug` sets Slug to the provided value.
 
 ```go
 func (*Repository) SetSlug(val string)
 ```
 
-### SetUpdatedAt
+### `SetUpdatedAt`
 
-SetUpdatedAt sets UpdatedAt to the provided value.
+`SetUpdatedAt` sets UpdatedAt to the provided value.
 
 ```go
 func (*Repository) SetUpdatedAt(stamp time.Time)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*Repository) Update(opts ...QueryOption) string
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*RepositoryRule) Delete(opts ...QueryOption) string
 ```
 
-### GetCreatedAt
+### `GetCreatedAt`
 
-GetCreatedAt will return the value of CreatedAt.
+`GetCreatedAt` will return the value of CreatedAt.
 
 ```go
 func (*RepositoryRule) GetCreatedAt() *time.Time
 ```
 
-### GetCreatedByUserID
+### `GetCreatedByUserID`
 
-GetCreatedByUserID will return the value of CreatedByUserID.
+`GetCreatedByUserID` will return the value of CreatedByUserID.
 
 ```go
 func (*RepositoryRule) GetCreatedByUserID() string
 ```
 
-### GetDeletedAt
+### `GetDeletedAt`
 
-GetDeletedAt will return the value of DeletedAt.
+`GetDeletedAt` will return the value of DeletedAt.
 
 ```go
 func (*RepositoryRule) GetDeletedAt() *time.Time
 ```
 
-### GetDescription
+### `GetDescription`
 
-GetDescription will return the value of Description.
+`GetDescription` will return the value of Description.
 
 ```go
 func (*RepositoryRule) GetDescription() string
 ```
 
-### GetID
+### `GetID`
 
-GetID will return the value of ID.
+`GetID` will return the value of ID.
 
 ```go
 func (*RepositoryRule) GetID() string
 ```
 
-### GetIsActive
+### `GetIsActive`
 
-GetIsActive will return the value of IsActive.
+`GetIsActive` will return the value of IsActive.
 
 ```go
 func (*RepositoryRule) GetIsActive() bool
 ```
 
-### GetPattern
+### `GetPattern`
 
-GetPattern will return the value of Pattern.
+`GetPattern` will return the value of Pattern.
 
 ```go
 func (*RepositoryRule) GetPattern() string
 ```
 
-### GetUpdatedAt
+### `GetUpdatedAt`
 
-GetUpdatedAt will return the value of UpdatedAt.
+`GetUpdatedAt` will return the value of UpdatedAt.
 
 ```go
 func (*RepositoryRule) GetUpdatedAt() *time.Time
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*RepositoryRule) Insert(opts ...QueryOption) string
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*RepositoryRule) Select(opts ...QueryOption) string
 ```
 
-### SetCreatedAt
+### `SetCreatedAt`
 
-SetCreatedAt sets CreatedAt to the provided value.
+`SetCreatedAt` sets CreatedAt to the provided value.
 
 ```go
 func (*RepositoryRule) SetCreatedAt(stamp time.Time)
 ```
 
-### SetCreatedByUserID
+### `SetCreatedByUserID`
 
-SetCreatedByUserID sets CreatedByUserID to the provided value.
+`SetCreatedByUserID` sets CreatedByUserID to the provided value.
 
 ```go
 func (*RepositoryRule) SetCreatedByUserID(val string)
 ```
 
-### SetDeletedAt
+### `SetDeletedAt`
 
-SetDeletedAt sets DeletedAt to the provided value.
+`SetDeletedAt` sets DeletedAt to the provided value.
 
 ```go
 func (*RepositoryRule) SetDeletedAt(stamp time.Time)
 ```
 
-### SetDescription
+### `SetDescription`
 
-SetDescription sets Description to the provided value.
+`SetDescription` sets Description to the provided value.
 
 ```go
 func (*RepositoryRule) SetDescription(val string)
 ```
 
-### SetID
+### `SetID`
 
-SetID sets ID to the provided value.
+`SetID` sets ID to the provided value.
 
 ```go
 func (*RepositoryRule) SetID(val string)
 ```
 
-### SetIsActive
+### `SetIsActive`
 
-SetIsActive sets IsActive to the provided value.
+`SetIsActive` sets IsActive to the provided value.
 
 ```go
 func (*RepositoryRule) SetIsActive(val bool)
 ```
 
-### SetPattern
+### `SetPattern`
 
-SetPattern sets Pattern to the provided value.
+`SetPattern` sets Pattern to the provided value.
 
 ```go
 func (*RepositoryRule) SetPattern(val string)
 ```
 
-### SetUpdatedAt
+### `SetUpdatedAt`
 
-SetUpdatedAt sets UpdatedAt to the provided value.
+`SetUpdatedAt` sets UpdatedAt to the provided value.
 
 ```go
 func (*RepositoryRule) SetUpdatedAt(stamp time.Time)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*RepositoryRule) Update(opts ...QueryOption) string
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*SSHKey) Delete(opts ...QueryOption) string
 ```
 
-### GetCreatedAt
+### `GetCreatedAt`
 
-GetCreatedAt will return the value of CreatedAt.
+`GetCreatedAt` will return the value of CreatedAt.
 
 ```go
 func (*SSHKey) GetCreatedAt() *time.Time
 ```
 
-### GetCreatedByUserID
+### `GetCreatedByUserID`
 
-GetCreatedByUserID will return the value of CreatedByUserID.
+`GetCreatedByUserID` will return the value of CreatedByUserID.
 
 ```go
 func (*SSHKey) GetCreatedByUserID() string
 ```
 
-### GetDeletedAt
+### `GetDeletedAt`
 
-GetDeletedAt will return the value of DeletedAt.
+`GetDeletedAt` will return the value of DeletedAt.
 
 ```go
 func (*SSHKey) GetDeletedAt() *time.Time
 ```
 
-### GetFingerprint
+### `GetFingerprint`
 
-GetFingerprint will return the value of Fingerprint.
+`GetFingerprint` will return the value of Fingerprint.
 
 ```go
 func (*SSHKey) GetFingerprint() string
 ```
 
-### GetHost
+### `GetHost`
 
-GetHost will return the value of Host.
+`GetHost` will return the value of Host.
 
 ```go
 func (*SSHKey) GetHost() string
 ```
 
-### GetID
+### `GetID`
 
-GetID will return the value of ID.
+`GetID` will return the value of ID.
 
 ```go
 func (*SSHKey) GetID() string
 ```
 
-### GetIsActive
+### `GetIsActive`
 
-GetIsActive will return the value of IsActive.
+`GetIsActive` will return the value of IsActive.
 
 ```go
 func (*SSHKey) GetIsActive() bool
 ```
 
-### GetKnownHosts
+### `GetKnownHosts`
 
-GetKnownHosts will return the value of KnownHosts.
+`GetKnownHosts` will return the value of KnownHosts.
 
 ```go
 func (*SSHKey) GetKnownHosts() string
 ```
 
-### GetLastUsedAt
+### `GetLastUsedAt`
 
-GetLastUsedAt will return the value of LastUsedAt.
+`GetLastUsedAt` will return the value of LastUsedAt.
 
 ```go
 func (*SSHKey) GetLastUsedAt() *time.Time
 ```
 
-### GetName
+### `GetName`
 
-GetName will return the value of Name.
+`GetName` will return the value of Name.
 
 ```go
 func (*SSHKey) GetName() string
 ```
 
-### GetPrivateKey
+### `GetPrivateKey`
 
-GetPrivateKey will return the value of PrivateKey.
+`GetPrivateKey` will return the value of PrivateKey.
 
 ```go
 func (*SSHKey) GetPrivateKey() string
 ```
 
-### GetPublicKey
+### `GetPublicKey`
 
-GetPublicKey will return the value of PublicKey.
+`GetPublicKey` will return the value of PublicKey.
 
 ```go
 func (*SSHKey) GetPublicKey() string
 ```
 
-### GetUpdatedAt
+### `GetUpdatedAt`
 
-GetUpdatedAt will return the value of UpdatedAt.
+`GetUpdatedAt` will return the value of UpdatedAt.
 
 ```go
 func (*SSHKey) GetUpdatedAt() *time.Time
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*SSHKey) Insert(opts ...QueryOption) string
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*SSHKey) Select(opts ...QueryOption) string
 ```
 
-### SetCreatedAt
+### `SetCreatedAt`
 
-SetCreatedAt sets CreatedAt to the provided value.
+`SetCreatedAt` sets CreatedAt to the provided value.
 
 ```go
 func (*SSHKey) SetCreatedAt(stamp time.Time)
 ```
 
-### SetCreatedByUserID
+### `SetCreatedByUserID`
 
-SetCreatedByUserID sets CreatedByUserID to the provided value.
+`SetCreatedByUserID` sets CreatedByUserID to the provided value.
 
 ```go
 func (*SSHKey) SetCreatedByUserID(val string)
 ```
 
-### SetDeletedAt
+### `SetDeletedAt`
 
-SetDeletedAt sets DeletedAt to the provided value.
+`SetDeletedAt` sets DeletedAt to the provided value.
 
 ```go
 func (*SSHKey) SetDeletedAt(stamp time.Time)
 ```
 
-### SetFingerprint
+### `SetFingerprint`
 
-SetFingerprint sets Fingerprint to the provided value.
+`SetFingerprint` sets Fingerprint to the provided value.
 
 ```go
 func (*SSHKey) SetFingerprint(val string)
 ```
 
-### SetHost
+### `SetHost`
 
-SetHost sets Host to the provided value.
+`SetHost` sets Host to the provided value.
 
 ```go
 func (*SSHKey) SetHost(val string)
 ```
 
-### SetID
+### `SetID`
 
-SetID sets ID to the provided value.
+`SetID` sets ID to the provided value.
 
 ```go
 func (*SSHKey) SetID(val string)
 ```
 
-### SetIsActive
+### `SetIsActive`
 
-SetIsActive sets IsActive to the provided value.
+`SetIsActive` sets IsActive to the provided value.
 
 ```go
 func (*SSHKey) SetIsActive(val bool)
 ```
 
-### SetKnownHosts
+### `SetKnownHosts`
 
-SetKnownHosts sets KnownHosts to the provided value.
+`SetKnownHosts` sets KnownHosts to the provided value.
 
 ```go
 func (*SSHKey) SetKnownHosts(val string)
 ```
 
-### SetLastUsedAt
+### `SetLastUsedAt`
 
-SetLastUsedAt sets LastUsedAt to the provided value.
+`SetLastUsedAt` sets LastUsedAt to the provided value.
 
 ```go
 func (*SSHKey) SetLastUsedAt(stamp time.Time)
 ```
 
-### SetName
+### `SetName`
 
-SetName sets Name to the provided value.
+`SetName` sets Name to the provided value.
 
 ```go
 func (*SSHKey) SetName(val string)
 ```
 
-### SetPrivateKey
+### `SetPrivateKey`
 
-SetPrivateKey sets PrivateKey to the provided value.
+`SetPrivateKey` sets PrivateKey to the provided value.
 
 ```go
 func (*SSHKey) SetPrivateKey(val string)
 ```
 
-### SetPublicKey
+### `SetPublicKey`
 
-SetPublicKey sets PublicKey to the provided value.
+`SetPublicKey` sets PublicKey to the provided value.
 
 ```go
 func (*SSHKey) SetPublicKey(val string)
 ```
 
-### SetUpdatedAt
+### `SetUpdatedAt`
 
-SetUpdatedAt sets UpdatedAt to the provided value.
+`SetUpdatedAt` sets UpdatedAt to the provided value.
 
 ```go
 func (*SSHKey) SetUpdatedAt(stamp time.Time)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*SSHKey) Update(opts ...QueryOption) string
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*Session) Delete(opts ...QueryOption) string
 ```
 
-### GetCreatedAt
+### `GetCreatedAt`
 
-GetCreatedAt will return the value of CreatedAt.
+`GetCreatedAt` will return the value of CreatedAt.
 
 ```go
 func (*Session) GetCreatedAt() *time.Time
 ```
 
-### GetExpiresAt
+### `GetExpiresAt`
 
-GetExpiresAt will return the value of ExpiresAt.
+`GetExpiresAt` will return the value of ExpiresAt.
 
 ```go
 func (*Session) GetExpiresAt() *time.Time
 ```
 
-### GetHostname
+### `GetHostname`
 
-GetHostname will return the value of Hostname.
+`GetHostname` will return the value of Hostname.
 
 ```go
 func (*Session) GetHostname() string
 ```
 
-### GetID
+### `GetID`
 
-GetID will return the value of ID.
+`GetID` will return the value of ID.
 
 ```go
 func (*Session) GetID() string
 ```
 
-### GetLastSeenAt
+### `GetLastSeenAt`
 
-GetLastSeenAt will return the value of LastSeenAt.
+`GetLastSeenAt` will return the value of LastSeenAt.
 
 ```go
 func (*Session) GetLastSeenAt() *time.Time
 ```
 
-### GetRefreshToken
+### `GetRefreshToken`
 
-GetRefreshToken will return the value of RefreshToken.
+`GetRefreshToken` will return the value of RefreshToken.
 
 ```go
 func (*Session) GetRefreshToken() string
 ```
 
-### GetRemoteAddr
+### `GetRemoteAddr`
 
-GetRemoteAddr will return the value of RemoteAddr.
+`GetRemoteAddr` will return the value of RemoteAddr.
 
 ```go
 func (*Session) GetRemoteAddr() string
 ```
 
-### GetRevokedAt
+### `GetRevokedAt`
 
-GetRevokedAt will return the value of RevokedAt.
+`GetRevokedAt` will return the value of RevokedAt.
 
 ```go
 func (*Session) GetRevokedAt() *time.Time
 ```
 
-### GetUpdatedAt
+### `GetUpdatedAt`
 
-GetUpdatedAt will return the value of UpdatedAt.
+`GetUpdatedAt` will return the value of UpdatedAt.
 
 ```go
 func (*Session) GetUpdatedAt() *time.Time
 ```
 
-### GetUserAgent
+### `GetUserAgent`
 
-GetUserAgent will return the value of UserAgent.
+`GetUserAgent` will return the value of UserAgent.
 
 ```go
 func (*Session) GetUserAgent() string
 ```
 
-### GetUserID
+### `GetUserID`
 
-GetUserID will return the value of UserID.
+`GetUserID` will return the value of UserID.
 
 ```go
 func (*Session) GetUserID() string
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*Session) Insert(opts ...QueryOption) string
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*Session) Select(opts ...QueryOption) string
 ```
 
-### SetCreatedAt
+### `SetCreatedAt`
 
-SetCreatedAt sets CreatedAt to the provided value.
+`SetCreatedAt` sets CreatedAt to the provided value.
 
 ```go
 func (*Session) SetCreatedAt(stamp time.Time)
 ```
 
-### SetExpiresAt
+### `SetExpiresAt`
 
-SetExpiresAt sets ExpiresAt to the provided value.
+`SetExpiresAt` sets ExpiresAt to the provided value.
 
 ```go
 func (*Session) SetExpiresAt(stamp time.Time)
 ```
 
-### SetHostname
+### `SetHostname`
 
-SetHostname sets Hostname to the provided value.
+`SetHostname` sets Hostname to the provided value.
 
 ```go
 func (*Session) SetHostname(val string)
 ```
 
-### SetID
+### `SetID`
 
-SetID sets ID to the provided value.
+`SetID` sets ID to the provided value.
 
 ```go
 func (*Session) SetID(val string)
 ```
 
-### SetLastSeenAt
+### `SetLastSeenAt`
 
-SetLastSeenAt sets LastSeenAt to the provided value.
+`SetLastSeenAt` sets LastSeenAt to the provided value.
 
 ```go
 func (*Session) SetLastSeenAt(stamp time.Time)
 ```
 
-### SetRefreshToken
+### `SetRefreshToken`
 
-SetRefreshToken sets RefreshToken to the provided value.
+`SetRefreshToken` sets RefreshToken to the provided value.
 
 ```go
 func (*Session) SetRefreshToken(val string)
 ```
 
-### SetRemoteAddr
+### `SetRemoteAddr`
 
-SetRemoteAddr sets RemoteAddr to the provided value.
+`SetRemoteAddr` sets RemoteAddr to the provided value.
 
 ```go
 func (*Session) SetRemoteAddr(val string)
 ```
 
-### SetRevokedAt
+### `SetRevokedAt`
 
-SetRevokedAt sets RevokedAt to the provided value.
+`SetRevokedAt` sets RevokedAt to the provided value.
 
 ```go
 func (*Session) SetRevokedAt(stamp time.Time)
 ```
 
-### SetUpdatedAt
+### `SetUpdatedAt`
 
-SetUpdatedAt sets UpdatedAt to the provided value.
+`SetUpdatedAt` sets UpdatedAt to the provided value.
 
 ```go
 func (*Session) SetUpdatedAt(stamp time.Time)
 ```
 
-### SetUserAgent
+### `SetUserAgent`
 
-SetUserAgent sets UserAgent to the provided value.
+`SetUserAgent` sets UserAgent to the provided value.
 
 ```go
 func (*Session) SetUserAgent(val string)
 ```
 
-### SetUserID
+### `SetUserID`
 
-SetUserID sets UserID to the provided value.
+`SetUserID` sets UserID to the provided value.
 
 ```go
 func (*Session) SetUserID(val string)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*Session) Update(opts ...QueryOption) string
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*Setting) Delete(opts ...QueryOption) string
 ```
 
-### GetCreatedAt
+### `GetCreatedAt`
 
-GetCreatedAt will return the value of CreatedAt.
+`GetCreatedAt` will return the value of CreatedAt.
 
 ```go
 func (*Setting) GetCreatedAt() *time.Time
 ```
 
-### GetName
+### `GetName`
 
-GetName will return the value of Name.
+`GetName` will return the value of Name.
 
 ```go
 func (*Setting) GetName() string
 ```
 
-### GetUpdatedAt
+### `GetUpdatedAt`
 
-GetUpdatedAt will return the value of UpdatedAt.
+`GetUpdatedAt` will return the value of UpdatedAt.
 
 ```go
 func (*Setting) GetUpdatedAt() *time.Time
 ```
 
-### GetUpdatedByUserID
+### `GetUpdatedByUserID`
 
-GetUpdatedByUserID will return the value of UpdatedByUserID.
+`GetUpdatedByUserID` will return the value of UpdatedByUserID.
 
 ```go
 func (*Setting) GetUpdatedByUserID() string
 ```
 
-### GetValue
+### `GetValue`
 
-GetValue will return the value of Value.
+`GetValue` will return the value of Value.
 
 ```go
 func (*Setting) GetValue() string
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*Setting) Insert(opts ...QueryOption) string
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*Setting) Select(opts ...QueryOption) string
 ```
 
-### SetCreatedAt
+### `SetCreatedAt`
 
-SetCreatedAt sets CreatedAt to the provided value.
+`SetCreatedAt` sets CreatedAt to the provided value.
 
 ```go
 func (*Setting) SetCreatedAt(stamp time.Time)
 ```
 
-### SetName
+### `SetName`
 
-SetName sets Name to the provided value.
+`SetName` sets Name to the provided value.
 
 ```go
 func (*Setting) SetName(val string)
 ```
 
-### SetUpdatedAt
+### `SetUpdatedAt`
 
-SetUpdatedAt sets UpdatedAt to the provided value.
+`SetUpdatedAt` sets UpdatedAt to the provided value.
 
 ```go
 func (*Setting) SetUpdatedAt(stamp time.Time)
 ```
 
-### SetUpdatedByUserID
+### `SetUpdatedByUserID`
 
-SetUpdatedByUserID sets UpdatedByUserID to the provided value.
+`SetUpdatedByUserID` sets UpdatedByUserID to the provided value.
 
 ```go
 func (*Setting) SetUpdatedByUserID(val string)
 ```
 
-### SetValue
+### `SetValue`
 
-SetValue sets Value to the provided value.
+`SetValue` sets Value to the provided value.
 
 ```go
 func (*Setting) SetValue(val string)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*Setting) Update(opts ...QueryOption) string
 ```
 
-### Delete
+### `Delete`
 
-Delete starts building a DELETE query.
+`Delete` starts building a DELETE query.
 
 ```go
 func (*User) Delete(opts ...QueryOption) string
 ```
 
-### GetCreatedAt
+### `GetCreatedAt`
 
-GetCreatedAt will return the value of CreatedAt.
+`GetCreatedAt` will return the value of CreatedAt.
 
 ```go
 func (*User) GetCreatedAt() *time.Time
 ```
 
-### GetDeletedAt
+### `GetDeletedAt`
 
-GetDeletedAt will return the value of DeletedAt.
+`GetDeletedAt` will return the value of DeletedAt.
 
 ```go
 func (*User) GetDeletedAt() *time.Time
 ```
 
-### GetEmail
+### `GetEmail`
 
-GetEmail will return the value of Email.
+`GetEmail` will return the value of Email.
 
 ```go
 func (*User) GetEmail() string
 ```
 
-### GetFullName
+### `GetFullName`
 
-GetFullName will return the value of FullName.
+`GetFullName` will return the value of FullName.
 
 ```go
 func (*User) GetFullName() string
 ```
 
-### GetID
+### `GetID`
 
-GetID will return the value of ID.
+`GetID` will return the value of ID.
 
 ```go
 func (*User) GetID() string
 ```
 
-### GetIsActive
+### `GetIsActive`
 
-GetIsActive will return the value of IsActive.
+`GetIsActive` will return the value of IsActive.
 
 ```go
 func (*User) GetIsActive() bool
 ```
 
-### GetIsAdmin
+### `GetIsAdmin`
 
-GetIsAdmin will return the value of IsAdmin.
+`GetIsAdmin` will return the value of IsAdmin.
 
 ```go
 func (*User) GetIsAdmin() bool
 ```
 
-### GetIsAgent
+### `GetIsAgent`
 
-GetIsAgent will return the value of IsAgent.
+`GetIsAgent` will return the value of IsAgent.
 
 ```go
 func (*User) GetIsAgent() bool
 ```
 
-### GetPassword
+### `GetPassword`
 
-GetPassword will return the value of Password.
+`GetPassword` will return the value of Password.
 
 ```go
 func (*User) GetPassword() string
 ```
 
-### GetUpdatedAt
+### `GetUpdatedAt`
 
-GetUpdatedAt will return the value of UpdatedAt.
+`GetUpdatedAt` will return the value of UpdatedAt.
 
 ```go
 func (*User) GetUpdatedAt() *time.Time
 ```
 
-### GetUsername
+### `GetUsername`
 
-GetUsername will return the value of Username.
+`GetUsername` will return the value of Username.
 
 ```go
 func (*User) GetUsername() string
 ```
 
-### Insert
+### `Insert`
 
-Insert starts building an INSERT INTO query.
+`Insert` starts building an INSERT INTO query.
 
 ```go
 func (*User) Insert(opts ...QueryOption) string
 ```
 
-### Select
+### `Select`
 
-Select starts building a SELECT query.
+`Select` starts building a SELECT query.
 
 ```go
 func (*User) Select(opts ...QueryOption) string
 ```
 
-### SetCreatedAt
+### `SetCreatedAt`
 
-SetCreatedAt sets CreatedAt to the provided value.
+`SetCreatedAt` sets CreatedAt to the provided value.
 
 ```go
 func (*User) SetCreatedAt(stamp time.Time)
 ```
 
-### SetDeletedAt
+### `SetDeletedAt`
 
-SetDeletedAt sets DeletedAt to the provided value.
+`SetDeletedAt` sets DeletedAt to the provided value.
 
 ```go
 func (*User) SetDeletedAt(stamp time.Time)
 ```
 
-### SetEmail
+### `SetEmail`
 
-SetEmail sets Email to the provided value.
+`SetEmail` sets Email to the provided value.
 
 ```go
 func (*User) SetEmail(val string)
 ```
 
-### SetFullName
+### `SetFullName`
 
-SetFullName sets FullName to the provided value.
+`SetFullName` sets FullName to the provided value.
 
 ```go
 func (*User) SetFullName(val string)
 ```
 
-### SetID
+### `SetID`
 
-SetID sets ID to the provided value.
+`SetID` sets ID to the provided value.
 
 ```go
 func (*User) SetID(val string)
 ```
 
-### SetIsActive
+### `SetIsActive`
 
-SetIsActive sets IsActive to the provided value.
+`SetIsActive` sets IsActive to the provided value.
 
 ```go
 func (*User) SetIsActive(val bool)
 ```
 
-### SetIsAdmin
+### `SetIsAdmin`
 
-SetIsAdmin sets IsAdmin to the provided value.
+`SetIsAdmin` sets IsAdmin to the provided value.
 
 ```go
 func (*User) SetIsAdmin(val bool)
 ```
 
-### SetIsAgent
+### `SetIsAgent`
 
-SetIsAgent sets IsAgent to the provided value.
+`SetIsAgent` sets IsAgent to the provided value.
 
 ```go
 func (*User) SetIsAgent(val bool)
 ```
 
-### SetPassword
+### `SetPassword`
 
-SetPassword sets Password to the provided value.
+`SetPassword` sets Password to the provided value.
 
 ```go
 func (*User) SetPassword(val string)
 ```
 
-### SetUpdatedAt
+### `SetUpdatedAt`
 
-SetUpdatedAt sets UpdatedAt to the provided value.
+`SetUpdatedAt` sets UpdatedAt to the provided value.
 
 ```go
 func (*User) SetUpdatedAt(stamp time.Time)
 ```
 
-### SetUsername
+### `SetUsername`
 
-SetUsername sets Username to the provided value.
+`SetUsername` sets Username to the provided value.
 
 ```go
 func (*User) SetUsername(val string)
 ```
 
-### Update
+### `Update`
 
-Update starts building a UPDATE query.
+`Update` starts building a UPDATE query.
 
 ```go
 func (*User) Update(opts ...QueryOption) string
 ```
 
-### ValidateSetting
+### `ValidateSetting`
 
-ValidateSetting checks a value against its definition.
+`ValidateSetting` checks a value against its definition.
 
 ```go
 func (SettingDefinition) ValidateSetting(value string) error

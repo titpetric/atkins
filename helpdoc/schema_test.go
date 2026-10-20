@@ -16,7 +16,7 @@ func TestSchema(t *testing.T) {
 
 	assert.NotEmpty(t, schema)
 	assert.Equal(t, schema, strings.TrimSpace(schema))
-	assert.Contains(t, schema, "### One idea, several spellings")
+	assert.Contains(t, schema, "### One idea, two spellings")
 	assert.Contains(t, schema, "### Top level")
 	assert.Contains(t, schema, "### A job")
 	assert.Contains(t, schema, "### A step")
@@ -24,7 +24,7 @@ func TestSchema(t *testing.T) {
 
 // TestSchemaDocumentsModelKeys reads the yaml tags off the model types
 // and fails when the hand-written reference documents a key none of them
-// declares. It is the check that keeps a hand-written document true to
+// declares. This check keeps a hand-written document true to
 // the schema `splint -schema -i model` prints.
 func TestSchemaDocumentsModelKeys(t *testing.T) {
 	sections := map[string]map[string]bool{

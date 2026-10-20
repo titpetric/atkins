@@ -10,7 +10,7 @@ import (
 )
 
 // TestTranscript covers the writer a caller hands RunPipeline to record
-// the run somewhere else, which is what a locally-run CI job logs.
+// the run somewhere else, as a locally-run CI job logs it.
 func TestTranscript(t *testing.T) {
 	t.Run("receives the finished tree", func(t *testing.T) {
 		pipeline := &model.Pipeline{

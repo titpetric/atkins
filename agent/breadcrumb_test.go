@@ -99,7 +99,7 @@ func TestBreadcrumb_DurationDisplay(t *testing.T) {
 
 	// Should contain duration when status is "done"
 	assert.Contains(t, str, "[done")
-	// Duration should be displayed
+	// The breadcrumb displays the duration
 	assert.True(t, strings.Contains(str, "ms") || strings.Contains(str, "s"),
 		"expected duration in output: %s", str)
 }

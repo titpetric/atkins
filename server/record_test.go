@@ -9,7 +9,7 @@ import (
 )
 
 // recordRun dispatches a job that names the machine already running it,
-// which is what `atkins` does for a run happening on a laptop.
+// the way `atkins` records a run happening on a laptop.
 func recordRun(t *testing.T, url, token, command, agent string) dispatchResponse {
 	t.Helper()
 
@@ -49,7 +49,7 @@ func TestRecordedRunIsRunningAndNeverQueued(t *testing.T) {
 	// than pending.
 	assert.Equal(t, model.JobStatusRunning, job.Status)
 
-	// And it is not work for an agent: claiming finds an empty queue.
+	// And the job is not work for an agent: claiming finds an empty queue.
 	status := call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
 		"agent_id": "agent-1",
 	}, nil)
@@ -60,7 +60,8 @@ func TestRecordedRunIsRunningAndNeverQueued(t *testing.T) {
 	assert.Equal(t, http.StatusOK, status)
 
 	// The machine that runs it holds the lease, so a run that dies
-	// without reporting is reclaimed the way a lost agent is.
+	// without reporting falls to the reclaim sweep the way a lost agent's
+	// job does.
 	assert.Equal(t, "laptop", view["agent_id"])
 	assert.NotEmpty(t, view["started_at"])
 	assert.NotEmpty(t, view["lease_expires_at"])
@@ -139,8 +140,8 @@ func TestReportingRefusesAnotherUsersRun(t *testing.T) {
 
 	job := recordRun(t, url, admin.Token, "atkins test", "laptop")
 
-	// Not their job, so it reads as one that isn't there — the same
-	// answer reading it gives.
+	// Not their job, so it reads as one that isn't there: the same
+	// reply a read returns.
 	status := call(t, http.MethodPost, url+"/api/job/"+job.JobID+"/log", dev.Token, map[string]any{
 		"stream":  "output",
 		"content": "output from somebody else's machine\n",
@@ -160,9 +161,9 @@ func TestReportingOnAPublicInstanceStillRequiresOwnership(t *testing.T) {
 	dev := registerUser(t, url, admin.Token, "dev@example.com", "dev")
 
 	// A public instance lets everyone read every job. Reporting is a
-	// write, and ownership is checked outright rather than through
-	// readability, or making an instance public would hand every user
-	// everybody else's runs to settle.
+	// write, and the server checks ownership outright and ignores
+	// readability, or making an instance public would let every user
+	// settle everybody else's runs.
 	setSetting(t, url, admin.Token, model.SettingJobVisibility, model.VisibilityPublic)
 
 	job := recordRun(t, url, admin.Token, "atkins test", "laptop")

@@ -33,9 +33,9 @@ jobs:
 | `aliases`     | list        | Alternative names for this job             |
 | `requires`    | list        | Required variables (for loop invocation)   |
 | `detach`      | bool        | Run in background                          |
-| `timeout`     | string      | Maximum execution time                     |
+| `timeout`     | string      | Execution time limit                       |
 | `passthru`    | bool        | Show output with tree indentation          |
-| `tty`         | bool        | Allocate PTY (enables colors)              |
+| `tty`         | bool        | Attach a PTY (enables colors)              |
 | `interactive` | bool        | Enable stdin for keyboard input            |
 | `summarize`   | bool        | Collapse output after completion           |
 | `vars`        | map         | Job-scoped variables                       |
@@ -52,7 +52,7 @@ tasks:
   logs: docker compose logs -f
 ```
 
-This is equivalent to:
+This matches:
 
 ```yaml
 tasks:
@@ -176,7 +176,7 @@ jobs:
 
 ## Nested Jobs
 
-Jobs with `:` in their name are nested and not executed directly:
+Jobs with `:` in their name nest under a parent and do not run directly:
 
 ```yaml
 jobs:
@@ -243,7 +243,7 @@ jobs:
 
 ## Required Variables (For Loops)
 
-When a job is called from a loop, declare required variables:
+When a loop calls a job, declare required variables:
 
 ```yaml
 vars:

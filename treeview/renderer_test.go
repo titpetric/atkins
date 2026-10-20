@@ -234,7 +234,7 @@ func TestConcurrentOutputAndRender(t *testing.T) {
 		renderer := NewRenderer()
 		root := NewNode("pipeline")
 
-		// Create a job with multiple steps
+		// Create a job with five steps
 		job := NewNode("test:job")
 		job.SetStatus(StatusRunning)
 		root.AddChild(job)
@@ -251,7 +251,7 @@ func TestConcurrentOutputAndRender(t *testing.T) {
 		// Run concurrent operations
 		done := make(chan bool, 20)
 
-		// Multiple goroutines setting output
+		// Concurrent goroutines setting output
 		for i := 0; i < 5; i++ {
 			stepIdx := i
 			go func() {
@@ -263,7 +263,7 @@ func TestConcurrentOutputAndRender(t *testing.T) {
 			}()
 		}
 
-		// Multiple goroutines rendering
+		// Concurrent goroutines rendering
 		for i := 0; i < 5; i++ {
 			go func() {
 				for j := 0; j < 10; j++ {
@@ -281,7 +281,7 @@ func TestConcurrentOutputAndRender(t *testing.T) {
 			<-done
 		}
 
-		// Final render should be consistent
+		// Final render stays consistent
 		output := renderer.Render(root)
 		lines := countOutputLines(output)
 		assert.True(t, lines > 0, "final render should have lines")
@@ -298,7 +298,7 @@ func TestConcurrentOutputAndRender(t *testing.T) {
 		// Set output with known content
 		step.SetOutput([]string{"line1", "line2", "line3"})
 
-		// Render multiple times and verify consistent line count
+		// Render repeatedly and verify consistent line count
 		expectedLines := 0
 		for i := 0; i < 10; i++ {
 			output := renderer.Render(root)
@@ -309,7 +309,7 @@ func TestConcurrentOutputAndRender(t *testing.T) {
 			assert.Equal(t, expectedLines, lines, "line count should be consistent across renders")
 		}
 
-		// Should be: root(1) + step(1) + border(1) + 3 content + border(1) = 7
+		// Expect: root(1) + step(1) + border(1) + 3 content + border(1) = 7
 		assert.Equal(t, 7, expectedLines, "expected 7 lines for 3-line output with borders")
 	})
 }

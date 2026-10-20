@@ -39,7 +39,7 @@ func NewLogger(filePath, pipelineName, pipelineFile string, debug bool) *Logger 
 		File:      pipelineFile,
 	}
 
-	// Capture git info
+	// Capture git metadata
 	metadata.Git = CaptureGitInfo()
 
 	// Capture module path

@@ -16,7 +16,7 @@ type Options struct {
 	// stored default from `atkins --login`.
 	Server string
 
-	// Token is the shared enrolment secret. It is the normal way an
+	// Token is the shared enrolment secret, and the normal way an
 	// agent joins: one secret in the environment, traded for the
 	// rotating credentials the agent then uses.
 	Token string
@@ -31,7 +31,7 @@ type Options struct {
 	AgentID string
 
 	// Labels advertise what this agent can run. A job requiring labels
-	// only lands here if all of them are advertised.
+	// only lands here if this agent advertises every one of them.
 	Labels []string
 
 	// DataDir holds the repository cache and job work trees.
@@ -41,22 +41,22 @@ type Options struct {
 	PollInterval time.Duration
 
 	// JobTimeout bounds a single job. The agent kills the command and
-	// reports a timeout rather than holding the lease forever.
+	// reports a timeout and does not hold the lease forever.
 	JobTimeout time.Duration
 
-	// HeartbeatInterval is how often a running job's lease is renewed.
+	// HeartbeatInterval is how often the agent renews a running job's lease.
 	HeartbeatInterval time.Duration
 
 	// Shell runs the job command. It receives `-c <command>`.
 	Shell string
 
 	// PreferHTTPS rewrites ssh remotes to https before cloning. A
-	// container usually has no key agent, so `git@host:owner/repo.git`
-	// would fail where `https://host/owner/repo.git` works.
+	// container tends to have no key agent, so `git@host:owner/name.git`
+	// would fail where `https://host/owner/name.git` works.
 	PreferHTTPS bool
 }
 
-// EnvToken is the enrolment secret's environment name. It is named here
+// EnvToken is the enrolment secret's environment name. This file names it
 // because the "no credentials configured" error points at it.
 const EnvToken = "ATKINS_AGENT_TOKEN"
 
@@ -77,7 +77,7 @@ func FromConfig(cfg *config.Config) *Options {
 }
 
 // NewOptions returns options from the embedded default configuration.
-// It is the fallback for a caller that has no resolved config.
+// A caller that has no resolved configuration falls back to it.
 func NewOptions() *Options {
 	cfg, err := config.Default()
 	if err != nil {

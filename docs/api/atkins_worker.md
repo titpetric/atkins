@@ -6,16 +6,16 @@ import (
 )
 ```
 
-Package worker is the atkins CI/CD agent.
+Package `worker` is the atkins CI/CD agent.
 
-An agent claims jobs from a server, reproduces the checkout they were
-dispatched from, runs the command, streams the output back and
-reports the outcome. It is the half that makes `atkins` on a laptop
-hand its work to a machine that has the tooling.
+An agent claims jobs from a server, reproduces the checkout each job
+came from, runs the command, streams the output back and reports the
+outcome. This half lets `atkins` on a laptop pass its work to a
+machine that has the tooling.
 
-The agent keeps a repository cache under <DataDir>/repos so repeated
-jobs for one repository fetch rather than clone, and gives every job
-its own work tree under <DataDir>/work.
+The agent keeps a repository cache under DataDir so repeated jobs for
+one repository fetch and skip the clone, and builds every job its own
+work tree under <DataDir>/work.
 
 ## Types
 
@@ -26,13 +26,13 @@ its own work tree under <DataDir>/work.
 // Checkout records what the agent actually put in the work tree.
 // Ref is the effective ref: the one the job named, or the default branch
 // resolved for a job that named nothing. CommitSHA is what that ref
-// pointed at when the job ran — a tag moves, so a run recorded as
-// "v1.2.3" alone cannot be reproduced later.
+// pointed at when the job ran - a tag moves, so nobody can reproduce a
+// run that records "v1.2.3" alone.
 type Checkout struct {
 	Ref       string
 	CommitSHA string
 
-	// Branch is set when Ref named a branch and empty for a tag or a
+	// Branch holds the branch name when Ref named a branch and is empty for a tag or a
 	// bare commit. A job reads it as ATKINS_BRANCH.
 	Branch string
 }
@@ -53,7 +53,7 @@ type Options struct {
 	// stored default from `atkins --login`.
 	Server string
 
-	// Token is the shared enrolment secret. It is the normal way an
+	// Token is the shared enrolment secret, and the normal way an
 	// agent joins: one secret in the environment, traded for the
 	// rotating credentials the agent then uses.
 	Token string
@@ -68,7 +68,7 @@ type Options struct {
 	AgentID string
 
 	// Labels advertise what this agent can run. A job requiring labels
-	// only lands here if all of them are advertised.
+	// only lands here if this agent advertises every one of them.
 	Labels []string
 
 	// DataDir holds the repository cache and job work trees.
@@ -78,18 +78,18 @@ type Options struct {
 	PollInterval time.Duration
 
 	// JobTimeout bounds a single job. The agent kills the command and
-	// reports a timeout rather than holding the lease forever.
+	// reports a timeout and does not hold the lease forever.
 	JobTimeout time.Duration
 
-	// HeartbeatInterval is how often a running job's lease is renewed.
+	// HeartbeatInterval is how often the agent renews a running job's lease.
 	HeartbeatInterval time.Duration
 
 	// Shell runs the job command. It receives `-c <command>`.
 	Shell string
 
 	// PreferHTTPS rewrites ssh remotes to https before cloning. A
-	// container usually has no key agent, so `git@host:owner/repo.git`
-	// would fail where `https://host/owner/repo.git` works.
+	// container tends to have no key agent, so `git@host:owner/name.git`
+	// would fail where `https://host/owner/name.git` works.
 	PreferHTTPS bool
 }
 ```
@@ -143,7 +143,7 @@ type Workspace struct {
 	Checkout Checkout
 
 	// Artefacts is the directory the job copies files into to have them
-	// kept. It sits beside the work tree rather than inside it, so
+	// kept. It sits beside the work tree, outside it, so
 	// staging a file does not dirty the checkout the job is testing.
 	Artefacts string
 
@@ -164,7 +164,7 @@ type Workspace struct {
 <summary><code>const EnvToken</code></summary>
 
 ```go
-// EnvToken is the enrolment secret's environment name. It is named here
+// EnvToken is the enrolment secret's environment name. This file names it
 // because the "no credentials configured" error points at it.
 const EnvToken = "ATKINS_AGENT_TOKEN"
 ```
@@ -180,13 +180,13 @@ const EnvToken = "ATKINS_AGENT_TOKEN"
 - `func NewOptions () *Options`
 - `func (*Worker) Run (ctx context.Context) error`
 
-### CleanWorkingDirectory
+### `CleanWorkingDirectory`
 
-CleanWorkingDirectory normalizes a job's working directory into a
+`CleanWorkingDirectory` normalizes a job's working directory into a
 clean path relative to the repository root, or "" for the root.
 
 The server sanitizes this before storing it, so this is the second
-gate on the same decision. It is worth having: the value arrives over
+gate on the same decision. It earns its place: the value arrives over
 the network and is about to become a directory the agent runs a shell
 command in, and an agent should not be one server bug away from
 executing outside its checkout.
@@ -195,9 +195,9 @@ executing outside its checkout.
 func CleanWorkingDirectory(dir string) string
 ```
 
-### CloneURL
+### `CloneURL`
 
-CloneURL decides what to hand to `git clone`.
+`CloneURL` decides what to hand to `git clone`.
 
 With preferHTTPS, an ssh remote is rewritten to https using the slug
 the server derived. A container has no key agent, so the ssh form
@@ -207,38 +207,38 @@ would fail on a repository that clones fine anonymously over https.
 func CloneURL(remoteURL, slug string, preferHTTPS bool) string
 ```
 
-### FromConfig
+### `FromConfig`
 
-FromConfig builds agent options from a resolved configuration.
+`FromConfig` builds agent options from a resolved configuration.
 
 ```go
 func FromConfig(cfg *config.Config) *Options
 ```
 
-### New
+### `New`
 
-New returns a Worker, authenticating against the server.
+`New` returns a Worker, authenticating against the server.
 
-The agent logs in like any other user. When Register is set and the
-credentials don't match an account, it creates one: on a fresh
+The agent logs in like any other user. With Register on and no account
+matching the credentials, it creates one: on a fresh
 instance there is nobody to create it for them.
 
 ```go
 func New(ctx context.Context, opts *Options) (*Worker, error)
 ```
 
-### NewOptions
+### `NewOptions`
 
-NewOptions returns options from the embedded default configuration.
-It is the fallback for a caller that has no resolved config.
+`NewOptions` returns options from the embedded default configuration.
+A caller that has no resolved configuration falls back to it.
 
 ```go
 func NewOptions() *Options
 ```
 
-### Run
+### `Run`
 
-Run claims and executes jobs until the context is cancelled.
+`Run` claims and executes jobs until the context ends.
 
 ```go
 func (*Worker) Run(ctx context.Context) error

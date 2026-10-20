@@ -35,13 +35,13 @@ type pipelineJobs struct {
 }
 
 // stdinHasData checks if stdin has data available without blocking.
-// Returns true if stdin is piped/redirected with data available.
+// Returns true if stdin comes from a pipe or redirect with data available.
 func stdinHasData() bool {
 	stat, err := os.Stdin.Stat()
 	if err != nil {
 		return false
 	}
-	// Check if stdin is not a terminal (i.e., is piped or redirected)
+	// Check if stdin is not a terminal (i.e., a pipe or a redirect)
 	if (stat.Mode() & os.ModeCharDevice) != 0 {
 		return false
 	}
@@ -52,7 +52,7 @@ func stdinHasData() bool {
 	if mode.IsRegular() {
 		return stat.Size() > 0
 	}
-	// For named pipes (FIFOs), assume data is available
+	// For named pipes (FIFOs), report data as available
 	if mode&os.ModeNamedPipe != 0 {
 		return true
 	}
@@ -65,7 +65,7 @@ func stdinHasData() bool {
 	return false
 }
 
-// Pipeline provides a cli.Command that runs the atkins command pipeline.
+// Pipeline returns a cli.Command that runs the atkins command pipeline.
 func Pipeline() *cli.Command {
 	opts := NewOptions()
 
@@ -95,8 +95,8 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 
 	cwd, _ := os.Getwd()
 
-	// Configuration is resolved before anything reads a setting, so a
-	// broken document is reported once and by name.
+	// Configuration resolves before anything reads a setting, so a
+	// broken document surfaces once and by name.
 	settings, err := loadRuntimeConfig(cwd)
 	if err != nil {
 		return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
@@ -129,7 +129,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 		return runExec(ctx, opts)
 	}
 
-	// Validate mutually exclusive flags
+	// Check mutually exclusive flags
 	if opts.JSON && opts.YAML {
 		return fmt.Errorf("%s --json and --yaml flags cannot be combined", colors.BrightRed("ERROR:"))
 	}
@@ -151,7 +151,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 	}
 
 	// Save original working directory for global skill when.files checks,
-	// since cwd may change during config/environment discovery.
+	// since cwd may change during configuration/environment discovery.
 	originalCwd, _ := os.Getwd()
 
 	// Check stdin first (before file discovery)
@@ -174,21 +174,21 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 		var configDir string
 
 		if fileExplicitlySet {
-			// If -f/--file was explicitly provided, use it directly
+			// If the user passed -f/--file, use it directly
 			absPath, err = filepath.Abs(opts.File)
 			if err != nil {
 				return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 			}
 		} else {
-			// Discover config file by traversing parent directories
+			// Discover the configuration file by traversing parent directories
 			var configPath string
 			var discoverErr error
 			configPath, configDir, discoverErr = runner.DiscoverConfigFromCwd()
 			if discoverErr != nil && configPath != "" {
-				// No config file found — try environment autodiscovery
+				// No configuration file found: try environment autodiscovery
 				env, envErr := runner.DiscoverEnvironmentFromCwd()
 				if envErr != nil {
-					// Neither config nor environment found
+					// Neither configuration nor environment found
 					return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), discoverErr)
 				}
 
@@ -208,7 +208,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			absPath = configPath
 			opts.File = configPath
 
-			// Only change directory when a config file is found (not just .atkins/ folder).
+			// Only change directory when discovery finds a configuration file (not just an .atkins/ folder).
 			// For skills-only mode, stay in user's working directory.
 			if configPath != "" {
 				if err := os.Chdir(configDir); err != nil {
@@ -217,8 +217,8 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 			}
 		}
 
-		// Load and parse pipeline from detected config path.
-		// No config is given if an .atkins folder exists here.
+		// Load and parse pipeline from detected configuration path.
+		// An .atkins folder here leaves the configuration path empty.
 		if absPath != "" {
 			pipelines, err = runner.LoadPipeline(absPath)
 			if err != nil {
@@ -230,7 +230,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 				pipelines = append(pipelines, skillPipelines...)
 			}
 		} else {
-			// .atkins/ folder detected without config file - load skills as primary pipelines
+			// .atkins/ folder detected without a configuration file - load skills as primary pipelines
 			opts.File = ".atkins/"
 			if skillPipelines, skillErr := loadSkillPipelines(configDir, originalCwd, opts); skillErr == nil {
 				pipelines = skillPipelines
@@ -295,7 +295,7 @@ pipelineReady:
 
 	// Handle list mode
 	if opts.List {
-		// If a job/skill name is specified, filter to that pipeline
+		// If the user names a job/skill, filter to that pipeline
 		if len(opts.Jobs) > 0 {
 			for _, p := range pipelines {
 				if p.ID == opts.Jobs[0] {
@@ -340,7 +340,7 @@ pipelineReady:
 	for _, jobName := range opts.Jobs {
 		target, err := resolver.Resolve(jobName)
 		if err != nil {
-			// Check if it's a fuzzy match error with multiple matches
+			// Check if it's a fuzzy match error with more than one match
 			var fuzzyErr *runner.FuzzyMatchError
 			if errors.As(err, &fuzzyErr) {
 				fmt.Fprintf(os.Stderr, "%s found %d matching jobs:\n\n", colors.BrightYellow("INFO:"), len(fuzzyErr.Matches))
@@ -371,15 +371,15 @@ pipelineReady:
 		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, resolvedName)
 	}
 
-	// Handing the run to an agent is asked for rather than assumed:
+	// Dispatching the run to an agent happens only on request:
 	// logging in records what this machine runs, it does not move where
 	// it runs. An agent checks the repository out and runs the command
 	// there, so all that's left here is where to watch it.
 	//
 	// An agent exports ATKINS_NO_DISPATCH for the command it runs, and
-	// that outranks the flag: the job it is running was recorded with
+	// that outranks the flag: the server recorded the running job with
 	// the whole command line, `--dispatch` and all, and honouring it
-	// there would hand the work straight back to the queue.
+	// there would send the work straight back to the queue.
 	if (opts.Dispatch || client.Settings().Dispatch) && !client.DispatchDisabled() {
 		dispatched, err := client.Dispatch(ctx, client.DispatchOptions{})
 		if err != nil {
@@ -390,9 +390,9 @@ pipelineReady:
 		return nil
 	}
 
-	// The run happens here, and the server ends up with the job an
-	// agent would have produced. The link is printed before the run so
-	// it can be handed to somebody while the pipeline is still going.
+	// The run happens here, and the server stores the job an
+	// agent would have produced. atkins prints the link before the run so
+	// the user can share it while the pipeline is still going.
 	var recorder *client.Recorder
 	if !opts.Local {
 		recorder = client.Record(ctx, client.RecordOptions{})
@@ -421,7 +421,7 @@ pipelineReady:
 // runPipelines runs each pipeline with its collected jobs and returns
 // the exit code the shell should see.
 //
-// The exit is the caller's to perform rather than this function's: a
+// The caller performs the exit, and this function never does: a
 // recorded run has an outcome to report to the server, and os.Exit from
 // here would file none of it.
 func runPipelines(

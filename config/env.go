@@ -9,16 +9,16 @@ import (
 
 // ApplyEnvironment overlays ATKINS_* variables onto the configuration.
 //
-// The overlay is driven by `env` struct tags, so adding a field to the
-// document gives it an override for free. Only variables that are set
-// and non-empty are applied: an empty variable means "not configured
-// here", which is what lets a container set one field without wiping
-// the rest of the document.
+// `env` struct tags drive the overlay, so adding a field to the
+// document adds an override for free. The overlay applies only variables
+// that hold a non-empty value: an empty variable means "not configured
+// here", so a container can set one field without wiping the rest of
+// the document.
 //
-// A value that doesn't parse is ignored rather than fatal. The
-// alternative is a container that refuses to start because of a typo in
-// an optional tuning knob, and Validate still catches anything that
-// would leave the config unusable.
+// The overlay skips a value that doesn't parse, and that is never fatal.
+// The alternative is a container that fails to start because of a typo in
+// an optional tuning knob, and the validation pass still catches anything
+// that would leave the configuration unusable.
 func (c *Config) ApplyEnvironment(environ []string) {
 	values := make(map[string]string, len(environ))
 	for _, entry := range environ {
@@ -121,7 +121,7 @@ func assign(field reflect.Value, raw string) {
 }
 
 // SplitList parses a comma separated value into a list, dropping empty
-// entries so `a,,b` and ` a , b ` both give two items.
+// entries so `a,,b` and ` a , b ` both return two items.
 func SplitList(value string) []string {
 	parts := strings.Split(value, ",")
 

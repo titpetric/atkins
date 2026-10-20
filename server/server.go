@@ -1,11 +1,11 @@
 // Package server is the atkins CI/CD server: a platform.Module that
 // authenticates atkins clients and records the jobs they dispatch.
 //
-// The shape of the system is deliberately small. `atkins --login
+// The shape of the system is small. `atkins --login
 // https://domain` stores a credential. From then on every atkins run
 // posts to /api/dispatch with three things: which git repository, which
 // directory inside its work tree, and the atkins command. The server
-// writes a job row and hands back an ID; atkins manages its own job
+// writes a job row and returns an ID; atkins runs its own job
 // dispatch from there, and agents claim queued work over /api/job/claim.
 //
 // Mount it in a platform server:
@@ -50,7 +50,7 @@ type Module struct {
 	artefacts *storage.JobArtefactStorage
 	settings  *storage.SettingStorage
 
-	// tracer records the background sweeps. It is the platform's
+	// tracer records the background sweeps. It holds the platform's
 	// recorder when the host enabled telemetry, and nil otherwise;
 	// every oida entry point tolerates a nil one.
 	tracer *oida.Tracer
@@ -80,7 +80,7 @@ func (m *Module) Name() string {
 
 // Start connects the database, applies migrations and wires handlers.
 //
-// A missing signing key is fatal rather than defaulted: a server that
+// A missing signing key is fatal, with no default: a server that
 // signs tokens with a well-known key is a server anyone can mint an
 // admin token for.
 func (m *Module) Start(ctx context.Context) error {
@@ -105,8 +105,8 @@ func (m *Module) Start(ctx context.Context) error {
 	}
 	m.settings = settings
 
-	// Artefact bytes live on a disk rather than in the database. A root
-	// the server cannot create is fatal here, instead of a surprise on
+	// Artefact bytes live on a disk and outside the database. A root
+	// the server cannot create is fatal here, and not a surprise on
 	// the first job that produces a file.
 	artefactDir := m.opts.ArtefactDir
 	if artefactDir == "" {
@@ -117,7 +117,7 @@ func (m *Module) Start(ctx context.Context) error {
 		return fmt.Errorf("atkins server: artefact directory %q: %w", artefactDir, err)
 	}
 
-	// The settings store goes in rather than two values read out of it:
+	// The settings store goes in whole, and not two values read out of it:
 	// `job.max_depth` and `job.lease_ttl` are runtime configuration, and
 	// resolving them here would mean an admin's change waited for a
 	// restart while the API reported it as already in force.
@@ -147,7 +147,7 @@ func (m *Module) Start(ctx context.Context) error {
 	})
 
 	// The pages read the same storage the API does. They share the
-	// signing key too: the session cookie is signed with it, so there is
+	// signing key too: it signs the session cookie, so there is
 	// one secret to configure and rotating it signs the browser out
 	// along with every issued token.
 	m.web, err = web.NewHandlers(web.Options{
@@ -166,8 +166,8 @@ func (m *Module) Start(ctx context.Context) error {
 		return err
 	}
 
-	// The sweeps outlive the start context; they are bound to the
-	// module lifecycle and cancelled from Stop.
+	// The sweeps outlive the start context; they follow the module
+	// lifecycle and Stop cancels them.
 	sweeps, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	m.cancel = cancel
 
@@ -196,12 +196,12 @@ func (m *Module) Stop(context.Context) error {
 // startReclaim runs the two periodic sweeps: expired agent leases, and
 // artefacts past their retention.
 //
-// They share a ticker because they are the same kind of work — a small
-// amount of tidying on a timer — and because a server with one
+// They share a ticker because they are the same kind of work (a small
+// amount of tidying on a timer), and because a server with one
 // background goroutine is easier to reason about than one with two.
 func (m *Module) startReclaim(ctx context.Context) {
 	m.sweep(ctx, "atkins.reclaim", m.opts.ReclaimInterval, func(ctx context.Context) error {
-		// Deferred rather than sequential: a reclaim that fails is no
+		// Deferred and not sequential: a reclaim that fails is no
 		// reason to leave expired bytes on the disk for another tick.
 		defer m.pruneArtefacts(ctx)
 
@@ -219,16 +219,16 @@ func (m *Module) startReclaim(ctx context.Context) {
 // startRetention applies job.retention and job.log_retention on a
 // ticker of its own.
 //
-// It is a separate sweep from the lease reclaim rather than another
+// This sweep stays separate from the lease reclaim, and is not another
 // statement inside it, because the two have nothing in common but a
 // timer: reclaiming is one cheap UPDATE that has to happen within a
 // lease of the agent dying, while retention walks two tables and is
 // worth doing about as often as a log file is worth rotating.
 //
-// The windows are read from the settings on every pass, so an admin
-// changing them takes effect at the next tick rather than at the next
-// restart. Passing zero for both makes the pass a no-op, which is what
-// an instance that keeps everything forever wants.
+// startRetention reads the windows from the settings on every pass, so
+// an admin changing them takes effect at the next tick and does not wait
+// for a restart. Passing zero for both makes the pass a no-op, the right
+// setup for an instance that keeps everything forever.
 func (m *Module) startRetention(ctx context.Context) {
 	m.sweep(ctx, "atkins.retention", m.opts.RetentionInterval, func(ctx context.Context) error {
 		result, err := m.jobs.Purge(ctx, storage.RetentionRequest{
@@ -249,7 +249,7 @@ func (m *Module) startRetention(ctx context.Context) {
 
 // partially annotates a retention pass that stopped short of the end of
 // its backlog, so an operator watching the log can tell a server that
-// is catching up from one that is done.
+// is catching up from one that has finished.
 func partially(partial bool) string {
 	if partial {
 		return ", more to come"
@@ -258,13 +258,13 @@ func partially(partial bool) string {
 }
 
 // sweep runs work named name on a ticker until the module stops. A
-// non-positive interval disables it, which is how the module tests keep
-// background writes out of their assertions.
+// non-positive interval disables it; the module tests rely on that to
+// keep background writes out of their assertions.
 //
 // Each tick runs inside a trace of its own. A sweep does not arrive over
 // the network, so nothing upstream opens one, and without it the storage
 // spans underneath would have nothing to record onto. The error a tick
-// returns is recorded on that trace and goes nowhere else: a ticker has
+// returns lands on that trace and goes nowhere else: a ticker has
 // no caller to return it to.
 func (m *Module) sweep(ctx context.Context, name string, interval time.Duration, work func(context.Context) error) {
 	if interval <= 0 {
@@ -291,7 +291,7 @@ func (m *Module) sweep(ctx context.Context, name string, interval time.Duration,
 
 // telemetryTracer returns the recorder the platform hosting the module
 // registered, or nil when the host records nothing. The module records
-// onto the host's tracer rather than the process wide default, so a test
+// onto the host's tracer and not the process wide default, so a test
 // starting two servers keeps their traces apart.
 func telemetryTracer(ctx context.Context) *oida.Tracer {
 	host := platform.FromContext(ctx)
@@ -309,13 +309,13 @@ func telemetryTracer(ctx context.Context) *oida.Tracer {
 // pruneArtefacts drops artefact bytes that have outlived their
 // retention.
 //
-// Retention is read on every pass rather than captured at start-up,
-// because it is a setting an admin changes when a disk fills up, and
+// pruneArtefacts reads retention on every pass and does not capture it
+// at start-up, because an admin changes the setting when a disk fills up, and
 // that is exactly the moment a restart is least welcome.
 //
 // `artefact.retention` falls back to `job.retention`: an artefact
 // belongs to a job and should not outlive it. It exists separately
-// because bytes are the expensive half — keeping the ledger of what ran
+// because bytes are the expensive half: keeping the ledger of what ran
 // for a year while dropping the files after a week is a normal thing to
 // want, and the reverse never is.
 func (m *Module) pruneArtefacts(ctx context.Context) {

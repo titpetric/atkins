@@ -13,8 +13,8 @@ func TestViewToken(t *testing.T) {
 	token := jwt.ViewToken("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 	assert.Len(t, token, auth.ViewTokenLength)
 
-	// Deriving rather than storing means the same job always yields the
-	// same link, so a URL printed last week still opens.
+	// ViewToken derives the token and stores nothing, so the same job
+	// always maps to the same link and a URL printed last week still opens.
 	assert.Equal(t, token, jwt.ViewToken("01ARZ3NDEKTSV4RRFFQ69G5FAV"))
 
 	// One job's token opens that job and nothing else.

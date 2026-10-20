@@ -45,12 +45,12 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 	// Store context in execution context for use in steps
 	execCtx.Context = ctx
 
-	// Evaluate job-level working directory and merge variables.
+	// Resolve job-level working directory and merge variables.
 	// The order depends on whether dir references variables:
-	// - Static dir (e.g., "/path"): evaluate dir first, then vars use that cwd
-	// - Dynamic dir (e.g., "${{workdir}}"): evaluate vars first, then interpolate dir
-	// When the job has a for loop, skip dir entirely — it may reference
-	// loop variables (e.g., ${{folder}}) and will be evaluated per iteration.
+	// - Static dir (e.g., "/path"): resolve dir first, then vars use that cwd
+	// - Dynamic dir (e.g., "${{workdir}}"): resolve vars first, then interpolate dir
+	// When the job has a for loop, skip dir entirely - it may reference
+	// loop variables (e.g., ${{folder}}) and each iteration resolves it.
 	if job.For.IsEmpty() {
 		if err := evaluateDirAndVars(execCtx, job, true); err != nil {
 			return err
@@ -71,7 +71,7 @@ func (e *Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionConte
 		return e.executeJobWithForLoop(ctx, execCtx, steps)
 	}
 
-	// Evaluate job-level if condition
+	// Check job-level if condition
 	shouldRun, err := EvaluateJobIf(execCtx)
 	if err != nil {
 		return fmt.Errorf("failed to evaluate if condition for job %q: %w", job.Name, err)
@@ -128,7 +128,7 @@ func (e *Executor) executeJobWithForLoop(ctx context.Context, execCtx *Execution
 		iterCtx.Context = ctx
 		iterCtx.StepSequence = 0
 
-		// Evaluate job-level if condition per iteration — it may reference loop variables
+		// Check job-level if condition per iteration - it may reference loop variables
 		if !job.If.IsEmpty() {
 			shouldRun, err := EvaluateJobIf(iterCtx)
 			if err != nil {
@@ -139,7 +139,7 @@ func (e *Executor) executeJobWithForLoop(ctx context.Context, execCtx *Execution
 			}
 		}
 
-		// Re-evaluate job dir per iteration — it may reference loop variables
+		// Resolve job dir again per iteration - it may reference loop variables
 		if job.Dir != "" {
 			dir, err := InterpolateString(job.Dir, iterCtx)
 			if err != nil {
@@ -187,10 +187,10 @@ func (e *Executor) executeJobWithForLoop(ctx context.Context, execCtx *Execution
 }
 
 // evaluateDirAndVars uses lazy evaluation for job/task vars and dir.
-// Vars are set as pending, dir is interpolated (resolving needed vars on-demand),
-// then remaining vars are resolved for step execution.
-// The label (e.g. "job", "task") is used in error messages.
-// When checkDir is true, the resolved directory is validated to exist.
+// It stores vars as pending, interpolates dir (resolving needed vars on-demand),
+// then resolves the remaining vars for step execution.
+// Error messages carry the label (e.g. "job", "task").
+// When checkDir is true, it checks that the resolved directory exists.
 func evaluateDirAndVars(ctx *ExecutionContext, job *model.Job, checkDir bool, label ...string) error {
 	prefix := "job"
 	if len(label) > 0 {
@@ -208,7 +208,7 @@ func evaluateDirAndVars(ctx *ExecutionContext, job *model.Job, checkDir bool, la
 		ctx.Variables = lazyVars
 	}
 
-	// Evaluate dir - this will lazily resolve any vars it references via Get
+	// Resolve dir - this will lazily resolve any vars it references via Get
 	if job.Dir != "" {
 		dir, err := InterpolateString(job.Dir, ctx)
 		if err != nil {
@@ -239,8 +239,8 @@ func evaluateDirAndVars(ctx *ExecutionContext, job *model.Job, checkDir bool, la
 }
 
 // evaluateDirAndVarsSkipDir merges vars and env from a job without evaluating
-// job.Dir. This is used when a job has a for loop, where dir evaluation is
-// deferred to each iteration (it may reference loop variables).
+// job.Dir. A job with a for loop uses it, where each iteration resolves
+// dir on its own (it may reference loop variables).
 func evaluateDirAndVarsSkipDir(ctx *ExecutionContext, job *model.Job) error {
 	// Set up lazy evaluation for vars
 	if job.Decl != nil && job.Decl.Vars != nil {

@@ -8,7 +8,7 @@ import (
 	"github.com/titpetric/atkins/colors"
 )
 
-// DefaultMaxArgLen is the default maximum length for argument values before compaction.
+// DefaultMaxArgLen is the default length limit for argument values before compaction.
 const DefaultMaxArgLen = 25
 
 // Renderer handles rendering of tree nodes to strings with proper formatting.
@@ -81,7 +81,7 @@ func (r *Renderer) RenderStatic(root *Node) string {
 	return output
 }
 
-// renderNodeSummary will give a one-liner with status (pending, running, passed...)
+// renderNodeSummary returns a one-liner with status (pending, running, passed...)
 func (r *Renderer) renderNodeSummary(node *Node, prefix string, isLast bool) string {
 	// Determine branch character
 	branch := "├─ "
@@ -150,10 +150,10 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 	label := node.Label()
 	status := node.StatusColor()
 
-	// Build the suffix parts (status, conditions, progress) that should not be truncated
+	// Build the suffix parts (status, conditions, progress) that trimming must keep
 	var suffix string
 
-	// Build the node label with dependencies and deferred info
+	// Build the node label with dependencies and the deferred marker
 	deps := node.GetDependencies()
 	if len(deps) > 0 {
 		depItems := make([]string, len(deps))
@@ -181,7 +181,7 @@ func (r *Renderer) renderNodeForExecution(node *Node, prefix string, isLast bool
 	// Get children once for consistent progress counter and rendering
 	children := node.GetChildren()
 
-	// Add progress counter for nodes with multiple children
+	// Add progress counter for nodes with more than one child
 	if len(children) > 1 {
 		var passing, total int
 		for _, child := range children {
@@ -300,10 +300,10 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 	label := node.Label()
 	status := node.StatusColor()
 
-	// Build the suffix parts (status, conditions) that should not be truncated
+	// Build the suffix parts (status, conditions) that trimming must keep
 	var suffix string
 
-	// Build the node label with dependencies and deferred info
+	// Build the node label with dependencies and the deferred marker
 	deps := node.GetDependencies()
 	if len(deps) > 0 {
 		depItems := make([]string, len(deps))

@@ -53,43 +53,43 @@ type GreetingGroup struct {
 - `func (*Greeter) LearnGreeting (input string) (string, bool)`
 - `func (*Greeter) Match (input string) string`
 
-### Fortune
+### `Fortune`
 
-Fortune returns a fortune string. Uses the system `fortune` command if
+`Fortune` returns a fortune string. Uses the system `fortune` command if
 available, otherwise returns a random coding motivational quote.
 
 ```go
 func Fortune() string
 ```
 
-### MatchFortune
+### `MatchFortune`
 
-MatchFortune returns true if the input is asking for a fortune.
+`MatchFortune` returns true if the input requests a fortune.
 
 ```go
 func MatchFortune(input string) bool
 ```
 
-### NewGreeter
+### `NewGreeter`
 
-NewGreeter creates a greeter with built-in defaults merged with user config.
+`NewGreeter` creates a greeter with built-in defaults merged with user configuration.
 
 ```go
 func NewGreeter() *Greeter
 ```
 
-### LearnGreeting
+### `LearnGreeting`
 
-LearnGreeting parses input like "ciao is a greeting" and adds the word.
-Returns true if a new greeting was learned.
+`LearnGreeting` parses input like "ciao is a greeting" and adds the word.
+It returns true if it learned a new greeting.
 
 ```go
 func (*Greeter) LearnGreeting(input string) (string, bool)
 ```
 
-### Match
+### `Match`
 
-Match checks if the input is a greeting and returns a random response.
+`Match` checks if the input is a greeting and returns a random response.
 Returns empty string if not a greeting.
 
 ```go

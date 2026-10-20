@@ -5,7 +5,7 @@ import (
 )
 
 // SortJobsByDepth sorts job names by ':' depth, then alphabetically.
-// Depth is determined by the count of ':' separators in the job name.
+// Depth is the count of ':' separators in the job name.
 func SortJobsByDepth(jobNames []string) []string {
 	result := make([]string, len(jobNames))
 	copy(result, jobNames)
@@ -44,9 +44,9 @@ func compareByDepthThenName(a, b string) int {
 
 // countDepth returns the depth of a job name based on ':' separators.
 // For example:
-//   - "test" → 0
-//   - "test:run" → 1
-//   - "test:run:subtask" → 2
+//   - "test" -> 0
+//   - "test:run" -> 1
+//   - "test:run:subtask" -> 2
 func countDepth(name string) int {
 	count := 0
 	for _, ch := range name {
@@ -58,7 +58,7 @@ func countDepth(name string) int {
 }
 
 // SortByOrder returns the job names from the set in the order specified by orderList.
-// Jobs in the set that are not in orderList are appended at the end.
+// Jobs in the set that orderList does not list go at the end.
 func SortByOrder(jobSet map[string]bool, orderList []string) []string {
 	result := make([]string, 0, len(jobSet))
 

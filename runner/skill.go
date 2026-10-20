@@ -8,8 +8,8 @@ import (
 //
 // A skill is a pipeline file whose name is the job namespace: go.yml
 // contributes go:build, go:test and the rest. Beside it a skill may
-// carry a markdown companion of the same base name, go.md, which is a
-// usage guide rather than a job list; `atkins --help` prints it under
+// carry a markdown companion of the same base name, go.md, which holds a
+// usage guide and no job list; `atkins --help` prints it under
 // the skill.
 type Skill struct {
 	// Pipeline is the parsed skill. Its ID is the file name without the
@@ -28,11 +28,11 @@ type Skill struct {
 	Doc string
 
 	// Dir is the directory the skill runs in: the folder that satisfied
-	// its when: block, or the workspace root when it has none. It is
-	// only resolved for an active skill.
+	// its when: block, or the workspace root when it has none. The loader
+	// resolves it only for an active skill.
 	Dir string
 
-	// Active reports whether the skill's when: block is satisfied from
+	// Active reports whether the skill's when: block matches from
 	// the directory the scan started in. Only an active skill
 	// contributes its jobs to a run.
 	Active bool

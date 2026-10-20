@@ -1,14 +1,13 @@
 // Package client talks to an atkins CI/CD server.
 //
 // It covers the whole client side of the feature: `atkins --login
-// https://domain` and `atkins --register` obtain a credential, and every
-// later atkins run posts to /api/dispatch so the server knows which
+// https://domain` and `atkins --register` fetch a credential, and every
+// later atkins run posts to /api/dispatch so the server records which
 // repository, which directory in its work tree, and which command ran.
 //
-// The package deliberately depends on net/http alone. Everything it
-// sends and receives is declared in types.go rather than imported from
-// server/api, so building the CLI does not pull in the server's
-// database and routing dependencies.
+// The package depends on net/http alone. types.go declares everything it
+// sends and receives, with no import from server/api, so building the CLI
+// does not pull in the server's database and routing dependencies.
 package client
 
 import (
@@ -24,9 +23,9 @@ import (
 	"time"
 )
 
-// UserAgent is sent with every request. The main package overwrites it
-// with the build version, which is what a server log needs to tell an
-// old client from a new one.
+// UserAgent goes out with every request. The main package overwrites it
+// with the build version, so a server log can tell an old client from a
+// new one.
 var UserAgent = "atkins"
 
 // Client is an HTTP client for one atkins server.
@@ -34,8 +33,8 @@ type Client struct {
 	server string
 	http   *http.Client
 
-	// store and credential are set for authenticated clients. The
-	// store is written back when a refresh rotates the tokens.
+	// store and credential hold values for authenticated clients. A
+	// refresh that rotates the tokens writes the store back.
 	store      *Store
 	credential *Credential
 }
@@ -44,13 +43,13 @@ type Client struct {
 // path of every atkins run, so it must never hang a build.
 const DefaultTimeout = 10 * time.Second
 
-// UploadTimeout bounds one artefact transfer. It is generous because an
-// artefact is measured in megabytes rather than in fields, and nothing
+// UploadTimeout bounds one artefact transfer. The bound is generous because
+// an artefact weighs in megabytes and a request in fields, and nothing
 // is waiting on it: the job has already finished by the time it runs.
 const UploadTimeout = 5 * time.Minute
 
-// New returns an unauthenticated client for a server. It is what the
-// login and register flows use before a credential exists.
+// New returns an unauthenticated client for a server. The login and
+// register flows use it before a credential exists.
 func New(server string) *Client {
 	return &Client{
 		server: NormalizeServer(server),
@@ -63,7 +62,7 @@ func New(server string) *Client {
 //
 // It returns ErrNotLoggedIn when there is no credential, which callers
 // on the dispatch path treat as "this machine isn't attached to a CI
-// server" rather than as a failure.
+// server" and not as a failure.
 func Open(server string) (*Client, error) {
 	store, err := LoadStore()
 	if err != nil {
@@ -116,9 +115,9 @@ func (c *Client) Register(ctx context.Context, req RegisterRequest) (*Credential
 
 // Logout revokes the stored session and forgets the credential.
 //
-// The local credential is dropped even when the server call fails: a
-// user asking to log out of an unreachable server should still end up
-// logged out on this machine.
+// Logout drops the local credential even when the server call fails: a
+// user asking to log out of an unreachable server still gets logged out
+// on this machine.
 func (c *Client) Logout(ctx context.Context) error {
 	if c.credential == nil {
 		return ErrNotLoggedIn
@@ -233,7 +232,7 @@ func (c *Client) UploadArtefact(ctx context.Context, jobID string, upload Artefa
 		request.Header.Set(HeaderArtefactChecksum, upload.Checksum)
 	}
 
-	// Not c.http: its timeout is sized for the dispatch call on the hot
+	// Not c.http: its timeout fits the dispatch call on the hot
 	// path of every run, and a 32MB artefact on a slow link is not that
 	// request.
 	response, err := (&http.Client{Timeout: UploadTimeout}).Do(request)
@@ -272,13 +271,13 @@ func contentTypeOrDefault(value string) string {
 	return value
 }
 
-// JobURL is where a job is watched in a browser. It is the one thing
-// atkins prints when it hands a run to a server.
+// JobURL is where a browser shows a job. atkins prints this one line
+// when it dispatches a run to a server.
 //
-// A server that keeps jobs private hands back a view token with the
+// A server that keeps jobs private returns a view token with the
 // job, and it belongs in the URL: the page has no session to check, and
-// the whole point of the line atkins prints is that pasting it into a
-// browser opens the run. An empty token leaves the URL as it was.
+// atkins prints the line so that pasting it into a browser opens the
+// run. An empty token leaves the URL unchanged.
 func (c *Client) JobURL(jobID, viewToken string) string {
 	url := c.server + "/job/" + jobID
 	if viewToken == "" {
@@ -289,7 +288,7 @@ func (c *Client) JobURL(jobID, viewToken string) string {
 
 // Enrol trades the shared agent token for agent credentials.
 //
-// The credentials are persisted like any login, so a restarted agent
+// Enrol persists the credentials like any login, so a restarted agent
 // with the same identity resumes without re-enrolling.
 func (c *Client) Enrol(ctx context.Context, req EnrolRequest) (*Credential, error) {
 	var token TokenResponse
@@ -360,9 +359,9 @@ func (e *APIError) Error() string {
 }
 
 // authorization returns the Authorization header for an authenticated
-// call, refreshing the access token first when it is close to expiring.
+// call, refreshing the access token first when it nears expiry.
 //
-// Every authenticated request goes through here, including the ones
+// Every authenticated request calls it, including the ones
 // that don't carry JSON, so a long-running agent uploading artefacts
 // renews on exactly the same terms as one appending log lines.
 func (c *Client) authorization(ctx context.Context) (string, error) {
@@ -384,8 +383,8 @@ func (c *Client) do(ctx context.Context, method, path string, payload, target an
 }
 
 // doStatus performs a JSON request and reports the response status.
-// When authenticated is set, the access token is attached and refreshed
-// first if it is close to expiring.
+// When authenticated is true, doStatus attaches the access token and
+// refreshes it first if it nears expiry.
 func (c *Client) doStatus(ctx context.Context, method, path string, payload, target any, authenticated bool) (int, error) {
 	if c.server == "" {
 		return 0, errors.New("no server configured")

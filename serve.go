@@ -25,7 +25,7 @@ type ServerOptions struct {
 	// other.
 	Database string
 
-	// ArtefactDir is where the bytes of job artefacts are stored.
+	// ArtefactDir is where the server stores the bytes of job artefacts.
 	ArtefactDir string
 
 	// SigningKey signs access tokens. Required.
@@ -49,7 +49,7 @@ func (o *ServerOptions) Bind(fs *pflag.FlagSet) {
 	fs.BoolVar(&o.AllowRegistration, "allow-registration", false, "Keep registration open after the first user")
 }
 
-// Server provides a cli.Command that runs the atkins CI/CD server.
+// Server returns a cli.Command that runs the atkins CI/CD server.
 func Server() *cli.Command {
 	opts := &ServerOptions{}
 
@@ -87,22 +87,23 @@ func runServer(ctx context.Context, opts *ServerOptions) error {
 	}
 
 	// The platform reads PLATFORM_DB_* at package init, before the
-	// configuration is resolved. Publish the DSN we settled on and
-	// re-register so the config value reaches the connection provider.
+	// configuration resolves. Publish the DSN we settled on and
+	// re-register so the configured value reaches the connection provider.
 	if err := os.Setenv("PLATFORM_DB_DEFAULT", config.Database); err != nil {
 		return err
 	}
 	platform.SetupConnections(os.Environ())
 
-	// NewOptions rather than a literal: it carries the telemetry
+	// NewOptions and no literal: it carries the telemetry
 	// defaults and reads PLATFORM_TELEMETRY_*, and an Options built by
 	// hand leaves the recorder at its zero value, which is off. The
-	// listen address is the one atkins resolved, not the platform's.
+	// listen address is the one atkins resolved; the platform's own
+	// default does not apply.
 	options := platform.NewOptions()
 	options.ServerAddr = config.Addr
 
 	// The dashboard labels its traces with the service name, and the
-	// platform's default names the framework rather than the service
+	// platform's default names the framework and omits the service
 	// running on it.
 	options.Telemetry.ServiceName = "atkins"
 

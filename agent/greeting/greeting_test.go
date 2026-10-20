@@ -202,7 +202,7 @@ func TestMatchFortune_NoMatch(t *testing.T) {
 }
 
 func TestFortune(t *testing.T) {
-	// Fortune should return a non-empty string
+	// Fortune returns a non-empty string
 	fortune := agent.Fortune()
 	assert.NotEmpty(t, fortune)
 }

@@ -20,9 +20,9 @@ import (
 // JobArtefactStorage persists the files a job produced.
 //
 // It owns both halves of an artefact: the row that describes it and the
-// bytes it points at. Keeping them behind one type is what stops the
-// two from drifting — a caller cannot insert a row for bytes that were
-// never written, or delete a row and forget the file.
+// bytes it points at. Keeping them behind one type stops the two from
+// drifting: a caller cannot insert a row for bytes nobody wrote, or
+// delete a row and forget the file.
 type JobArtefactStorage struct {
 	db    *sqlx.DB
 	blobs blob.Store
@@ -47,15 +47,16 @@ type ArtefactRequest struct {
 	// directory the job ran in.
 	Path string
 
-	// ContentType is what the agent thought it was uploading.
+	// ContentType is the media type the agent declared for the upload.
 	ContentType string
 
-	// Checksum, when set, is the SHA256 the agent computed. It is
-	// compared against what actually arrived.
+	// Checksum, when set, is the SHA256 the agent computed. Create
+	// compares it against what actually arrived.
 	Checksum string
 
-	// Content is the file. It is streamed to the blob store rather than
-	// read into memory: an artefact is as large as the limit allows.
+	// Content is the file. Create streams it to the blob store and
+	// never reads it into memory: an artefact is as large as the limit
+	// allows.
 	Content io.Reader
 
 	// MaxSize bounds this upload; MaxCount bounds how many artefacts
@@ -68,9 +69,9 @@ type ArtefactRequest struct {
 // Create stores an uploaded artefact.
 //
 // Uploading a path a job already has replaces it. A collection that
-// runs twice — a retried upload, a pipeline that copies the same file
-// from two steps — should leave one scan.json rather than two, and the
-// count limit should not be spent on duplicates.
+// runs twice (a retried upload, a pipeline that copies the same file
+// from two steps) leaves one scan.json, and duplicates do not count
+// against the limit.
 func (s *JobArtefactStorage) Create(ctx context.Context, req ArtefactRequest) (*model.JobArtefact, error) {
 	ctx, span := oida.StartAuto(ctx, s.Create, oida.KindDatabase)
 	defer span.End()
@@ -108,7 +109,7 @@ func (s *JobArtefactStorage) Create(ctx context.Context, req ArtefactRequest) (*
 		return nil, fmt.Errorf("store artefact: %w", err)
 	}
 
-	// Hex, so case is presentation rather than meaning.
+	// Hex, so case carries no meaning.
 	if req.Checksum != "" && !strings.EqualFold(req.Checksum, written.Checksum) {
 		_ = s.blobs.Remove(ctx, key)
 		return nil, model.ErrChecksumMismatch
@@ -153,7 +154,7 @@ func (s *JobArtefactStorage) List(ctx context.Context, jobID string) ([]model.Jo
 
 // Get returns one artefact of one job.
 //
-// The job is part of the lookup rather than checked afterwards: an
+// The job is part of the lookup, with no check afterwards: an
 // artefact ID from another job must not resolve here just because the
 // caller could read some job.
 func (s *JobArtefactStorage) Get(ctx context.Context, jobID, artefactID string) (*model.JobArtefact, error) {
@@ -175,13 +176,13 @@ func (s *JobArtefactStorage) Open(ctx context.Context, artefact *model.JobArtefa
 	if err != nil {
 		// The row survives its bytes: retention sweeps them, and so
 		// does an operator with a full disk. Either way this is a 404
-		// rather than a 500.
+		// and never a 500.
 		return nil, fmt.Errorf("%w: %s", model.ErrArtefactNotFound, artefact.Path)
 	}
 	return contents, nil
 }
 
-// Count returns how many artefacts a job currently keeps.
+// Count returns how many artefacts a job keeps.
 func (s *JobArtefactStorage) Count(ctx context.Context, jobID string) (int64, error) {
 	query := `SELECT COUNT(*) AS count FROM ` + model.JobArtefactTable + ` WHERE job_id = ? AND deleted_at IS NULL`
 
@@ -197,8 +198,8 @@ func (s *JobArtefactStorage) Count(ctx context.Context, jobID string) (int64, er
 // PruneExpired drops the bytes of artefacts older than the cutoff and
 // reports how many it swept.
 //
-// The row is soft deleted rather than removed. It costs a few dozen
-// bytes, it keeps the record that a 40MB scan.json was produced, and it
+// PruneExpired soft deletes the row and keeps it. It costs a few dozen
+// bytes, it keeps the record that the job produced a large scan.json, and it
 // makes the removal auditable: "swept by retention" and "never uploaded"
 // are different answers to why a file isn't there.
 func (s *JobArtefactStorage) PruneExpired(ctx context.Context, cutoff time.Time) (int64, error) {
@@ -225,8 +226,8 @@ func (s *JobArtefactStorage) PruneExpired(ctx context.Context, cutoff time.Time)
 }
 
 // pruneBatch bounds one retention sweep. The sweep runs on a ticker, so
-// a backlog drains over several passes rather than holding the database
-// and the disk for one very long delete.
+// a backlog drains over a few passes and does not hold the database and
+// the disk for one long delete.
 const pruneBatch = 500
 
 // byPath returns the live artefact a job already has under a path.

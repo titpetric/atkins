@@ -15,7 +15,7 @@ Steps are the individual commands or actions within a job. They execute sequenti
 | `cmds:`             | List of commands (run sequentially)                          |
 | `task:`             | Invoke another job/task by name                              |
 | `name:`             | Display name for the step                                    |
-| `if:`               | Conditional execution (string or list; list items are ANDed) |
+| `if:`               | Conditional execution (string or list; all items must pass)  |
 | `for:`              | Loop iteration (`for: item in collection`)                   |
 | `dir:`              | Working directory                                            |
 | `detach: true`      | Run step in background                                       |
@@ -23,7 +23,7 @@ Steps are the individual commands or actions within a job. They execute sequenti
 | `defer:`            | Shorthand for a deferred step                                |
 | `verbose: true`     | Show more output                                             |
 | `passthru: true`    | Output with tree indentation                                 |
-| `tty: true`         | Allocate a PTY for color output                              |
+| `tty: true`         | Attach a PTY for color output                                |
 | `interactive: true` | Live streaming with stdin                                    |
 | `vars:`             | Step-level variables                                         |
 | `env:`              | Step-level environment variables                             |

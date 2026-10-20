@@ -19,13 +19,13 @@ import (
 type SessionStorage struct {
 	db *sqlx.DB
 
-	// ttl is how long a session (and therefore its refresh token)
+	// ttl is how long a session (and so its refresh token)
 	// stays valid without a re-login.
 	ttl time.Duration
 }
 
 // DefaultSessionTTL is how long a CLI login lasts before the user has to
-// run `atkins --login` again. It's long on purpose: the access token is
+// run `atkins --login` again. It's long because the access token is
 // short-lived and refreshed silently, so this is the "how often do I get
 // interrupted" knob.
 const DefaultSessionTTL = 30 * 24 * time.Hour
@@ -80,7 +80,7 @@ func (s *SessionStorage) Create(ctx context.Context, userID string, req SessionR
 }
 
 // GetByRefreshToken returns a live session for the given refresh token.
-// A revoked or expired session is reported as such rather than as a
+// It reports a revoked or expired session as such, and not as a
 // missing row, so the client can tell "log in again" from "bad token".
 func (s *SessionStorage) GetByRefreshToken(ctx context.Context, token string) (*model.Session, error) {
 	ctx, span := oida.StartAuto(ctx, s.GetByRefreshToken, oida.KindDatabase)
@@ -164,7 +164,7 @@ func (s *SessionStorage) RevokeByRefreshToken(ctx context.Context, token string)
 	return nil
 }
 
-// Touch records that a session was seen. Best-effort; failures here are
+// Touch records a sighting of a session. Best-effort; failures here are
 // not worth failing a request over.
 func (s *SessionStorage) Touch(ctx context.Context, sessionID string) error {
 	query := `UPDATE ` + model.SessionTable + ` SET last_seen_at = ? WHERE id = ?`

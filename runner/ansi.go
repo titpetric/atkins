@@ -10,7 +10,7 @@ import (
 var csiPattern = regexp.MustCompile(`\x1b\[[?>]?[0-9;]*[A-Za-z]`)
 
 // cursorUpClearPattern matches cursor up + clear to end of display: \033[<n>A\033[J
-// This is used by treeview/display to redraw the tree.
+// treeview/display uses this sequence to redraw the tree.
 var cursorUpClearPattern = regexp.MustCompile(`\x1b\[(\d+)A\x1b\[J`)
 
 // Sanitize processes raw terminal output and returns clean lines.
@@ -30,10 +30,10 @@ func Sanitize(in string) ([]string, error) {
 	clean := strings.ReplaceAll(in, "\r\n", "\n")
 
 	// Process cursor up + clear sequences
-	// These indicate "go back n lines and clear everything from there"
+	// These mean "go back n lines and clear everything from there"
 	clean = processCursorUpClear(clean)
 
-	// Process line by line, handling carriage returns
+	// Process each line, applying carriage returns
 	rawLines := strings.Split(clean, "\n")
 	result := make([]string, 0, len(rawLines))
 
@@ -87,11 +87,11 @@ func processCursorUpClear(in string) string {
 		}
 
 		// Now cutPos is either at a \n or at position 0
-		// We want to cut from the start of the line we landed on
+		// The cut starts at the start of the line we landed on
 		if cutPos > 0 {
 			// We're at a \n, so the cut starts after this \n
 			// But we need to go back one more to get the start of that line
-			// Actually, we want to keep everything before this line
+			// Keep everything before this line
 			// Find the previous newline to keep
 			searchPos := cutPos - 1
 			for searchPos >= 0 && in[searchPos] != '\n' {
@@ -110,8 +110,8 @@ func processCursorUpClear(in string) string {
 }
 
 // processCarriageReturns handles \r characters in a line.
-// When \r is encountered, the cursor returns to the beginning of the line
-// and subsequent characters overwrite from position 0.
+// At each \r the cursor returns to the beginning of the line
+// and the characters after it overwrite from position 0.
 // This function properly handles ANSI escape sequences (they don't take visual space).
 func processCarriageReturns(line string) string {
 	if !strings.Contains(line, "\r") {

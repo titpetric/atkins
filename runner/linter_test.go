@@ -8,7 +8,7 @@ import (
 	runnererrors "github.com/titpetric/atkins/runner/errors"
 )
 
-// TestLinter_StepsAndCmdsEquivalence verifies that steps and cmds are treated equivalently
+// TestLinter_StepsAndCmdsEquivalence verifies that the linter treats steps and cmds alike
 func TestLinter_StepsAndCmdsEquivalence(t *testing.T) {
 	// Test with steps
 	pipelineWithSteps := &model.Pipeline{
@@ -125,7 +125,7 @@ func TestLinter_MissingDependency(t *testing.T) {
 	assert.Contains(t, errors[0].Detail, "nonexistent-dep")
 }
 
-// TestJobChildrenConsistency verifies that Job.Children() is used consistently
+// TestJobChildrenConsistency verifies that callers use Job.Children() consistently
 func TestJobChildrenConsistency(t *testing.T) {
 	// Test that Children() returns Steps when available
 	job1 := &model.Job{
@@ -218,7 +218,7 @@ func TestNoDefaultJobError(t *testing.T) {
 	assert.Equal(t, `task "default" does not exist`, err.Error())
 }
 
-// TestResolveJobDependencies_NoDefault verifies NoDefaultJobError is returned
+// TestResolveJobDependencies_NoDefault verifies the resolver returns NoDefaultJobError
 func TestResolveJobDependencies_NoDefault(t *testing.T) {
 	jobs := map[string]*model.Job{
 		"build": {Name: "build"},
@@ -255,7 +255,7 @@ func TestLinterWithPipelines_CrossPipelineValidation(t *testing.T) {
 
 	allPipelines := []*model.Pipeline{mainPipeline, goSkill}
 
-	// Validate goSkill with access to all pipelines
+	// Check goSkill with access to all pipelines
 	linter := NewLinterWithPipelines(goSkill, allPipelines)
 	errors := linter.Lint()
 	assert.Len(t, errors, 0, "valid cross-pipeline reference should not produce errors")

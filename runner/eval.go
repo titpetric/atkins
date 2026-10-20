@@ -11,8 +11,8 @@ import (
 var directVariableRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 // EvaluateIf evaluates the If condition using expr-lang.
-// Returns true if the condition is met, false if no condition or condition is false.
-// When multiple conditions are provided, all must be true (AND logic).
+// Returns true if the condition holds, false if no condition or condition is false.
+// With more than one condition, all must be true (AND logic).
 // Returns error only for invalid expressions.
 func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 	s := ctx.Step
@@ -20,7 +20,7 @@ func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 		return true, nil // No condition means always execute
 	}
 
-	// Evaluate all conditions - all must be true (AND logic)
+	// Check all conditions - all must be true (AND logic)
 	for _, cond := range s.If {
 		result, err := evaluateIfExpression(string(cond), ctx)
 		if err != nil {
@@ -34,8 +34,8 @@ func EvaluateIf(ctx *ExecutionContext) (bool, error) {
 }
 
 // EvaluateJobIf evaluates the If condition on a job using expr-lang.
-// Returns true if the condition is met or no condition is set.
-// When multiple conditions are provided, all must be true (AND logic).
+// Returns true if the condition holds or the job has no condition.
+// With more than one condition, all must be true (AND logic).
 // Returns error only for invalid expressions.
 func EvaluateJobIf(ctx *ExecutionContext) (bool, error) {
 	job := ctx.Job
@@ -43,7 +43,7 @@ func EvaluateJobIf(ctx *ExecutionContext) (bool, error) {
 		return true, nil // No condition means always execute
 	}
 
-	// Evaluate all conditions - all must be true (AND logic)
+	// Check all conditions - all must be true (AND logic)
 	for _, cond := range job.If {
 		result, err := evaluateIfExpression(string(cond), ctx)
 		if err != nil {
@@ -108,11 +108,11 @@ func evaluateIfExpression(ifExpr string, ctx *ExecutionContext) (bool, error) {
 	}
 }
 
-// ExpandFor expands a for loop into multiple iteration contexts.
+// ExpandFor expands a for loop into one context per iteration.
 // Supports patterns: "item in items" (items is a variable name),
 // "(index, item) in items", "(key, value) in items",
 // or any of the above with bash expansion: "item in $(ls ./bin/*.test)".
-// When multiple iterators are provided, computes the cartesian product.
+// With more than one iterator, it computes the cartesian product.
 func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error) {
 	s := ctx.Step
 	if s.For.IsEmpty() {
@@ -151,7 +151,7 @@ func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, fo
 	// For each existing context, expand with this iterator's items
 	for _, parentCtx := range contexts {
 		// Create a temporary execution context with the parent's variables
-		// so that item resolution can reference previously bound loop variables
+		// so that item resolution can reference loop variables bound by earlier iterators
 		tempCtx := &ExecutionContext{
 			Variables: parentCtx.Variables,
 			Env:       ctx.Env,
@@ -314,7 +314,7 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 		exprStr := strings.TrimPrefix(strings.TrimSuffix(itemsSpec, "}}"), "${{")
 		exprStr = strings.TrimSpace(exprStr)
 
-		// Evaluate expression (supports dot notation, operators, etc)
+		// Run the expression (supports dot notation, operators, etc)
 		val, err := evaluateExpression(exprStr, ctx)
 		if err == nil && val != nil {
 			return convertToAnySlice(val)
@@ -332,7 +332,7 @@ func getForItems(ctx *ExecutionContext, itemsSpec string, executeCommand func(st
 	return nil, fmt.Errorf("variable %q not found in context", itemsSpec)
 }
 
-// convertToAnySlice converts various types to []any for iteration.
+// convertToAnySlice converts a value to []any for iteration.
 // Supports []any, []string, string (split by newlines), and map[string]any.
 func convertToAnySlice(val any) ([]any, error) {
 	switch v := val.(type) {

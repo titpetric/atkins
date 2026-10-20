@@ -6,7 +6,7 @@ import (
 )
 ```
 
-Package storage owns the SQL for the atkins CI/CD server.
+Package `storage` owns the SQL for the atkins CI/CD server.
 
 Queries run through github.com/titpetric/pdo, whose generic methods
 (Get[T], Select[T], Insert, Update) scan straight into the mig-generated
@@ -35,15 +35,16 @@ type ArtefactRequest struct {
 	// directory the job ran in.
 	Path string
 
-	// ContentType is what the agent thought it was uploading.
+	// ContentType is the media type the agent declared for the upload.
 	ContentType string
 
-	// Checksum, when set, is the SHA256 the agent computed. It is
-	// compared against what actually arrived.
+	// Checksum, when set, is the SHA256 the agent computed. Create
+	// compares it against what actually arrived.
 	Checksum string
 
-	// Content is the file. It is streamed to the blob store rather than
-	// read into memory: an artefact is as large as the limit allows.
+	// Content is the file. Create streams it to the blob store and
+	// never reads it into memory: an artefact is as large as the limit
+	// allows.
 	Content io.Reader
 
 	// MaxSize bounds this upload; MaxCount bounds how many artefacts
@@ -66,7 +67,7 @@ type CheckoutRequest struct {
 	// branch the agent resolved for a job that named none.
 	Ref string
 
-	// CommitSHA is the commit the work tree was placed at.
+	// CommitSHA is the commit the agent checked the work tree out at.
 	CommitSHA string
 }
 ```
@@ -77,7 +78,7 @@ type CheckoutRequest struct {
 <summary><code>type CreateRequest</code></summary>
 
 ```go
-// CreateRequest is the input for creating a user. It is what
+// CreateRequest is the input for creating a user: what
 // `atkins --register` collects at the prompt.
 type CreateRequest struct {
 	Email    string `json:"email"`
@@ -93,8 +94,8 @@ type CreateRequest struct {
 <summary><code>type Flags</code></summary>
 
 ```go
-// Flags is the administrative state of a user. A nil field is left
-// alone, so an admin can revoke one privilege without restating the
+// Flags is the administrative state of a user. A nil field leaves that
+// flag alone, so an admin can revoke one privilege without restating the
 // others.
 type Flags struct {
 	IsAdmin  *bool `json:"is_admin"`
@@ -111,9 +112,9 @@ type Flags struct {
 ```go
 // JobArtefactStorage persists the files a job produced.
 // It owns both halves of an artefact: the row that describes it and the
-// bytes it points at. Keeping them behind one type is what stops the
-// two from drifting — a caller cannot insert a row for bytes that were
-// never written, or delete a row and forget the file.
+// bytes it points at. Keeping them behind one type stops the two from
+// drifting: a caller cannot insert a row for bytes nobody wrote, or
+// delete a row and forget the file.
 type JobArtefactStorage struct {
 	db    *sqlx.DB
 	blobs blob.Store
@@ -147,9 +148,9 @@ type JobRequest struct {
 	RepositoryID string
 	UserID       string
 
-	// WorkingDirectory is relative to the repository root. It is where
-	// the agent runs the command, and it is what lets one repository
-	// carry many independently dispatched projects.
+	// WorkingDirectory is relative to the repository root. The agent
+	// runs the command there, and it lets one repository carry many
+	// independently dispatched projects.
 	WorkingDirectory string
 
 	// Command is the atkins invocation to run, verbatim.
@@ -157,8 +158,8 @@ type JobRequest struct {
 
 	// Ref is what to check out: a branch, a tag, a commit sha or a
 	// fully qualified refname. Empty means the repository's default
-	// branch, resolved by the agent when the job runs rather than here,
-	// so a nightly trigger follows the branch it is pointed at.
+	// branch, which the agent resolves when the job runs and Create
+	// leaves alone, so a nightly trigger follows the branch it names.
 	Ref string
 
 	// CloneDepth limits the history of the job's work tree. 0 is the
@@ -174,10 +175,10 @@ type JobRequest struct {
 	// exits, relative to the directory it ran in.
 	Artefacts []string
 
-	// AgentID names the machine already running the job. Set, the job
-	// is created running and leased to it rather than pending: it is a
-	// run happening somewhere the queue cannot reach — `atkins` on a
-	// laptop — which reports its own log and outcome.
+	// AgentID names the machine already running the job. Set, Create
+	// stores the job as running and leased to it, and skips pending:
+	// this is a run somewhere the queue cannot reach (`atkins` on a
+	// laptop), which reports its own log and outcome.
 	//
 	// The lease is what makes that safe to trust. A local run that dies
 	// without reporting stops renewing, and the server reclaims it as a
@@ -196,12 +197,12 @@ type JobRequest struct {
 type JobStorage struct {
 	db *sqlx.DB
 
-	// settings is consulted per use rather than read once here.
-	// `job.max_depth` and `job.lease_ttl` are documented as runtime
-	// configuration an admin changes without a restart, and a value
-	// captured at start-up would make that documentation false. A nil
-	// settings store leaves the configured values in charge, which is
-	// what a test constructing storage directly wants.
+	// The storage reads settings on every use, and never once here.
+	// The documentation lists `job.max_depth` and `job.lease_ttl` as
+	// runtime configuration an admin changes without a restart, and a
+	// value captured at start-up would make that documentation false. A
+	// nil settings store leaves the configured values in charge, which
+	// suits a test constructing storage directly.
 	settings *SettingStorage
 
 	// maxDepth bounds how deep a job tree may nest. A pipeline that
@@ -231,8 +232,8 @@ type ListFilter struct {
 
 	// ViewerID restricts the listing to what one user may see: their
 	// own jobs, and everything under a job tree they started. Empty
-	// means the caller may see everything, which is what an admin, an
-	// agent and a public instance all are.
+	// means the caller may see everything, as an admin, an agent and
+	// any user of a public instance can.
 	ViewerID string
 }
 ```
@@ -281,16 +282,16 @@ type RepositoryStorage struct {
 
 ```go
 // RetentionRequest is one retention pass.
-// The two windows are independent on purpose. Output is what grows
+// The two windows are independent. Output is what grows
 // without bound, and it stops being interesting long before the outcome
 // does; an instance that keeps every job forever and every log line for
 // a month is the common case.
 type RetentionRequest struct {
-	// Jobs is how long a settled job's record is kept, measured from
+	// Jobs is how long Purge keeps a settled job's record, measured from
 	// when it finished. Zero keeps job records forever.
 	Jobs time.Duration
 
-	// Logs is how long a settled job's captured output is kept. Zero
+	// Logs is how long Purge keeps a settled job's captured output. Zero
 	// keeps output forever.
 	Logs time.Duration
 
@@ -311,14 +312,14 @@ type RetentionRequest struct {
 ```go
 // RetentionResult reports what a pass removed.
 type RetentionResult struct {
-	// Jobs is how many job records were deleted.
+	// Jobs is how many job records the pass deleted.
 	Jobs int64
 
-	// Logs is how many output rows were deleted, including those that
+	// Logs is how many output rows the pass deleted, including those that
 	// went with a deleted job.
 	Logs int64
 
-	// Partial is set when the pass stopped at MaxBatches with work
+	// Partial reports a pass that stopped at MaxBatches with work
 	// still to do. The next tick continues where this one stopped.
 	Partial bool
 }
@@ -332,7 +333,7 @@ type RetentionResult struct {
 ```go
 // RuleRequest is the input for creating an allowlist rule.
 type RuleRequest struct {
-	// Pattern is matched against the repository slug. See
+	// Pattern matches against the repository slug. See
 	// model.MatchRepository for the syntax.
 	Pattern string `json:"pattern"`
 
@@ -348,11 +349,11 @@ type RuleRequest struct {
 ```go
 // SSHKeyRequest is the input for adding a key.
 type SSHKeyRequest struct {
-	// Name identifies the key to operators. It is unique.
+	// Name identifies the key to operators. Each name is unique.
 	Name string `json:"name"`
 
 	// Host scopes the key to one git host, e.g. github.com. Empty
-	// offers the key for any host.
+	// matches any host.
 	Host string `json:"host"`
 
 	// PrivateKey is the PEM-encoded key. It must not be passphrase
@@ -374,8 +375,8 @@ type SSHKeyRequest struct {
 // SSHKeyStorage persists the deploy keys agents clone with.
 // The private material never leaves this package except through
 // ListForAgent, which is reachable only by an enrolled agent. Admin
-// listings carry the fingerprint and the public key, which is what an
-// operator needs to install the key on the forge.
+// listings carry the fingerprint and the public key: what an operator
+// needs to install the key on the forge.
 type SSHKeyStorage struct {
 	db *sqlx.DB
 }
@@ -407,7 +408,7 @@ type SessionRequest struct {
 type SessionStorage struct {
 	db *sqlx.DB
 
-	// ttl is how long a session (and therefore its refresh token)
+	// ttl is how long a session (and so its refresh token)
 	// stays valid without a re-login.
 	ttl time.Duration
 }
@@ -420,9 +421,9 @@ type SessionStorage struct {
 
 ```go
 // SettingStorage reads and writes runtime configuration.
-// Values are cached in memory because they are read on the dispatch
-// path, which runs on every atkins invocation. The cache is invalidated
-// on write, and this process is the only writer.
+// SettingStorage caches values in memory because the dispatch path reads
+// them, and that path runs on every atkins invocation. A write clears
+// the cache, and this process is the only writer.
 type SettingStorage struct {
 	db *sqlx.DB
 
@@ -487,7 +488,7 @@ type UserStorage struct {
 //	PLATFORM_DB_ATKINS="sqlite://file:atkins.db"
 //	PLATFORM_DB_DEFAULT="sqlite://file:atkins.db"
 //
-// The named connection wins when both are set. With neither, the
+// The named connection wins when both exist. With neither, the
 // platform default is an in-memory sqlite database, which is useful for
 // tests and useless for a server: the server command sets
 // PLATFORM_DB_DEFAULT to a file when the environment doesn't.
@@ -501,7 +502,7 @@ const ConnectionName = "atkins"
 
 ```go
 // DefaultSessionTTL is how long a CLI login lasts before the user has to
-// run `atkins --login` again. It's long on purpose: the access token is
+// run `atkins --login` again. It's long because the access token is
 // short-lived and refreshed silently, so this is the "how often do I get
 // interrupted" knob.
 const DefaultSessionTTL = 30 * 24 * time.Hour
@@ -514,7 +515,7 @@ const DefaultSessionTTL = 30 * 24 * time.Hour
 
 ```go
 // MaxLogChunk bounds one appended chunk. A job that prints a gigabyte
-// should fill the page slowly rather than the database quickly.
+// should fill the page slowly, and never the database quickly.
 const MaxLogChunk = 256 * 1024
 ```
 
@@ -555,12 +556,12 @@ const (
 ```go
 // Stream names for job output.
 const (
-	// StreamOutput is combined stdout and stderr from the command.
+	// StreamOutput holds stdout and stderr from the command, combined.
 	StreamOutput = "output"
 
 	// StreamError is the agent's own commentary: clone failures,
-	// timeouts, anything that happened around the command rather than
-	// inside it.
+	// timeouts, anything that happened around the command and outside
+	// it.
 	StreamError = "error"
 )
 ```
@@ -571,8 +572,8 @@ const (
 <summary><code>const DefaultRetentionBatch, DefaultRetentionBatches</code></summary>
 
 ```go
-// Retention defaults. They bound one pass rather than the whole
-// backlog: the first sweep of an instance that has been running for a
+// Retention defaults. They bound one pass and leave the backlog to later
+// passes: the first sweep of an instance that has been running for a
 // year has millions of job_log rows to remove, and a DELETE that large
 // holds locks for minutes. A pass removes at most Batch × MaxBatches
 // rows of each kind and leaves the rest for the next tick, so a server
@@ -668,49 +669,49 @@ const (
 - `func (*UserStorage) SetFlags (ctx context.Context, id string, flags Flags) (*model.User, error)`
 - `func (RetentionResult) Empty () bool`
 
-### DB
+### `DB`
 
-DB returns the shared connection pool for the atkins server.
+`DB` returns the shared connection pool for the atkins server.
 
 An empty name selects ConnectionName. Naming it explicitly lets one
-process host more than one atkins database, which is what the module
-tests use to keep their fixtures apart: the platform caches pools by
+process host more than one atkins database; the module tests rely on
+that to keep their fixtures apart: the platform caches pools by
 connection name for the life of the process.
 
 ```go
 func DB(ctx context.Context, name string) (*sqlx.DB, error)
 ```
 
-### Migrate
+### `Migrate`
 
-Migrate applies SQL migrations from the given filesystem to the database.
-Files are selected by mig's default "*.up.sql" pattern; a filesystem with
+`Migrate` applies SQL migrations from the given filesystem to the database.
+mig's default "*.up.sql" pattern selects the files; a filesystem with
 none of them is an error.
 
 ```go
 func Migrate(ctx context.Context, db *sqlx.DB, schema fs.FS) error
 ```
 
-### NewJobArtefactStorage
+### `NewJobArtefactStorage`
 
-NewJobArtefactStorage returns a JobArtefactStorage backed by the
+`NewJobArtefactStorage` returns a JobArtefactStorage backed by the
 given pool and blob store.
 
 ```go
 func NewJobArtefactStorage(db *sqlx.DB, blobs blob.Store) *JobArtefactStorage
 ```
 
-### NewJobLogStorage
+### `NewJobLogStorage`
 
-NewJobLogStorage returns a JobLogStorage backed by the given pool.
+`NewJobLogStorage` returns a JobLogStorage backed by the given pool.
 
 ```go
 func NewJobLogStorage(db *sqlx.DB) *JobLogStorage
 ```
 
-### NewJobStorage
+### `NewJobStorage`
 
-NewJobStorage returns a JobStorage backed by the given pool.
+`NewJobStorage` returns a JobStorage backed by the given pool.
 
 maxDepth and leaseTTL are the configured values, and stand in when no
 admin has stored an override; zero selects the registry default.
@@ -719,81 +720,81 @@ admin has stored an override; zero selects the registry default.
 func NewJobStorage(db *sqlx.DB, settings *SettingStorage, maxDepth int64, leaseTTL time.Duration) *JobStorage
 ```
 
-### NewRepositoryRuleStorage
+### `NewRepositoryRuleStorage`
 
-NewRepositoryRuleStorage returns a RepositoryRuleStorage.
+`NewRepositoryRuleStorage` returns a RepositoryRuleStorage.
 
 ```go
 func NewRepositoryRuleStorage(db *sqlx.DB) *RepositoryRuleStorage
 ```
 
-### NewRepositoryStorage
+### `NewRepositoryStorage`
 
-NewRepositoryStorage returns a RepositoryStorage backed by the pool.
+`NewRepositoryStorage` returns a RepositoryStorage backed by the pool.
 
 ```go
 func NewRepositoryStorage(db *sqlx.DB) *RepositoryStorage
 ```
 
-### NewSSHKeyStorage
+### `NewSSHKeyStorage`
 
-NewSSHKeyStorage returns an SSHKeyStorage backed by the given pool.
+`NewSSHKeyStorage` returns an SSHKeyStorage backed by the given pool.
 
 ```go
 func NewSSHKeyStorage(db *sqlx.DB) *SSHKeyStorage
 ```
 
-### NewSessionStorage
+### `NewSessionStorage`
 
-NewSessionStorage returns a SessionStorage backed by the given pool.
+`NewSessionStorage` returns a SessionStorage backed by the given pool.
 A zero ttl selects DefaultSessionTTL.
 
 ```go
 func NewSessionStorage(db *sqlx.DB, ttl time.Duration) *SessionStorage
 ```
 
-### NewSettingStorage
+### `NewSettingStorage`
 
-NewSettingStorage returns a SettingStorage backed by the given pool.
+`NewSettingStorage` returns a SettingStorage backed by the given pool.
 
 ```go
 func NewSettingStorage(db *sqlx.DB) *SettingStorage
 ```
 
-### NewUserStorage
+### `NewUserStorage`
 
-NewUserStorage returns a UserStorage backed by the given pool.
+`NewUserStorage` returns a UserStorage backed by the given pool.
 
 ```go
 func NewUserStorage(db *sqlx.DB) *UserStorage
 ```
 
-### Count
+### `Count`
 
-Count returns how many artefacts a job currently keeps.
+`Count` returns how many artefacts a job keeps.
 
 ```go
 func (*JobArtefactStorage) Count(ctx context.Context, jobID string) (int64, error)
 ```
 
-### Create
+### `Create`
 
-Create stores an uploaded artefact.
+`Create` stores an uploaded artefact.
 
 Uploading a path a job already has replaces it. A collection that
-runs twice — a retried upload, a pipeline that copies the same file
-from two steps — should leave one scan.json rather than two, and the
-count limit should not be spent on duplicates.
+runs twice (a retried upload, a pipeline that copies the same file
+from two steps) leaves one scan.json, and duplicates do not count
+against the limit.
 
 ```go
 func (*JobArtefactStorage) Create(ctx context.Context, req ArtefactRequest) (*model.JobArtefact, error)
 ```
 
-### Get
+### `Get`
 
-Get returns one artefact of one job.
+`Get` returns one artefact of one job.
 
-The job is part of the lookup rather than checked afterwards: an
+The job is part of the lookup, with no check afterwards: an
 artefact ID from another job must not resolve here just because the
 caller could read some job.
 
@@ -801,29 +802,29 @@ caller could read some job.
 func (*JobArtefactStorage) Get(ctx context.Context, jobID, artefactID string) (*model.JobArtefact, error)
 ```
 
-### List
+### `List`
 
-List returns the artefacts of a job whose bytes are still there.
+`List` returns the artefacts of a job whose bytes are still there.
 
 ```go
 func (*JobArtefactStorage) List(ctx context.Context, jobID string) ([]model.JobArtefact, error)
 ```
 
-### Open
+### `Open`
 
-Open returns the bytes of an artefact.
+`Open` returns the bytes of an artefact.
 
 ```go
 func (*JobArtefactStorage) Open(ctx context.Context, artefact *model.JobArtefact) (io.ReadCloser, error)
 ```
 
-### PruneExpired
+### `PruneExpired`
 
-PruneExpired drops the bytes of artefacts older than the cutoff and
+`PruneExpired` drops the bytes of artefacts older than the cutoff and
 reports how many it swept.
 
-The row is soft deleted rather than removed. It costs a few dozen
-bytes, it keeps the record that a 40MB scan.json was produced, and it
+PruneExpired soft deletes the row and keeps it. It costs a few dozen
+bytes, it keeps the record that the job produced a large scan.json, and it
 makes the removal auditable: "swept by retention" and "never uploaded"
 are different answers to why a file isn't there.
 
@@ -831,55 +832,55 @@ are different answers to why a file isn't there.
 func (*JobArtefactStorage) PruneExpired(ctx context.Context, cutoff time.Time) (int64, error)
 ```
 
-### Append
+### `Append`
 
-Append adds a chunk of output to a job.
+`Append` adds a chunk of output to a job.
 
-Chunks are numbered per job so the page can render them in the order
+Append numbers chunks per job so the page can render them in the order
 the agent produced them, without relying on timestamp resolution.
 
 ```go
 func (*JobLogStorage) Append(ctx context.Context, jobID, stream, content string) error
 ```
 
-### List
+### `List`
 
-List returns the log chunks for a job, in the order they arrived.
+`List` returns the log chunks for a job, in the order they arrived.
 
 ```go
 func (*JobLogStorage) List(ctx context.Context, jobID string) ([]model.JobLog, error)
 ```
 
-### Claim
+### `Claim`
 
-Claim takes an exclusive lease on the oldest pending job an agent can
+`Claim` takes an exclusive lease on the oldest pending job an agent can
 run, or returns sql.ErrNoRows when the queue holds nothing for it.
 
 The claim runs in a transaction and the UPDATE re-asserts
 `status = 'pending'`, so two agents racing for the same row produce
-one winner and one empty poll rather than a job running twice.
+one winner and one empty poll, and never a job running twice.
 
 ```go
 func (*JobStorage) Claim(ctx context.Context, agentID string, labels []string) (*model.Job, error)
 ```
 
-### Create
+### `Create`
 
-Create records a dispatched job.
+`Create` records a dispatched job.
 
-Depth and root are derived from the parent rather than trusted from
-the client: a job that lies about its depth would sidestep the
+Create derives depth and root from the parent and never trusts the
+client for them: a job that lies about its depth would sidestep the
 runaway-dispatch limit.
 
 ```go
 func (*JobStorage) Create(ctx context.Context, req JobRequest) (*model.Job, error)
 ```
 
-### Finish
+### `Finish`
 
-Finish settles a job into a terminal state.
+`Finish` settles a job into a terminal state.
 
-The update is guarded on the job not already being terminal so a late
+The update requires the job to not already be terminal so a late
 report from a timed-out agent can't overwrite the outcome the server
 already recorded.
 
@@ -887,117 +888,117 @@ already recorded.
 func (*JobStorage) Finish(ctx context.Context, jobID string, req StatusRequest) (*model.Job, error)
 ```
 
-### Get
+### `Get`
 
-Get returns a job by ID.
+`Get` returns a job by ID.
 
 ```go
 func (*JobStorage) Get(ctx context.Context, id string) (*model.Job, error)
 ```
 
-### Heartbeat
+### `Heartbeat`
 
-Heartbeat extends the lease on a claimed job. Only the agent holding
+`Heartbeat` extends the lease on a claimed job. Only the agent holding
 the job may extend it.
 
 ```go
 func (*JobStorage) Heartbeat(ctx context.Context, jobID, agentID string) error
 ```
 
-### LeaseTTL
+### `LeaseTTL`
 
-LeaseTTL is how long a claim is good for.
+`LeaseTTL` is how long a claim is good for.
 
 ```go
 func (*JobStorage) LeaseTTL() time.Duration
 ```
 
-### List
+### `List`
 
-List returns jobs matching the filter, newest first.
+`List` returns jobs matching the filter, newest first.
 
 ```go
 func (*JobStorage) List(ctx context.Context, filter ListFilter) ([]model.Job, error)
 ```
 
-### MaxDepth
+### `MaxDepth`
 
-MaxDepth is the nesting limit in force.
+`MaxDepth` is the nesting limit in force.
 
 Precedence is the same for both of these: a stored setting is an
 admin's decision and wins; a configured value is the operator's and
-comes next; the registry default is nobody's, and is what is left.
+comes next; the registry default is nobody's, and covers the rest.
 
 ```go
 func (*JobStorage) MaxDepth() int64
 ```
 
-### Purge
+### `Purge`
 
-Purge applies the retention windows and reports what it removed.
+`Purge` applies the retention windows and reports what it removed.
 
 Job records go first, because deleting a job takes its output with it
 and there is no point sweeping logs that are about to disappear along
 with their job. Neither window touches a job that has not settled: a
-pending job is not old, it is waiting, and a running job that has
+pending job waits and does not age, and a running job that has
 lost its agent is the lease sweep's problem, not this one's.
 
 ```go
 func (*JobStorage) Purge(ctx context.Context, req RetentionRequest) (RetentionResult, error)
 ```
 
-### ReclaimExpired
+### `ReclaimExpired`
 
-ReclaimExpired marks running jobs whose lease has lapsed as timed out
-and returns how many were reclaimed. The server runs this on a ticker
+`ReclaimExpired` marks running jobs whose lease has lapsed as timed out
+and returns how many it reclaimed. The server runs this on a ticker
 so an agent that disappears mid-job doesn't strand its work.
 
 ```go
 func (*JobStorage) ReclaimExpired(ctx context.Context) (int64, error)
 ```
 
-### RecordCheckout
+### `RecordCheckout`
 
-RecordCheckout stores what an agent checked out for a job.
+`RecordCheckout` stores what an agent checked out for a job.
 
-It is guarded on the job still running, so a late report from an agent
-whose lease was already swept cannot rewrite the checkout of the run
-that replaced it.
+The write requires the job to still be running, so a late report from
+an agent whose lease the sweep already took cannot rewrite the
+checkout of the run that replaced it.
 
 ```go
 func (*JobStorage) RecordCheckout(ctx context.Context, jobID string, req CheckoutRequest) error
 ```
 
-### VisibleTo
+### `VisibleTo`
 
-VisibleTo reports whether a user may read one job.
+`VisibleTo` reports whether a user may read one job.
 
-It is the single-job form of ListFilter.ViewerID, and answers the
-same question: the job is theirs, or it belongs to a tree they
+VisibleTo is the single-job form of ListFilter.ViewerID, and answers
+the same question: the job is theirs, or it belongs to a tree they
 started. Callers who may see everything should not call this.
 
 ```go
 func (*JobStorage) VisibleTo(ctx context.Context, job *model.Job, userID string) (bool, error)
 ```
 
-### Allowed
+### `Allowed`
 
-Allowed reports whether a repository slug satisfies the allowlist.
+`Allowed` reports whether a repository slug satisfies the allowlist.
 
 The caller decides whether the allowlist applies at all; this only
 answers "does any active rule match", which is false for an empty
 list. In allowlist mode that is the intended answer: an operator who
-turns the policy on without writing a rule has asked for nothing to
-run.
+turns the policy on without writing a rule has chosen that nothing
+runs.
 
 ```go
 func (*RepositoryRuleStorage) Allowed(ctx context.Context, slug string) (bool, error)
 ```
 
-### AllowedUnderPolicy
+### `AllowedUnderPolicy`
 
-AllowedUnderPolicy reports whether a slug may be built under the
-given policy. Under "open" everything is; under "allowlist" a rule
+`AllowedUnderPolicy` reports whether the given policy lets the server
+build a slug. Under "open" everything is; under "allowlist" a rule
 has to say so.
 
 Dispatch, triggers and the admin pages all ask this question, and an
@@ -1007,61 +1008,61 @@ answer that differs between them is a hole.
 func (*RepositoryRuleStorage) AllowedUnderPolicy(ctx context.Context, policy model.RepositoryPolicy, slug string) (bool, error)
 ```
 
-### Create
+### `Create`
 
-Create adds an allowlist rule.
+`Create` adds an allowlist rule.
 
 ```go
 func (*RepositoryRuleStorage) Create(ctx context.Context, userID string, req RuleRequest) (*model.RepositoryRule, error)
 ```
 
-### Delete
+### `Delete`
 
-Delete soft-deletes a rule.
+`Delete` soft-deletes a rule.
 
 ```go
 func (*RepositoryRuleStorage) Delete(ctx context.Context, id string) error
 ```
 
-### Get
+### `Get`
 
-Get returns a rule by ID.
+`Get` returns a rule by ID.
 
 ```go
 func (*RepositoryRuleStorage) Get(ctx context.Context, id string) (*model.RepositoryRule, error)
 ```
 
-### List
+### `List`
 
-List returns the rules, newest first.
+`List` returns the rules, newest first.
 
 ```go
 func (*RepositoryRuleStorage) List(ctx context.Context) ([]model.RepositoryRule, error)
 ```
 
-### ListActive
+### `ListActive`
 
-ListActive returns only the rules that are in force.
+`ListActive` returns only the rules that are in force.
 
 ```go
 func (*RepositoryRuleStorage) ListActive(ctx context.Context) ([]model.RepositoryRule, error)
 ```
 
-### SetActive
+### `SetActive`
 
-SetActive enables or disables a rule without deleting it.
+`SetActive` enables or disables a rule without deleting it.
 
 ```go
 func (*RepositoryRuleStorage) SetActive(ctx context.Context, id string, active bool) error
 ```
 
-### Ensure
+### `Ensure`
 
-Ensure returns the repository for the given remote, creating it on
+`Ensure` returns the repository for the given remote, creating it on
 first sight.
 
 Dispatch is the only caller and it happens on every atkins run, so
-this is deliberately upsert-shaped: the client should never have to
+this is upsert-shaped: the client should never have to
 register a repository before using it. The slug is the identity, so
 the same repository cloned over ssh and https is one row.
 
@@ -1069,126 +1070,126 @@ the same repository cloned over ssh and https is one row.
 func (*RepositoryStorage) Ensure(ctx context.Context, userID string, req RepositoryRequest) (*model.Repository, error)
 ```
 
-### Get
+### `Get`
 
-Get returns a repository by ID.
+`Get` returns a repository by ID.
 
 ```go
 func (*RepositoryStorage) Get(ctx context.Context, id string) (*model.Repository, error)
 ```
 
-### GetBySlug
+### `GetBySlug`
 
-GetBySlug returns a repository by its normalized slug.
+`GetBySlug` returns a repository by its normalized slug.
 
 ```go
 func (*RepositoryStorage) GetBySlug(ctx context.Context, slug string) (*model.Repository, error)
 ```
 
-### List
+### `List`
 
-List returns live repositories, newest first.
+`List` returns live repositories, newest first.
 
 ```go
 func (*RepositoryStorage) List(ctx context.Context, limit int) ([]model.Repository, error)
 ```
 
-### Create
+### `Create`
 
-Create stores a key, deriving its public half and fingerprint so an
+`Create` stores a key, deriving its public half and fingerprint so an
 operator never has to paste those separately.
 
 ```go
 func (*SSHKeyStorage) Create(ctx context.Context, userID string, req SSHKeyRequest) (*model.SSHKey, error)
 ```
 
-### Delete
+### `Delete`
 
-Delete soft-deletes a key.
+`Delete` soft-deletes a key.
 
 ```go
 func (*SSHKeyStorage) Delete(ctx context.Context, id string) error
 ```
 
-### List
+### `List`
 
-List returns the keys, newest first, including private material.
+`List` returns the keys, newest first, including private material.
 Callers rendering these to a user must project them first.
 
 ```go
 func (*SSHKeyStorage) List(ctx context.Context) ([]model.SSHKey, error)
 ```
 
-### ListForAgent
+### `ListForAgent`
 
-ListForAgent returns the active keys an agent should install.
+`ListForAgent` returns the active keys an agent should install.
 
 ```go
 func (*SSHKeyStorage) ListForAgent(ctx context.Context) ([]model.SSHKey, error)
 ```
 
-### MarkUsed
+### `MarkUsed`
 
-MarkUsed records that an agent installed the key. Best effort.
+`MarkUsed` records that an agent installed the key. Best effort.
 
 ```go
 func (*SSHKeyStorage) MarkUsed(ctx context.Context, ids []string)
 ```
 
-### SetActive
+### `SetActive`
 
-SetActive enables or disables a key.
+`SetActive` enables or disables a key.
 
 ```go
 func (*SSHKeyStorage) SetActive(ctx context.Context, id string, active bool) error
 ```
 
-### Create
+### `Create`
 
-Create issues a new session with a fresh refresh token.
+`Create` issues a new session with a fresh refresh token.
 
 ```go
 func (*SessionStorage) Create(ctx context.Context, userID string, req SessionRequest) (*model.Session, error)
 ```
 
-### Get
+### `Get`
 
-Get returns a session by ID regardless of its state.
+`Get` returns a session by ID regardless of its state.
 
 ```go
 func (*SessionStorage) Get(ctx context.Context, id string) (*model.Session, error)
 ```
 
-### GetByRefreshToken
+### `GetByRefreshToken`
 
-GetByRefreshToken returns a live session for the given refresh token.
-A revoked or expired session is reported as such rather than as a
+`GetByRefreshToken` returns a live session for the given refresh token.
+It reports a revoked or expired session as such, and not as a
 missing row, so the client can tell "log in again" from "bad token".
 
 ```go
 func (*SessionStorage) GetByRefreshToken(ctx context.Context, token string) (*model.Session, error)
 ```
 
-### Revoke
+### `Revoke`
 
-Revoke marks a session as logged out. Revoking an already-revoked or
+`Revoke` marks a session as logged out. Revoking an already-revoked or
 unknown session is not an error: logout is idempotent.
 
 ```go
 func (*SessionStorage) Revoke(ctx context.Context, sessionID string) error
 ```
 
-### RevokeByRefreshToken
+### `RevokeByRefreshToken`
 
-RevokeByRefreshToken revokes the session holding the given token.
+`RevokeByRefreshToken` revokes the session holding the given token.
 
 ```go
 func (*SessionStorage) RevokeByRefreshToken(ctx context.Context, token string) error
 ```
 
-### Rotate
+### `Rotate`
 
-Rotate replaces the refresh token on a session and extends its expiry.
+`Rotate` replaces the refresh token on a session and extends its expiry.
 
 The old token stops working the moment this returns: a refresh token
 is single-use, so a leaked one is detectable (the legitimate client's
@@ -1198,80 +1199,80 @@ next refresh fails) and short-lived.
 func (*SessionStorage) Rotate(ctx context.Context, sessionID string) (*model.Session, error)
 ```
 
-### Touch
+### `Touch`
 
-Touch records that a session was seen. Best-effort; failures here are
+`Touch` records a sighting of a session. Best-effort; failures here are
 not worth failing a request over.
 
 ```go
 func (*SessionStorage) Touch(ctx context.Context, sessionID string) error
 ```
 
-### All
+### `All`
 
-All returns every setting with its effective value, in registry
-order, so an admin sees the whole surface rather than only what has
-been overridden.
+`All` returns every setting with its effective value, in registry
+order, so an admin sees the whole surface and not only the
+overrides.
 
 ```go
 func (*SettingStorage) All() []SettingValue
 ```
 
-### Bool
+### `Bool`
 
-Bool returns a setting parsed as a boolean.
+`Bool` returns a setting parsed as a boolean.
 
 ```go
 func (*SettingStorage) Bool(name string) bool
 ```
 
-### Bytes
+### `Bytes`
 
-Bytes returns a setting parsed as a size, such as 32MB.
+`Bytes` returns a setting parsed as a size, such as `32MB`.
 
 ```go
 func (*SettingStorage) Bytes(name string) int64
 ```
 
-### Duration
+### `Duration`
 
-Duration returns a setting parsed as a duration.
+`Duration` returns a setting parsed as a duration.
 
 ```go
 func (*SettingStorage) Duration(name string) time.Duration
 ```
 
-### Get
+### `Get`
 
-Get returns the effective value for a setting: the stored override,
+`Get` returns the effective value for a setting: the stored override,
 or the registry default.
 
 ```go
 func (*SettingStorage) Get(name string) string
 ```
 
-### Int
+### `Int`
 
-Int returns a setting parsed as a whole number.
+`Int` returns a setting parsed as a whole number.
 
 ```go
 func (*SettingStorage) Int(name string) int64
 ```
 
-### Load
+### `Load`
 
-Load fills the cache from the database.
+`Load` fills the cache from the database.
 
 ```go
 func (*SettingStorage) Load(ctx context.Context) error
 ```
 
-### Override
+### `Override`
 
-Override returns the stored value for a setting, and whether an admin
+`Override` returns the stored value for a setting, and whether an admin
 has stored one at all.
 
-It is the distinction Get deliberately hides: Get answers "what is
+This is the distinction Get hides: Get answers "what is
 this setting worth", falling back to the registry default, which is
 the wrong question when a start-up flag configures the same thing.
 A default is not a decision, and it must not outrank one written in
@@ -1281,25 +1282,25 @@ the configuration file.
 func (*SettingStorage) Override(name string) (string, bool)
 ```
 
-### Reset
+### `Reset`
 
-Reset drops an override, returning the setting to its default.
+`Reset` drops an override, returning the setting to its default.
 
 ```go
 func (*SettingStorage) Reset(ctx context.Context, name string) error
 ```
 
-### Set
+### `Set`
 
-Set stores an override after validating it against the registry.
+`Set` stores an override after validating it against the registry.
 
 ```go
 func (*SettingStorage) Set(ctx context.Context, name, value, userID string) error
 ```
 
-### Authenticate
+### `Authenticate`
 
-Authenticate verifies an email/password pair and returns the user.
+`Authenticate` verifies an email/password pair and returns the user.
 
 Every failure mode collapses into model.ErrInvalidCredentials except
 an explicitly deactivated account, which is worth telling the caller
@@ -1309,11 +1310,11 @@ about since retrying the password won't help.
 func (*UserStorage) Authenticate(ctx context.Context, email, password string) (*model.User, error)
 ```
 
-### Count
+### `Count`
 
-Count returns the number of live human users.
+`Count` returns the number of live human users.
 
-Agents are excluded on purpose. It is what decides whether the next
+Count leaves agents out: the count decides whether the next
 registration is the bootstrap one, and an agent enrolling first
 should neither claim that slot nor close the door behind it.
 
@@ -1321,20 +1322,20 @@ should neither claim that slot nor close the door behind it.
 func (*UserStorage) Count(ctx context.Context) (int64, error)
 ```
 
-### CountAdmins
+### `CountAdmins`
 
-CountAdmins returns how many active admins remain. It exists so the
-API can refuse to remove the last one and lock everybody out.
+`CountAdmins` returns how many active admins remain. It exists so the
+API can block removing the last one and locking everybody out.
 
 ```go
 func (*UserStorage) CountAdmins(ctx context.Context) (int64, error)
 ```
 
-### Create
+### `Create`
 
-Create inserts a user with a bcrypt-hashed password.
+`Create` inserts a user with a bcrypt-hashed password.
 
-The first user on a fresh server is made an admin: a self-hosted
+Create makes the first user on a fresh server an admin: a self-hosted
 instance has nobody to grant the first grant, so the bootstrap has to
 come from somewhere.
 
@@ -1342,12 +1343,12 @@ come from somewhere.
 func (*UserStorage) Create(ctx context.Context, req CreateRequest) (*model.User, error)
 ```
 
-### EnsureAgent
+### `EnsureAgent`
 
-EnsureAgent returns the account for an enrolling agent, creating it
+`EnsureAgent` returns the account for an enrolling agent, creating it
 on first contact.
 
-Agents authenticate with a shared enrolment token rather than a
+Agents authenticate with a shared enrolment token and no
 password, so the account gets a random one it never learns: there is
 no password login path for an agent to leak.
 
@@ -1355,55 +1356,54 @@ no password login path for an agent to leak.
 func (*UserStorage) EnsureAgent(ctx context.Context, agentID string) (*model.User, error)
 ```
 
-### Get
+### `Get`
 
-Get returns a user by ID. Soft-deleted users are not returned.
+`Get` returns a user by ID. Soft-deleted users are not returned.
 
 ```go
 func (*UserStorage) Get(ctx context.Context, id string) (*model.User, error)
 ```
 
-### GetByEmail
+### `GetByEmail`
 
-GetByEmail returns a user by email. Soft-deleted users are not returned.
+`GetByEmail` returns a user by email. Soft-deleted users are not returned.
 
 ```go
 func (*UserStorage) GetByEmail(ctx context.Context, email string) (*model.User, error)
 ```
 
-### GuardLastAdmin
+### `GuardLastAdmin`
 
-GuardLastAdmin refuses a flag change that would leave the instance
+`GuardLastAdmin` refuses a flag change that would leave the instance
 with no active admin.
 
-The invariant lives here rather than in a handler because both the
-JSON API and the admin pages change these flags, and an instance that
-can be locked out of itself through one door but not the other is
-locked out either way.
+The invariant lives here and not in a handler because both the JSON
+API and the admin pages change these flags, and a lockout through one
+door but not the other still locks the instance out.
 
 ```go
 func (*UserStorage) GuardLastAdmin(ctx context.Context, id string, flags Flags) error
 ```
 
-### List
+### `List`
 
-List returns live users, newest first.
+`List` returns live users, newest first.
 
 ```go
 func (*UserStorage) List(ctx context.Context) ([]model.User, error)
 ```
 
-### SetFlags
+### `SetFlags`
 
-SetFlags updates a user's administrative state.
+`SetFlags` updates a user's administrative state.
 
 ```go
 func (*UserStorage) SetFlags(ctx context.Context, id string, flags Flags) (*model.User, error)
 ```
 
-### Empty
+### `Empty`
 
-Empty reports whether the pass deleted nothing at all.
+`Empty` reports whether the pass deleted nothing at all.
 
 ```go
 func (RetentionResult) Empty() bool

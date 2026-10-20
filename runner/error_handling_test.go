@@ -143,7 +143,7 @@ func TestErrorHandling(t *testing.T) {
 		},
 
 		// ── Interpolation errors in env.vars ─────────────────────────────
-		// env.vars go through mergeEnv → processEnv → interpolateVariables,
+		// env.vars pass through mergeEnv -> processEnv -> interpolateVariables,
 		// a distinct codepath from vars.
 		{
 			name:    "interpolation failure in pipeline-level env var",

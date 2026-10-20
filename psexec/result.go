@@ -1,6 +1,5 @@
-// Package psexec provides process execution capabilities with support for
-// interactive terminals, PTY allocation, and streaming output over various
-// transports including websockets.
+// Package psexec runs processes with support for interactive terminals,
+// PTY allocation, and streaming output over transports such as websockets.
 package psexec
 
 import (
@@ -8,7 +7,7 @@ import (
 	"time"
 )
 
-// Result provides access to the outcome of a process execution.
+// Result reports the outcome of a process execution.
 type Result interface {
 	// Output returns the combined stdout content.
 	Output() string

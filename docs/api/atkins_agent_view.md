@@ -194,9 +194,9 @@ const (
 - `func (*JobView) StartJob (name string)`
 - `func (PromptMode) PromptChar () string`
 
-### DetectPromptMode
+### `DetectPromptMode`
 
-DetectPromptMode returns the appropriate mode based on input.
+`DetectPromptMode` returns the appropriate mode based on input.
 If input starts with "$", returns PromptModeShell.
 Otherwise returns PromptModeLanguage.
 
@@ -204,180 +204,180 @@ Otherwise returns PromptModeLanguage.
 func DetectPromptMode(input string) PromptMode
 ```
 
-### FormatDuration
+### `FormatDuration`
 
-FormatDuration formats a duration for display.
+`FormatDuration` formats a duration for display.
 
 ```go
 func FormatDuration(d time.Duration) string
 ```
 
-### FormatJobDuration
+### `FormatJobDuration`
 
-FormatJobDuration formats duration for display (similar to gotestsum).
+`FormatJobDuration` formats duration for display (like gotestsum).
 
 ```go
 func FormatJobDuration(d time.Duration) string
 ```
 
-### LogHeight
+### `LogHeight`
 
-LogHeight calculates the available log area height.
+`LogHeight` calculates the available log area height.
 
 ```go
 func LogHeight(totalHeight int) int
 ```
 
-### NewBreadcrumb
+### `NewBreadcrumb`
 
-NewBreadcrumb creates a new breadcrumb tracker.
+`NewBreadcrumb` creates a new breadcrumb tracker.
 
 ```go
 func NewBreadcrumb() *Breadcrumb
 ```
 
-### NewJobView
+### `NewJobView`
 
-NewJobView creates a new job view.
+`NewJobView` creates a new job view.
 
 ```go
 func NewJobView() *JobView
 ```
 
-### Render
+### `Render`
 
-Render produces the full TUI view.
+`Render` produces the full TUI view.
 
 ```go
 func Render(d *RenderData) tea.View
 ```
 
-### RenderFooter
+### `RenderFooter`
 
-RenderFooter renders the 3-line footer (border + input + bottom border).
+`RenderFooter` renders the 3-line footer (border + input + bottom border).
 
 ```go
 func RenderFooter(promptMode PromptMode, w, gitAdded, gitRemoved, state, cursor int, cwd, gitBranch, input string) string
 ```
 
-### RenderJobEntry
+### `RenderJobEntry`
 
-RenderJobEntry renders a single job entry in gotestsum style.
+`RenderJobEntry` renders a single job entry in gotestsum style.
 
 ```go
 func RenderJobEntry(name string, running bool, failed bool, duration time.Duration, errMsg string) string
 ```
 
-### RenderJobSummary
+### `RenderJobSummary`
 
-RenderJobSummary renders a summary line in gotestsum style.
+`RenderJobSummary` renders a summary line in gotestsum style.
 
 ```go
 func RenderJobSummary(total, passed, failed int, duration time.Duration) string
 ```
 
-### RenderLog
+### `RenderLog`
 
-RenderLog renders all log entries into lines.
+`RenderLog` renders all log entries into lines.
 
 ```go
 func RenderLog(spin spinner.Model, progressSpin spinner.Model, log []LogEntry, width int) []string
 ```
 
-### RenderRunEntry
+### `RenderRunEntry`
 
-RenderRunEntry renders a single run log entry.
+`RenderRunEntry` renders a single run log entry.
 
 ```go
 func RenderRunEntry(spin spinner.Model, entry LogEntry) string
 ```
 
-### RenderWelcomeBox
+### `RenderWelcomeBox`
 
-RenderWelcomeBox renders the welcome message in a bordered box.
+`RenderWelcomeBox` renders the welcome message in a bordered box.
 
 ```go
 func RenderWelcomeBox(text string, width int) []string
 ```
 
-### ShortenPath
+### `ShortenPath`
 
-ShortenPath replaces the home directory prefix with ~.
+`ShortenPath` replaces the home directory prefix with ~.
 
 ```go
 func ShortenPath(p string) string
 ```
 
-### Clear
+### `Clear`
 
-Clear resets the breadcrumb.
+`Clear` resets the breadcrumb.
 
 ```go
 func (*Breadcrumb) Clear()
 ```
 
-### LastSegment
+### `LastSegment`
 
-LastSegment returns the last segment or empty string.
+`LastSegment` returns the last segment or empty string.
 
 ```go
 func (*Breadcrumb) LastSegment() string
 ```
 
-### Pop
+### `Pop`
 
-Pop removes the last segment.
+`Pop` removes the last segment.
 
 ```go
 func (*Breadcrumb) Pop()
 ```
 
-### Push
+### `Push`
 
-Push adds a segment to the breadcrumb trail.
+`Push` adds a segment to the breadcrumb trail.
 e.g., "go" -> "go > test" -> "go > test > step 1".
 
 ```go
 func (*Breadcrumb) Push(segment string)
 ```
 
-### SetStatus
+### `SetStatus`
 
-SetStatus updates the current status suffix.
+`SetStatus` updates the current status suffix.
 e.g., "running...", "passed", "failed".
 
 ```go
 func (*Breadcrumb) SetStatus(status string)
 ```
 
-### String
+### `String`
 
-String renders the breadcrumb as a one-liner.
+`String` renders the breadcrumb as a one-liner.
 Output: "go > test > step 1 [running...]".
 
 ```go
 func (*Breadcrumb) String() string
 ```
 
-### EndJob
+### `EndJob`
 
-EndJob marks a job as complete.
+`EndJob` marks a job as complete.
 
 ```go
 func (*JobView) EndJob(name string, success bool, errMsg string)
 ```
 
-### StartJob
+### `StartJob`
 
-StartJob begins tracking a new job.
+`StartJob` begins tracking a new job.
 
 ```go
 func (*JobView) StartJob(name string)
 ```
 
-### PromptChar
+### `PromptChar`
 
-PromptChar returns the display character for the mode.
+`PromptChar` returns the display character for the mode.
 
 ```go
 func (PromptMode) PromptChar() string

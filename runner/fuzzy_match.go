@@ -6,7 +6,7 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// FuzzyMatchError is returned when multiple fuzzy matches are found.
+// FuzzyMatchError reports a pattern with more than one fuzzy match.
 type FuzzyMatchError struct {
 	Matches []*model.ResolvedTask
 }
@@ -17,8 +17,8 @@ func (e *FuzzyMatchError) Error() string {
 }
 
 // findFuzzyMatches finds all jobs matching the fuzzy pattern (suffix match).
-// The returned ResolvedTask.Name is the raw job map key (e.g., "build"),
-// not the qualified name (e.g., "release:build"). Use Pipeline.ID to
+// The returned ResolvedTask.Name is the raw job map key (e.g., "build");
+// the qualified name (e.g., "release:build") needs Pipeline.ID. Use it to
 // construct qualified names for display purposes.
 //
 // Priority order:

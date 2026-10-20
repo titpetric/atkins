@@ -25,19 +25,19 @@ const (
 	// heartbeat before the server reclaims it.
 	SettingJobLeaseTTL = "job.lease_ttl"
 
-	// SettingJobRetention is how long a finished job's row is kept.
-	// Zero keeps it forever. Deleting a job takes its output with it.
+	// SettingJobRetention is how long the server keeps a finished job's
+	// row. Zero keeps it forever. Deleting a job takes its output with it.
 	SettingJobRetention = "job.retention"
 
-	// SettingJobLogRetention is how long a finished job's output is
-	// kept. Zero keeps it forever. It is separate from
+	// SettingJobLogRetention is how long the server keeps a finished
+	// job's output. Zero keeps it forever. It stays separate from
 	// SettingJobRetention because output is the part that grows without
 	// bound, and an outcome is worth keeping long after the lines that
 	// produced it stop being interesting.
 	SettingJobLogRetention = "job.log_retention"
 
-	// SettingJobVisibility is "private" or "public": whether a job is
-	// readable only by the user who dispatched it, or by anyone.
+	// SettingJobVisibility is "private" or "public": whether only the
+	// user who dispatched a job can read it, or anyone can.
 	SettingJobVisibility = "job.visibility"
 
 	// SettingArtefactMaxSize bounds one uploaded artefact.
@@ -47,12 +47,12 @@ const (
 	// keep.
 	SettingArtefactMaxCount = "artefact.max_count"
 
-	// SettingArtefactRetention is how long artefact bytes are kept.
+	// SettingArtefactRetention is how long the server keeps artefact bytes.
 	// Zero follows job.retention.
 	SettingArtefactRetention = "artefact.retention"
 )
 
-// SettingKind is how a setting's value is validated and parsed.
+// SettingKind selects how the server checks and parses a setting's value.
 type SettingKind string
 
 // Setting kinds.
@@ -64,7 +64,7 @@ const (
 	KindEnum     SettingKind = "enum"
 
 	// KindBytes is a size, written the way an operator thinks about
-	// one: 32MB rather than 33554432.
+	// one: 32MB, and never 33554432.
 	KindBytes SettingKind = "bytes"
 )
 
@@ -207,7 +207,7 @@ var byteUnits = []struct {
 
 // ParseBytes reads a size written as a plain number of bytes or with a
 // KB/MB/GB suffix. The units are powers of 1024: this bounds a file on
-// a disk, and disks are measured the way `ls -lh` measures them.
+// a disk, and `ls -lh` measures disks that way.
 func ParseBytes(value string) (int64, error) {
 	trimmed := strings.ToUpper(strings.TrimSpace(value))
 	if trimmed == "" {

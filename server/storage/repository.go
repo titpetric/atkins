@@ -34,7 +34,7 @@ type RepositoryRequest struct {
 // first sight.
 //
 // Dispatch is the only caller and it happens on every atkins run, so
-// this is deliberately upsert-shaped: the client should never have to
+// this is upsert-shaped: the client should never have to
 // register a repository before using it. The slug is the identity, so
 // the same repository cloned over ssh and https is one row.
 func (s *RepositoryStorage) Ensure(ctx context.Context, userID string, req RepositoryRequest) (*model.Repository, error) {
@@ -68,7 +68,7 @@ func (s *RepositoryStorage) Ensure(ctx context.Context, userID string, req Repos
 
 	if err := client(s.db).Insert(ctx, model.RepositoryTable, repository); err != nil {
 		// Another dispatch raced us to the same slug. The unique index
-		// held, so re-read rather than surfacing a conflict the caller
+		// held, so re-read and do not surface a conflict the caller
 		// can do nothing about.
 		if existing, getErr := s.GetBySlug(ctx, slug); getErr == nil {
 			return existing, nil

@@ -28,14 +28,14 @@ func NewUserStorage(db *sqlx.DB) *UserStorage {
 
 // dummyHash costs approximately the same to compare against as a real
 // password hash. Authenticate spends it on the "no such user" path so
-// response timing doesn't disclose which emails are registered.
+// response timing doesn't disclose which emails have accounts.
 var dummyHash []byte
 
 func init() {
 	dummyHash, _ = bcrypt.GenerateFromPassword([]byte("dummy-password-for-timing"), bcrypt.DefaultCost)
 }
 
-// CreateRequest is the input for creating a user. It is what
+// CreateRequest is the input for creating a user: what
 // `atkins --register` collects at the prompt.
 type CreateRequest struct {
 	Email    string `json:"email"`
@@ -46,7 +46,7 @@ type CreateRequest struct {
 
 // Create inserts a user with a bcrypt-hashed password.
 //
-// The first user on a fresh server is made an admin: a self-hosted
+// Create makes the first user on a fresh server an admin: a self-hosted
 // instance has nobody to grant the first grant, so the bootstrap has to
 // come from somewhere.
 func (s *UserStorage) Create(ctx context.Context, req CreateRequest) (*model.User, error) {
@@ -162,8 +162,8 @@ func (s *UserStorage) List(ctx context.Context) ([]model.User, error) {
 	return client(s.db).Select[model.User](ctx, query)
 }
 
-// Flags is the administrative state of a user. A nil field is left
-// alone, so an admin can revoke one privilege without restating the
+// Flags is the administrative state of a user. A nil field leaves that
+// flag alone, so an admin can revoke one privilege without restating the
 // others.
 type Flags struct {
 	IsAdmin  *bool `json:"is_admin"`
@@ -213,10 +213,9 @@ func (s *UserStorage) SetFlags(ctx context.Context, id string, flags Flags) (*mo
 // GuardLastAdmin refuses a flag change that would leave the instance
 // with no active admin.
 //
-// The invariant lives here rather than in a handler because both the
-// JSON API and the admin pages change these flags, and an instance that
-// can be locked out of itself through one door but not the other is
-// locked out either way.
+// The invariant lives here and not in a handler because both the JSON
+// API and the admin pages change these flags, and a lockout through one
+// door but not the other still locks the instance out.
 func (s *UserStorage) GuardLastAdmin(ctx context.Context, id string, flags Flags) error {
 	losingAdmin := flags.IsAdmin != nil && !*flags.IsAdmin
 	losingAccess := flags.IsActive != nil && !*flags.IsActive
@@ -244,7 +243,7 @@ func (s *UserStorage) GuardLastAdmin(ctx context.Context, id string, flags Flags
 }
 
 // CountAdmins returns how many active admins remain. It exists so the
-// API can refuse to remove the last one and lock everybody out.
+// API can block removing the last one and locking everybody out.
 func (s *UserStorage) CountAdmins(ctx context.Context) (int64, error) {
 	query := `SELECT COUNT(*) AS count FROM ` + model.UserTable + `
 		WHERE deleted_at IS NULL AND is_admin = 1 AND is_active = 1`
@@ -260,7 +259,7 @@ func (s *UserStorage) CountAdmins(ctx context.Context) (int64, error) {
 // EnsureAgent returns the account for an enrolling agent, creating it
 // on first contact.
 //
-// Agents authenticate with a shared enrolment token rather than a
+// Agents authenticate with a shared enrolment token and no
 // password, so the account gets a random one it never learns: there is
 // no password login path for an agent to leak.
 func (s *UserStorage) EnsureAgent(ctx context.Context, agentID string) (*model.User, error) {
@@ -309,7 +308,7 @@ func (s *UserStorage) EnsureAgent(ctx context.Context, agentID string) (*model.U
 
 // Count returns the number of live human users.
 //
-// Agents are excluded on purpose. It is what decides whether the next
+// Count leaves agents out: the count decides whether the next
 // registration is the bootstrap one, and an agent enrolling first
 // should neither claim that slot nor close the door behind it.
 func (s *UserStorage) Count(ctx context.Context) (int64, error) {

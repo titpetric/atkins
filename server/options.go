@@ -26,8 +26,8 @@ type Options struct {
 	// PLATFORM_DB_ATKINS, falling back to PLATFORM_DB_DEFAULT).
 	Connection string
 
-	// ArtefactDir is the root the bytes of job artefacts are written
-	// under. Empty selects DefaultArtefactDir.
+	// ArtefactDir is the root the server writes the bytes of job
+	// artefacts under. Empty selects DefaultArtefactDir.
 	ArtefactDir string
 
 	// TokenTTL is the access token lifetime.
@@ -36,9 +36,9 @@ type Options struct {
 	// SessionTTL is how long a login lasts before a re-login.
 	SessionTTL time.Duration
 
-	// AllowRegistration opens /api/user/register. Registration is
-	// always allowed while the instance has no human users, so a fresh
-	// server can be bootstrapped with `atkins --register`.
+	// AllowRegistration opens /api/user/register. Registration always
+	// stays open while the instance has no human users, so an operator
+	// can bootstrap a fresh server with `atkins --register`.
 	AllowRegistration bool
 
 	// MaxJobDepth bounds job nesting. A job at the limit cannot
@@ -49,16 +49,15 @@ type Options struct {
 	// server reclaims it as timed out.
 	LeaseTTL time.Duration
 
-	// ReclaimInterval is how often expired leases are swept. Zero
+	// ReclaimInterval is how often the server sweeps expired leases. Zero
 	// disables the sweep.
 	ReclaimInterval time.Duration
 
 	// RetentionInterval is how often job.retention and
-	// job.log_retention are applied. Zero disables the sweep. It is a
-	// start-up flag rather than a setting because it is a property of
-	// the machine — how much load it will take to keep the tables
-	// trimmed — while the windows themselves are policy an admin
-	// changes from the API.
+	// job.log_retention apply. Zero disables the sweep. This is a
+	// start-up flag and not a setting because it describes the machine
+	// (how much load it will take to keep the tables trimmed), while the
+	// windows themselves are policy an admin changes from the API.
 	RetentionInterval time.Duration
 }
 
@@ -70,11 +69,11 @@ const (
 )
 
 // DefaultArtefactDir is where artefact bytes go when nothing says
-// otherwise: beside the database, which is where the rest of a small
-// instance's state already lives.
+// otherwise: beside the database, where the rest of a small instance's
+// state already lives.
 const DefaultArtefactDir = "artefacts"
 
-// FromConfig builds module options from a resolved server config.
+// FromConfig builds module options from a resolved server configuration.
 func FromConfig(cfg config.ServerConfig) *Options {
 	return &Options{
 		SigningKey:        cfg.SigningKey,
@@ -92,7 +91,7 @@ func FromConfig(cfg config.ServerConfig) *Options {
 }
 
 // NewOptions returns options from the embedded default configuration.
-// It is the fallback for a caller that has no resolved config.
+// It covers a caller that has no resolved configuration.
 func NewOptions() *Options {
 	cfg, err := config.Default()
 	if err != nil {

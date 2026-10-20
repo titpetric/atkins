@@ -1,14 +1,14 @@
 // Package config owns the atkins configuration document.
 //
-// Configuration has two layers. The document — .atkins/config.yml,
-// falling back to the embedded RuntimeDefaultConfig — is the source of
+// Configuration has two layers. The document (.atkins/config.yml,
+// falling back to the embedded RuntimeDefaultConfig) is the source of
 // truth. Environment variables are an overlay on top of it, for
 // containers and CI, and only where they are actually set: an unset or
 // empty ATKINS_* variable leaves the configured value alone.
 //
-// Every field is checked on load, and an empty one takes the default
-// from the embedded document. A half-written config fails at start-up
-// with a message naming the field, rather than at the first request.
+// Load checks every field, and an empty one takes the default from the
+// embedded document. A half-written configuration fails at start-up
+// with a message naming the field, long before the first request.
 package config
 
 import (
@@ -35,18 +35,18 @@ type Config struct {
 
 // ClientConfig is the dispatching side.
 type ClientConfig struct {
-	// Server is the URL runs are dispatched to. Empty falls back to
+	// Server is the URL that dispatch sends runs to. Empty falls back to
 	// the server this machine last logged in to.
 	Server string `yaml:"server" json:"server" env:"ATKINS_SERVER"`
 
-	// Credentials is where login tokens are stored. Empty means
+	// Credentials is where the client stores login tokens. Empty means
 	// $HOME/.atkins/credentials.json.
 	Credentials string `yaml:"credentials" json:"credentials" env:"ATKINS_CREDENTIALS"`
 
 	// Labels constrain which agents may run this machine's jobs.
 	Labels []string `yaml:"labels" json:"labels" env:"ATKINS_LABELS"`
 
-	// Dispatch hands every run to an agent instead of running it here.
+	// Dispatch sends every run to an agent and runs nothing here.
 	// Off, the default, is what `--dispatch` turns on for one run.
 	Dispatch bool `yaml:"dispatch" json:"dispatch" env:"ATKINS_DISPATCH"`
 
@@ -65,15 +65,14 @@ type ServerConfig struct {
 	Database   string `yaml:"database" json:"database" env:"PLATFORM_DB_DEFAULT"`
 	Connection string `yaml:"connection" json:"connection" env:"ATKINS_DB_CONNECTION"`
 
-	// SigningKey signs access tokens. Required; there is deliberately
-	// no default.
+	// SigningKey signs access tokens. Required, with no default.
 	SigningKey string `yaml:"signing_key" json:"signing_key" env:"ATKINS_SIGNING_KEY"`
 
 	// AgentToken is the shared secret agents enrol with.
 	AgentToken string `yaml:"agent_token" json:"agent_token" env:"ATKINS_AGENT_TOKEN"`
 
-	// ArtefactDir is the root the bytes of job artefacts are written
-	// under. The database records what an artefact is; this is where
+	// ArtefactDir is the root the server writes the bytes of job
+	// artefacts under. The database records what an artefact is; this is where
 	// the file itself goes.
 	ArtefactDir string `yaml:"artefact_dir" json:"artefact_dir" env:"ATKINS_ARTEFACT_DIR"`
 

@@ -9,9 +9,9 @@ import (
 // on, so `git@github.com:titpetric/atkins.git` and
 // `https://github.com/titpetric/atkins` are one repository.
 //
-// An unrecognized remote is returned trimmed and lowercased rather than
-// rejected; a private or self-hosted remote should still be usable
-// without the server knowing its URL shape.
+// RepositorySlug returns an unrecognized remote trimmed and lowercased
+// and does not reject it; a private or self-hosted remote stays usable
+// without the server recognizing its URL shape.
 func RepositorySlug(remoteURL string) string {
 	slug := strings.TrimSpace(remoteURL)
 	if slug == "" {

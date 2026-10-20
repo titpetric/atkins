@@ -49,7 +49,7 @@ func (b *Builder) AddJob(job *model.Job, deps []string, jobName string) *TreeNod
 	}
 }
 
-// AddJobWithoutSteps adds a job node to the tree without steps (steps should be added manually afterwards).
+// AddJobWithoutSteps adds a job node to the tree without steps (the caller adds steps afterwards).
 func (b *Builder) AddJobWithoutSteps(deps []string, jobName string, nested bool) *TreeNode {
 	// Create job node
 	jobNode := NewJobNode(jobName, nested)
@@ -90,7 +90,7 @@ func (b *Builder) buildStepNode(step *model.Step) *Node {
 	cmd := label.String()
 
 	// Build the name with annotations
-	// Note: (deferred) is added by the renderer if node.Deferred is true
+	// Note: the renderer adds (deferred) if node.Deferred is true
 	stepName := cmd
 	if !step.If.IsEmpty() {
 		stepName = stepName + " (conditional)"
@@ -104,7 +104,7 @@ func (b *Builder) buildStepNode(step *model.Step) *Node {
 }
 
 // BuildFromPipeline constructs a complete tree from a pipeline.
-// Returns the root node ready to be rendered.
+// Returns the root node ready for rendering.
 func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*model.Job, string) ([]string, error)) (*Node, error) {
 	jobs := pipeline.Jobs
 	if len(jobs) == 0 {
@@ -143,7 +143,7 @@ func BuildFromPipeline(pipeline *model.Pipeline, resolveDeps func(map[string]*mo
 
 		jobNode := builder.AddJob(job, job.DependsOn, jobLabel)
 
-		// Mark jobs that won't be executed
+		// Mark jobs that won't run
 		if !willRun[jobName] {
 			jobNode.Status = StatusSkipped
 		}

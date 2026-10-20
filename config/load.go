@@ -18,8 +18,8 @@ const Dir = ".atkins"
 
 // Default returns the embedded configuration.
 //
-// It is the base every other layer is applied to, and the source of the
-// value substituted for any field left empty.
+// Every other layer applies on top of this base, and it supplies the
+// value for any field left empty.
 func Default() (*Config, error) {
 	config := &Config{}
 	if err := yaml.Unmarshal(RuntimeDefaultConfig, config); err != nil {
@@ -32,8 +32,8 @@ func Default() (*Config, error) {
 //
 // The layers, each overriding the last: the embedded default, the user
 // document at $HOME/.atkins/config.yml, the project document found by
-// walking up from dir, and finally the environment overlay. The result
-// is validated, which fills anything still empty.
+// walking up from dir, and finally the environment overlay. Validation
+// of the result fills anything still empty.
 func Load(dir string) (*Config, error) {
 	config, err := Default()
 	if err != nil {
@@ -56,7 +56,7 @@ func Load(dir string) (*Config, error) {
 }
 
 // Paths returns the configuration documents that apply to dir, in the
-// order they should be merged.
+// order Load merges them.
 func Paths(dir string) []string {
 	var paths []string
 
@@ -66,8 +66,8 @@ func Paths(dir string) []string {
 
 	if project := Discover(dir); project != "" {
 		// A user document that is also the project document would
-		// otherwise be merged twice; harmless, but confusing in a
-		// --config listing.
+		// otherwise merge twice; harmless, but confusing in the
+		// configuration menu's listing.
 		if len(paths) == 0 || paths[0] != project {
 			paths = append(paths, project)
 		}
@@ -103,7 +103,7 @@ func Discover(dir string) string {
 }
 
 // ProjectPath returns where a project's configuration belongs: the
-// document that exists, or the path one would be created at.
+// document that exists, or the path where a new one belongs.
 func ProjectPath(dir string) string {
 	if found := Discover(dir); found != "" {
 		return found
@@ -114,7 +114,7 @@ func ProjectPath(dir string) string {
 	return filepath.Join(dir, Dir, FileName)
 }
 
-// mergeFile applies one document over the config. A missing file is
+// mergeFile applies one document over the configuration. A missing file is
 // not an error: the layer is simply absent.
 func (c *Config) mergeFile(path string) error {
 	contents, err := os.ReadFile(path)
@@ -126,8 +126,8 @@ func (c *Config) mergeFile(path string) error {
 	}
 
 	// Unmarshalling over the existing struct leaves fields the
-	// document doesn't mention alone, which is what makes these
-	// layers rather than replacements.
+	// document doesn't mention alone, so each document is a layer
+	// and never a replacement.
 	if err := yaml.Unmarshal(contents, c); err != nil {
 		return fmt.Errorf("parse %s: %w", path, err)
 	}
@@ -136,8 +136,8 @@ func (c *Config) mergeFile(path string) error {
 }
 
 // LoadFile reads a single document, with defaults and validation but
-// without the user layer or the environment overlay. It is what the
-// configuration menu edits.
+// without the user layer or the environment overlay. The
+// configuration menu edits this result.
 func LoadFile(path string) (*Config, error) {
 	config, err := Default()
 	if err != nil {
@@ -163,8 +163,8 @@ func (c *Config) Save(path string) error {
 		return err
 	}
 
-	// The document can carry a signing key and an agent token, so it
-	// is written for its owner only.
+	// The document can carry a signing key and an agent token, so Save
+	// writes it for its owner only.
 	if err := os.WriteFile(path, encoded, 0o600); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}

@@ -42,7 +42,7 @@ func gitRepository(t *testing.T, remote string) string {
 }
 
 // pushedRepository creates a repository whose commit is on a remote that
-// exists, which is what a dispatchable checkout looks like.
+// exists, the shape of a dispatchable checkout.
 func pushedRepository(t *testing.T) string {
 	t.Helper()
 
@@ -146,8 +146,8 @@ func TestPublishable(t *testing.T) {
 		dir := pushedRepository(t)
 		gitRun(t, dir, "checkout", "-b", "detached-work")
 
-		// The question is whether the commit can be cloned, not whether
-		// the local branch has an upstream.
+		// The check covers whether a clone can reach the commit; the local
+		// branch's upstream does not matter.
 		checkout, err := client.DetectCheckout(dir)
 		assert.NoError(t, err)
 		assert.NoError(t, checkout.Publishable())
@@ -173,8 +173,8 @@ func TestCommand(t *testing.T) {
 	assert.Equal(t, "atkins", client.Command(nil))
 	assert.Equal(t, "atkins test:build", client.Command([]string{"/usr/local/bin/atkins", "test:build"}))
 
-	// The agent runs `atkins`, so that is what the job records however
-	// the local binary is named. A build under test, the `atkins.old`
+	// The agent runs `atkins`, so the job records `atkins` whatever
+	// the local binary's name. A build under test, the `atkins.old`
 	// the install job leaves behind or a distro's `atkins-cli` would
 	// otherwise queue a command the agent cannot find, and the job comes
 	// back as exit 127 with nothing in the log.
@@ -186,8 +186,8 @@ func TestCommand(t *testing.T) {
 func TestDispatchFailsWithoutCredentials(t *testing.T) {
 	t.Setenv("ATKINS_CREDENTIALS", filepath.Join(t.TempDir(), "credentials.json"))
 
-	// Handing a run over is asked for, so being unable to is an error
-	// rather than a silent local run.
+	// Dispatch runs only on request, so failing to dispatch is an error
+	// and never a silent local run.
 	dispatched, err := client.Dispatch(t.Context(), client.DispatchOptions{})
 	assert.Error(t, err)
 	assert.Nil(t, dispatched)
@@ -204,8 +204,8 @@ func TestDispatchRespectsNoDispatch(t *testing.T) {
 func TestRecordSkipsWithoutCredentials(t *testing.T) {
 	t.Setenv("ATKINS_CREDENTIALS", filepath.Join(t.TempDir(), "credentials.json"))
 
-	// Recording is bookkeeping: it drops out silently rather than
-	// costing the run it was meant to describe.
+	// Recording is bookkeeping: it drops out silently and never costs
+	// the run it describes.
 	recorder := client.Record(t.Context(), client.RecordOptions{})
 	assert.Nil(t, recorder)
 

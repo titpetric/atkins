@@ -40,17 +40,17 @@ const Name = "Show version/build information"
 - `func NewCommand (info Info) *cli.Command`
 - `func Run (info Info) error`
 
-### NewCommand
+### `NewCommand`
 
-NewCommand creates a new version command with build information.
+`NewCommand` creates a new version command with build information.
 
 ```go
 func NewCommand(info Info) *cli.Command
 ```
 
-### Run
+### `Run`
 
-Run will print version information for the build.
+`Run` will print version information for the build.
 
 ```go
 func Run(info Info) error

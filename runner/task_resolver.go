@@ -13,14 +13,14 @@ type TaskResolver struct {
 	pipelines []*model.Pipeline
 }
 
-// NewTaskResolver will provide a task resolver for a set of pipelines.
+// NewTaskResolver returns a task resolver for a set of pipelines.
 func NewTaskResolver(pipelines []*model.Pipeline) *TaskResolver {
 	return &TaskResolver{
 		pipelines: pipelines,
 	}
 }
 
-// NewSkillResolver will provide a task resolver for a skill pipeline.
+// NewSkillResolver returns a task resolver for a skill pipeline.
 func NewSkillResolver(pipeline *model.Pipeline) *TaskResolver {
 	return &TaskResolver{
 		pipelines: []*model.Pipeline{pipeline},
@@ -38,8 +38,8 @@ func (r *TaskResolver) Resolve(taskName string) (*model.ResolvedTask, error) {
 }
 
 // ResolveWithFallback tries resolving with r first, then falls back to the
-// fallback resolver. If the task has a ":" prefix, only the fallback (global)
-// resolver is used.
+// fallback resolver. If the task has a ":" prefix, it uses only the fallback
+// (global) resolver.
 func (r *TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver) (*model.ResolvedTask, error) {
 	if strings.HasPrefix(taskName, ":") {
 		return fallback.Resolve(taskName)
@@ -53,7 +53,7 @@ func (r *TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolv
 
 // ResolveName resolves a name to the pipeline and job.
 // It tries explicit matching, then checks aliases, then fuzzy matches jobs.
-// If no job is matched, an error is returned.
+// If no job matches, it returns an error.
 func (r *TaskResolver) ResolveName(name string, strict bool) (*model.ResolvedTask, error) {
 	if target, found := r.resolveExplicitTarget(name); found {
 		return target, nil
@@ -69,8 +69,8 @@ func (r *TaskResolver) ResolveName(name string, strict bool) (*model.ResolvedTas
 	return nil, fmt.Errorf("task %q not resolved (strict: %v)", name, strict)
 }
 
-// resolveExplicitTarget should iterate each pipelines available targets for
-// an exact match. If no match is found, a nil, false is returned.
+// resolveExplicitTarget iterates the available targets of each pipeline for
+// an exact match. Without a match it returns nil, false.
 func (r *TaskResolver) resolveExplicitTarget(name string) (*model.ResolvedTask, bool) {
 	// exact name match across all pipelines.
 	for _, pipeline := range r.pipelines {

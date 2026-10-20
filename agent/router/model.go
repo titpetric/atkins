@@ -14,7 +14,7 @@ const (
 	RouteAlias                // Resolved via alias
 	RouteSlash                // Slash command (explicit or natural language)
 	RouteTask                 // Skill/task execution
-	RouteMultiTask            // Multiple tasks (chained with && or "then")
+	RouteMultiTask            // Chained tasks (with && or "then")
 	RouteShell                // Shell command execution
 	RouteGreeting             // Greeting response
 	RouteCorrection           // Store a correction/alias
@@ -38,14 +38,14 @@ type Route struct {
 	Fortune     string                      // Fortune text for RouteFortune
 	Phrase      string                      // Phrase for RouteCorrection
 	AliasTask   string                      // Alias target for RouteCorrection
-	Ambiguous   bool                        // Multiple matches found
+	Ambiguous   bool                        // More than one match found
 	Matches     []string                    // Matching skills when ambiguous
 	HistMatches []history.ShellHistoryEntry // Shell history matches
 
 	// Multi-task support (chained commands)
-	Tasks []*model.ResolvedTask // Multiple tasks for RouteMultiTask
+	Tasks []*model.ResolvedTask // The chained tasks for RouteMultiTask
 
 	// Fuzzy match confirmation
 	Suggestion string // Suggested correction for RouteConfirm
-	Original   string // Original input that was fuzzy matched
+	Original   string // Original input that fuzzy matching corrected
 }

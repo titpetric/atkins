@@ -6,14 +6,14 @@ import (
 )
 ```
 
-Package web serves the browser-facing pages of the atkins CI/CD
+Package `web` serves the browser-facing pages of the atkins CI/CD
 server.
 
-Two surfaces live here, and they are deliberately different.
+Two surfaces live here, and they differ.
 
-`atkins` prints one URL when it dispatches a job —
-`<server>/job/{ULID}?t=<token>` — and that page is where the run is
-watched: status, timing, the command, and the output the agent
+`atkins` prints one URL when it dispatches a job,
+`<server>/job/{ULID}?t=<token>`, and a person watches the run on that
+page: status, timing, the command, and the output the agent
 captured. It takes no session, because the point of printing a URL in
 a terminal is that pasting it into a browser just works; a private
 instance checks the token in that URL instead.
@@ -42,13 +42,13 @@ type Handlers struct {
 	sshKeys      *storage.SSHKeyStorage
 
 	// tokens mints and checks the per-job view tokens. It holds the
-	// server's signing key, so a link stops working when the key is
-	// rotated.
+	// server's signing key, so a link stops working when an operator
+	// rotates the key.
 	tokens *auth.JWT
 
 	// signingKey authenticates the session cookie and derives CSRF
-	// tokens. It is the same secret tokens holds, kept raw because the
-	// cookie and CSRF HMACs are computed directly rather than as JWTs.
+	// tokens. It holds the same secret as tokens, kept raw because the
+	// handlers compute the cookie and CSRF HMACs directly, with no JWT.
 	// Rotating it logs the browser out along with everything else.
 	signingKey string
 }
@@ -68,17 +68,17 @@ type IndexPage struct {
 	// that will not change on its own.
 	Refresh int
 
-	// Private is set when the listing is withheld for want of a session,
-	// so the page can offer a way in rather than looking like an
-	// instance nobody has ever used.
+	// Private reports a listing withheld for want of a session, so the
+	// page can show a way in and not look like an instance nobody has
+	// ever used.
 	Private bool
 
-	// Scoped is set when the listing is the signed-in user's own runs
-	// rather than everything on the instance.
+	// Scoped reports a listing of the signed-in user's own runs, and
+	// not everything on the instance.
 	Scoped bool
 
-	// SignedIn is set when the visitor has a session, which decides
-	// whether the page offers a sign-in link or an admin one.
+	// SignedIn reports a visitor with a session, which decides whether
+	// the page shows a sign-in link or an admin one.
 	SignedIn bool
 }
 ```
@@ -142,7 +142,7 @@ type LogSpan struct {
 <summary><code>type Options</code></summary>
 
 ```go
-// Options is passed from the server module scope.
+// Options carries values from the server module scope.
 type Options struct {
 	JobStorage            *storage.JobStorage
 	JobLogStorage         *storage.JobLogStorage
@@ -156,7 +156,7 @@ type Options struct {
 
 	// SigningKey is the server's access token signing key. It derives
 	// the per-job view tokens, and without it the admin pages refuse
-	// every session rather than trusting an unauthenticated cookie.
+	// every session and never trust an unauthenticated cookie.
 	SigningKey string
 }
 ```
@@ -167,12 +167,12 @@ type Options struct {
 <summary><code>type Page</code></summary>
 
 ```go
-// Page is the state every admin template needs whatever it is showing:
-// who is signed in, the token its forms have to echo, which nav entry
-// is current, and whatever the last redirect had to say.
+// Page is the state every admin template needs, whatever it shows:
+// the signed-in user, the token its forms have to echo, the current nav
+// entry, and whatever the last redirect had to say.
 //
-// It is exported because a template cannot reach a field promoted
-// through an unexported embedded one.
+// The package exports it because a template cannot reach a field
+// promoted through an unexported embedded one.
 type Page struct {
 	User    api.UserView
 	CSRF    string
@@ -224,117 +224,116 @@ const ViewTokenParam = model.ViewTokenParam
 - `func (Links) Job (jobID string) string`
 - `func (Links) Listing () bool`
 
-### NewHandlers
+### `NewHandlers`
 
-NewHandlers returns Handlers for the page routes.
+`NewHandlers` returns Handlers for the page routes.
 
-The error is always nil. It survives from when the templates were
-parsed at construction: templ compiles them instead, so a broken page
-is a build failure rather than a start-up one. The signature stays so
+The error is always nil. templ compiles the templates, so a broken
+page is a build failure and never a start-up one. The signature stays so
 callers do not have to change when something here does need to fail.
 
 ```go
 func NewHandlers(opts Options) (*Handlers, error)
 ```
 
-### Allowlist
+### `Allowlist`
 
-Allowlist lists the repository rules.
+`Allowlist` lists the repository rules.
 
 ```go
 func (*Handlers) Allowlist(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
-### Artefact
+### `Artefact`
 
-Artefact serves the bytes of one artefact, as a download.
+`Artefact` serves the bytes of one artefact, as a download.
 
 ```go
 func (*Handlers) Artefact(w http.ResponseWriter, r *http.Request)
 ```
 
-### CreateRule
+### `CreateRule`
 
-CreateRule adds an allowlist rule.
+`CreateRule` adds an allowlist rule.
 
 ```go
 func (*Handlers) CreateRule(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
-### CreateSSHKey
+### `CreateSSHKey`
 
-CreateSSHKey stores a deploy key.
+`CreateSSHKey` stores a deploy key.
 
 ```go
 func (*Handlers) CreateSSHKey(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
-### Index
+### `Index`
 
-Index lists recent jobs.
+`Index` lists recent jobs.
 
-A private instance scopes the listing to whoever is signed in, the
+A private instance scopes the listing to the signed-in user, the
 way /api/job does for a bearer token: an owner who lost the URL atkins
 printed can find the job here and the link carries its view token. A
-visitor with no session is told where to sign in — the page still
-answers, because it is the server's front door and a health check
-probing it should find a server rather than a refusal.
+visitor with no session sees where to sign in: the page still
+answers, because this page is the server's front door and a health
+check probing it has to find a server and not a refusal.
 
 ```go
 func (*Handlers) Index(w http.ResponseWriter, r *http.Request)
 ```
 
-### Job
+### `Job`
 
-Job renders one job: its status, the command, and captured output.
+`Job` renders one job: its status, the command, and captured output.
 
 ```go
 func (*Handlers) Job(w http.ResponseWriter, r *http.Request)
 ```
 
-### Login
+### `Login`
 
-Login exchanges an email and password for a session cookie.
+`Login` exchanges an email and password for a session cookie.
 
 ```go
 func (*Handlers) Login(w http.ResponseWriter, r *http.Request)
 ```
 
-### LoginForm
+### `LoginForm`
 
-LoginForm renders the login page.
+`LoginForm` renders the login page.
 
 ```go
 func (*Handlers) LoginForm(w http.ResponseWriter, r *http.Request)
 ```
 
-### Logout
+### `Logout`
 
-Logout revokes the session the cookie names and clears it.
+`Logout` revokes the session the cookie names and clears it.
 
 ```go
 func (*Handlers) Logout(w http.ResponseWriter, r *http.Request)
 ```
 
-### Mount
+### `Mount`
 
-Mount registers the page routes.
+`Mount` registers the page routes.
 
 The job pages have no session to check: the browser reading them never
 logged in. What a private instance checks instead is the per-job view
 token in the URL atkins printed, which keeps the one thing that has
-to stay true — a pasted URL opens the job — without also handing the
+to stay true (a pasted URL opens the job) without also opening the
 job to anyone who guesses a ULID.
 
-The artefact download shares that trust model rather than a weaker or
-a stronger one. A file a job produced is no more sensitive than the
-output that produced it, so it is reachable on exactly the terms the
-page is: same token, same setting. A download link on a page a browser
-can open must not be a link that fails, and a browser has no bearer
-token to offer. `GET /api/job/{id}/artefact/{id}` is the authenticated
-door for scripts.
+The artefact download shares that trust model, neither weaker nor
+stronger. A file a job produced is no more sensitive than the output
+that produced it, so the same terms as the page apply: same token,
+same setting. A download link on a page a browser can open must not be
+a link that fails, and a browser has no bearer token to send.
+`GET /api/job/{id}/artefact/{id}` is the authenticated door for
+scripts.
 
-Everything under `/admin` is gated on an admin session instead. Those
+Everything under `/admin` requires an admin session instead. Those
 pages are not reached from a printed URL, so there is nothing to
 preserve by leaving them open.
 
@@ -342,33 +341,33 @@ preserve by leaving them open.
 func (*Handlers) Mount(r platform.Router)
 ```
 
-### Repositories
+### `Repositories`
 
-Repositories lists the known repositories with their last job.
+`Repositories` lists the known repositories with their last job.
 
 ```go
 func (*Handlers) Repositories(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
-### SSHKeys
+### `SSHKeys`
 
-SSHKeys lists the deploy keys.
+`SSHKeys` lists the deploy keys.
 
 ```go
 func (*Handlers) SSHKeys(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
-### Settings
+### `Settings`
 
-Settings renders every registered setting with its effective value.
+`Settings` renders every registered setting with its effective value.
 
 ```go
 func (*Handlers) Settings(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
-### TriggerRepository
+### `TriggerRepository`
 
-TriggerRepository queues a job against a known repository.
+`TriggerRepository` queues a job against a known repository.
 
 This is the form behind `POST /api/repository/{id}/trigger`: copying
 a repository ID into a curl invocation to run a nightly by hand is
@@ -378,63 +377,63 @@ exactly the sort of thing a page is for.
 func (*Handlers) TriggerRepository(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
-### UpdateRule
+### `UpdateRule`
 
-UpdateRule enables, disables or removes a rule.
+`UpdateRule` enables, disables or removes a rule.
 
 ```go
 func (*Handlers) UpdateRule(w http.ResponseWriter, r *http.Request, _ *session)
 ```
 
-### UpdateSSHKey
+### `UpdateSSHKey`
 
-UpdateSSHKey activates, deactivates or removes a key.
+`UpdateSSHKey` activates, deactivates or removes a key.
 
 ```go
 func (*Handlers) UpdateSSHKey(w http.ResponseWriter, r *http.Request, _ *session)
 ```
 
-### UpdateSetting
+### `UpdateSetting`
 
-UpdateSetting overrides or resets one setting.
+`UpdateSetting` overrides or resets one setting.
 
 ```go
 func (*Handlers) UpdateSetting(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
-### UpdateUser
+### `UpdateUser`
 
-UpdateUser toggles one flag on one account.
+`UpdateUser` toggles one flag on one account.
 
 ```go
 func (*Handlers) UpdateUser(w http.ResponseWriter, r *http.Request, _ *session)
 ```
 
-### Users
+### `Users`
 
-Users lists accounts.
+`Users` lists accounts.
 
 ```go
 func (*Handlers) Users(w http.ResponseWriter, r *http.Request, current *session)
 ```
 
-### Artefact
+### `Artefact`
 
-Artefact is where an artefact downloads from.
+`Artefact` is where an artefact downloads from.
 
 It carries the token of the job the artefact belongs to, so a
-download is reachable exactly when the page listing it is.
+download opens exactly when the page listing it opens.
 
 ```go
 func (Links) Artefact(jobID, artefactID string) string
 ```
 
-### Job
+### `Job`
 
-Job is where a job page lives, token and all.
+`Job` is where a job page lives, token and all.
 
-Every link a page renders goes through here, so following a parent or
-a child from a job you were given a link to keeps working: each hop
+Every link a page renders comes from here, so following a parent or
+a child from a job you hold a link to keeps working: each hop
 carries the token for the job it points at, and never the token for
 the job it came from.
 
@@ -442,12 +441,12 @@ the job it came from.
 func (Links) Job(jobID string) string
 ```
 
-### Listing
+### `Listing`
 
-Listing reports whether the front page lists anything to a visitor
-with no session, which is what a job page opened from a printed URL
-has. A signed-in visitor gets a listing either way, but the markup
-cannot tell one from the other and a link to an empty page is worse
+`Listing` reports whether the front page lists anything to a visitor
+with no session, the state of a job page opened from a printed URL.
+A signed-in visitor gets a listing either way, but the markup cannot
+tell one from the other and a link to an empty page is worse
 than no link.
 
 ```go

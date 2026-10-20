@@ -4,7 +4,7 @@ subtitle: Pipeline configuration format and syntax
 layout: page
 ---
 
-Atkins pipelines are defined in YAML files, typically named `atkins.yml` or `.atkins.yml`. A pipeline contains jobs (or tasks), each with a sequence of steps to execute. Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspired) which can be mixed in the same file.
+Atkins pipelines live in YAML files, typically named `atkins.yml` or `.atkins.yml`. A pipeline contains jobs (or tasks), each with a sequence of steps to execute. Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspired), and one file can mix them.
 
 ## Basic Structure
 
@@ -22,7 +22,7 @@ jobs:
 
 ## Syntax Flavors
 
-Atkins supports two syntax styles. Both can be used interchangeably within the same file.
+Atkins supports two syntax styles. Both work interchangeably within the same file.
 
 @tabs
 @file "Taskfile-Style" configuration/taskfile-style.yml
@@ -71,7 +71,7 @@ jobs:
 
 ### Environment Inheritance
 
-Atkins passes the existing shell environment through to all commands. There's no need to explicitly declare which variables to pass. Everything is inherited automatically. This differs from tools like Taskfile that require explicit environment declarations.
+Atkins passes the existing shell environment through to all commands. There's no need to explicitly declare which variables to pass. Commands inherit everything automatically. This differs from tools like Taskfile that require explicit environment declarations.
 
 ## Include (`include:`)
 
@@ -91,7 +91,7 @@ jobs:
       - run: echo "Deploying to ${{ environment }}"
 ```
 
-It merges variables, not jobs: an included file's own `jobs:` section, if it has one, is ignored, paths are not expanded as globs, and a relative path is read from the current working directory rather than from the pipeline file. See [Includes](../reference/includes) for the merge order and `env: include:`'s dotenv form. To share jobs across files, use [Skills](./skills).
+It merges variables, not jobs: Atkins ignores an included file's own `jobs:` section, if it has one, does not expand paths as globs, and reads a relative path from the current working directory, not from the pipeline file's directory. See [Includes](../reference/includes) for the merge order and `env: include:`'s dotenv form. To share jobs across files, use [Skills](./skills).
 
 ## Conditional Activation (`when:`)
 
@@ -110,7 +110,7 @@ jobs:
       - run: go test ./...
 ```
 
-The skill activates only when `go.mod` exists. Multiple files use OR logic. Any match activates the skill. See [Skills](./skills) for details.
+The skill activates only when `go.mod` exists. Listed files use OR logic. Any match activates the skill. See [Skills](./skills) for details.
 
 ## Complete Example
 

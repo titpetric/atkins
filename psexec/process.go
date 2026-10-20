@@ -93,7 +93,7 @@ func (p *Process) Wait() Result {
 	return p.result
 }
 
-// Done returns a channel that is closed when the process completes.
+// Done returns a channel that closes when the process completes.
 func (p *Process) Done() <-chan struct{} {
 	return p.done
 }

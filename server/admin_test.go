@@ -137,9 +137,9 @@ func TestAgentRoutesRefuseAdmins(t *testing.T) {
 
 	job := dispatch(t, url, admin.Token, "atkins build", "")
 
-	// An admin is not an agent: the flag is a role rather than a rank.
-	// Admitting one here would hand an admin token the private half of
-	// every deploy key, which the admin listing withholds on purpose,
+	// An admin is not an agent: the flag is a role and not a rank.
+	// Admitting one here would open the private half of every deploy key
+	// to an admin token, which the admin listing withholds,
 	// and let it settle jobs under an agent_id that never ran them.
 	for _, route := range []string{"/api/agent/ssh-key", "/api/agent/policy"} {
 		status := call(t, http.MethodGet, url+route, admin.Token, nil, nil)
@@ -156,7 +156,7 @@ func TestAgentRoutesRefuseAdmins(t *testing.T) {
 	}, nil)
 	assert.Equal(t, http.StatusForbidden, status)
 
-	// The queue is untouched: the job is still there for a real agent.
+	// The queue stays intact: the job still waits for a real agent.
 	agent := enrol(t, url, "agent-1")
 	var claimed claimResponse
 	status = call(t, http.MethodPost, url+"/api/job/claim", agent.Token, map[string]any{
@@ -188,7 +188,7 @@ func TestSettings(t *testing.T) {
 	assert.Equal(t, http.StatusOK, status)
 	assert.NotEmpty(t, settings)
 
-	// Everything reports its default until it is overridden.
+	// Everything reports its default until an admin overrides it.
 	for _, setting := range settings {
 		assert.Equal(t, true, setting["is_default"], setting["name"])
 	}
@@ -230,8 +230,8 @@ func TestAllowlistBlocksDispatch(t *testing.T) {
 
 	setSetting(t, url, admin.Token, model.SettingRepositoryPolicy, model.PolicyAllowlist)
 
-	// An allowlist with no rules admits nothing. That is the point of
-	// turning it on.
+	// An allowlist with no rules admits nothing. An operator turns it on
+	// for exactly that.
 	status := call(t, http.MethodPost, url+"/api/dispatch", admin.Token, map[string]any{
 		"repository": map[string]string{"remote_url": "git@github.com:titpetric/atkins.git"},
 		"command":    "atkins",
@@ -260,7 +260,7 @@ func TestAllowlistRuleLifecycle(t *testing.T) {
 	ruleID, _ := rule["id"].(string)
 	assert.NotEmpty(t, ruleID)
 
-	// Duplicate patterns are a conflict, not a second rule.
+	// A duplicate pattern is a conflict and adds no second rule.
 	status := call(t, http.MethodPost, url+"/api/admin/repository", admin.Token, map[string]string{
 		"pattern": "github.com/titpetric/*",
 	}, nil)
@@ -361,7 +361,7 @@ func TestRefusesToRemoveTheLastAdmin(t *testing.T) {
 
 // testSSHKey generates a throwaway ed25519 key.
 //
-// Generated rather than checked in: a real private key in the
+// Generated at test time and never checked in: a real private key in the
 // repository is a bad habit even when it guards nothing.
 func testSSHKey(t *testing.T) string {
 	t.Helper()
@@ -409,7 +409,7 @@ func TestSSHKeys(t *testing.T) {
 	assert.Len(t, agentKeys, 1)
 	assert.Contains(t, agentKeys[0]["private_key"], "OPENSSH PRIVATE KEY")
 
-	// Deactivating stops it being handed out.
+	// Deactivating stops agents from receiving it.
 	status = call(t, http.MethodPost, url+"/api/admin/ssh-key/"+keyID, admin.Token, map[string]any{
 		"is_active": false,
 	}, nil)
@@ -472,7 +472,7 @@ func TestJobPageRenders(t *testing.T) {
 	defer response.Body.Close()
 	assert.Equal(t, http.StatusOK, response.StatusCode)
 
-	// Without the token it does not, however good the ULID guess was.
+	// Without the token it does not, no matter how good the ULID guess.
 	response, err = http.Get(url + "/job/" + job.JobID)
 	assert.NoError(t, err)
 	defer response.Body.Close()
@@ -520,7 +520,7 @@ func TestJobListingPageIsPrivateByDefault(t *testing.T) {
 	dispatch(t, url, admin.Token, "atkins build", "")
 
 	// There is no token that could scope a listing and no session to
-	// scope it by, so a private instance lists nothing — while still
+	// scope it by, so a private instance lists nothing, while still
 	// answering, because this is the front door a health check probes.
 	response, err := http.Get(url + "/")
 	assert.NoError(t, err)

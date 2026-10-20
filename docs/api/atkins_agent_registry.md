@@ -29,41 +29,41 @@ type Registry[T any] struct {
 - `func (*Registry[T]) Names () []string`
 - `func (*Registry[T]) Register (name string, aliases []string, cmd T)`
 
-### New
+### `New`
 
-New creates a new registry.
+`New` creates a new registry.
 
 ```go
 func New() *Registry[T]
 ```
 
-### Get
+### `Get`
 
-Get retrieves an item by name or alias.
+`Get` retrieves an item by name or alias.
 
 ```go
 func (*Registry[T]) Get(name string) (T, bool)
 ```
 
-### GetByName
+### `GetByName`
 
-GetByName returns the item registered under the given name (not alias).
+`GetByName` returns the item registered under the given name (not alias).
 
 ```go
 func (*Registry[T]) GetByName(name string) (T, bool)
 ```
 
-### Names
+### `Names`
 
-Names returns the ordered list of registered names.
+`Names` returns the ordered list of registered names.
 
 ```go
 func (*Registry[T]) Names() []string
 ```
 
-### Register
+### `Register`
 
-Register adds an item to the registry.
+`Register` adds an item to the registry.
 
 ```go
 func (*Registry[T]) Register(name string, aliases []string, cmd T)

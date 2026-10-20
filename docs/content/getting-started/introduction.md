@@ -10,7 +10,7 @@ Atkins is a command runner for local development and CI/CD environments. It exec
 
 - Interactive tree display showing which jobs and steps are running in real-time
 - Parallel execution with `detach: true` for jobs and steps
-- Multiple syntax styles: Taskfile-style (`tasks/cmds`) and GitHub Actions-style (`jobs/steps`)
+- Two syntax styles: Taskfile-style (`tasks/cmds`) and GitHub Actions-style (`jobs/steps`)
 - YAML-friendly interpolation with `${{ var }}` for variables and `$(command)` for shell substitution
 - Cross-pipeline references using `:skill:task` syntax
 - Skills system for modular, reusable pipeline components that activate conditionally
@@ -40,7 +40,7 @@ atkins build
 
 ## Design Philosophy
 
-Atkins was built to address common friction points in existing task runners:
+Atkins addresses common friction points in existing task runners:
 
 1. YAML-friendly syntax: Variable interpolation uses `${{ }}` which doesn't conflict with YAML parsing or bash `${var}` syntax
 2. Environment inheritance: Commands inherit the full shell environment without explicit declarations
@@ -49,7 +49,7 @@ Atkins was built to address common friction points in existing task runners:
 
 ## Key Features Demo
 
-This example demonstrates several key features including variable interpolation, shell substitution, and parallel execution:
+This example shows key features including variable interpolation, shell substitution, and parallel execution:
 
 @tabs
 @file "features.yml" introduction/features.yml
@@ -58,7 +58,7 @@ This example demonstrates several key features including variable interpolation,
 
 ## Output Formats
 
-Atkins supports multiple output formats for different use cases. Use the following example file to try different output modes:
+Atkins supports four output formats for different use cases. Use the following example file to try different output modes:
 
 @tabs
 @file "output-formats.yml" introduction/output-formats.yml

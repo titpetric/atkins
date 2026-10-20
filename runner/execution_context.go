@@ -10,7 +10,7 @@ import (
 	"github.com/titpetric/atkins/treeview"
 )
 
-// jobTracker provides thread-safe job completion tracking shared across ExecutionContext copies.
+// jobTracker tracks job completion, thread-safe and shared across ExecutionContext copies.
 type jobTracker struct {
 	mu   sync.Mutex
 	done map[string]bool
@@ -75,12 +75,12 @@ type ExecutionContext struct {
 	Parents []string
 }
 
-// Resolver provides task resolution in the execution context.
+// Resolver resolves tasks in the execution context.
 func (e *ExecutionContext) Resolver() *TaskResolver {
 	return NewTaskResolver(e.AllPipelines)
 }
 
-// SkillResolver provides task resolution in skill context.
+// SkillResolver resolves tasks in skill context.
 func (e *ExecutionContext) SkillResolver() *TaskResolver {
 	return NewSkillResolver(e.Pipeline)
 }
@@ -91,8 +91,8 @@ func (e *ExecutionContext) Resolve(taskName string) (*model.ResolvedTask, error)
 	return e.SkillResolver().ResolveWithFallback(taskName, e.Resolver())
 }
 
-// Copy copies everything except Context. Variables are cloned.
-// jobTracker is shared (not copied) to maintain consistent dependency tracking.
+// Copy copies everything except Context. It clones Variables.
+// The copy shares jobTracker (no copy) to keep dependency tracking consistent.
 func (e *ExecutionContext) Copy() *ExecutionContext {
 	var vars model.VariableStorage
 	if e.Variables != nil {
@@ -131,7 +131,7 @@ func (e *ExecutionContext) MarkJobCompleted(jobName string) {
 	}
 }
 
-// IsJobCompleted checks if a job has been completed.
+// IsJobCompleted checks if a job has completed.
 func (e *ExecutionContext) IsJobCompleted(jobName string) bool {
 	if e.jobTracker == nil {
 		return false
@@ -144,7 +144,7 @@ func (e *ExecutionContext) Render() {
 	e.Display.Render(e.Builder.Root())
 }
 
-// EmitProgress sends a job progress event if an observer is set.
+// EmitProgress sends a job progress event if the context has an observer.
 func (e *ExecutionContext) EmitProgress(ev JobProgressEvent) {
 	if e.Progress != nil {
 		e.Progress.OnJobProgress(ev)

@@ -48,7 +48,7 @@ func (cs Conditionals) IsEmpty() bool {
 
 // String returns a display representation of the conditions.
 // Single condition returns the expression as-is.
-// Multiple conditions are parenthesized and joined with " && ".
+// More than one condition returns each in parentheses, joined with " && ".
 func (cs Conditionals) String() string {
 	if len(cs) == 0 {
 		return ""

@@ -77,7 +77,7 @@ func TestWrite(t *testing.T) {
 		"### Skill: go",
 		"### Skill: tailwind",
 		"## atkins.yml",
-		"### One idea, several spellings",
+		"### One idea, two spellings",
 	}
 
 	offset := 0
@@ -101,7 +101,7 @@ func TestWriteRendersSkills(t *testing.T) {
 	assert.Contains(t, doc, "`atkins go:fmt`")
 	assert.Contains(t, doc, "Format the code")
 
-	// A default job is addressed by the bare skill name.
+	// The bare skill name addresses a default job.
 	assert.Contains(t, doc, "`atkins go`")
 	assert.Contains(t, doc, "runs fmt, test")
 
@@ -141,8 +141,8 @@ func TestWriteFlagTable(t *testing.T) {
 	assert.Contains(t, doc, "List pipeline jobs and dependencies")
 }
 
-// TestWriteWithoutSkills checks the section says so rather than printing
-// an empty table.
+// TestWriteWithoutSkills checks the section states that no skills exist
+// and prints no empty table.
 func TestWriteWithoutSkills(t *testing.T) {
 	var out bytes.Buffer
 	assert.NoError(t, helpdoc.Write(&out, &helpdoc.Options{}))

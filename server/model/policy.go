@@ -10,14 +10,14 @@ type RepositoryPolicy = string
 // Repository policy values.
 const (
 	// PolicyOpen builds any repository a logged-in user dispatches.
-	// It is the default: a personal instance has no third party to
+	// This is the default: a personal instance has no third party to
 	// defend against, and requiring a rule before the first run would
 	// make the tool feel broken.
 	PolicyOpen RepositoryPolicy = "open"
 
 	// PolicyAllowlist builds only repositories matching an active
-	// rule. With no rules configured, nothing runs — which is the
-	// point of turning it on.
+	// rule. With no rules set up, nothing runs, and an operator turns
+	// it on for exactly that.
 	PolicyAllowlist RepositoryPolicy = "allowlist"
 )
 
@@ -28,7 +28,7 @@ func ValidRepositoryPolicy(policy RepositoryPolicy) bool {
 
 // MatchRepository reports whether a repository slug matches a pattern.
 //
-// Patterns are written against the normalized slug (`host/owner/name`):
+// Patterns match against the normalized slug (`host/owner/name`):
 //
 //	github.com/titpetric/atkins   one repository
 //	github.com/titpetric/*        every repository of one owner
@@ -36,7 +36,7 @@ func ValidRepositoryPolicy(policy RepositoryPolicy) bool {
 //	**                            everything
 //
 // `*` matches within a path segment; `**` crosses segments. Matching is
-// case-insensitive because slugs are lowercased.
+// case-insensitive because slugs are lowercase.
 func MatchRepository(pattern, slug string) bool {
 	pattern = strings.ToLower(strings.TrimSpace(pattern))
 	slug = strings.ToLower(strings.TrimSpace(slug))
@@ -53,7 +53,7 @@ func MatchRepository(pattern, slug string) bool {
 func matchSegments(pattern, value []string) bool {
 	for len(pattern) > 0 {
 		if pattern[0] == "**" {
-			// Trailing `**` swallows whatever is left, including
+			// Trailing `**` swallows whatever remains, including
 			// nothing at all.
 			if len(pattern) == 1 {
 				return true
@@ -91,7 +91,7 @@ func matchSegment(pattern, value string) bool {
 
 	parts := strings.Split(pattern, "*")
 
-	// The first and last parts are anchored; the rest may float.
+	// The first and last parts anchor to the ends; the rest may float.
 	if !strings.HasPrefix(value, parts[0]) {
 		return false
 	}

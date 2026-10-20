@@ -4,11 +4,11 @@ subtitle: Executable pipelines and stdin input
 layout: page
 ---
 
-Atkins pipelines can be run as executable scripts or piped via stdin. This lets you treat pipeline files like shell scripts: make them executable, pass arguments, and integrate them into larger toolchains.
+Atkins runs pipelines as executable scripts or reads them from stdin. This lets you treat pipeline files like shell scripts: make them executable, pass arguments, and integrate them into larger toolchains.
 
 ## Shebang Execution
 
-On Linux and macOS, pipeline files can be made directly executable with a shebang line:
+On Linux and macOS, a shebang line makes a pipeline file directly executable:
 
 @tabs
 @file "Shebang" script-mode/shebang.yml
@@ -24,7 +24,7 @@ Atkins strips the shebang line before parsing, so the file remains valid YAML fo
 
 ## Stdin Input
 
-Pipelines can be piped via stdin:
+Atkins also reads a pipeline from stdin:
 
 ```bash
 cat pipeline.yml | atkins
@@ -45,13 +45,13 @@ This is useful for dynamically generated pipelines or quick one-off runs.
 
 ## Positional Arguments
 
-A file path can be passed as a positional argument:
+Atkins also takes a file path as a positional argument:
 
 ```bash
 atkins ./ci/build.yml
 ```
 
-This is equivalent to:
+This matches:
 
 ```bash
 atkins -f ./ci/build.yml

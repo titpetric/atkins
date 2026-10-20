@@ -46,8 +46,8 @@ func TestPutAndOpen(t *testing.T) {
 
 	assert.Equal(t, int64(len(content)), written.Size)
 
-	// The checksum is computed while writing rather than by reading the
-	// file back.
+	// Put computes the checksum while writing, without reading the file
+	// back.
 	sum := sha256.Sum256(content)
 	assert.Equal(t, hex.EncodeToString(sum[:]), written.Checksum)
 
@@ -70,7 +70,7 @@ func TestPutStopsAtTheLimit(t *testing.T) {
 
 	assert.Empty(t, leftovers(t, store.Root()))
 
-	// Exactly at the limit is stored.
+	// Put stores an upload of exactly the limit.
 	written, err := store.Put(t.Context(), Key("job-1", "artefact-2"),
 		bytes.NewReader(bytes.Repeat([]byte("x"), 64)), 64)
 	assert.NoError(t, err)
@@ -149,8 +149,8 @@ func (failingReader) Read([]byte) (int, error) {
 	return 0, errors.New("connection reset")
 }
 
-// Verify contract: a context is accepted but unused by the filesystem
-// backend, so a cancelled one must not be mistaken for a failure.
+// Verify contract: the filesystem backend accepts a context and ignores
+// it, so a cancelled one must not read as a failure.
 func TestContextIsNotRequired(t *testing.T) {
 	store := testDir(t)
 

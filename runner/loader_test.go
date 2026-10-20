@@ -547,7 +547,7 @@ jobs:
 	// Check that Decl is not nil
 	assert.NotNil(t, testJob.Decl, "Job.Decl should not be nil")
 
-	// Check that Vars are loaded
+	// Check that the loader reads Vars
 	assert.NotNil(t, testJob.Vars, "Job.Vars should not be nil")
 	assert.NotNil(t, testJob.Vars["testBinaries"], "testBinaries should be in Vars")
 	assert.Equal(t, "file1.test\nfile2.test", testJob.Vars["testBinaries"])

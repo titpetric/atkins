@@ -4,7 +4,7 @@ subtitle: Conditional execution with if expressions
 layout: page
 ---
 
-Jobs and steps can be conditionally executed using the `if:` field. Conditions are evaluated using [expr-lang](https://expr-lang.org/), a simple expression language. The `if:` field accepts a single expression or a list of expressions. When a list is provided, all conditions must be true (AND logic).
+Jobs and steps can be conditionally executed using the `if:` field. Atkins evaluates conditions with [expr-lang](https://expr-lang.org/), a simple expression language. The `if:` field accepts a single expression or a list of expressions. For a list, all conditions must be true (AND logic).
 
 ## Examples
 
@@ -53,7 +53,7 @@ if:
   - environment == "production"
 ```
 
-Both forms are equivalent. The list form is useful when conditions are long or numerous.
+Both forms behave the same. The list form helps when conditions are long or many.
 
 **Checking for values in lists:**
 
@@ -99,7 +99,7 @@ to `false`, even if the command wrote output.
 
 ## Truthiness
 
-Values are coerced to boolean as follows:
+Atkins coerces values to boolean as follows:
 
 | Value               | Result |
 |---------------------|--------|
@@ -114,7 +114,7 @@ Values are coerced to boolean as follows:
 
 ## Undefined Variables
 
-Undefined variables evaluate to `nil` (falsy) rather than causing an error:
+Undefined variables resolve to `nil` (falsy) and cause no error:
 
 ```yaml
 jobs:
@@ -126,7 +126,7 @@ jobs:
 
 ## Jobs with `for:` and `if:`
 
-When a job has both a `for:` loop and an `if:` condition, the `if:` expression is evaluated per iteration. This allows filtering iterations based on loop variables:
+When a job has both a `for:` loop and an `if:` condition, Atkins checks the `if:` expression per iteration. This allows filtering iterations based on loop variables:
 
 ```yaml
 jobs:
@@ -137,11 +137,11 @@ jobs:
       - run: echo "Deploying to ${{ env }}..."
 ```
 
-In this example, iterations where `env` is `"dev"` are skipped while all other environments proceed.
+In this example, Atkins skips iterations where `env` is `"dev"` and runs all other environments.
 
 ## Skipped Output
 
-When a job or step is skipped due to a condition, the tree output shows the condition:
+When a condition skips a job or step, the tree output shows the condition:
 
 ```text
 [ok] build

@@ -35,7 +35,7 @@ func TestMenuListsEverySection(t *testing.T) {
 	assert.Contains(t, output, "server")
 	assert.Contains(t, output, "agent")
 	assert.Contains(t, output, "signing_key")
-	// An unset value reads as unset rather than as a blank line.
+	// An unset value reads as unset and never as a blank line.
 	assert.Contains(t, output, "(not set)")
 }
 
@@ -49,7 +49,7 @@ func TestMenuEditsAndWrites(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "https://ci.example.com", saved.Client.Server)
 
-	// The document can hold a signing key, so it is written for its
+	// The document can hold a signing key, so Save writes it for its
 	// owner only.
 	info, err := os.Stat(path)
 	assert.NoError(t, err)
@@ -121,7 +121,7 @@ func TestMenuOnAnExistingDocument(t *testing.T) {
 func TestMenuEndsOnExhaustedInput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 
-	// A piped stdin that runs out means "done", not an error loop.
+	// A piped stdin that runs out means "done" and never loops on errors.
 	menu, err := config.NewMenu(path)
 	assert.NoError(t, err)
 

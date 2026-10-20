@@ -28,7 +28,7 @@ func requestError(status int, err error) error {
 	return &RequestError{StatusCode: status, Err: err}
 }
 
-// errInvalidBody is returned for anything that isn't decodable JSON.
+// errInvalidBody reports a body that isn't decodable JSON.
 var errInvalidBody = errors.New("invalid request body")
 
 // decode reads a JSON request body into target.

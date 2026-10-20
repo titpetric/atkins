@@ -15,7 +15,7 @@ import (
 
 // artefactServer captures one artefact upload, body and all.
 //
-// It is separate from fakeServer because that one decodes every request
+// It stays apart from fakeServer because that one decodes every request
 // as JSON, and an artefact request body is a file.
 type artefactServer struct {
 	*httptest.Server
@@ -103,7 +103,7 @@ func TestUploadArtefactSendsTheFile(t *testing.T) {
 	assert.Equal(t, "artefact-1", artefact.ID)
 
 	assert.Equal(t, "/api/job/job-1/artefact", fake.Path)
-	// The name is a query parameter, and it is escaped: a path with a
+	// The name is a query parameter, and the client escapes it: a path with a
 	// space or a plus in it has to survive the trip.
 	assert.Equal(t, "path=reports%2Fscan.json", fake.Query)
 	assert.Equal(t, "application/json", fake.ContentType)

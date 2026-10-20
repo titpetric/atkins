@@ -4,7 +4,7 @@ subtitle: Command-line options reference
 layout: page
 ---
 
-Atkins provides command-line flags to control which pipeline file to use, which jobs to run, and how output is formatted.
+Atkins command-line flags select the pipeline file, the jobs to run, and the output format.
 
 ## Usage
 
@@ -130,7 +130,7 @@ Aliases
 
 ## Linting
 
-Validate pipeline syntax without running:
+Check pipeline syntax without running:
 
 ```bash
 atkins --lint
@@ -198,7 +198,7 @@ Change to a directory before running:
 atkins -w ./subproject
 ```
 
-Equivalent to:
+Same as:
 
 ```bash
 cd ./subproject && atkins
@@ -251,13 +251,13 @@ Would install: docker, mdox.
 Run atkins --vendor --write to write them.
 ```
 
-Nothing is written until `--write`, which creates the missing skills and overwrites a vendored copy that has drifted:
+The command writes nothing until `--write`, which creates the missing skills and overwrites a vendored copy that has drifted:
 
 ```bash
 atkins --vendor --write
 ```
 
-`--debug` adds the reason each skill was selected and the diff behind the line counts. The copies are ordinary repository content, so a clone or a CI agent gets the same jobs without a personal skills directory. `--vendor` and `--jail` cannot be combined: jail mode excludes the directory vendoring reads from. See [Skills](./skills#vendoring) for the selection rules.
+`--debug` adds the reason behind each skill selection and the diff behind the line counts. The copies are ordinary repository content, so a clone or a CI agent gets the same jobs without a personal skills directory. `--vendor` and `--jail` do not combine: jail mode excludes the directory vendoring reads from. See [Skills](./skills#vendoring) for the selection rules.
 
 ## Agent REPL
 
@@ -266,7 +266,7 @@ atkins --agent                    # interactive
 atkins -x "run the tests"         # one prompt, then exit
 ```
 
-The agent reads the pipelines and skills this project resolves to and drives them for you. It is the same job resolution the flags above use; nothing is available to it that `atkins -l` doesn't show.
+The agent reads the pipelines and skills this project resolves to and drives them for you. The flags above use the same job resolution; nothing is available to it that `atkins -l` doesn't show.
 
 ## Configuration
 
@@ -291,15 +291,15 @@ atkins --login https://ci.example.com
 atkins --logout
 ```
 
-Credentials are stored per server in `~/.atkins/credentials.json` (mode `0600`).
+Atkins stores credentials per server in `~/.atkins/credentials.json` (mode `0600`).
 
-Once logged in, `atkins` still runs the pipeline **here** and records the run on the server: the job page ends up with the transcript, the commit and the exit code an agent would have reported. To hand a run to an agent instead:
+Once logged in, `atkins` still runs the pipeline **here** and records the run on the server: the job page shows the transcript, the commit and the exit code an agent would have reported. To dispatch a run to an agent:
 
 ```bash
 atkins --dispatch     # prints one job URL and exits
 ```
 
-`--dispatch` refuses a dirty or unpushed work tree, since an agent builds the commit rather than your disk. To run here and record nothing:
+`--dispatch` refuses a dirty or unpushed work tree, since an agent builds the pushed commit and never reads your disk. To run here and record nothing:
 
 ```bash
 atkins --local        # this run only
@@ -309,7 +309,7 @@ See [CI/CD Server](./ci-cd) for the configuration, the API and how agents claim 
 
 ## Combining Flags
 
-Flags can be combined:
+Flags combine:
 
 ```bash
 # List jobs from specific file as YAML
@@ -343,7 +343,7 @@ chmod +x script.yml
 
 ## Stdin Input
 
-Pipelines can be piped via stdin:
+Atkins also reads a pipeline from stdin:
 
 ```bash
 cat pipeline.yml | atkins

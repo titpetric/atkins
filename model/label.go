@@ -3,7 +3,7 @@ package model
 // Label represents a display label for a step or command.
 type Label struct {
 	Text       string              // The display text (e.g., "docker compose up" or "run: splint fix ./...")
-	Type       string              // The type of operation: "task", "run", "cmd", "cmds"
+	Type       string              // The operation kind: "task", "run", "cmd", "cmds"
 	ShowPrefix bool                // Whether to display the type prefix (e.g., "run:")
 	Status     string              // Optional status indicator (e.g., "●", "✓", "✗")
 	Color      func(string) string // Optional color function to apply to the label

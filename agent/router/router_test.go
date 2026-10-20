@@ -282,7 +282,7 @@ func TestRouter_AliasToTask(t *testing.T) {
 	pipelines := createTestPipelines()
 	rtr := createTestRouter(t, pipelines)
 
-	// Teach alias: "test it" → "go:test"
+	// Teach alias: "test it" -> "go:test"
 	rtr.Aliases().Add("test it", "go:test")
 
 	route := rtr.Route("test it")
@@ -298,7 +298,7 @@ func TestRouter_NaturalLanguage_WhatsYourServerName(t *testing.T) {
 	// First, teach the alias
 	rtr.Aliases().Add("server name", "uname -n")
 
-	// "what's your server name" should be stripped to "server name" via filler words
+	// Filler word removal strips "what's your server name" to "server name"
 	// and then matched to the alias
 	route := rtr.Route("what's your server name")
 
@@ -377,7 +377,7 @@ func TestAliasStore_FillerWordStripping(t *testing.T) {
 	store.Add("server name", "uname -n")
 
 	// Match with filler words stripped
-	// "what's your server name" → stripped → "server name"
+	// "what's your server name" -> stripped -> "server name"
 	// Note: The alias store doesn't handle "what's" but does handle "what"
 	assert.Equal(t, "uname -n", store.Match("give me the server name"))
 	assert.Equal(t, "uname -n", store.Match("show my server name"))
@@ -456,7 +456,7 @@ func TestMatchFortune(t *testing.T) {
 func TestRouter_RouteRetry(t *testing.T) {
 	rtr := createTestRouter(t, nil)
 
-	// Without a previous command, retry should return RouteUnknown
+	// Without a previous command, retry returns RouteUnknown
 	route := rtr.Route("again")
 	assert.Equal(t, router.RouteUnknown, route.Type)
 
@@ -466,7 +466,7 @@ func TestRouter_RouteRetry(t *testing.T) {
 	// Set a last command
 	rtr.SetLastCommand("echo hello", false)
 
-	// Now retry should work
+	// Now retry works
 	route = rtr.Route("again")
 	assert.Equal(t, router.RouteRetry, route.Type)
 

@@ -6,9 +6,8 @@ import (
 )
 ```
 
-Package psexec provides process execution capabilities with support for
-interactive terminals, PTY allocation, and streaming output over various
-transports including websockets.
+Package `psexec` runs processes with support for interactive terminals,
+PTY allocation, and streaming output over transports such as websockets.
 
 ## Types
 
@@ -16,7 +15,7 @@ transports including websockets.
 <summary><code>type Command</code></summary>
 
 ```go
-// Command represents a command to be executed.
+// Command describes a command for an Executor to run.
 type Command struct {
 	// Name is the command or executable name.
 	Name string
@@ -25,17 +24,17 @@ type Command struct {
 	// Dir is the working directory for the command.
 	Dir string
 	// Env is the environment variables for the command.
-	// Each entry should be in the form "KEY=VALUE".
+	// Each entry takes the form "KEY=VALUE".
 	Env []string
 	// Stdin is an optional reader for process input.
 	Stdin io.Reader
 	// Stdout is an optional writer for stdout.
-	// If nil, output is captured in Result.
+	// If nil, Result captures the output.
 	Stdout io.Writer
 	// Stderr is an optional writer for stderr.
-	// If nil, output is captured in Result.
+	// If nil, Result captures the output.
 	Stderr io.Writer
-	// Timeout is the maximum duration for the command.
+	// Timeout is the longest the command may run.
 	// Zero means no timeout.
 	Timeout time.Duration
 	// UsePTY enables pseudo-terminal allocation for the command.
@@ -120,7 +119,7 @@ type Process struct {
 <summary><code>type Result</code></summary>
 
 ```go
-// Result provides access to the outcome of a process execution.
+// Result reports the outcome of a process execution.
 type Result interface {
 	// Output returns the combined stdout content.
 	Output() string
@@ -167,204 +166,203 @@ type Result interface {
 - `func (EmptyResult) Output () string`
 - `func (EmptyResult) Success () bool`
 
-### DefaultOptions
+### `DefaultOptions`
 
-DefaultOptions returns the default options.
+`DefaultOptions` returns the default options.
 
 ```go
 func DefaultOptions() *Options
 ```
 
-### New
+### `New`
 
-New creates a new Executor with default settings.
+`New` creates a new Executor with default settings.
 
 ```go
 func New() *Executor
 ```
 
-### NewCommand
+### `NewCommand`
 
-NewCommand creates a new Command with the given name and arguments.
+`NewCommand` creates a new Command with the given name and arguments.
 
 ```go
 func NewCommand(name string, args ...string) *Command
 ```
 
-### NewShellCommand
+### `NewShellCommand`
 
-NewShellCommand creates a new Command that runs via bash.
+`NewShellCommand` creates a new Command that runs via bash.
 
 ```go
 func NewShellCommand(script string) *Command
 ```
 
-### NewWithOptions
+### `NewWithOptions`
 
-NewWithOptions creates a new Executor with the given options.
+`NewWithOptions` creates a new Executor with the given options.
 
 ```go
 func NewWithOptions(opts *Options) *Executor
 ```
 
-### Run
+### `Run`
 
-Run executes a command and returns the result.
+`Run` executes a command and returns the result.
 
 ```go
 func (*Executor) Run(ctx context.Context, cmd *Command) Result
 ```
 
-### RunWithIO
+### `RunWithIO`
 
-RunWithIO executes a command with custom I/O streams, suitable for websocket transport.
+`RunWithIO` executes a command with custom I/O streams, suitable for websocket transport.
 
 ```go
 func (*Executor) RunWithIO(ctx context.Context, stdout io.Writer, stdin io.Reader, cmd *Command) Result
 ```
 
-### ShellCommand
+### `ShellCommand`
 
-ShellCommand creates a new Command that runs via the executor's configured shell.
+`ShellCommand` creates a new Command that runs via the executor's configured shell.
 
 ```go
 func (*Executor) ShellCommand(script string) *Command
 ```
 
-### Start
+### `Start`
 
-Start begins execution of a command and returns a Process handle.
-The process can be used for bidirectional I/O, particularly useful
-for websocket transport.
+`Start` begins execution of a command and returns a Process handle.
+The process supports bidirectional I/O, which suits websocket transport.
 
 ```go
 func (*Executor) Start(ctx context.Context, cmd *Command) (*Process, error)
 ```
 
-### Close
+### `Close`
 
-Close closes the PTY and terminates the process if still running.
+`Close` closes the PTY and terminates the process if still running.
 
 ```go
 func (*Process) Close() error
 ```
 
-### Done
+### `Done`
 
-Done returns a channel that is closed when the process completes.
+`Done` returns a channel that closes when the process completes.
 
 ```go
 func (*Process) Done() <-chan struct{}
 ```
 
-### PID
+### `PID`
 
-PID returns the process ID.
+`PID` returns the process ID.
 
 ```go
 func (*Process) PID() int
 ```
 
-### PTY
+### `PTY`
 
-PTY returns the PTY file handle for direct I/O.
+`PTY` returns the PTY file handle for direct I/O.
 
 ```go
 func (*Process) PTY() *os.File
 ```
 
-### Pipe
+### `Pipe`
 
-Pipe sets up bidirectional I/O between the process and the provided
+`Pipe` sets up bidirectional I/O between the process and the provided
 reader/writer. This is the primary method for websocket integration.
 
 ```go
 func (*Process) Pipe(stdout io.Writer, stdin io.Reader) error
 ```
 
-### Read
+### `Read`
 
-Read reads from the process output (PTY).
+`Read` reads from the process output (PTY).
 
 ```go
 func (*Process) Read(b []byte) (int, error)
 ```
 
-### Resize
+### `Resize`
 
-Resize resizes the PTY window.
+`Resize` resizes the PTY window.
 
 ```go
 func (*Process) Resize(rows, cols uint16) error
 ```
 
-### Signal
+### `Signal`
 
-Signal sends a signal to the process.
+`Signal` sends a signal to the process.
 
 ```go
 func (*Process) Signal(sig os.Signal) error
 ```
 
-### Wait
+### `Wait`
 
-Wait waits for the process to complete and returns the result.
+`Wait` waits for the process to complete and returns the result.
 
 ```go
 func (*Process) Wait() Result
 ```
 
-### Write
+### `Write`
 
-Write writes to the process input (PTY).
+`Write` writes to the process input (PTY).
 
 ```go
 func (*Process) Write(b []byte) (int, error)
 ```
 
-### Duration
+### `Duration`
 
-Duration returns 0.
+`Duration` returns 0.
 
 ```go
 func (EmptyResult) Duration() time.Duration
 ```
 
-### Err
+### `Err`
 
-Err returns nil.
+`Err` returns nil.
 
 ```go
 func (EmptyResult) Err() error
 ```
 
-### ErrorOutput
+### `ErrorOutput`
 
-ErrorOutput returns empty string.
+`ErrorOutput` returns empty string.
 
 ```go
 func (EmptyResult) ErrorOutput() string
 ```
 
-### ExitCode
+### `ExitCode`
 
-ExitCode returns 0.
+`ExitCode` returns 0.
 
 ```go
 func (EmptyResult) ExitCode() int
 ```
 
-### Output
+### `Output`
 
-Output returns empty string.
+`Output` returns empty string.
 
 ```go
 func (EmptyResult) Output() string
 ```
 
-### Success
+### `Success`
 
-Success returns true.
+`Success` returns true.
 
 ```go
 func (EmptyResult) Success() bool

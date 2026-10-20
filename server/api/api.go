@@ -5,8 +5,8 @@
 // `/api/job/*` are the queue: the CLI records a run, agents claim work
 // and report back.
 //
-// Handlers decode, validate, map errors to status codes and encode. They
-// call storage rather than issuing SQL.
+// Handlers decode, check input, map errors to status codes and encode.
+// They call storage and issue no SQL of their own.
 package api
 
 import (
@@ -111,13 +111,13 @@ func (s *Handlers) registrationOpen() bool {
 	return s.allowRegistration
 }
 
-// jobScope returns the user id job reads should be narrowed to, or an
-// empty string for a caller who may see every job.
+// jobScope returns the user id that job reads narrow to, or an empty
+// string for a caller who may see every job.
 //
 // Admins see everything because that is what the flag is for, and
 // agents because a worker operates on the whole queue. Everyone else
-// sees their own jobs unless the instance has been made public, which
-// is the single-team mode the server started out in.
+// sees their own jobs unless an admin set the instance public, the
+// single-team mode the server started out in.
 func (s *Handlers) jobScope(user *model.User) string {
 	if user == nil {
 		return ""
@@ -131,10 +131,10 @@ func (s *Handlers) jobScope(user *model.User) string {
 	return user.ID
 }
 
-// readableJob loads a job the caller is allowed to read.
+// readableJob loads a job the caller may read.
 //
-// A job the caller may not see is reported as missing rather than as
-// forbidden: "not yours" and "not here" should look the same, or the
+// readableJob reports a job the caller may not see as missing, and never
+// as forbidden: "not yours" and "not here" should look the same, or the
 // endpoint tells a stranger which job IDs exist.
 func (s *Handlers) readableJob(r *http.Request, user *model.User, jobID string) (*model.Job, error) {
 	job, err := s.jobs.Get(r.Context(), jobID)
@@ -173,11 +173,12 @@ var errJobNotFound = errors.New("job not found")
 // machine that started it and reports what an agent would have
 // reported, from an ordinary account with no agent credentials.
 //
-// Two limits keep that from being a wider power than it looks. Ownership
-// is required outright rather than through readability, so making an
-// instance public does not hand every user everybody else's jobs. And a
-// pending job is refused: nobody has started it, the report would be
-// fiction, and cancelling is the way to stop work that hasn't begun.
+// Two limits keep that from being a wider power than it looks.
+// reportableJob requires ownership outright, and readability alone does
+// not count, so making an instance public does not open everybody else's
+// jobs to every user. And it refuses a pending job: nobody has started
+// it, the report would be fiction, and cancelling is the way to stop
+// work that hasn't begun.
 func (s *Handlers) reportableJob(r *http.Request, jobID string) (*model.Job, error) {
 	user, _, err := s.authenticateUser(r)
 	if err != nil {
@@ -252,11 +253,12 @@ func (s *Handlers) authenticate(r *http.Request) (*auth.Claims, error) {
 }
 
 // authenticateUser validates the Authorization header and loads the user
-// it belongs to, rejecting tokens whose session has since been revoked.
+// it belongs to, rejecting tokens whose session a logout has since
+// revoked.
 //
 // Access tokens are short-lived but not zero-lived; checking the session
-// here is what makes `atkins --logout` on a lost laptop take effect now
-// rather than when the token happens to expire.
+// here makes `atkins --logout` on a lost laptop take effect now, and
+// not only once the token expires.
 func (s *Handlers) authenticateUser(r *http.Request) (*model.User, *auth.Claims, error) {
 	claims, err := s.authenticate(r)
 	if err != nil {

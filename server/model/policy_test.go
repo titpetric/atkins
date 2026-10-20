@@ -29,7 +29,7 @@ func TestMatchRepository(t *testing.T) {
 		{"github.com/titpetric/atkins-*", "github.com/titpetric/atkins-ci", true},
 		{"github.com/titpetric/atkins-*", "github.com/titpetric/atkins", false},
 
-		// Slugs are lowercased, and so are patterns.
+		// Slugs and patterns both compare in lowercase.
 		{"GitHub.com/TitPetric/*", "github.com/titpetric/atkins", true},
 
 		{"", "github.com/titpetric/atkins", false},

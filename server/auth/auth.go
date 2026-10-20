@@ -1,8 +1,8 @@
 // Package auth issues and validates the access tokens the atkins CLI
 // presents to the CI/CD server.
 //
-// Access tokens are short-lived HS256 JWTs. They carry the session they
-// were issued from, so revoking a session (logout) is enough to stop the
+// Access tokens are short-lived HS256 JWTs. They carry the session that
+// issued them, so revoking a session (logout) is enough to stop the
 // refresh flow without keeping a revocation list of every access token.
 package auth
 
@@ -15,7 +15,7 @@ import (
 	ulid "github.com/oklog/ulid/v2"
 )
 
-// Errors returned when a token cannot be turned into claims.
+// Claims returns these errors for a token it cannot decode.
 var (
 	ErrEmptyToken   = errors.New("empty token")
 	ErrEmptySecret  = errors.New("empty signing secret")
@@ -67,12 +67,12 @@ func (j *JWT) Create(userID, sessionID string, ttl time.Duration) (string, error
 	return jwt.NewWithClaims(j.signingMethod, claims).SignedString([]byte(j.secret))
 }
 
-// Claims validates a token and returns its claims. A leading "Bearer "
-// is accepted so callers can pass the Authorization header verbatim.
+// Claims validates a token and returns its claims. It accepts a leading
+// "Bearer " so callers can pass the Authorization header verbatim.
 func (j *JWT) Claims(token string) (*Claims, error) {
 	token = strings.TrimSpace(token)
-	// Only strip "Bearer" when it is a scheme rather than the start of
-	// the token itself, so "Bearerish..." is left intact.
+	// Only strip "Bearer" when it forms a scheme and does not start the
+	// token itself, so "Bearerish..." stays intact.
 	if rest, ok := strings.CutPrefix(token, "Bearer"); ok && (rest == "" || rest[0] == ' ' || rest[0] == '\t') {
 		token = strings.TrimSpace(rest)
 	}

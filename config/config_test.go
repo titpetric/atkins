@@ -80,7 +80,7 @@ func TestPartialDocumentKeepsDefaults(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "https://ci.example.com", cfg.Client.Server)
-	// Untouched fields keep the embedded defaults rather than becoming
+	// Untouched fields keep the embedded defaults and never become
 	// zero values.
 	assert.Equal(t, "/bin/sh", cfg.Agent.Shell)
 	assert.Equal(t, int64(3), cfg.Server.MaxJobDepth)
@@ -214,7 +214,7 @@ func TestFields(t *testing.T) {
 	assert.Contains(t, paths, "client.server")
 	assert.Contains(t, paths, "server.signing_key")
 	assert.Contains(t, paths, "agent.data_dir")
-	// The document version is derived, not edited.
+	// Load derives the document version; the menu never edits it.
 	assert.NotContains(t, paths, "version")
 }
 

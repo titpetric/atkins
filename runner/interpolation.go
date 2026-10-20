@@ -55,7 +55,7 @@ func interpolateString(s string, ctx *ExecutionContext, commandStatusAsCondition
 		exprStr := interpolationRegex.FindStringSubmatch(match)[1]
 		exprStr = strings.TrimSpace(exprStr)
 
-		// Evaluate expression using expr-lang
+		// Run the expression using expr-lang
 		val, err := evaluateExpression(exprStr, ctx)
 		if err != nil {
 			// If expression evaluation fails, return original match
@@ -150,7 +150,7 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 			}
 
 			if !cmdResult.Success() && !commandStatusAsCondition {
-				// Capture error with better context showing what command was executed
+				// Capture error with better context showing the command that ran
 				errMsg := ""
 				if cmdResult.Err() != nil {
 					errMsg = cmdResult.Err().Error()
@@ -177,8 +177,8 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 	return result
 }
 
-// findMatchingParen finds the index of the closing parenthesis that matches the opening at startIdx
-// startIdx should point to the character after the opening (
+// findMatchingParen finds the index of the closing parenthesis that matches the opening one.
+// startIdx points to the character after the opening (
 func findMatchingParen(s string, startIdx int) int {
 	depth := 1
 	i := startIdx
@@ -228,7 +228,7 @@ func interpolateVariablesInString(s string, ctx *ExecutionContext) (string, erro
 		exprStr := interpolationRegex.FindStringSubmatch(match)[1]
 		exprStr = strings.TrimSpace(exprStr)
 
-		// Evaluate expression using expr-lang
+		// Run the expression using expr-lang
 		val, err := evaluateExpression(exprStr, ctx)
 		if err != nil {
 			// If expression evaluation fails, log it but return original
@@ -301,7 +301,7 @@ func evaluateExpression(exprStr string, ctx *ExecutionContext) (any, error) {
 		env[k] = v
 	})
 
-	// Also check if expr references vars that haven't been walked yet (pending)
+	// Also check if expr references vars the walk hasn't reached yet (pending)
 	// by calling Get which triggers lazy evaluation
 	for _, name := range extractVarNames(exprStr) {
 		if _, exists := env[name]; !exists {
@@ -316,7 +316,7 @@ func evaluateExpression(exprStr string, ctx *ExecutionContext) (any, error) {
 		env[k] = v
 	}
 
-	// Compile and evaluate the expression
+	// Compile and run the expression
 	program, err := expr.Compile(exprStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile expression: %w", err)

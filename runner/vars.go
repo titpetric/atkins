@@ -30,8 +30,8 @@ func extractVariableDependencies(s string, vars map[string]any) []string {
 
 // extractUnifiedDependencies extracts prefixed dependency node IDs from a string value.
 // It detects:
-//   - ${{ name }} references → depends on var:name or env:name
-//   - $NAME / ${NAME} inside $(...) blocks → depends on env:NAME
+//   - ${{ name }} references -> depends on var:name or env:name
+//   - $NAME / ${NAME} inside $(...) blocks -> depends on env:NAME
 func extractUnifiedDependencies(s string, vars map[string]any, envVars map[string]any) []string {
 	seen := make(map[string]bool)
 	var deps []string
@@ -43,7 +43,7 @@ func extractUnifiedDependencies(s string, vars map[string]any, envVars map[strin
 		}
 	}
 
-	// 1. Find ${{ name }} references — prefer var, fall back to env
+	// 1. Find ${{ name }} references - prefer var, fall back to env
 	matches := interpolationRegex.FindAllStringSubmatch(s, -1)
 	for _, match := range matches {
 		if len(match) > 1 {
@@ -56,7 +56,7 @@ func extractUnifiedDependencies(s string, vars map[string]any, envVars map[strin
 		}
 	}
 
-	// 2. Find $NAME / ${NAME} inside $(...) blocks — depends on env entries
+	// 2. Find $NAME / ${NAME} inside $(...) blocks - depends on env entries
 	cmdBodies := extractCommandSubstitutionBodies(s)
 	for _, body := range cmdBodies {
 		for _, ref := range extractShellVarRefs(body) {
@@ -107,11 +107,11 @@ func extractShellVarRefs(cmd string) []string {
 		}
 		switch {
 		case cmd[i] == '(':
-			// $( — command substitution, skip
+			// $( - command substitution, skip
 			i++
 		case cmd[i] == '{':
 			if i+1 < len(cmd) && cmd[i+1] == '{' {
-				// ${{ — expr syntax, skip
+				// ${{ - expr syntax, skip
 				i += 2
 			} else {
 				// ${NAME} form
@@ -156,7 +156,7 @@ func isShellNameChar(c byte) bool {
 }
 
 // topologicalSort performs a topological sort on the dependency graph.
-// Returns an error if a cycle is detected.
+// Returns an error if the graph has a cycle.
 func topologicalSort(deps map[string][]string) ([]string, error) {
 	visited := make(map[string]int) // 0=unvisited, 1=visiting, 2=visited
 	var order []string

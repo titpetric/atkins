@@ -24,7 +24,7 @@ func TestCollectUploadsTheOutputDirectory(t *testing.T) {
 	worker := testWorker(t, fake)
 
 	// The zero-configuration declaration: whatever the job copies into
-	// $ATKINS_ARTEFACTS is kept.
+	// $ATKINS_ARTEFACTS reaches the server.
 	worker.run(t.Context(), job(remote, "",
 		`mkdir -p "$ATKINS_ARTEFACTS/reports" && echo '{"findings":3}' > "$ATKINS_ARTEFACTS/reports/scan.json"`))
 
@@ -41,9 +41,9 @@ func TestCollectMatchesDeclaredPatterns(t *testing.T) {
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 
-	// A pipeline that knows nothing about artefacts: the files are
-	// written where the command already writes them, and the job says
-	// what to pick up.
+	// A pipeline that knows nothing about artefacts: the command writes
+	// the files where it always writes them, and the job says what to
+	// pick up.
 	worker.run(t.Context(), collecting(remote, "",
 		`echo '{"ok":true}' > coverage.json; mkdir -p out; echo report > out/summary.txt; echo noise > noise.log`,
 		"*.json,out/*.txt"))
@@ -93,9 +93,8 @@ func TestCollectRunsAfterATimeout(t *testing.T) {
 	_, status := fake.result()
 	assert.Equal(t, client.StatusTimeout, status.Status)
 
-	// The job's context has expired by now: collection must not be
-	// cancelled with it, or a timeout would lose exactly the output
-	// that explains it.
+	// The job's context has expired by now: collection must outlive it,
+	// or a timeout would lose exactly the output that explains it.
 	assert.Contains(t, fake.stored(), "progress.log")
 }
 
@@ -108,7 +107,7 @@ func TestCollectStaysInsideTheWorkspace(t *testing.T) {
 	assert.NoError(t, os.WriteFile(secret, []byte("not yours"), 0o600))
 
 	// A traversal pattern, and a symlink pointing out of the checkout.
-	// Collection walks the tree rather than expanding patterns against
+	// Collection walks the tree and never expands patterns against
 	// the filesystem, so neither can name a file outside it.
 	worker.run(t.Context(), collecting(remote, "",
 		"ln -s "+secret+" link.txt; echo mine > kept.txt",
@@ -158,9 +157,8 @@ func TestCollectReportsAFailedUpload(t *testing.T) {
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
 
-	// The server refuses everything: a rejected artefact is reported in
-	// the job's output rather than swallowed, and it does not change
-	// the outcome of the command.
+	// The server refuses everything: the job's output reports a rejected
+	// artefact, which leaves the outcome of the command unchanged.
 	fake.refuseArtefacts = true
 
 	worker.run(t.Context(), collecting(remote, "", "echo mine > kept.txt", "*.txt"))
@@ -172,7 +170,7 @@ func TestCollectReportsAFailedUpload(t *testing.T) {
 
 func TestContentTypeFromExtension(t *testing.T) {
 	assert.Contains(t, contentType("reports/scan.json"), "application/json")
-	// Unrecognized is left empty; the server applies its own default
-	// rather than the agent guessing wrong.
+	// Unrecognized stays empty; the server applies its own default, and
+	// the agent does not guess.
 	assert.Empty(t, contentType("core.dump-42"))
 }

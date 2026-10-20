@@ -9,7 +9,7 @@ import (
 // JobLogRequest is the body of POST /api/job/{jobID}/log.
 type JobLogRequest struct {
 	// Stream is "output" (the command's combined output) or "error"
-	// (the agent's own commentary). Anything else is read as output.
+	// (the agent's own commentary). Anything else counts as output.
 	Stream string `json:"stream"`
 
 	Content string `json:"content"`
@@ -21,7 +21,7 @@ func (s *Handlers) AppendJobLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) appendJobLog(w http.ResponseWriter, r *http.Request) error {
-	// Output is written by whoever ran the job: the agent that claimed
+	// Whoever ran the job writes the output: the agent that claimed
 	// it, or the machine that ran it locally and owns the record.
 	job, err := s.reportableJob(r, platform.URLParam(r, "jobID"))
 	if err != nil {
@@ -56,8 +56,8 @@ func (s *Handlers) getJobLog(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	// Output is the sensitive half of a job, so the job is loaded and
-	// checked before its lines are handed over — reading a log must not
+	// Output is the sensitive half of a job, so the handler loads and
+	// checks the job before returning its lines: reading a log must not
 	// be a way around the scoping on reading a job.
 	job, err := s.readableJob(r, user, platform.URLParam(r, "jobID"))
 	if err != nil {

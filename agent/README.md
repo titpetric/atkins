@@ -2,7 +2,7 @@
 
 The agent is a full-screen interactive REPL for running tasks. Start it with `atkins --agent`.
 
-The agent takes human language inputs, provides shell execution, navigation and pipeline job execution. Atkins skills can be used, and aliases can be created with the prompt. It requires no LLM.
+The agent takes human language inputs and runs shell commands, navigation and pipeline jobs. The prompt runs Atkins skills and creates aliases. It requires no LLM.
 
 For non-interactive use, run a single prompt with `-x`:
 
@@ -13,9 +13,9 @@ atkins -x "list tasks"           # list available skills
 atkins -x "hello"                # get a greeting
 ```
 
-Aliases can be defined and invoked with language prompts. Teach an alias with `alias weather to curl -s wttr.in | head -n 7`, then invoke it with `how's the weather?`.
+Language prompts define and invoke aliases. Teach an alias with `alias weather to curl -s wttr.in | head -n 7`, then invoke it with `how's the weather?`.
 
-The routing flow is defined in `structure.d2`:
+`structure.d2` describes the routing flow:
 
 ![](structure.svg)
 
@@ -23,7 +23,7 @@ The routing flow is defined in `structure.d2`:
 
 The screen has three areas: a header bar showing version and hostname, a scrollable message log, and a footer bar showing the working directory, git branch, and git stats. Use PgUp and PgDn to scroll the log.
 
-The footer border is colorized in slate/teal and shows real-time git diff stats that update after each command. Stats show lines added and removed across both staged and unstaged changes.
+The footer border uses slate and teal colors and shows real-time git diff stats that update after each command. Stats show lines added and removed across both staged and unstaged changes.
 
 ### Prompt Modes
 
@@ -38,9 +38,9 @@ Type `$` as the first character to switch to shell mode. The prompt displays in 
 
 ## Running Tasks
 
-Type a task name directly to run it. The agent also supports natural language where filler words like "run", "the", and "please" are stripped and remaining keywords are matched against task names and descriptions.
+Type a task name directly to run it. The agent also reads natural language: it strips filler words like "run", "the", and "please" and matches the remaining keywords against task names and descriptions.
 
-Typing `go:test` runs that task directly. Typing `run tests` strips "run" and matches "tests" to a test task. Typing `run go tests` joins keywords to match `go:test`. Plural forms are normalized automatically so `tests` matches `test` and `queries` matches `query`.
+Typing `go:test` runs that task directly. Typing `run tests` strips "run" and matches "tests" to a test task. Typing `run go tests` joins keywords to match `go:test`. The agent normalizes plural forms, so `tests` matches `test` and `queries` matches `query`.
 
 ### Retry Failed Commands
 
@@ -48,11 +48,11 @@ After a command fails, re-run it by typing `again`, `retry`, or `redo`.
 
 ### Command Chaining
 
-Run multiple tasks in sequence using `&&` or the word `then`. Typing `go:test && go:build` runs test first, then build if test passes. Typing `test then build` does the same using natural language.
+Run tasks in sequence using `&&` or the word `then`. Typing `go:test && go:build` runs test first, then build if test passes. Typing `test then build` does the same using natural language.
 
 ### Typo Correction
 
-If you mistype a command, the agent suggests corrections and asks for confirmation. Type `y` to accept the suggestion or `n` to cancel.
+If you mistype a command, the agent suggests corrections and waits for a confirmation. Type `y` to accept the suggestion or `n` to cancel.
 
 ## Slash Commands
 
@@ -69,7 +69,7 @@ If you mistype a command, the agent suggests corrections and asks for confirmati
 | `/jail` | | Toggle jail mode (restrict to project scope) |
 | `/quit` | `/q`, `/exit` | Exit |
 
-Slash commands can also be invoked using natural language. Typing `list`, `list tasks`, `tasks`, or `skills` all invoke `/list`. Typing `history` invokes `/history` and `help` invokes `/help`.
+Natural language also invokes slash commands. Typing `list`, `list tasks`, `tasks`, or `skills` all invoke `/list`. Typing `history` invokes `/history` and `help` invokes `/help`.
 
 ## Shell Commands
 
@@ -87,19 +87,19 @@ Examples:
 
 ### Shell History
 
-Shell commands are recorded in `~/.atkins/shell_history.json` with the command, exit code, duration, and working directory. History entries are shown as suggestions when typing partial matches but do not auto-execute.
+The agent records shell commands in `~/.atkins/shell_history.json` with the command, exit code, duration, and working directory. The prompt shows history entries as suggestions for partial matches and does not run them on its own.
 
 ## Greetings
 
-The agent responds to greetings and thanks in several languages including English, Spanish, French, Italian, German, and Portuguese. Responses come back in the matching language.
+The agent responds to greetings and thanks in English, Spanish, French, Italian, German, and Portuguese. Responses come back in the matching language.
 
 English greetings include hi, hey, hello, howdy, yo, and sup. Thanks include thanks, thank you, thx, and cheers. Other languages follow similar patterns with their native words.
 
-Teach new greetings by typing something like `merhaba is a greeting`. Custom greetings are stored in `~/.atkins/greetings.yaml`.
+Teach new greetings by typing something like `merhaba is a greeting`. The agent stores custom greetings in `~/.atkins/greetings.yaml`.
 
 ## Fortune
 
-Ask for a fortune by typing `fortune`, `give me a fortune`, `inspire me`, or `quote`. Uses the system `fortune` command if available, otherwise returns a coding quote.
+Get a fortune by typing `fortune`, `give me a fortune`, `inspire me`, or `quote`. Uses the system `fortune` command if available, otherwise returns a coding quote.
 
 ## Teaching Aliases
 
@@ -111,13 +111,13 @@ Teach the agent to map phrases to tasks or shell commands using patterns like:
 - `map lint to go:lint`
 - `deploy means docker:push`
 
-Aliases work with natural language. After teaching `alias server name to uname -n`, typing `server name` or `what's your server name` both run `uname -n` because filler words are stripped.
+Aliases work with natural language. After teaching `alias server name to uname -n`, typing `server name` or `what's your server name` both run `uname -n` because the agent strips filler words.
 
-Use `/aliases` to list all defined aliases. Aliases are stored in `~/.atkins/aliases.yaml` and checked before any other matching.
+Use `/aliases` to list all defined aliases. The agent stores aliases in `~/.atkins/aliases.yaml` and checks them before any other matching.
 
 ## Configuration Files
 
-All configuration is stored under `~/.atkins/`:
+The agent keeps all configuration under `~/.atkins/`:
 
 | File | Purpose |
 |------|---------|

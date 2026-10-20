@@ -12,7 +12,7 @@ import (
 const Project = "atkins"
 
 // Migrate applies SQL migrations from the given filesystem to the database.
-// Files are selected by mig's default "*.up.sql" pattern; a filesystem with
+// mig's default "*.up.sql" pattern selects the files; a filesystem with
 // none of them is an error.
 func Migrate(ctx context.Context, db *sqlx.DB, schema fs.FS) error {
 	m, err := migrate.NewManager(db, schema, Project)

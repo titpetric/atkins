@@ -55,10 +55,10 @@ func TestJobsAreScopedToTheUserWhoDispatchedThem(t *testing.T) {
 	theirs := dispatch(t, url, admin.Token, "atkins theirs", "")
 
 	// A listing shows the caller their own runs and nothing else. Job
-	// output routinely contains things nobody meant to publish.
+	// output routinely contains things nobody chose to publish.
 	assert.Equal(t, []string{mine.JobID}, jobIDs(listJobs(t, url, dev.Token)))
 
-	// Someone else's job is reported as missing rather than forbidden:
+	// The API reports someone else's job as missing, and not forbidden:
 	// "not yours" and "not here" must look the same, or the endpoint
 	// tells a stranger which jobs exist.
 	for _, path := range []string{
@@ -69,7 +69,7 @@ func TestJobsAreScopedToTheUserWhoDispatchedThem(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, status, path)
 	}
 
-	// Acting on it is refused the same way. Reading and writing are one
+	// The API refuses action on it the same way. Reading and writing are one
 	// question here: a job you may not read is one you may not stop.
 	status := call(t, http.MethodPost, url+"/api/job/"+theirs.JobID+"/cancel", dev.Token, nil, nil)
 	assert.Equal(t, http.StatusNotFound, status)
@@ -77,7 +77,7 @@ func TestJobsAreScopedToTheUserWhoDispatchedThem(t *testing.T) {
 	status = call(t, http.MethodPost, url+"/api/job/"+theirs.JobID+"/retry", dev.Token, nil, nil)
 	assert.Equal(t, http.StatusNotFound, status)
 
-	// An admin sees the instance, which is what the flag is for.
+	// An admin sees the instance: the flag exists for that.
 	assert.Len(t, listJobs(t, url, admin.Token), 2)
 
 	status = call(t, http.MethodGet, url+"/api/job/"+mine.JobID, admin.Token, nil, nil)
@@ -93,7 +93,7 @@ func TestAgentsSeeEveryJob(t *testing.T) {
 	dispatch(t, url, admin.Token, "atkins theirs", "")
 
 	// An agent works the whole queue, so scoping it to "its own" jobs
-	// would leave it unable to see the work it is there to run.
+	// would leave it unable to see the work it exists to run.
 	agent := enrol(t, url, "agent-1")
 	assert.Len(t, listJobs(t, url, agent.Token), 2)
 }
@@ -134,9 +134,8 @@ func TestPublicVisibilityRestoresTheSharedView(t *testing.T) {
 	theirs := dispatch(t, url, admin.Token, "atkins theirs", "")
 	dispatch(t, url, dev.Token, "atkins mine", "")
 
-	// One team on one instance can have the shared view back, and it is
-	// a decision an admin makes rather than the state a server starts
-	// in.
+	// One team on one instance can have the shared view back, as a
+	// decision an admin makes; a server starts private.
 	setSetting(t, url, admin.Token, model.SettingJobVisibility, model.VisibilityPublic)
 
 	assert.Len(t, listJobs(t, url, dev.Token), 2)
@@ -144,7 +143,7 @@ func TestPublicVisibilityRestoresTheSharedView(t *testing.T) {
 	status := call(t, http.MethodGet, url+"/api/job/"+theirs.JobID, dev.Token, nil, nil)
 	assert.Equal(t, http.StatusOK, status)
 
-	// And it goes back without a restart, because it is a setting.
+	// And it goes back without a restart, because visibility is a setting.
 	status = call(t, http.MethodDelete, url+"/api/admin/setting/"+model.SettingJobVisibility, admin.Token, nil, nil)
 	assert.Equal(t, http.StatusOK, status)
 

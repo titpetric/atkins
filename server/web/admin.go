@@ -23,12 +23,12 @@ const (
 	sectionKeys         = "ssh-key"
 )
 
-// Page is the state every admin template needs whatever it is showing:
-// who is signed in, the token its forms have to echo, which nav entry
-// is current, and whatever the last redirect had to say.
+// Page is the state every admin template needs, whatever it shows:
+// the signed-in user, the token its forms have to echo, the current nav
+// entry, and whatever the last redirect had to say.
 //
-// It is exported because a template cannot reach a field promoted
-// through an unexported embedded one.
+// The package exports it because a template cannot reach a field
+// promoted through an unexported embedded one.
 type Page struct {
 	User    api.UserView
 	CSRF    string
@@ -64,7 +64,7 @@ func after(w http.ResponseWriter, r *http.Request, path, notice string, err erro
 	http.Redirect(w, r, path, http.StatusSeeOther)
 }
 
-// repositoriesPage lists what the server has seen, and offers a trigger.
+// repositoriesPage lists the repositories the server knows, each with a trigger.
 type repositoriesPage struct {
 	Page
 
@@ -78,12 +78,12 @@ type repositoriesPage struct {
 type repositoryRow struct {
 	model.Repository
 
-	// LastJob is the most recent run, or nil for a repository that has
-	// been seen but never built.
+	// LastJob is the most recent run, or nil for a repository the server
+	// knows but never built.
 	LastJob *model.Job
 
 	// Allowed reports whether the policy in force admits this
-	// repository. Shown before the trigger button rather than after it.
+	// repository. The page shows it ahead of the trigger button.
 	Allowed bool
 }
 
@@ -103,8 +103,8 @@ func (h *Handlers) Repositories(w http.ResponseWriter, r *http.Request, current 
 	for _, repository := range repositories {
 		row := repositoryRow{Repository: repository, Allowed: true}
 
-		// One query per repository. The listing is capped and this is an
-		// operator page loaded by hand, not the dispatch path.
+		// One query per repository. The listing has a cap and an operator
+		// loads this page by hand; the dispatch path never calls it.
 		if jobs, err := h.jobs.List(ctx, storage.ListFilter{RepositoryID: repository.ID, Limit: 1}); err == nil && len(jobs) > 0 {
 			row.LastJob = &jobs[0]
 		}
@@ -148,8 +148,8 @@ func (h *Handlers) TriggerRepository(w http.ResponseWriter, r *http.Request, cur
 	}
 
 	// The allowlist governs a triggered job exactly as it governs a
-	// dispatched one. The button is hidden for a repository the policy
-	// refuses, but a hidden button is not a check.
+	// dispatched one. The page hides the button for a repository the
+	// policy refuses, but a hidden button is not a check.
 	allowed, err := h.rules.AllowedUnderPolicy(ctx, h.settings.Get(model.SettingRepositoryPolicy), repository.Slug)
 	if err != nil {
 		after(w, r, back, "", err)
@@ -165,9 +165,9 @@ func (h *Handlers) TriggerRepository(w http.ResponseWriter, r *http.Request, cur
 		UserID:       current.User.ID,
 		Command:      command,
 		// Empty means "resolve the repository's default branch when the
-		// job runs", which is what a form left blank asks for. Filling
-		// in the default here would pin the branch tip as it was when
-		// the button was pressed, which is a different thing.
+		// job runs", the meaning of a blank form field. Filling in the
+		// default here would pin the branch tip at the moment of the
+		// button press, a different thing.
 		Ref: strings.TrimSpace(r.PostFormValue("ref")),
 		// The same guard the API applies: an agent will cd into this,
 		// so it can only ever mean somewhere inside the checkout.
@@ -265,7 +265,7 @@ func (h *Handlers) UpdateRule(w http.ResponseWriter, r *http.Request, _ *session
 	}
 }
 
-// settingsPage renders the registry, not a hand-written list.
+// settingsPage renders the setting registry itself.
 type settingsPage struct {
 	Page
 
@@ -342,9 +342,9 @@ type usersPage struct {
 type userRow struct {
 	api.UserView
 
-	// IsLastAdmin marks the account whose admin or active flag cannot be
-	// taken away. The API refuses that change; the page says so before
-	// the click rather than after it.
+	// IsLastAdmin marks the account that must keep its admin and active
+	// flags. The API refuses that change; the page says so ahead of the
+	// click.
 	IsLastAdmin bool
 }
 
@@ -438,7 +438,7 @@ func (h *Handlers) SSHKeys(w http.ResponseWriter, r *http.Request, current *sess
 	h.render(w, r, sshKeysView(&sshKeysPage{
 		Page: h.page(r, current, sectionKeys),
 		// api.SSHKeyView carries no private key at all, so no template
-		// can render one however it is written.
+		// can render one, whatever its markup.
 		Keys: api.SSHKeyViews(keys),
 	}))
 }
@@ -461,7 +461,7 @@ func (h *Handlers) CreateSSHKey(w http.ResponseWriter, r *http.Request, current 
 		return
 	}
 
-	// The fingerprint, not the key: this string ends up in a URL, a
+	// The fingerprint, not the key: this string lands in a URL, a
 	// browser history and possibly a log.
 	after(w, r, back, "Added "+key.Name+" ("+key.Fingerprint+").", nil)
 }

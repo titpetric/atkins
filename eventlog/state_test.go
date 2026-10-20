@@ -131,7 +131,7 @@ func TestCalculateDuration(t *testing.T) {
 func TestNodeToStateNode_Times(t *testing.T) {
 	node := treeview.NewNode("test")
 
-	// Verify times are set
+	// Verify the node carries timestamps
 	assert.False(t, node.CreatedAt.IsZero())
 	assert.False(t, node.UpdatedAt.IsZero())
 

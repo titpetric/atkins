@@ -14,7 +14,7 @@ If you have Go 1.27+ installed, this is the simplest method:
 go install github.com/titpetric/atkins@latest
 ```
 
-The binary will be placed in your `$GOPATH/bin` directory.
+`go install` puts the binary in your `$GOPATH/bin` directory.
 
 ## Binary Release
 
@@ -46,7 +46,7 @@ Or run it directly:
 docker run --rm -v $PWD:/app titpetric/atkins -l
 ```
 
-The image is built from [alpine](https://hub.docker.com/_/alpine) in [docker/Dockerfile](https://github.com/titpetric/atkins/blob/main/docker/Dockerfile).
+The image builds on [alpine](https://hub.docker.com/_/alpine) in [docker/Dockerfile](https://github.com/titpetric/atkins/blob/main/docker/Dockerfile).
 
 ## Verify Installation
 
@@ -65,7 +65,7 @@ atkins
 
 ## Shebang Support (Linux/macOS)
 
-On Unix systems, pipeline files can be made directly executable using a shebang line:
+On Unix systems, a shebang line makes a pipeline file directly executable:
 
 ```yaml
 #!/usr/bin/env atkins
@@ -94,7 +94,7 @@ The same binary hosts the optional CI/CD server. It needs a signing key and a da
 atkins server --signing-key "$(openssl rand -hex 32)"
 ```
 
-Migrations are applied on start. Attach a machine to it with:
+The server applies migrations on start. Attach a machine to it with:
 
 ```bash
 atkins --register https://ci.example.com   # first account becomes admin

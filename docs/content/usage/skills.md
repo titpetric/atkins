@@ -4,7 +4,7 @@ subtitle: Modular, reusable pipeline components
 layout: page
 ---
 
-Skills are modular pipeline files that automatically activate based on project context. A Go skill can provide `go:build`, `go:test`, and `go:lint` jobs that appear only when `go.mod` exists in your project. Skills let you build a library of reusable workflows that work across projects without copying configuration.
+Skills are modular pipeline files that automatically activate based on project context. A Go skill can define `go:build`, `go:test`, and `go:lint` jobs that appear only when `go.mod` exists in your project. Skills let you build a library of reusable workflows that work across projects without copying configuration.
 
 ## Skill Locations
 
@@ -49,9 +49,9 @@ Skills are YAML pipeline files with a `when:` block for conditional activation:
 
 ![Example Skill](./skills/example-skill.png)
 
-The `when:` block controls when a skill is available. Multiple files use OR logic - any match activates the skill. File patterns search upward from the current directory.
+The `when:` block controls when a skill is available. Listed files use OR logic - any match activates the skill. File patterns search upward from the current directory.
 
-A pattern carrying `*`, `?` or `[...]` is expanded as a glob, so a skill can activate on what a folder holds rather than on its name:
+Atkins expands a pattern carrying `*`, `?` or `[...]` as a glob, so a skill can activate on what a folder holds, whatever its name:
 
 ```yaml
 when:
@@ -61,7 +61,7 @@ when:
 
 ## Skill Help
 
-A skill says what it is for with `help:`, one or two sentences naming the files it reads and writes. `atkins --help` prints it beside the skill and the jobs decoded from the YAML.
+A skill states its purpose with `help:`, one or two sentences naming the files it reads and writes. `atkins --help` prints it beside the skill and the jobs decoded from the YAML.
 
 ```yaml
 name: Go build and test
@@ -70,7 +70,7 @@ help: >-
   coverage profile pkg.cov; go:build writes bin/<name>-<goos>-<goarch>.
 ```
 
-A skill may also carry a markdown file of the same base name beside it, `go.md` next to `go.yml`. It is an optional usage guide for a skill whose typical use is not obvious from the job list, and `atkins --help` prints it under the skill. It documents typical use, not every job: the job list is already decoded from the YAML.
+A skill may also carry a markdown file of the same base name beside it, `go.md` next to `go.yml`. This file is an optional usage guide for a skill whose typical use is not obvious from the job list, and `atkins --help` prints it under the skill. It documents typical use, not every job: the job list is already decoded from the YAML.
 
 ```markdown
 `atkins go` runs the whole lifecycle: generate, fmt, lint, test, build.
@@ -99,7 +99,7 @@ atkins go:test
 
 ## Aliases
 
-Skills can provide global aliases that map to namespaced jobs:
+Skills can define global aliases that map to namespaced jobs:
 
 ```yaml
 jobs:
@@ -115,7 +115,7 @@ Now `atkins build` invokes `go:build`.
 
 Explicit job aliases take precedence over auto-generated aliases. For example, if a job has `aliases: [go]`, it overrides the automatic `go` to `go:default` mapping.
 
-When multiple skills define the same explicit alias, project skills win over global skills.
+When two or more skills define the same explicit alias, project skills win over global skills.
 
 To target explicitly:
 
@@ -173,7 +173,7 @@ jobs:
 
 ### Skill Variable Evaluation
 
-When a skill is invoked from another pipeline (e.g., `task: docker:build`), the caller's variable stack carries to the skill. As the execution context already contains `name`, the skill's definition for it is ignored. This allows parameters to come from the execution context, without needing to handle default values when such parameters are omitted in other execution paths.
+When another pipeline invokes a skill (e.g., `task: docker:build`), the caller's variable stack carries to the skill. As the execution context already contains `name`, Atkins ignores the skill's own definition of `name`. Parameters can then come from the execution context, and the skill needs no default values for other execution paths that omit them.
 
 ```yaml
 # Caller pipeline (atkins.yml)
@@ -285,9 +285,9 @@ jobs:
 
 A workspace skill in `[project]/.atkins/skills/` applies to the entire project.
 
-**With `when:`** - working directory is set to the folder containing the matched file.
+**With `when:`** - the working directory is the folder containing the matched file.
 
-**Without `when:`** - working directory is set to the folder containing `.atkins/`. This allows the skill to run project-level commands from the workspace root.
+**Without `when:`** - the working directory is the folder containing `.atkins/`. This allows the skill to run project-level commands from the workspace root.
 
 ### Global Skill Behavior
 
@@ -330,7 +330,7 @@ Useful for:
 
 ## Vendoring
 
-Global skills live on one machine. A pipeline that leans on `~/.atkins/skills/compose.yml` runs on the laptop it was written on and fails on a clean clone, and a CI agent is exactly the machine with no personal skills directory.
+Global skills live on one machine. A pipeline that leans on `~/.atkins/skills/compose.yml` runs on the author's laptop and fails on a clean clone, and a CI agent is exactly the machine with no personal skills directory.
 
 `--vendor` reports the skills a repository uses and what copying them would change:
 
@@ -348,9 +348,9 @@ Would install: docker, mdox.
 Run atkins --vendor --write to write them.
 ```
 
-A skill already vendored unchanged gets a checkmark; one that would be created or overwritten gets the lines the write adds and removes. `--debug` adds the reason each skill was selected, and the diff behind the counts.
+A skill already vendored unchanged gets a checkmark; a new or changed skill gets the lines the write adds and removes. `--debug` adds the reason behind each skill selection, and the diff behind the counts.
 
-Nothing is written until `--write`:
+The command writes nothing until `--write`:
 
 ```bash
 atkins --vendor --write
@@ -365,22 +365,22 @@ Found usage for 3 skills.
 Installed: docker, mdox.
 ```
 
-Skills are written to `.atkins/skills/` next to `.git`, so they apply to the whole repository, and the folder is created if it doesn't exist yet. The copies are ordinary repository content: commit them like any other dependency, and an update is a re-run and a diff.
+Vendoring writes skills to `.atkins/skills/` next to `.git`, so they apply to the whole repository, and creates the folder if it doesn't exist yet. The copies are ordinary repository content: commit them like any other dependency, and an update is a re-run and a diff.
 
-A vendored copy that has drifted from its source is overwritten. Skills are tracked files, so reverting a change you wanted to keep is `git checkout` — which is why the dry run shows the diff first.
+A vendored copy that has drifted from its source is overwritten. Skills are files under version control, so reverting a change you wanted to keep is `git checkout`. The dry run shows the diff first for that reason.
 
 ### Selection Rules
 
-A skill is vendored when any of these hold:
+Vendoring selects a skill when any of these hold:
 
-- Its `when:` block matches a path anywhere in the repository. The search descends the tree rather than climbing it, so a `schema/*.up.sql` file in a submodule selects the schema skill, the same way it activates there.
+- Its `when:` block matches a path anywhere in the repository. The search descends the tree and never climbs it, so a `schema/*.up.sql` file in a submodule selects the schema skill, the same way it activates there.
 - It has no `when:` block, which makes it active everywhere.
 - A pipeline in the repository names one of its jobs through `task:` or `depends_on:`. A reference to `docker:build` selects the docker skill even without a `docker/Dockerfile`.
 - A skill already selected names one of its jobs. A release skill calling `:docker:build` brings the docker skill with it.
 
 Dot directories and `node_modules`, `vendor`, `testdata`, `bin`, `dist` and `coverage` are not descended into.
 
-`--vendor` cannot be combined with `--jail`, which excludes the `$HOME/.atkins/skills` that vendoring reads from.
+`--vendor` does not combine with `--jail`, which excludes the `$HOME/.atkins/skills` that vendoring reads from.
 
 ## Listing Skills
 

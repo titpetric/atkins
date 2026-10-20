@@ -32,7 +32,7 @@ func logCount(t *testing.T, url, token, jobID string) int {
 }
 
 func TestRetentionSweepDropsOutputAndKeepsTheJob(t *testing.T) {
-	// A sweep on a real ticker: this is the wiring the module owns —
+	// A sweep on a real ticker: this is the wiring the module owns:
 	// the timer, the settings read on every pass, and the storage call.
 	url := testServerWith(t, func(opts *server.Options) {
 		opts.RetentionInterval = 20 * time.Millisecond
@@ -61,8 +61,8 @@ func TestRetentionSweepDropsOutputAndKeepsTheJob(t *testing.T) {
 		return logCount(t, url, admin.Token, job.JobID) == 0
 	}, 5*time.Second, 20*time.Millisecond, "output was not swept")
 
-	// The outcome outlives the output: that is the whole point of two
-	// windows rather than one.
+	// The outcome outlives the output: two windows exist for exactly
+	// that.
 	var stored map[string]any
 	status = call(t, http.MethodGet, url+"/api/job/"+job.JobID, admin.Token, nil, &stored)
 	assert.Equal(t, http.StatusOK, status)
@@ -95,7 +95,7 @@ func TestRetentionKeepsEverythingByDefault(t *testing.T) {
 
 	// job.retention defaults to keeping records forever, and
 	// job.log_retention to a month. Neither touches a job that finished
-	// a moment ago, however often the sweep runs.
+	// a moment ago, no matter how often the sweep runs.
 	time.Sleep(100 * time.Millisecond)
 
 	assert.Equal(t, 1, logCount(t, url, admin.Token, job.JobID))

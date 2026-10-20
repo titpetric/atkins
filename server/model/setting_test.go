@@ -24,8 +24,8 @@ func TestParseBytes(t *testing.T) {
 		{value: "a handful", invalid: true},
 		{value: "-1", invalid: true},
 		{value: "12TB", invalid: true},
-		// The multiplication must not be allowed to wrap into a
-		// negative limit, which would refuse every upload.
+		// The multiplication must not wrap into a negative limit,
+		// which would refuse every upload.
 		{value: "9223372036854775807GB", invalid: true},
 	}
 

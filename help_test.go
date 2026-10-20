@@ -8,7 +8,7 @@ import (
 	"github.com/titpetric/atkins/internal/assert"
 )
 
-// TestHelpRequested covers the command lines that ask for the help
+// TestHelpRequested covers the command lines that request the help
 // document and the ones that carry -h or --help as a flag value.
 func TestHelpRequested(t *testing.T) {
 	flags := HelpFlags()
@@ -40,7 +40,7 @@ func TestHelpRequested(t *testing.T) {
 }
 
 // TestHelpFlags checks the merged set carries a flag from each of the
-// three commands, which is what tells a value flag from a boolean one.
+// three commands; the merged set tells a value flag from a boolean one.
 func TestHelpFlags(t *testing.T) {
 	flags := HelpFlags()
 
@@ -75,12 +75,12 @@ func TestWriteHelp(t *testing.T) {
 		"`--agent-id`",
 		"## Skills",
 		"## atkins.yml",
-		"### One idea, several spellings",
+		"### One idea, two spellings",
 	} {
 		assert.Contains(t, doc, want)
 	}
 
-	// A document written to a buffer is markdown, not a screenshot.
+	// A document written to a buffer is plain markdown with no escape codes.
 	assert.NotContains(t, doc, "\x1b[")
 	assert.True(t, strings.HasPrefix(strings.TrimSpace(doc), "# atkins"))
 }

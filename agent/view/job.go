@@ -117,7 +117,7 @@ func RenderJobSummary(total, passed, failed int, duration time.Duration) string 
 		durStr)
 }
 
-// FormatJobDuration formats duration for display (similar to gotestsum).
+// FormatJobDuration formats duration for display (like gotestsum).
 func FormatJobDuration(d time.Duration) string {
 	if d < time.Millisecond {
 		return "<1ms"

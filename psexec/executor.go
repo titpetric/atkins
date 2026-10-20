@@ -153,7 +153,7 @@ func (e *Executor) runWithPTY(ctx context.Context, cmd *Command) Result {
 		return result
 	}
 
-	// Copy stdin to PTY if provided — fire and forget since stdin reads block
+	// Copy stdin to PTY if set - fire and forget since stdin reads block
 	if cmd.Stdin != nil {
 		go func() {
 			if _, err := io.Copy(ptmx, cmd.Stdin); err != nil && !errors.Is(err, io.EOF) {
@@ -162,7 +162,7 @@ func (e *Executor) runWithPTY(ctx context.Context, cmd *Command) Result {
 		}()
 	}
 
-	// Copy PTY output to writers — this blocks until command finishes
+	// Copy PTY output to writers - this blocks until command finishes
 	var outputBuf bytes.Buffer
 	writers := []io.Writer{&outputBuf}
 	if cmd.Stdout != nil {
@@ -174,7 +174,7 @@ func (e *Executor) runWithPTY(ctx context.Context, cmd *Command) Result {
 	go func() {
 		defer close(outputDone)
 		if _, err := io.Copy(io.MultiWriter(writers...), ptmx); err != nil && !errors.Is(err, io.EOF) {
-			// Ignore I/O errors when reading from PTY (e.g., when PTY is closed or in containers)
+			// Ignore I/O errors when reading from PTY (for example after PTY close or in containers)
 		}
 	}()
 
@@ -217,7 +217,7 @@ func (e *Executor) runInteractive(ctx context.Context, cmd *Command) Result {
 
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
-		// Process already started — clean up before returning
+		// Process already started - clean up before returning
 		_ = ptmx.Close()
 		_ = execCmd.Wait()
 		result.err = fmt.Errorf("failed to set raw mode: %w", err)
@@ -226,21 +226,21 @@ func (e *Executor) runInteractive(ctx context.Context, cmd *Command) Result {
 	}
 	defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 
-	// Copy stdin to PTY — fire and forget since os.Stdin.Read() cannot be
-	// interrupted. The goroutine exits when the next read completes and the
-	// subsequent write to the closed ptmx fails.
+	// Copy stdin to PTY - fire and forget since nothing can interrupt
+	// os.Stdin.Read(). The goroutine exits when the next read completes and
+	// the following write to the closed ptmx fails.
 	go func() {
 		_, _ = io.Copy(ptmx, os.Stdin)
 	}()
 
-	// Copy PTY output to stdout — wait for this to complete so all output
-	// is flushed before the function returns.
+	// Copy PTY output to stdout - wait for this to complete so all output
+	// reaches stdout before the function returns.
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if _, err := io.Copy(os.Stdout, ptmx); err != nil && !errors.Is(err, io.EOF) {
-			// Ignore I/O errors when reading from PTY (e.g., when PTY is closed or in containers)
+			// Ignore I/O errors when reading from PTY (for example after PTY close or in containers)
 		}
 	}()
 
@@ -288,8 +288,8 @@ func (e *Executor) RunWithIO(ctx context.Context, stdout io.Writer, stdin io.Rea
 		go func() {
 			defer wg.Done()
 			if _, err := io.Copy(stdout, ptmx); err != nil && !errors.Is(err, io.EOF) {
-				// Ignore I/O errors when reading from PTY (e.g., when PTY is closed or in containers)
-				// These are expected and not critical to operation
+				// Ignore I/O errors when reading from PTY (for example after PTY close or in containers)
+				// These errors are normal and not critical to operation
 				// log.Printf("psexec: stdout copy error: %v", err)
 			}
 		}()
@@ -382,8 +382,7 @@ func (e *Executor) terminalSize() *pty.Winsize {
 }
 
 // Start begins execution of a command and returns a Process handle.
-// The process can be used for bidirectional I/O, particularly useful
-// for websocket transport.
+// The process supports bidirectional I/O, which suits websocket transport.
 func (e *Executor) Start(ctx context.Context, cmd *Command) (*Process, error) {
 	execCmd := e.prepareCmd(ctx, cmd)
 

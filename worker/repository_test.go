@@ -81,8 +81,8 @@ func TestIsSSHRemote(t *testing.T) {
 func TestCachePath(t *testing.T) {
 	assert.Equal(t, "github.com/titpetric/atkins.git", cachePath("github.com/titpetric/atkins"))
 
-	// A slug that tries to climb out is flattened into the cache root
-	// rather than resolving above it.
+	// cachePath flattens a slug that climbs out into the cache root, so
+	// it never resolves above it.
 	assert.Equal(t, "etc/passwd.git", cachePath("../../etc/passwd"))
 	assert.Equal(t, "srv/git/demo.git", cachePath("/srv/git/demo"))
 }
@@ -91,7 +91,7 @@ func TestRefCandidates(t *testing.T) {
 	// A tag beats a branch of the same name, which is git's own order.
 	assert.Equal(t, []string{"refs/tags/v1.0.0", "refs/heads/v1.0.0", "v1.0.0"}, refCandidates("v1.0.0"))
 
-	// A fully qualified ref is taken at its word, so refs/pull/7/head
+	// refCandidates takes a fully qualified ref at its word, so refs/pull/7/head
 	// is not looked for under refs/tags first.
 	assert.Equal(t, []string{"refs/pull/7/head"}, refCandidates("refs/pull/7/head"))
 }
@@ -106,7 +106,7 @@ func TestCloneDepth(t *testing.T) {
 	assert.Equal(t, int64(0), cloneDepth(0))
 	assert.Equal(t, int64(1), cloneDepth(1))
 
-	// A negative depth is a bad payload rather than an instruction.
+	// A negative depth is a bad payload, which cloneDepth ignores.
 	assert.Equal(t, int64(0), cloneDepth(-5))
 }
 

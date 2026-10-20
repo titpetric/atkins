@@ -24,7 +24,7 @@ The pipeline is the root configuration object in an Atkins file.
 
 | Field   | Type | Description                                      |
 |---------|------|--------------------------------------------------|
-| `files` | list | Files that must exist for pipeline to be enabled |
+| `files` | list | Files that must exist to enable the pipeline     |
 
 ## Basic Pipeline
 

@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 )
 
-// ConfigNames are the default config file names to search for, in order of preference.
+// ConfigNames are the default configuration file names to search for, in order of preference.
 var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.yaml"}
 
-// DiscoverConfig searches for a config file starting from the given directory,
-// traversing parent directories until a config file is found or root is reached.
-// Returns the absolute path to the config file and the directory containing it.
+// DiscoverConfig searches for a configuration file starting from the given directory,
+// traversing parent directories until it finds a configuration file or reaches root.
+// Returns the absolute path to the configuration file and the directory containing it.
 func DiscoverConfig(startDir string) (configPath, configDir string, err error) {
 	absStart, err := filepath.Abs(startDir)
 	if err != nil {

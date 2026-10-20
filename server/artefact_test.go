@@ -30,7 +30,7 @@ type artefactView struct {
 	URL         string `json:"url"`
 }
 
-// artefactUpload is one file being pushed to a job.
+// artefactUpload is one file an agent pushes to a job.
 type artefactUpload struct {
 	Path        string
 	ContentType string
@@ -130,7 +130,7 @@ func TestArtefactRoundTrip(t *testing.T) {
 	assert.Equal(t, "reports/scan.json", stored.Path)
 	assert.Equal(t, int64(len(content)), stored.Size)
 	assert.Equal(t, "application/json", stored.ContentType)
-	// The server hashes what it received rather than trusting the
+	// The server hashes what it received and does not trust the
 	// header, so this is evidence the bytes arrived intact.
 	assert.Equal(t, checksum(content), stored.Checksum)
 
@@ -170,8 +170,8 @@ func TestArtefactAppearsOnTheJobPage(t *testing.T) {
 	assert.Contains(t, string(page), "coverage.txt")
 
 	// The link on the page has to work in a browser, which carries no
-	// bearer token: it is governed by the same view token the page
-	// itself is, so the link the page renders carries one.
+	// bearer token: the same view token as the page itself governs it,
+	// so the link the page renders carries one.
 	download := "/job/" + job.JobID + "/artefact/" + stored.ID
 	assert.Contains(t, string(page), download)
 
@@ -190,7 +190,7 @@ func TestArtefactUploadIsAgentOnly(t *testing.T) {
 	admin := register(t, url)
 	job := dispatch(t, url, admin.Token, "atkins scan", "")
 
-	// An ordinary human, not an agent and not an admin.
+	// An ordinary human: neither an agent nor an admin.
 	setSetting(t, url, admin.Token, model.SettingRegistrationOpen, "true")
 
 	var human tokenResponse
@@ -236,7 +236,7 @@ func TestArtefactRejectsPathsOutsideTheJob(t *testing.T) {
 
 	job := dispatch(t, url, admin.Token, "atkins scan", "")
 
-	// A path is a name within the job, not a location on the server.
+	// A path is a name within the job and never a location on the server.
 	for _, path := range []string{"../../etc/passwd", "/etc/passwd", "reports/../../escape", "", "..", `..\..\windows`} {
 		status := uploadArtefact(t, url, agent.Token, job.JobID, artefactUpload{
 			Path:    path,
@@ -315,8 +315,8 @@ func TestArtefactRejectsAChecksumMismatch(t *testing.T) {
 
 	job := dispatch(t, url, admin.Token, "atkins scan", "")
 
-	// What the agent hashed is not what the server received: the upload
-	// was truncated or altered in flight.
+	// What the agent hashed is not what the server received: something
+	// truncated or altered the upload in flight.
 	status := uploadArtefact(t, url, agent.Token, job.JobID, artefactUpload{
 		Path:     "scan.json",
 		Checksum: checksum([]byte("the whole file")),
@@ -357,7 +357,7 @@ func TestArtefactReplacesTheSamePath(t *testing.T) {
 	assert.Equal(t, http.StatusOK, status)
 	assert.JSONEq(t, `{"run": 2}`, string(body))
 
-	// The superseded artefact is gone rather than merely hidden.
+	// The replaced artefact leaves the store, and does not just hide.
 	status, _, _ = fetch(t, url+first.URL, admin.Token)
 	assert.Equal(t, http.StatusNotFound, status)
 }
@@ -398,7 +398,7 @@ func TestArtefactsAreScopedLikeTheJob(t *testing.T) {
 	}, &stored)
 	assert.Equal(t, http.StatusCreated, status)
 
-	// An account that has never seen the job is told the same thing the
+	// An account that has never seen the job hears the same thing the
 	// job endpoint tells it: nothing here. Authentication alone is not
 	// the bar, or the artefact is the way around a scoped ledger.
 	status, _, _ = fetch(t, url+"/api/job/"+job.JobID+"/artefact", dev.Token)
@@ -413,7 +413,7 @@ func TestArtefactsAreScopedLikeTheJob(t *testing.T) {
 	assert.Equal(t, http.StatusOK, status)
 	assert.JSONEq(t, `{"findings": 3}`, string(body))
 
-	// And a public instance is shared again, artefacts included.
+	// And a public instance opens to everyone again, artefacts included.
 	setSetting(t, url, admin.Token, model.SettingJobVisibility, model.VisibilityPublic)
 
 	assert.Len(t, artefacts(t, url, dev.Token, job.JobID), 1)
@@ -450,8 +450,8 @@ func TestDispatchNormalizesArtefactPatterns(t *testing.T) {
 	status := call(t, http.MethodPost, url+"/api/dispatch", admin.Token, map[string]any{
 		"repository": map[string]string{"remote_url": "git@github.com:titpetric/atkins.git"},
 		"command":    "atkins scan",
-		// The traversal is dropped rather than stored for an agent to
-		// deal with later.
+		// The server drops the traversal and never stores it for an agent
+		// to trip over later.
 		"artefacts": []string{"reports/*.json", "../../etc/passwd", " ./coverage.out "},
 	}, &dispatched)
 	assert.Equal(t, http.StatusCreated, status)
@@ -517,13 +517,13 @@ func TestArtefactRetentionSweepsTheBytes(t *testing.T) {
 
 	assert.FileExists(t, filepath.Join(root, job.JobID, stored.ID))
 
-	// Retention is read on every pass, so shortening it here is what
-	// the setting is for — and it starts the window at a point the test
-	// controls rather than at the upload.
+	// The sweep reads retention on every pass, so shortening it here is
+	// what the setting is for, and it starts the window at a point the
+	// test controls and not at the upload.
 	setSetting(t, url, admin.Token, model.SettingArtefactRetention, "1ms")
 
-	// The sweep is on a ticker, so wait for it rather than for a
-	// fixed sleep to be long enough.
+	// The sweep runs on a ticker, so wait for it and do not hope a fixed
+	// sleep runs long enough.
 	assert.Eventually(t, func() bool {
 		return len(artefacts(t, url, admin.Token, job.JobID)) == 0
 	}, 5*time.Second, 25*time.Millisecond)
@@ -541,8 +541,8 @@ func TestArtefactEmptyListForAJobWithNone(t *testing.T) {
 
 	job := dispatch(t, url, admin.Token, "atkins scan", "")
 
-	// An empty list rather than null: a caller should be able to range
-	// over it without a nil check.
+	// An empty list and never null: a caller can range over it without
+	// a nil check.
 	status, body, _ := fetch(t, url+"/api/job/"+job.JobID+"/artefact", admin.Token)
 	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, "[]", strings.TrimSpace(string(body)))

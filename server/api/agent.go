@@ -21,17 +21,17 @@ type EnrolRequest struct {
 	// identity and its job history.
 	AgentID string `json:"agent_id"`
 
-	// Labels are advertised for information; the claim call is what
-	// actually filters the queue.
+	// Agents advertise labels for information; the claim call filters
+	// the queue.
 	Labels []string `json:"labels"`
 }
 
-// PolicyResponse tells an agent what it is allowed to run.
+// PolicyResponse tells an agent which repositories it may run.
 //
 // The agent enforces this itself before cloning anything. The server
 // already refuses a disallowed dispatch, but a job can outlive the rule
-// that admitted it: a queued job whose repository was removed from the
-// allowlist must not run just because it was queued first.
+// that admitted it: a queued job whose repository has left the
+// allowlist must not run just because it entered the queue first.
 type PolicyResponse struct {
 	// Policy is "open" or "allowlist".
 	Policy string `json:"policy"`
@@ -63,15 +63,14 @@ func (s *Handlers) MountAgent(r platform.Router) {
 // requireAgent authenticates the caller and refuses anyone who is not
 // an agent.
 //
-// An admin is not admitted, deliberately. `is_agent` means what the
-// roles section says it means, and widening it for convenience would
-// undo something built on purpose: SSHKeyView withholds private key
-// material from the admin surface, and these routes hand it over. An
-// admin who needs to act as an agent enrols one, which is a decision
-// written down rather than a side effect.
+// requireAgent refuses an admin too. `is_agent` means what the roles
+// section says it means, and widening it for convenience would undo a
+// guarantee: SSHKeyView withholds private key material from the admin
+// surface, and these routes return it. An admin who needs to act as an
+// agent enrols one, a decision on record and never a side effect.
 //
-// Reporting on a job asks a narrower question than this one — who ran
-// it — and reportableJob answers it.
+// Reporting on a job needs a narrower check than this one (who ran it),
+// and reportableJob performs it.
 func (s *Handlers) requireAgent(r *http.Request) (*model.User, error) {
 	user, _, err := s.authenticateUser(r)
 	if err != nil {
@@ -88,7 +87,7 @@ func (s *Handlers) requireAgent(r *http.Request) (*model.User, error) {
 // Agents don't have passwords. An operator puts one secret in the
 // agent's environment, and the agent trades it for the same rotating
 // token pair a logged-in human holds. That keeps one long-lived secret
-// in one place instead of a password per worker.
+// in one place, with no password per worker.
 func (s *Handlers) Enrol(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, r, s.enrol(w, r))
 }
@@ -201,8 +200,8 @@ func (s *Handlers) agentSSHKeys(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// allowedRepository reports whether a slug may be built under the
-// policy in force.
+// allowedRepository reports whether the policy in force lets the server
+// build a slug.
 func (s *Handlers) allowedRepository(r *http.Request, slug string) (bool, error) {
 	return s.rules.AllowedUnderPolicy(r.Context(), s.settings.Get(model.SettingRepositoryPolicy), slug)
 }

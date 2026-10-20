@@ -88,8 +88,8 @@ func TestCreateStoresRowAndBytes(t *testing.T) {
 
 	assert.Equal(t, int64(14), artefact.Size)
 	assert.Len(t, artefact.Checksum, 64)
-	// The row points at the bytes rather than holding them, which is
-	// what keeps a swap to an object store to one interface.
+	// The row points at the bytes and does not hold them, so a swap to
+	// an object store stays one interface.
 	assert.Equal(t, blob.Key("job-1", artefact.ID), artefact.StorageKey)
 	assert.FileExists(t, filepath.Join(blobs.Root(), "job-1", artefact.ID))
 
@@ -114,7 +114,7 @@ func TestCreateRejectsAPathOutsideTheJob(t *testing.T) {
 		assert.ErrorIs(t, err, model.ErrInvalidArtefactPath, "path %q", path)
 	}
 
-	// The path is checked before anything is written, so a refused
+	// Create checks the path before writing anything, so a refused
 	// upload costs no disk at all.
 	assert.NoDirExists(t, filepath.Join(blobs.Root(), "job-1"))
 }
@@ -187,8 +187,8 @@ func TestCreateVerifiesTheChecksum(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, model.ErrChecksumMismatch)
 
-	// The bytes that failed the comparison are dropped rather than left
-	// for a later upload to trip over.
+	// Create drops the bytes that failed the comparison, so a later
+	// upload never trips over them.
 	entries, err := os.ReadDir(filepath.Join(blobs.Root(), "job-1"))
 	if err == nil {
 		assert.Empty(t, entries)
@@ -206,7 +206,7 @@ func TestCreateReplacesTheSamePath(t *testing.T) {
 	assert.Len(t, listed, 1)
 	assert.Equal(t, second.ID, listed[0].ID)
 
-	// The superseded bytes are gone, not orphaned on the disk.
+	// The replaced bytes leave the disk and do not linger as orphans.
 	assert.NoFileExists(t, filepath.Join(blobs.Root(), "job-1", first.ID))
 
 	_, err = artefacts.Get(t.Context(), "job-1", first.ID)
@@ -265,7 +265,7 @@ func TestPruneExpired(t *testing.T) {
 	assert.FileExists(t, filepath.Join(blobs.Root(), "job-1", fresh.ID))
 
 	// The row survives its bytes, so the page can still say the file
-	// existed and how big it was.
+	// existed and its size.
 	var count int
 	assert.NoError(t, db.GetContext(t.Context(), &count,
 		"SELECT COUNT(*) FROM job_artefact WHERE id = ? AND deleted_at IS NOT NULL", old.ID))
@@ -294,8 +294,8 @@ func TestCountIgnoresSweptArtefacts(t *testing.T) {
 	_, err = artefacts.PruneExpired(t.Context(), time.Now().Add(-time.Hour))
 	assert.NoError(t, err)
 
-	// A job whose artefacts were swept can produce new ones: the limit
-	// counts what is on the disk, not what ever was.
+	// A job whose artefacts retention swept can produce new ones: the
+	// limit counts what is on the disk now.
 	count, err = artefacts.Count(t.Context(), "job-1")
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), count)

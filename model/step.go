@@ -25,8 +25,8 @@ type Step struct {
 	Verbose     bool         `yaml:"verbose,omitempty"`
 	Summarize   bool         `yaml:"summarize,omitempty"`
 	Quiet       bool         `yaml:"quiet,omitempty"`
-	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, output is printed with tree indentation
-	TTY         bool         `yaml:"tty,omitempty"`         // If true, allocate a PTY for the command (enables color output)
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation
+	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for the command (enables color output)
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 	HidePrefix  bool         `yaml:"-"`                     // If true, don't show "run:" prefix in display
 }
@@ -37,7 +37,7 @@ func (s *Step) String() string {
 	case s.Task != "":
 		return "task: " + s.Task
 	case s.Run != "":
-		// If Run contains newlines, display as <script> instead of full command
+		// If Run contains newlines, display <script> in place of the full command
 		if strings.Contains(s.Run, "\n") {
 			return "run: <script>"
 		}
@@ -51,7 +51,7 @@ func (s *Step) String() string {
 }
 
 // DisplayLabel returns a display label for the step, always showing prefixes.
-// This is used during execution to clearly show what type of operation is being run.
+// Execution uses it to show which kind of operation runs.
 func (s *Step) DisplayLabel() string {
 	if s.Desc != "" {
 		return s.Desc
@@ -60,7 +60,7 @@ func (s *Step) DisplayLabel() string {
 	case s.Task != "":
 		return "task: " + s.Task
 	case s.Run != "":
-		// If Run contains newlines, display as <script> instead of full command
+		// If Run contains newlines, display <script> in place of the full command
 		if strings.Contains(s.Run, "\n") {
 			return "run: <script>"
 		}
@@ -115,8 +115,8 @@ func (s *Step) Label(showPrefix bool) *Label {
 }
 
 // Tasks returns the job names referenced by the step's task: field.
-// A single task: value may name several jobs separated by whitespace
-// (`task: lint test build`), which run in sequence and are equivalent to
+// A single task: value may name more than one job, separated by whitespace
+// (`task: lint test build`), which run in sequence and match
 // one task: step per job. Returns an empty slice for command steps.
 func (s *Step) Tasks() []string {
 	return strings.Fields(s.Task)
@@ -124,7 +124,7 @@ func (s *Step) Tasks() []string {
 
 // Commands returns all executable commands from this step as a slice.
 // For steps with a single command (Run/Cmd), returns a slice with one element.
-// For steps with multiple commands (Cmds), returns the full slice.
+// For steps with a command list (Cmds), returns the full slice.
 // Returns an empty slice for Task steps.
 func (s *Step) Commands() []string {
 	if len(s.Cmds) > 0 {
@@ -139,12 +139,12 @@ func (s *Step) Commands() []string {
 	return []string{}
 }
 
-// IsDeferred returns true if deferred is filled.
+// IsDeferred returns true if the step sets deferred.
 func (s *Step) IsDeferred() bool {
 	return s.Deferred
 }
 
-// UnmarshalYAML implements custom unmarshalling for Step to support various formats and handle Decl.
+// UnmarshalYAML implements custom unmarshalling for Step to accept the shorthand formats and decode Decl.
 func (s *Step) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind == yaml.ScalarNode {
 		// Simple string step - treat as a Run command
@@ -175,7 +175,7 @@ func (s *Step) UnmarshalYAML(node *yaml.Node) error {
 			return nil
 		}
 
-		// Ensure Decl is initialized and vars/include are properly decoded
+		// Ensure Decl exists and vars/include decode properly
 		if err := ensureDeclInitialized(node, &s.Decl); err != nil {
 			return err
 		}

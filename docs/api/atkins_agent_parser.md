@@ -39,42 +39,42 @@ type Parser struct {
 - `func (*Parser) FindMatches (keywords []string) []string`
 - `func (*Parser) Parse (input string) (*agentmodel.Intent, error)`
 
-### NewParser
+### `NewParser`
 
-NewParser creates a new intent parser.
+`NewParser` creates a new intent parser.
 
 ```go
 func NewParser(resolver *runner.TaskResolver, skills []*model.Pipeline) *Parser
 ```
 
-### Aliases
+### `Aliases`
 
-Aliases returns the alias store for external use.
+`Aliases` returns the alias store for external use.
 
 ```go
 func (*Parser) Aliases() *aliases.AliasStore
 ```
 
-### AvailableSkills
+### `AvailableSkills`
 
-AvailableSkills returns a list of available skill names for completion.
+`AvailableSkills` returns a list of available skill names for completion.
 
 ```go
 func (*Parser) AvailableSkills() []string
 ```
 
-### FindMatches
+### `FindMatches`
 
-FindMatches returns all skills matching the input keywords.
+`FindMatches` returns all skills matching the input keywords.
 Includes description matching.
 
 ```go
 func (*Parser) FindMatches(keywords []string) []string
 ```
 
-### Parse
+### `Parse`
 
-Parse analyzes input and returns an agentmodel.Intent.
+`Parse` analyzes input and returns an agentmodel.Intent.
 
 ```go
 func (*Parser) Parse(input string) (*agentmodel.Intent, error)

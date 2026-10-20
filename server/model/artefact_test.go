@@ -21,7 +21,7 @@ func TestArtefactPath(t *testing.T) {
 		{"whitespace", "  scan.json  ", "scan.json"},
 
 		// Everything below would address a file the job never
-		// produced, and is refused rather than repaired.
+		// produced; ArtefactPath refuses it and never repairs it.
 		{"traversal", "../../etc/passwd", ""},
 		{"traversal inside", "reports/../../escape", ""},
 		{"absolute", "/etc/passwd", ""},
@@ -76,7 +76,7 @@ func TestArtefactPatterns(t *testing.T) {
 	assert.Nil(t, ArtefactPatterns("  ,  "))
 	assert.Equal(t, []string{"*.json", "coverage/*"}, ArtefactPatterns(" *.json , coverage/* "))
 
-	// A pattern that could leave the checkout is dropped, and the rest
+	// ArtefactPatterns drops a pattern that could leave the checkout, and the rest
 	// of the list still stands.
 	assert.Equal(t, []string{"*.json"}, ArtefactPatterns("*.json,../../etc/*,/etc/*"))
 }
@@ -91,7 +91,7 @@ func TestArtefactContentType(t *testing.T) {
 	assert.Equal(t, DefaultContentType, ArtefactContentType(""))
 	assert.Equal(t, DefaultContentType, ArtefactContentType(strings.Repeat("x", 200)))
 
-	// The value is echoed back as a response header, so a smuggled
-	// newline must not survive.
+	// The server echoes the value back as a response header, so a
+	// smuggled newline must not survive.
 	assert.Equal(t, DefaultContentType, ArtefactContentType("text/html\r\nSet-Cookie: a=b"))
 }

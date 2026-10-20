@@ -24,7 +24,7 @@ type Event struct {
 	// Step event fields
 	Run         string `yaml:"run,omitempty"`
 	Result      Result `yaml:"result,omitempty"`
-	GoroutineID uint64 `yaml:"goroutine_id,omitempty"` // Only when debug is enabled
+	GoroutineID uint64 `yaml:"goroutine_id,omitempty"` // Only with debug on
 
 	// Command event fields
 	Command  string   `yaml:"command,omitempty"`   // The actual command executed
@@ -148,14 +148,14 @@ type RunMetadata struct {
 <summary><code>type RunSummary</code></summary>
 
 ```go
-// RunSummary provides aggregate statistics for the run.
+// RunSummary holds totals for the run.
 type RunSummary struct {
 	Duration     float64 `yaml:"duration"`               // Total duration in seconds
 	TotalSteps   int     `yaml:"total_steps"`            // Total steps executed
 	PassedSteps  int     `yaml:"passed_steps"`           // Steps that passed
 	FailedSteps  int     `yaml:"failed_steps"`           // Steps that failed
-	SkippedSteps int     `yaml:"skipped_steps"`          // Steps that were skipped
-	Result       Result  `yaml:"result"`                 // Overall result
+	SkippedSteps int     `yaml:"skipped_steps"`          // Steps the run skips
+	Result       Result  `yaml:"result"`                 // Result of the whole run
 	MemoryAlloc  uint64  `yaml:"memory_alloc,omitempty"` // Memory allocated in bytes
 	Goroutines   int     `yaml:"goroutines,omitempty"`   // Number of goroutines running
 }
@@ -186,7 +186,7 @@ type StateNode struct {
 	ID        string       `json:"id,omitempty" yaml:"id,omitempty"`
 	Status    string       `json:"status" yaml:"status"` // Readable string: pending, running, passed, failed, skipped, conditional
 	Result    Result       `json:"result,omitempty" yaml:"result,omitempty"`
-	If        string       `json:"if,omitempty" yaml:"if,omitempty"` // Condition that was evaluated
+	If        string       `json:"if,omitempty" yaml:"if,omitempty"` // Condition the step evaluates
 	CreatedAt time.Time    `json:"created_at" yaml:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
 	Start     float64      `json:"start,omitempty" yaml:"start,omitempty"`       // Seconds offset from run start
@@ -245,114 +245,114 @@ const (
 - `func (*Logger) LogExec (result Result, id,run string, start float64, durationMs int64, err error)`
 - `func (*Logger) Write (state *StateNode, summary *RunSummary) error`
 
-### CalculateDuration
+### `CalculateDuration`
 
-CalculateDuration calculates the total duration from node timing.
+`CalculateDuration` calculates the total duration from node timing.
 
 ```go
 func CalculateDuration(node *StateNode) float64
 ```
 
-### CaptureGitInfo
+### `CaptureGitInfo`
 
-CaptureGitInfo captures git repository information.
+`CaptureGitInfo` captures git repository information.
 
 ```go
 func CaptureGitInfo() *GitInfo
 ```
 
-### CaptureModulePath
+### `CaptureModulePath`
 
-CaptureModulePath captures the Go module path from go.mod if present.
+`CaptureModulePath` captures the Go module path from go.mod if present.
 
 ```go
 func CaptureModulePath() string
 ```
 
-### CaptureRuntimeStats
+### `CaptureRuntimeStats`
 
-CaptureRuntimeStats captures current memory allocation and goroutine count.
+`CaptureRuntimeStats` captures current memory allocation and goroutine count.
 
 ```go
 func CaptureRuntimeStats() RuntimeStats
 ```
 
-### CountSteps
+### `CountSteps`
 
-CountSteps counts steps by result in a StateNode tree.
+`CountSteps` counts steps by result in a StateNode tree.
 
 ```go
 func CountSteps(node *StateNode) int
 ```
 
-### NewLogger
+### `NewLogger`
 
-NewLogger creates a new event logger.
+`NewLogger` creates a new event logger.
 If filePath is empty, returns nil (no logging occurs).
 
 ```go
 func NewLogger(filePath, pipelineName, pipelineFile string, debug bool) *Logger
 ```
 
-### NodeToStateNode
+### `NodeToStateNode`
 
-NodeToStateNode converts a treeview.Node to a StateNode for serialization.
+`NodeToStateNode` converts a treeview.Node to a StateNode for serialization.
 
 ```go
 func NodeToStateNode(node *treeview.Node) *StateNode
 ```
 
-### TreeNodeToStateNode
+### `TreeNodeToStateNode`
 
-TreeNodeToStateNode converts a treeview.TreeNode to a StateNode.
+`TreeNodeToStateNode` converts a treeview.TreeNode to a StateNode.
 
 ```go
 func TreeNodeToStateNode(node *treeview.TreeNode) *StateNode
 ```
 
-### GetElapsed
+### `GetElapsed`
 
-GetElapsed returns the current elapsed time in seconds.
+`GetElapsed` returns the current elapsed time in seconds.
 
 ```go
 func (*Logger) GetElapsed() float64
 ```
 
-### GetEvents
+### `GetEvents`
 
-GetEvents returns a copy of the events slice.
+`GetEvents` returns a copy of the events slice.
 
 ```go
 func (*Logger) GetEvents() []*Event
 ```
 
-### GetStartTime
+### `GetStartTime`
 
-GetStartTime returns the start time of the run.
+`GetStartTime` returns the start time of the run.
 
 ```go
 func (*Logger) GetStartTime() time.Time
 ```
 
-### LogCommand
+### `LogCommand`
 
-LogCommand logs a command execution with full details.
+`LogCommand` logs a command execution with full details.
 
 ```go
 func (*Logger) LogCommand(entry LogEntry)
 ```
 
-### LogExec
+### `LogExec`
 
-LogExec logs a single execution event (one per exec).
+`LogExec` logs a single execution event (one per exec).
 
 ```go
 func (*Logger) LogExec(result Result, id, run string, start float64, durationMs int64, err error)
 ```
 
-### Write
+### `Write`
 
-Write writes the final event log to the file.
+`Write` writes the final event log to the file.
 
 ```go
 func (*Logger) Write(state *StateNode, summary *RunSummary) error

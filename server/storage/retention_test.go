@@ -26,7 +26,7 @@ var connectionSeq atomic.Int64
 // testStorage returns a migrated, throwaway database and a JobStorage
 // over it.
 //
-// A file rather than :memory: because the platform gives sqlite a
+// A file and not :memory:, because the platform opens sqlite with a
 // connection pool, and every connection to an in-memory sqlite database
 // is a separate, empty database.
 func testStorage(t *testing.T) (*sqlx.DB, *JobStorage) {
@@ -47,7 +47,7 @@ func testStorage(t *testing.T) (*sqlx.DB, *JobStorage) {
 // seedJob writes one job with the given status and finish time, plus
 // logs chunks of output.
 //
-// It writes rows rather than driving Create and Finish because
+// It writes rows directly and skips Create and Finish because
 // retention is about the passage of time, and the only way to have a
 // job that finished a week ago is to say so.
 func seedJob(t *testing.T, db *sqlx.DB, status model.JobStatus, finished time.Time, logs int) string {
@@ -85,7 +85,7 @@ func seedJob(t *testing.T, db *sqlx.DB, status model.JobStatus, finished time.Ti
 	return job.ID
 }
 
-// countRows counts what is left in a table.
+// countRows counts the rows remaining in a table.
 func countRows(t *testing.T, db *sqlx.DB, table string) int64 {
 	t.Helper()
 
@@ -124,7 +124,7 @@ func TestPurgeDropsOutputAndKeepsTheOutcome(t *testing.T) {
 	assert.False(t, result.Partial)
 
 	// The job that lost its output kept its outcome, which is the whole
-	// argument for two windows rather than one.
+	// argument for two windows.
 	assert.Equal(t, int64(2), countRows(t, db, model.JobTable))
 	assert.Equal(t, int64(0), countLogs(t, db, old))
 	assert.Equal(t, int64(2), countLogs(t, db, recent))
@@ -158,8 +158,8 @@ func TestPurgeDeletesJobsWithTheirOutput(t *testing.T) {
 func TestPurgeLeavesUnsettledJobsAlone(t *testing.T) {
 	db, jobs := testStorage(t)
 
-	// A job that has not settled is not old, it is waiting — however
-	// long ago it was queued.
+	// A job that has not settled waits and does not age, no matter
+	// how old its queue time.
 	ancient := time.Now().Add(-365 * 24 * time.Hour)
 	seedJob(t, db, model.JobStatusPending, ancient, 1)
 	seedJob(t, db, model.JobStatusRunning, ancient, 1)
@@ -244,9 +244,9 @@ func TestPurgeBatchesLogs(t *testing.T) {
 	assert.True(t, first.Partial)
 	assert.Equal(t, int64(15), countLogs(t, db, job))
 
-	// The batch is taken from job_log rather than from job, so a second
-	// pass over a job whose output is partly gone still makes progress
-	// instead of re-reading the same job forever.
+	// purgeJobLogs takes the batch from job_log, and not from job, so a
+	// second pass over a job whose output is partly gone still makes
+	// progress and never re-reads the same job forever.
 	second, err := jobs.Purge(t.Context(), request)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(10), second.Logs)
@@ -257,7 +257,7 @@ func TestPurgeBatchesLogs(t *testing.T) {
 	assert.Equal(t, int64(5), third.Logs)
 	assert.False(t, third.Partial)
 
-	// The job itself is untouched throughout.
+	// The job itself stays intact throughout.
 	assert.Equal(t, int64(1), countRows(t, db, model.JobTable))
 }
 
@@ -267,8 +267,8 @@ func TestVisibleTo(t *testing.T) {
 	root := seedJob(t, db, model.JobStatusPassed, time.Now(), 0)
 
 	// A child dispatched from inside a running pipeline belongs to the
-	// agent's account, not to the human who started the run. It is
-	// still theirs to read.
+	// agent's account, not to the human who started the run. That human
+	// can still read it.
 	child := &model.Job{
 		ID:           ulid.Make().String(),
 		ParentID:     root,

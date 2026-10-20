@@ -34,7 +34,7 @@ func TestBuildFromPipeline_SingleJob(t *testing.T) {
 	})
 }
 
-// TestBuildFromPipeline_DepthSorting tests that jobs are sorted by depth then name
+// TestBuildFromPipeline_DepthSorting tests that the builder sorts jobs by depth then name
 func TestBuildFromPipeline_DepthSorting(t *testing.T) {
 	t.Run("depth-based ordering", func(t *testing.T) {
 		pipeline := &model.Pipeline{
@@ -103,7 +103,7 @@ func TestBuildFromPipeline_DepthSorting(t *testing.T) {
 	})
 }
 
-// TestBuildFromPipeline_WithTasks tests building a pipeline using tasks instead of jobs
+// TestBuildFromPipeline_WithTasks tests building a pipeline that declares tasks
 func TestBuildFromPipeline_WithTasks(t *testing.T) {
 	t.Run("pipeline with tasks", func(t *testing.T) {
 		pipeline := &model.Pipeline{
@@ -138,7 +138,7 @@ func TestBuildFromPipeline_EmptyPipeline(t *testing.T) {
 	})
 }
 
-// TestBuildFromPipeline_WithDependencies tests that dependencies are preserved
+// TestBuildFromPipeline_WithDependencies tests that the tree keeps dependencies
 func TestBuildFromPipeline_WithDependencies(t *testing.T) {
 	t.Run("jobs with dependencies", func(t *testing.T) {
 		pipeline := &model.Pipeline{
@@ -159,7 +159,7 @@ func TestBuildFromPipeline_WithDependencies(t *testing.T) {
 		assert.Equal(t, 2, len(children))
 
 		// Check that test job has the dependency
-		testNode := children[1] // test should be at index 1 after sorting
+		testNode := children[1] // test sits at index 1 after sorting
 		assert.Equal(t, "test - Test", testNode.Name)
 		assert.Equal(t, []string{"build"}, testNode.Dependencies)
 	})
@@ -242,7 +242,7 @@ func TestAddJob_WithSteps(t *testing.T) {
 		children := treeNode.GetChildren()
 		assert.Equal(t, 3, len(children))
 
-		// Verify that Summarize flag is copied to the step node
+		// Verify that the step node carries the Summarize flag
 		assert.False(t, children[0].Summarize)
 		assert.True(t, children[1].Summarize)
 		assert.False(t, children[2].Summarize)
@@ -262,7 +262,7 @@ func TestAddJob_WithSteps(t *testing.T) {
 		children := treeNode.GetChildren()
 		assert.Equal(t, 2, len(children))
 
-		// Verify both flags are copied
+		// Verify the node carries both flags
 		cleanupStep := children[1]
 		assert.True(t, cleanupStep.Deferred)
 		assert.True(t, cleanupStep.Summarize)
@@ -290,7 +290,7 @@ func TestAddJobWithoutSteps(t *testing.T) {
 	})
 }
 
-// TestBuildFromPipeline_ConsistentOrdering tests that ordering is consistent across multiple builds
+// TestBuildFromPipeline_ConsistentOrdering tests that ordering stays the same across repeated builds
 func TestBuildFromPipeline_ConsistentOrdering(t *testing.T) {
 	t.Run("consistent ordering across builds", func(t *testing.T) {
 		pipeline := &model.Pipeline{
@@ -304,7 +304,7 @@ func TestBuildFromPipeline_ConsistentOrdering(t *testing.T) {
 			},
 		}
 
-		// Build multiple times
+		// Build repeatedly
 		node1, _ := BuildFromPipeline(pipeline, mockResolveDeps)
 		node2, _ := BuildFromPipeline(pipeline, mockResolveDeps)
 		node3, _ := BuildFromPipeline(pipeline, mockResolveDeps)
@@ -321,7 +321,7 @@ func TestBuildFromPipeline_ConsistentOrdering(t *testing.T) {
 	})
 }
 
-// TestAddJob_WithSummaryFlag tests that the Summarize flag is copied from the job model
+// TestAddJob_WithSummaryFlag tests that AddJob copies the Summarize flag from the job model
 func TestAddJob_WithSummaryFlag(t *testing.T) {
 	t.Run("job with summarize enabled", func(t *testing.T) {
 		builder := NewBuilder("test-pipeline")

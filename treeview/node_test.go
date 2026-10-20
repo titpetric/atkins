@@ -122,7 +122,7 @@ func TestAddChild(t *testing.T) {
 	})
 }
 
-// TestAddChildren tests adding multiple child nodes at once
+// TestAddChildren tests adding a batch of child nodes at once
 func TestAddChildren(t *testing.T) {
 	t.Run("add multiple children", func(t *testing.T) {
 		parent := NewNode("parent")
@@ -160,7 +160,7 @@ func TestGetChildren(t *testing.T) {
 		children1 := parent.GetChildren()
 		children2 := parent.GetChildren()
 
-		// Should be equal but not the same slice
+		// Equal contents, but a distinct slice
 		assert.Equal(t, children1, children2)
 		assert.False(t, &children1 == &children2)
 	})
@@ -172,11 +172,11 @@ func TestGetChildren(t *testing.T) {
 		children := parent.GetChildren()
 		assert.Equal(t, 1, len(children))
 
-		// Modify the returned slice
+		// Change the returned slice
 		children = append(children, NewNode("fake"))
 		assert.Equal(t, 2, len(children))
 
-		// Original should be unchanged
+		// Original stays the same
 		originalChildren := parent.GetChildren()
 		assert.Equal(t, 1, len(originalChildren))
 	})
@@ -217,7 +217,7 @@ func TestNodeFieldInitialization(t *testing.T) {
 		assert.NotNil(t, node.Dependencies)
 		assert.Equal(t, 0, len(node.Dependencies))
 
-		// Should be safe to append to
+		// Safe to append to
 		node.Dependencies = append(node.Dependencies, "dep1")
 		assert.Equal(t, 1, len(node.Dependencies))
 	})

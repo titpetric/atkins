@@ -4,7 +4,7 @@ subtitle: Machine-readable output for tooling integration
 layout: page
 ---
 
-Atkins provides machine-readable output formats for integration with scripts, tools, and LLMs. The `--json` and `--yaml` flags suppress interactive output and produce structured data that can be parsed programmatically.
+Atkins writes machine-readable output formats for integration with scripts, tools, and LLMs. The `--json` and `--yaml` flags suppress interactive output and produce structured data for programs to parse.
 
 ## Output Formats
 
@@ -148,7 +148,7 @@ $ atkins --json build
 
 ### LLM Tool Integration
 
-Provide job listings to LLMs for intelligent task selection:
+Pass job listings to LLMs for intelligent task selection:
 
 ```bash
 # Get available commands for LLM context
@@ -273,9 +273,9 @@ atkins -l -j | jq -r '.[].cmds[] | select(.id | contains(":")) | .cmd' | \
 
 When using `--json` or `--yaml`:
 
-1. Interactive tree is disabled
+1. Atkins disables the interactive tree
 2. No progress output during execution
-3. Only final state is printed to stdout
+3. Atkins prints only the final state to stdout
 4. Errors still go to stderr
 5. atkins exits 0 when every step passed, and otherwise with the exit code of the step that failed
 

@@ -12,13 +12,13 @@ import (
 	"github.com/titpetric/atkins/runner"
 )
 
-// CommandLookup provides command existence checking.
+// CommandLookup reports whether a command exists.
 type CommandLookup interface {
 	HasCommand(name string) bool
 }
 
 // Router implements the centralized routing logic based on structure.d2.
-// Flow: Prompt → Is alias? → Semantic parsing → Match (skills/targets)?
+// Flow: Prompt -> Is alias? -> Semantic parsing -> Match (skills/targets)?
 type Router struct {
 	resolver *runner.TaskResolver
 	skills   []*model.Pipeline
@@ -73,15 +73,15 @@ func (r *Router) LastCommand() string {
 }
 
 // Route processes user input following the structure.d2 flow:
-// 1. Is alias? → Replace with alias
+// 1. Is alias? -> Replace with alias
 // 2. Semantic parsing
 // 3. Match prompt (skills & targets)?
-//   - single match → execute
-//   - multiple matches → ambiguous
-//   - shell expression → shell exec (requires $ prefix)
-//   - greeting → greeting response
-//   - store correction → save alias
-//   - none → failure.
+//   - single match -> execute
+//   - more than one match -> ambiguous
+//   - shell expression -> shell exec (requires $ prefix)
+//   - greeting -> greeting response
+//   - store correction -> save alias
+//   - none -> failure.
 func (r *Router) Route(input string) *Route {
 	input = strings.TrimSpace(input)
 	if input == "" {
@@ -114,7 +114,7 @@ func (r *Router) Route(input string) *Route {
 		return r.parseSlashCommand(input)
 	}
 
-	// Step 1: Check alias (Is alias? → yes → Replace with alias)
+	// Step 1: Check alias (Is alias? -> yes -> Replace with alias)
 	if aliasTarget := r.aliases.Match(input); aliasTarget != "" {
 		// Alias found - check if it's a shell command (with $ prefix)
 		if strings.HasPrefix(aliasTarget, "$ ") {
@@ -190,13 +190,13 @@ func (r *Router) Route(input string) *Route {
 	}
 
 	// Step 9: Check for natural language slash commands FIRST
-	// "list" → /list, "list tasks" → /list, etc.
+	// "list" -> /list, "list tasks" -> /list, etc.
 	// This takes precedence over shell commands for registered commands
 	if slashRoute := r.matchNaturalSlashCommand(input); slashRoute != nil {
 		return slashRoute
 	}
 
-	// Step 11: Shell history matches are shown as suggestions, not auto-executed.
+	// Step 11: Shell history matches appear as suggestions, never auto-executed.
 	// Shell commands require explicit "$ command" prefix for execution.
 
 	// Step 12: Try natural language skill matching
@@ -258,7 +258,7 @@ func (r *Router) parseChainedCommands(input string) *Route {
 	return nil
 }
 
-// resolveChain resolves multiple commands into a multi-task route.
+// resolveChain resolves a chain of commands into a multi-task route.
 func (r *Router) resolveChain(parts []string) *Route {
 	var tasks []*model.ResolvedTask
 
@@ -281,7 +281,7 @@ func (r *Router) resolveChain(parts []string) *Route {
 			continue
 		}
 
-		// If any part can't be resolved, fail the chain
+		// If any part fails to resolve, fail the chain
 		return nil
 	}
 
@@ -326,7 +326,7 @@ func (r *Router) parseSlashCommand(input string) *Route {
 }
 
 // matchNaturalSlashCommand matches natural language to slash commands.
-// Examples: "list" → /list, "list tasks" → /list, "show skills" → /list
+// Examples: "list" -> /list, "list tasks" -> /list, "show skills" -> /list
 func (r *Router) matchNaturalSlashCommand(input string) *Route {
 	lower := strings.ToLower(strings.TrimSpace(input))
 	// Strip trailing punctuation
@@ -425,7 +425,7 @@ func (r *Router) parseNaturalLanguage(input string) []string {
 	return keywords
 }
 
-// matchKeywordsToSkill tries to match extracted keywords to available skills.
+// matchKeywordsToSkill matches extracted keywords to available skills.
 func (r *Router) matchKeywordsToSkill(keywords []string) *model.ResolvedTask {
 	if len(keywords) == 0 {
 		return nil

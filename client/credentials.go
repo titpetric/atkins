@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// ErrNotLoggedIn is returned when no credential is stored for a server.
+// ErrNotLoggedIn reports that the store holds no credential for a server.
 var ErrNotLoggedIn = errors.New("not logged in: run `atkins --login <url>`")
 
 // Credential is a stored login for one server.
@@ -36,21 +36,21 @@ func (c *Credential) Expired() bool {
 
 // Store is the on-disk credential file. It holds one credential per
 // server so a machine can talk to more than one atkins instance, plus
-// the server used when none is named.
+// the server to use when the caller names none.
 type Store struct {
 	Default string                 `json:"default"`
 	Servers map[string]*Credential `json:"servers"`
 
-	// path is where the store was loaded from and where Save writes.
+	// path is where LoadStore read the store from and where Save writes.
 	path string
 }
 
 // CredentialsPath returns the location of the credentials file.
 //
 // The configured path wins; ATKINS_CREDENTIALS reaches it through the
-// config overlay. The environment is still read directly as a fallback
-// so a command that never loaded configuration — a test, or a tool
-// embedding this package — still honours it.
+// configuration overlay. CredentialsPath still reads the environment
+// directly as a fallback, so a command that never loaded configuration
+// (a test, or a tool embedding this package) still honours it.
 func CredentialsPath() (string, error) {
 	if path := Settings().Credentials; path != "" {
 		return path, nil
@@ -67,7 +67,7 @@ func CredentialsPath() (string, error) {
 }
 
 // LoadStore reads the credential file. A missing file is not an error;
-// it yields an empty store ready to be written to.
+// LoadStore returns an empty store ready for writing.
 func LoadStore() (*Store, error) {
 	path, err := CredentialsPath()
 	if err != nil {
@@ -100,9 +100,9 @@ func LoadStore() (*Store, error) {
 
 // Save writes the store back to disk.
 //
-// The file holds bearer tokens, so both it and its directory are
-// created 0600/0700 and the write goes through a temporary file: a
-// crash mid-write should not leave a truncated credential behind.
+// The file holds bearer tokens, so Save creates the file 0600 and its
+// directory 0700, and writes through a temporary file: a crash
+// mid-write must not leave a truncated credential behind.
 func (s *Store) Save() error {
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return fmt.Errorf("create credentials directory: %w", err)

@@ -18,23 +18,24 @@ import (
 type sshKeys struct {
 	mu sync.RWMutex
 
-	// command is the GIT_SSH_COMMAND that offers the installed keys.
+	// command is the GIT_SSH_COMMAND that presents the installed keys.
 	command string
 
 	fetchedAt time.Time
 	loaded    bool
 }
 
-// sshKeyTTL is how long installed keys are trusted before refetching,
+// sshKeyTTL is how long the agent trusts installed keys before refetching,
 // so a revoked key stops working within the minute.
 const sshKeyTTL = time.Minute
 
 // installSSHKeys writes the server's deploy keys into the agent's data
-// directory and builds the GIT_SSH_COMMAND that offers them.
+// directory and builds the GIT_SSH_COMMAND that presents them.
 //
-// Keys live under <DataDir>/ssh at 0600 in a 0700 directory. They are
-// written to disk because that is the only interface git has for
-// identities; nothing else on the agent should be able to read them.
+// Keys live under <DataDir>/ssh at 0600 in a 0700 directory. The agent
+// writes them to disk because that is the only interface git has for
+// identities; the modes keep everything else on the agent from reading
+// them.
 func (w *Worker) installSSHKeys(ctx context.Context) string {
 	w.ssh.mu.RLock()
 	fresh := w.ssh.loaded && time.Since(w.ssh.fetchedAt) < sshKeyTTL
@@ -48,7 +49,7 @@ func (w *Worker) installSSHKeys(ctx context.Context) string {
 	keys, err := w.client.SSHKeys(ctx)
 	if err != nil {
 		// Without keys, public https clones still work. Say so once
-		// rather than failing every job.
+		// and keep every job from failing.
 		log.Printf("[agent] could not fetch ssh keys: %v", err)
 		return command
 	}
@@ -77,7 +78,7 @@ func (w *Worker) writeSSHKeys(keys []client.AgentSSHKey) (string, error) {
 	dir := filepath.Join(w.opts.DataDir, "ssh")
 
 	// Rewrite from scratch so a key deleted on the server disappears
-	// here too, rather than lingering as a file git can still use.
+	// here too and does not linger as a file git can still use.
 	if err := os.RemoveAll(dir); err != nil {
 		return "", err
 	}
@@ -110,7 +111,7 @@ func (w *Worker) writeSSHKeys(keys []client.AgentSSHKey) (string, error) {
 	options := []string{
 		"ssh",
 		"-o BatchMode=yes",
-		// Only the listed identities: without this ssh also offers
+		// Only the listed identities: without this ssh also presents
 		// whatever an agent socket holds, and the first refusal can
 		// end the handshake.
 		"-o IdentitiesOnly=yes",
@@ -127,8 +128,8 @@ func (w *Worker) writeSSHKeys(keys []client.AgentSSHKey) (string, error) {
 			"-o StrictHostKeyChecking=yes",
 		)
 	} else {
-		// Nothing pinned: trust on first use rather than prompting,
-		// which would hang the job.
+		// Nothing pinned: trust on first use and never prompt, since a
+		// prompt would hang the job.
 		options = append(options, "-o StrictHostKeyChecking=accept-new")
 	}
 
@@ -155,7 +156,7 @@ func sanitizeName(name string) string {
 	return replaced
 }
 
-// ensureTrailingNewline is required by ssh for key files.
+// ensureTrailingNewline appends the trailing newline ssh requires in key files.
 func ensureTrailingNewline(value string) string {
 	value = strings.TrimRight(value, "\n") + "\n"
 	return value

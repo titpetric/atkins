@@ -6,15 +6,15 @@ import (
 )
 ```
 
-Package api implements the JSON endpoints of the atkins CI/CD server.
+Package `api` implements the JSON endpoints of the atkins CI/CD server.
 
 The endpoints fall into two groups. `/api/user/*` is the login flow the
 `atkins --login https://domain` client drives. `/api/dispatch` and
 `/api/job/*` are the queue: the CLI records a run, agents claim work
 and report back.
 
-Handlers decode, validate, map errors to status codes and encode. They
-call storage rather than issuing SQL.
+Handlers decode, check input, map errors to status codes and encode.
+They call storage and issue no SQL of their own.
 
 ## Types
 
@@ -39,11 +39,11 @@ type AgentSSHKey struct {
 <summary><code>type ArtefactView</code></summary>
 
 ```go
-// ArtefactView is how an artefact is described over the API.
-// It is a projection rather than the row: `storage_key` says where the
-// bytes sit on the server, and that is the server's business. The rule
-// is the same one SSHKeyView follows — the projection is the guard, not
-// a `json:"-"` somebody has to remember to add to a new column.
+// ArtefactView describes an artefact over the API.
+// ArtefactView is a projection of the row: `storage_key` says where the
+// bytes sit on the server, and that is the server's business. SSHKeyView
+// follows the same rule: the projection is the guard, and nobody has to
+// remember to add a `json:"-"` to a new column.
 type ArtefactView struct {
 	ID          string `json:"id"`
 	JobID       string `json:"job_id"`
@@ -71,8 +71,8 @@ type ClaimRequest struct {
 	// AgentID identifies the worker taking the lease.
 	AgentID string `json:"agent_id"`
 
-	// Labels are what the agent can offer. A job requiring labels only
-	// lands on an agent advertising all of them.
+	// Labels are what the agent supports. A job requiring labels only
+	// lands on an agent advertising every one of them.
 	Labels []string `json:"labels"`
 }
 ```
@@ -83,9 +83,11 @@ type ClaimRequest struct {
 <summary><code>type ClaimResponse</code></summary>
 
 ```go
-// ClaimResponse is returned when an agent leases a job.
-// The repository is included rather than referenced: the agent's very
-// next act is to clone it, and making it ask again for the remote URL
+// ClaimResponse is what the claim endpoint returns when an agent leases
+// a job.
+//
+// It carries the repository in full, with no reference to look up: the
+// agent's next act is to clone it, and making it ask again for the remote URL
 // would be a round trip that buys nothing.
 type ClaimResponse struct {
 	Job        *model.Job        `json:"job"`
@@ -104,7 +106,7 @@ type ClaimResponse struct {
 // which repository, where inside its work tree, and which atkins command.
 type DispatchRequest struct {
 	// Repository identifies the git repository the client is working
-	// on. The remote URL is normalized into a slug server-side, so ssh
+	// on. The server normalizes the remote URL into a slug, so ssh
 	// and https clones of the same repository are one repository.
 	Repository RepositoryPayload `json:"repository"`
 
@@ -135,12 +137,12 @@ type DispatchRequest struct {
 	Artefacts []string `json:"artefacts"`
 
 	// Agent names the machine already running this command. Set, the
-	// job is recorded as running there instead of queued for an agent
-	// to claim, and the caller reports its log and its outcome.
+	// server records the job as running there, with no queue entry for
+	// an agent to claim, and the caller reports its log and its outcome.
 	//
-	// It is how a run on somebody's laptop is on the server at all: the
-	// pipeline executes where it was started, and the history does not
-	// depend on whether that machine could hand the work over.
+	// This puts a run on somebody's laptop on the server at all: the
+	// pipeline executes where it started, and the history does not
+	// depend on whether that machine could pass the work on.
 	Agent string `json:"agent"`
 }
 ```
@@ -152,9 +154,9 @@ type DispatchRequest struct {
 
 ```go
 // DispatchResponse is what /api/dispatch returns.
-// The CLI puts JobID into ATKINS_JOB_ID for the run it is about to
-// perform, and reports the outcome back to /api/job/{id}/status. The
-// server records the job; atkins decides what to do with it.
+// The CLI puts JobID into ATKINS_JOB_ID for the run it starts next, and
+// reports the outcome back to /api/job/{id}/status. The server records
+// the job; atkins decides what to do with it.
 type DispatchResponse struct {
 	JobID          string `json:"job_id"`
 	ParentID       string `json:"parent_id,omitempty"`
@@ -188,8 +190,8 @@ type EnrolRequest struct {
 	// identity and its job history.
 	AgentID string `json:"agent_id"`
 
-	// Labels are advertised for information; the claim call is what
-	// actually filters the queue.
+	// Agents advertise labels for information; the claim call filters
+	// the queue.
 	Labels []string `json:"labels"`
 }
 ```
@@ -229,15 +231,15 @@ type Handlers struct {
 
 ```go
 // JobCheckoutRequest is the body of /api/job/{jobID}/checkout.
-// It is the agent answering the question the job asked. A job may name a
-// tag, and a tag moves; without the commit that tag pointed at, a run
-// cannot be reproduced once it has.
+// The agent sends it to record the commit a job's ref resolved to. A job
+// may name a tag, and a tag moves; without the commit that tag pointed
+// at, nobody can reproduce a run once the tag moves.
 type JobCheckoutRequest struct {
 	// Ref is the effective ref, which is the one the job named unless
 	// it named none and the agent resolved the default branch.
 	Ref string `json:"ref"`
 
-	// CommitSHA is the commit the work tree was placed at.
+	// CommitSHA is the commit the agent checked the work tree out at.
 	CommitSHA string `json:"commit_sha"`
 }
 ```
@@ -251,7 +253,7 @@ type JobCheckoutRequest struct {
 // JobLogRequest is the body of POST /api/job/{jobID}/log.
 type JobLogRequest struct {
 	// Stream is "output" (the command's combined output) or "error"
-	// (the agent's own commentary). Anything else is read as output.
+	// (the agent's own commentary). Anything else counts as output.
 	Stream string `json:"stream"`
 
 	Content string `json:"content"`
@@ -281,11 +283,11 @@ type JobStatusRequest struct {
 // JobView is a job as the API returns it: the stored row, plus how to
 // open it in a browser.
 //
-// The token is derived from the job id and the signing key rather than
-// stored, so returning it to a caller who has just been allowed to read
-// the job withholds nothing: they can already read the output and the
-// artefacts the page shows. Leaving it out only meant that whoever lost
-// the URL atkins printed could no longer open a job they own.
+// The server derives the token from the job id and the signing key and
+// stores nothing, so returning it to a caller who may read the job
+// withholds nothing: they can already read the output and the artefacts
+// the page shows. Leaving it out would only mean that whoever lost the
+// URL atkins printed could not open a job they own.
 type JobView struct {
 	*model.Job
 
@@ -293,8 +295,8 @@ type JobView struct {
 	// instance, which needs none.
 	ViewToken string `json:"view_token,omitempty"`
 
-	// URL is the page for this job, token and all. It is relative to
-	// this server, the way an artefact's URL is.
+	// URL is the page for this job, token and all. The path is relative
+	// to this server, the way an artefact's URL is.
 	URL string `json:"url"`
 }
 ```
@@ -335,7 +337,7 @@ type LogoutRequest struct {
 <summary><code>type Options</code></summary>
 
 ```go
-// Options is passed from the server module scope. Every field has a
+// Options carries values from the server module scope. Every field has a
 // usable zero value except the storages, which the module wires after
 // it has a database handle.
 type Options struct {
@@ -348,7 +350,7 @@ type Options struct {
 
 	// AllowRegistration opens /api/user/register to anyone. When
 	// false, registration still succeeds while the instance has no
-	// users at all, so a fresh server can be bootstrapped without
+	// users at all, so an operator can bootstrap a fresh server without
 	// shell access to the database.
 	AllowRegistration bool
 
@@ -375,11 +377,11 @@ type Options struct {
 <summary><code>type PolicyResponse</code></summary>
 
 ```go
-// PolicyResponse tells an agent what it is allowed to run.
+// PolicyResponse tells an agent which repositories it may run.
 // The agent enforces this itself before cloning anything. The server
 // already refuses a disallowed dispatch, but a job can outlive the rule
-// that admitted it: a queued job whose repository was removed from the
-// allowlist must not run just because it was queued first.
+// that admitted it: a queued job whose repository has left the
+// allowlist must not run just because it entered the queue first.
 type PolicyResponse struct {
 	// Policy is "open" or "allowlist".
 	Policy string `json:"policy"`
@@ -428,8 +430,8 @@ type RepositoryPayload struct {
 	RemoteURL string `json:"remote_url"`
 
 	// Ref is what to check out: a branch, a tag, a commit sha or a
-	// fully qualified refname. The atkins client sends the commit it is
-	// on, so a dispatched run builds the code in front of whoever
+	// fully qualified refname. The atkins client sends its current
+	// commit, so a dispatched run builds the code in front of whoever
 	// started it.
 	Ref string `json:"ref"`
 
@@ -464,7 +466,7 @@ type RequestError struct {
 <summary><code>type SSHKeyView</code></summary>
 
 ```go
-// SSHKeyView is how a key is described to an operator: everything
+// SSHKeyView describes a key to an operator: everything
 // needed to recognize and install it, and none of the private half.
 type SSHKeyView struct {
 	ID          string `json:"id"`
@@ -483,7 +485,7 @@ type SSHKeyView struct {
 <summary><code>type TokenResponse</code></summary>
 
 ```go
-// TokenResponse is what the login and refresh endpoints return. It is
+// TokenResponse is what the login and refresh endpoints return, and
 // exactly what the CLI persists in ~/.atkins/credentials.json.
 type TokenResponse struct {
 	UserID       string `json:"user_id"`
@@ -501,12 +503,12 @@ type TokenResponse struct {
 
 ```go
 // TriggerRequest is the body of POST /api/repository/{repositoryID}/trigger.
-// It is the "POST a job name to a project endpoint" trigger: a cron, a
+// This is the "POST a job name to a project endpoint" trigger: a cron, a
 // webhook receiver or another job can queue work for a repository the
 // server already knows, without a checkout of its own.
 type TriggerRequest struct {
-	// Job is the atkins job to run, e.g. "analyze". Either this or
-	// Command is required; Job is turned into `atkins <job>`.
+	// Job is the atkins job to run, e.g. "analyze". The request needs
+	// this or Command; the server turns Job into `atkins <job>`.
 	Job string `json:"job"`
 
 	// Command overrides the whole invocation when a bare job name is
@@ -518,12 +520,12 @@ type TriggerRequest struct {
 
 	// Ref pins what gets checked out: a branch, a tag, a commit sha or
 	// a fully qualified refname. Empty lets the agent resolve the
-	// repository's default branch when the job runs, which is what a
-	// "run this nightly" trigger wants.
+	// repository's default branch when the job runs, the behaviour a
+	// "run this nightly" trigger needs.
 	Ref string `json:"ref"`
 
-	// CloneDepth limits the history of the work tree. 0 is all of it.
-	// A fan-out over tags usually wants 1: each child builds one commit
+	// CloneDepth limits the history of the work tree. 0 is the full
+	// history. A fan-out over tags sets 1: each child builds one commit
 	// and never looks behind it.
 	CloneDepth int64 `json:"clone_depth"`
 
@@ -532,7 +534,7 @@ type TriggerRequest struct {
 	Branch   string `json:"branch"`
 	Revision string `json:"revision"`
 
-	// Params are handed to the job as ATKINS_JOB_PARAMS. This is how a
+	// Params reach the job as ATKINS_JOB_PARAMS. This is how a
 	// dispatching job passes a tag or a commit to each child.
 	Params map[string]any `json:"params"`
 
@@ -554,7 +556,7 @@ type TriggerRequest struct {
 <summary><code>type UserView</code></summary>
 
 ```go
-// UserView is how a user is described over the API. It exists so a
+// UserView describes a user over the API. It exists so a
 // password hash can never reach a response by accident.
 type UserView struct {
 	ID       string `json:"id"`
@@ -591,7 +593,7 @@ type WhoamiResponse struct {
 <summary><code>const DefaultTokenTTL</code></summary>
 
 ```go
-// DefaultTokenTTL is the access token lifetime. It is short because the
+// DefaultTokenTTL is the access token lifetime. It stays short because the
 // CLI holds a refresh token and renews silently; a leaked access token
 // is only useful for the rest of the hour.
 const DefaultTokenTTL = time.Hour
@@ -604,9 +606,9 @@ const DefaultTokenTTL = time.Hour
 
 ```go
 // HeaderArtefactChecksum carries the SHA256 the agent computed while
-// reading the file. It is optional; when present the server compares it
-// against what actually arrived, so a truncated upload is a 400 rather
-// than an artefact nobody can use.
+// reading the file. The header is optional; when present the server
+// compares it against what actually arrived, so a truncated upload is a
+// 400 and never an artefact nobody can use.
 const HeaderArtefactChecksum = "X-Atkins-Checksum"
 ```
 
@@ -663,29 +665,29 @@ const HeaderArtefactChecksum = "X-Atkins-Checksum"
 - `func (*RequestError) Unwrap () error`
 - `func (RepositoryPayload) CheckoutRef () string`
 
-### NewHandlers
+### `NewHandlers`
 
-NewHandlers returns Handlers configured from opts.
+`NewHandlers` returns Handlers configured from opts.
 
 ```go
 func NewHandlers(opts Options) *Handlers
 ```
 
-### NewSSHKeyView
+### `NewSSHKeyView`
 
-NewSSHKeyView projects a stored key onto the operator-facing view.
+`NewSSHKeyView` projects a stored key onto the operator-facing view.
 
-It is exported so the admin pages project keys the same way the API
-does. The projection is the guard against disclosing private
+The package exports it so the admin pages project keys the same way
+the API does. The projection is the guard against disclosing private
 material, so there must be exactly one of it.
 
 ```go
 func NewSSHKeyView(key model.SSHKey) SSHKeyView
 ```
 
-### NewUserView
+### `NewUserView`
 
-NewUserView projects a stored user.
+`NewUserView` projects a stored user.
 
 Exported so the admin pages describe an account the same way the API
 does, and so a page can no more render a password hash than a
@@ -695,17 +697,17 @@ response can.
 func NewUserView(user *model.User) UserView
 ```
 
-### SSHKeyViews
+### `SSHKeyViews`
 
-SSHKeyViews projects a listing.
+`SSHKeyViews` projects a listing.
 
 ```go
 func SSHKeyViews(keys []model.SSHKey) []SSHKeyView
 ```
 
-### WriteArtefact
+### `WriteArtefact`
 
-WriteArtefact streams an artefact as a download.
+`WriteArtefact` streams an artefact as a download.
 
 The web package serves the same bytes from the job page, and a
 difference between the two responses would only ever be a bug.
@@ -714,41 +716,41 @@ difference between the two responses would only ever be a bug.
 func WriteArtefact(w http.ResponseWriter, artefact *model.JobArtefact, contents io.Reader)
 ```
 
-### AgentPolicy
+### `AgentPolicy`
 
-AgentPolicy returns the repository policy in force.
+`AgentPolicy` returns the repository policy in force.
 
 ```go
 func (*Handlers) AgentPolicy(w http.ResponseWriter, r *http.Request)
 ```
 
-### AgentSSHKeys
+### `AgentSSHKeys`
 
-AgentSSHKeys returns the deploy keys an agent should install.
+`AgentSSHKeys` returns the deploy keys an agent should install.
 
 ```go
 func (*Handlers) AgentSSHKeys(w http.ResponseWriter, r *http.Request)
 ```
 
-### AppendJobLog
+### `AppendJobLog`
 
-AppendJobLog records a chunk of output for a job.
+`AppendJobLog` records a chunk of output for a job.
 
 ```go
 func (*Handlers) AppendJobLog(w http.ResponseWriter, r *http.Request)
 ```
 
-### CancelJob
+### `CancelJob`
 
-CancelJob settles an unfinished job as cancelled.
+`CancelJob` settles an unfinished job as cancelled.
 
 ```go
 func (*Handlers) CancelJob(w http.ResponseWriter, r *http.Request)
 ```
 
-### ClaimJob
+### `ClaimJob`
 
-ClaimJob leases the oldest pending job the agent can run.
+`ClaimJob` leases the oldest pending job the agent can run.
 
 A 204 means the queue holds nothing for this agent right now, which is
 the common case for a polling worker and not an error.
@@ -757,49 +759,49 @@ the common case for a polling worker and not an error.
 func (*Handlers) ClaimJob(w http.ResponseWriter, r *http.Request)
 ```
 
-### CreateRule
+### `CreateRule`
 
-CreateRule adds a repository allowlist rule.
+`CreateRule` adds a repository allowlist rule.
 
 ```go
 func (*Handlers) CreateRule(w http.ResponseWriter, r *http.Request)
 ```
 
-### CreateSSHKey
+### `CreateSSHKey`
 
-CreateSSHKey stores a deploy key.
+`CreateSSHKey` stores a deploy key.
 
 ```go
 func (*Handlers) CreateSSHKey(w http.ResponseWriter, r *http.Request)
 ```
 
-### DeleteRule
+### `DeleteRule`
 
-DeleteRule removes a rule.
+`DeleteRule` removes a rule.
 
 ```go
 func (*Handlers) DeleteRule(w http.ResponseWriter, r *http.Request)
 ```
 
-### DeleteSSHKey
+### `DeleteSSHKey`
 
-DeleteSSHKey removes a key.
+`DeleteSSHKey` removes a key.
 
 ```go
 func (*Handlers) DeleteSSHKey(w http.ResponseWriter, r *http.Request)
 ```
 
-### Dispatch
+### `Dispatch`
 
-Dispatch records a job for the caller's repository and returns its ID.
+`Dispatch` records a job for the caller's repository and returns its ID.
 
 ```go
 func (*Handlers) Dispatch(w http.ResponseWriter, r *http.Request)
 ```
 
-### DownloadArtefact
+### `DownloadArtefact`
 
-DownloadArtefact writes the bytes of one artefact.
+`DownloadArtefact` writes the bytes of one artefact.
 
 This is the authenticated way to read an artefact, and the one a
 script should use. The job page has an unauthenticated route of its
@@ -809,78 +811,78 @@ own, on the same terms as the output it shows.
 func (*Handlers) DownloadArtefact(w http.ResponseWriter, r *http.Request)
 ```
 
-### Enrol
+### `Enrol`
 
-Enrol exchanges the shared enrolment token for agent credentials.
+`Enrol` exchanges the shared enrolment token for agent credentials.
 
 Agents don't have passwords. An operator puts one secret in the
 agent's environment, and the agent trades it for the same rotating
 token pair a logged-in human holds. That keeps one long-lived secret
-in one place instead of a password per worker.
+in one place, with no password per worker.
 
 ```go
 func (*Handlers) Enrol(w http.ResponseWriter, r *http.Request)
 ```
 
-### GetJob
+### `GetJob`
 
-GetJob returns a single job.
+`GetJob` returns a single job.
 
 ```go
 func (*Handlers) GetJob(w http.ResponseWriter, r *http.Request)
 ```
 
-### GetJobLog
+### `GetJobLog`
 
-GetJobLog returns the recorded output for a job.
+`GetJobLog` returns the recorded output for a job.
 
 ```go
 func (*Handlers) GetJobLog(w http.ResponseWriter, r *http.Request)
 ```
 
-### JobCheckout
+### `JobCheckout`
 
-JobCheckout records what the machine running a job checked out.
+`JobCheckout` records what the machine running a job checked out.
 
 ```go
 func (*Handlers) JobCheckout(w http.ResponseWriter, r *http.Request)
 ```
 
-### JobHeartbeat
+### `JobHeartbeat`
 
-JobHeartbeat extends the lease held on a job by whoever is running it.
+`JobHeartbeat` extends the lease held on a job by whoever is running it.
 
 ```go
 func (*Handlers) JobHeartbeat(w http.ResponseWriter, r *http.Request)
 ```
 
-### JobStatus
+### `JobStatus`
 
-JobStatus settles a job into a terminal state.
+`JobStatus` settles a job into a terminal state.
 
 ```go
 func (*Handlers) JobStatus(w http.ResponseWriter, r *http.Request)
 ```
 
-### ListArtefacts
+### `ListArtefacts`
 
-ListArtefacts returns the artefacts a job produced.
+`ListArtefacts` returns the artefacts a job produced.
 
 ```go
 func (*Handlers) ListArtefacts(w http.ResponseWriter, r *http.Request)
 ```
 
-### ListJobs
+### `ListJobs`
 
-ListJobs returns jobs, newest first, narrowed by query parameters.
+`ListJobs` returns jobs, newest first, narrowed by query parameters.
 
 ```go
 func (*Handlers) ListJobs(w http.ResponseWriter, r *http.Request)
 ```
 
-### ListRepositories
+### `ListRepositories`
 
-ListRepositories returns the repositories the server knows about.
+`ListRepositories` returns the repositories the server knows about.
 
 A trigger needs a repository ID, and this is where a cron or a
 webhook receiver finds it without guessing.
@@ -889,49 +891,49 @@ webhook receiver finds it without guessing.
 func (*Handlers) ListRepositories(w http.ResponseWriter, r *http.Request)
 ```
 
-### ListRules
+### `ListRules`
 
-ListRules returns the repository allowlist.
+`ListRules` returns the repository allowlist.
 
 ```go
 func (*Handlers) ListRules(w http.ResponseWriter, r *http.Request)
 ```
 
-### ListSSHKeys
+### `ListSSHKeys`
 
-ListSSHKeys returns the deploy keys, without private material.
+`ListSSHKeys` returns the deploy keys, without private material.
 
 ```go
 func (*Handlers) ListSSHKeys(w http.ResponseWriter, r *http.Request)
 ```
 
-### ListSettings
+### `ListSettings`
 
-ListSettings returns every setting with its effective value.
+`ListSettings` returns every setting with its effective value.
 
 ```go
 func (*Handlers) ListSettings(w http.ResponseWriter, r *http.Request)
 ```
 
-### ListUsers
+### `ListUsers`
 
-ListUsers returns every account.
+`ListUsers` returns every account.
 
 ```go
 func (*Handlers) ListUsers(w http.ResponseWriter, r *http.Request)
 ```
 
-### Login
+### `Login`
 
-Login exchanges email and password for an access and refresh token.
+`Login` exchanges email and password for an access and refresh token.
 
 ```go
 func (*Handlers) Login(w http.ResponseWriter, r *http.Request)
 ```
 
-### Logout
+### `Logout`
 
-Logout revokes the session behind the presented credentials.
+`Logout` revokes the session behind the presented credentials.
 
 It accepts either an Authorization header or a refresh token in the
 body, so a client whose access token has already expired can still
@@ -941,111 +943,111 @@ log out cleanly. Logging out twice is not an error.
 func (*Handlers) Logout(w http.ResponseWriter, r *http.Request)
 ```
 
-### Mount
+### `Mount`
 
-Mount registers the API routes on the given router.
+`Mount` registers the API routes on the given router.
 
 ```go
 func (*Handlers) Mount(r platform.Router)
 ```
 
-### MountAdmin
+### `MountAdmin`
 
-MountAdmin registers the administrative routes.
+`MountAdmin` registers the administrative routes.
 
 ```go
 func (*Handlers) MountAdmin(r platform.Router)
 ```
 
-### MountAgent
+### `MountAgent`
 
-MountAgent registers the routes only agents use.
+`MountAgent` registers the routes only agents use.
 
 ```go
 func (*Handlers) MountAgent(r platform.Router)
 ```
 
-### RefreshToken
+### `RefreshToken`
 
-RefreshToken exchanges a refresh token for a new access token.
+`RefreshToken` exchanges a refresh token for a new access token.
 
 ```go
 func (*Handlers) RefreshToken(w http.ResponseWriter, r *http.Request)
 ```
 
-### Register
+### `Register`
 
-Register creates a user.
+`Register` creates a user.
 
 ```go
 func (*Handlers) Register(w http.ResponseWriter, r *http.Request)
 ```
 
-### ResetSetting
+### `ResetSetting`
 
-ResetSetting returns a setting to its default.
+`ResetSetting` returns a setting to its default.
 
 ```go
 func (*Handlers) ResetSetting(w http.ResponseWriter, r *http.Request)
 ```
 
-### RetryJob
+### `RetryJob`
 
-RetryJob queues a copy of a finished job.
+`RetryJob` queues a copy of a finished job.
 
-A retry is a new job rather than a reset of the old one: the previous
-attempt keeps its output and its outcome, which is the whole point of
-looking at a failure after retrying it.
+A retry is a new job and leaves the old one as it stands: the previous
+attempt keeps its output and its outcome, so the failure stays there
+to look at after retrying it.
 
 ```go
 func (*Handlers) RetryJob(w http.ResponseWriter, r *http.Request)
 ```
 
-### Trigger
+### `Trigger`
 
-Trigger queues a job against a known repository.
+`Trigger` queues a job against a known repository.
 
 ```go
 func (*Handlers) Trigger(w http.ResponseWriter, r *http.Request)
 ```
 
-### UpdateRule
+### `UpdateRule`
 
-UpdateRule enables or disables a rule.
+`UpdateRule` enables or disables a rule.
 
 ```go
 func (*Handlers) UpdateRule(w http.ResponseWriter, r *http.Request)
 ```
 
-### UpdateSSHKey
+### `UpdateSSHKey`
 
-UpdateSSHKey enables or disables a key.
+`UpdateSSHKey` enables or disables a key.
 
 ```go
 func (*Handlers) UpdateSSHKey(w http.ResponseWriter, r *http.Request)
 ```
 
-### UpdateSetting
+### `UpdateSetting`
 
-UpdateSetting overrides one setting.
+`UpdateSetting` overrides one setting.
 
 ```go
 func (*Handlers) UpdateSetting(w http.ResponseWriter, r *http.Request)
 ```
 
-### UpdateUser
+### `UpdateUser`
 
-UpdateUser changes a user's administrative flags.
+`UpdateUser` changes a user's administrative flags.
 
 ```go
 func (*Handlers) UpdateUser(w http.ResponseWriter, r *http.Request)
 ```
 
-### UploadArtefact
+### `UploadArtefact`
 
-UploadArtefact stores a file a job produced.
+`UploadArtefact` stores a file a job produced.
 
-The body is the file itself rather than a multipart form: an artefact
+The body is the file itself, with no multipart form: an artefact
 is bytes, and a raw body streams from the agent's disk to the
 server's without either side building an envelope around it. The
 name, the media type and the checksum are small enough to be
@@ -1056,34 +1058,34 @@ and `X-Atkins-Checksum`.
 func (*Handlers) UploadArtefact(w http.ResponseWriter, r *http.Request)
 ```
 
-### Whoami
+### `Whoami`
 
-Whoami reports the authenticated user. The CLI uses it to confirm a
+`Whoami` reports the authenticated user. The CLI uses it to confirm a
 stored credential still works.
 
 ```go
 func (*Handlers) Whoami(w http.ResponseWriter, r *http.Request)
 ```
 
-### Error
+### `Error`
 
-Error returns the underlying error message.
+`Error` returns the underlying error message.
 
 ```go
 func (*RequestError) Error() string
 ```
 
-### Unwrap
+### `Unwrap`
 
-Unwrap exposes the wrapped error to errors.Is/As.
+`Unwrap` exposes the wrapped error to errors.Is/As.
 
 ```go
 func (*RequestError) Unwrap() error
 ```
 
-### CheckoutRef
+### `CheckoutRef`
 
-CheckoutRef folds the deprecated branch and revision fields into the
+`CheckoutRef` folds the deprecated branch and revision fields into the
 single ref a job records. The more specific of the two wins: a
 revision names one commit, a branch names wherever it has got to.
 

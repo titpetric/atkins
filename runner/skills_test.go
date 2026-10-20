@@ -224,7 +224,7 @@ jobs:
 		assert.NoError(t, err)
 		assert.Len(t, pipelines, 1)
 		assert.Equal(t, "test", pipelines[0].ID)
-		// Dir should be the folder containing .atkins/
+		// Dir is the folder containing .atkins/
 		assert.Equal(t, tmpDir, pipelines[0].Dir)
 	})
 
@@ -257,7 +257,7 @@ jobs:
 		assert.NoError(t, err)
 		assert.Len(t, pipelines, 1)
 		assert.Equal(t, "compose", pipelines[0].ID)
-		// Dir should be where compose.yml was found
+		// Dir is the folder holding compose.yml
 		assert.Equal(t, subDir, pipelines[0].Dir)
 	})
 
@@ -311,7 +311,7 @@ jobs:
 
 		assert.NoError(t, err)
 		assert.Len(t, pipelines, 1)
-		// Should use appDir where compose.yml was found
+		// Uses appDir, the folder holding compose.yml
 		assert.Equal(t, appDir, pipelines[0].Dir)
 	})
 
@@ -385,7 +385,7 @@ jobs:
 func TestSkillsLoaderWorkDirRules(t *testing.T) {
 	t.Run("workspace skill without when uses atkins folder parent", func(t *testing.T) {
 		// Scenario: /project/.atkins/skills/deploy.yml without when:
-		// Working dir should be /project
+		// Working dir is /project
 		tmpDir := t.TempDir()
 		subDir := filepath.Join(tmpDir, "src", "app")
 		assert.NoError(t, os.MkdirAll(subDir, 0o755))
@@ -406,14 +406,14 @@ jobs:
 
 		assert.NoError(t, err)
 		assert.Len(t, pipelines, 1)
-		// Dir should be tmpDir (parent of .atkins/)
+		// Dir is tmpDir (parent of .atkins/)
 		assert.Equal(t, tmpDir, pipelines[0].Dir)
 	})
 
 	t.Run("skill with when uses matched file location", func(t *testing.T) {
 		// Scenario: compose skill with when: files: [compose.yml]
 		// /project/app/compose.yml exists
-		// Working dir should be /project/app
+		// Working dir is /project/app
 		tmpDir := t.TempDir()
 		appDir := filepath.Join(tmpDir, "app")
 		assert.NoError(t, os.MkdirAll(appDir, 0o755))

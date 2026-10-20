@@ -11,8 +11,8 @@ import (
 	"github.com/titpetric/atkins/server/model"
 )
 
-// Retention defaults. They bound one pass rather than the whole
-// backlog: the first sweep of an instance that has been running for a
+// Retention defaults. They bound one pass and leave the backlog to later
+// passes: the first sweep of an instance that has been running for a
 // year has millions of job_log rows to remove, and a DELETE that large
 // holds locks for minutes. A pass removes at most Batch × MaxBatches
 // rows of each kind and leaves the rest for the next tick, so a server
@@ -27,16 +27,16 @@ const (
 
 // RetentionRequest is one retention pass.
 //
-// The two windows are independent on purpose. Output is what grows
+// The two windows are independent. Output is what grows
 // without bound, and it stops being interesting long before the outcome
 // does; an instance that keeps every job forever and every log line for
 // a month is the common case.
 type RetentionRequest struct {
-	// Jobs is how long a settled job's record is kept, measured from
+	// Jobs is how long Purge keeps a settled job's record, measured from
 	// when it finished. Zero keeps job records forever.
 	Jobs time.Duration
 
-	// Logs is how long a settled job's captured output is kept. Zero
+	// Logs is how long Purge keeps a settled job's captured output. Zero
 	// keeps output forever.
 	Logs time.Duration
 
@@ -50,14 +50,14 @@ type RetentionRequest struct {
 
 // RetentionResult reports what a pass removed.
 type RetentionResult struct {
-	// Jobs is how many job records were deleted.
+	// Jobs is how many job records the pass deleted.
 	Jobs int64
 
-	// Logs is how many output rows were deleted, including those that
+	// Logs is how many output rows the pass deleted, including those that
 	// went with a deleted job.
 	Logs int64
 
-	// Partial is set when the pass stopped at MaxBatches with work
+	// Partial reports a pass that stopped at MaxBatches with work
 	// still to do. The next tick continues where this one stopped.
 	Partial bool
 }
@@ -83,7 +83,7 @@ func (r RetentionRequest) withDefaults() RetentionRequest {
 // Job records go first, because deleting a job takes its output with it
 // and there is no point sweeping logs that are about to disappear along
 // with their job. Neither window touches a job that has not settled: a
-// pending job is not old, it is waiting, and a running job that has
+// pending job waits and does not age, and a running job that has
 // lost its agent is the lease sweep's problem, not this one's.
 func (s *JobStorage) Purge(ctx context.Context, req RetentionRequest) (RetentionResult, error) {
 	ctx, span := oida.StartAuto(ctx, s.Purge, oida.KindDatabase)
@@ -119,8 +119,8 @@ func (s *JobStorage) Purge(ctx context.Context, req RetentionRequest) (Retention
 // purgeJobs deletes settled jobs that finished before the cutoff, with
 // their output, in batches.
 //
-// Progress is guaranteed: every selected row is deleted, so the next
-// batch selects rows the previous one did not see.
+// Each batch makes progress: purgeJobs deletes every row it selects, so
+// the next batch selects rows the previous one did not see.
 func (s *JobStorage) purgeJobs(ctx context.Context, cutoff time.Time, req RetentionRequest) (int64, int64, bool, error) {
 	var jobs, logs int64
 
@@ -141,7 +141,7 @@ func (s *JobStorage) purgeJobs(ctx context.Context, cutoff time.Time, req Retent
 		jobs += int64(len(ids))
 		logs += removed
 
-		// A short batch means the cutoff has been reached.
+		// A short batch means the pass reached the cutoff.
 		if len(ids) < req.Batch {
 			return jobs, logs, false, nil
 		}
@@ -153,10 +153,10 @@ func (s *JobStorage) purgeJobs(ctx context.Context, cutoff time.Time, req Retent
 // purgeJobLogs deletes the output of settled jobs that finished before
 // the cutoff, leaving the job records themselves alone.
 //
-// The batch is selected from job_log rather than from job so that every
-// pass makes progress. Selecting jobs and deleting their logs would
-// keep re-reading the same jobs once their output was gone, and an
-// instance with a large backlog would never reach the end of it.
+// purgeJobLogs selects the batch from job_log, and not from job, so that
+// every pass makes progress. Selecting jobs and deleting their logs
+// would keep re-reading the same jobs once their output has vanished,
+// and an instance with a large backlog would never reach the end of it.
 func (s *JobStorage) purgeJobLogs(ctx context.Context, cutoff time.Time, req RetentionRequest) (int64, bool, error) {
 	var deleted int64
 

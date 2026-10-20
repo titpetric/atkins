@@ -34,7 +34,7 @@ func (p *Pipeline) UnmarshalYAML(node *yaml.Node) error {
 		return err
 	}
 
-	// Ensure Decl is initialized and vars/include are properly decoded
+	// Ensure Decl exists and vars/include decode properly
 	if err := ensureDeclInitialized(node, &p.Decl); err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (p *Pipeline) GetJobs() map[string]*Job {
 
 // GetKeys will return the available targets in the pipeline. It uses the
 // pipeline ID to optionally prefix job/tasks map keys. The default
-// job is ordered first in the result.
+// job comes first in the result.
 func (p *Pipeline) GetKeys() []string {
 	var hasDefault bool
 	jobs := p.GetJobs()
@@ -92,7 +92,7 @@ func (p *Pipeline) JobNames() []string {
 	return slices.Collect(maps.Keys(p.GetJobs()))
 }
 
-// GetAliases will give key => value mapping for commands in a pipeline.
+// GetAliases returns a key => value mapping for commands in a pipeline.
 // Explicit job aliases take precedence over auto-generated aliases (like skill ID -> default).
 func (p *Pipeline) GetAliases() map[string]string {
 	result := map[string]string{}

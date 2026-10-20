@@ -12,7 +12,7 @@ import (
 <summary><code>type ContextVariables</code></summary>
 
 ```go
-// ContextVariables provides thread-safe variable storage with Promise-based lazy evaluation.
+// ContextVariables holds variables in thread-safe storage with Promise-based lazy evaluation.
 type ContextVariables struct {
 	promises        map[string]*VarPromise
 	resolver        func(string) (string, error)
@@ -125,7 +125,7 @@ type Executor struct {
 <summary><code>type FuzzyMatchError</code></summary>
 
 ```go
-// FuzzyMatchError is returned when multiple fuzzy matches are found.
+// FuzzyMatchError reports a pattern with more than one fuzzy match.
 type FuzzyMatchError struct {
 	Matches []*model.ResolvedTask
 }
@@ -217,7 +217,7 @@ type Linter struct {
 <summary><code>type Options</code></summary>
 
 ```go
-// Options provides configuration for the executor.
+// Options holds configuration for the executor.
 type Options struct {
 	DefaultTimeout time.Duration
 }
@@ -283,8 +283,8 @@ type PipelineOptions struct {
 	Progress     ProgressObserver  // Optional observer for job progress events
 
 	// Transcript receives the finished tree, the same rendering the
-	// terminal is left with. It is how a caller records the run
-	// somewhere else — a CI job log — without changing what a person
+	// terminal ends with. A caller uses it to record the run
+	// somewhere else - a CI job log - without changing what a person
 	// watching it sees.
 	Transcript io.Writer
 }
@@ -341,8 +341,8 @@ type Resolver struct {
 // Skill is one skill file found on disk.
 // A skill is a pipeline file whose name is the job namespace: go.yml
 // contributes go:build, go:test and the rest. Beside it a skill may
-// carry a markdown companion of the same base name, go.md, which is a
-// usage guide rather than a job list; `atkins --help` prints it under
+// carry a markdown companion of the same base name, go.md, which holds a
+// usage guide and no job list; `atkins --help` prints it under
 // the skill.
 type Skill struct {
 	// Pipeline is the parsed skill. Its ID is the file name without the
@@ -361,11 +361,11 @@ type Skill struct {
 	Doc string
 
 	// Dir is the directory the skill runs in: the folder that satisfied
-	// its when: block, or the workspace root when it has none. It is
-	// only resolved for an active skill.
+	// its when: block, or the workspace root when it has none. The loader
+	// resolves it only for an active skill.
 	Dir string
 
-	// Active reports whether the skill's when: block is satisfied from
+	// Active reports whether the skill's when: block matches from
 	// the directory the scan started in. Only an active skill
 	// contributes its jobs to a run.
 	Active bool
@@ -379,7 +379,7 @@ type Skill struct {
 
 ```go
 // SkillsLoader discovers and loads skill pipelines from .atkins/skills/ directories.
-// It evaluates `when:` conditions to determine which skills are enabled and sets
+// It checks `when:` conditions to determine which skills apply and sets
 // the appropriate working directory for each skill based on the rules.
 type SkillsLoader struct {
 	// SkillsDirs are the directories to search for skill files, in priority order.
@@ -413,7 +413,7 @@ type TaskResolver struct {
 <summary><code>type VarPromise</code></summary>
 
 ```go
-// VarPromise represents a lazy variable that is evaluated on first access.
+// VarPromise represents a lazy variable that resolves on first access.
 type VarPromise struct {
 	value any
 	raw   any
@@ -431,10 +431,10 @@ type VarPromise struct {
 ```go
 // VendorResult reports what a vendoring run found, matched and wrote.
 type VendorResult struct {
-	// SourceDir is the skills directory that was read.
+	// SourceDir is the skills directory Plan reads.
 	SourceDir string
 
-	// TargetDir is the repository directory that was written to.
+	// TargetDir is the repository directory Install writes to.
 	TargetDir string
 
 	// Found are all skills available in SourceDir.
@@ -455,8 +455,8 @@ type VendorResult struct {
 <summary><code>type VendorSkill</code></summary>
 
 ```go
-// VendorSkill is a candidate skill file, with the reason it was picked
-// for vendoring once it has been matched against a repository.
+// VendorSkill is a candidate skill file, with the reason Plan picks it
+// for vendoring once it matches against a repository.
 type VendorSkill struct {
 	// ID is the skill namespace, taken from the file name.
 	ID string
@@ -465,13 +465,13 @@ type VendorSkill struct {
 	Path string
 
 	// DocPath is the markdown companion beside Path, empty when the
-	// skill carries none. It is installed alongside the skill file.
+	// skill carries none. Install copies it alongside the skill file.
 	DocPath string
 
 	// Pipeline is the parsed skill.
 	Pipeline *model.Pipeline
 
-	// Reason records why the skill is used here, e.g. the path that
+	// Reason records why the repository uses the skill, e.g. the path that
 	// satisfied its when: block, or the pipeline that references it.
 	Reason string
 
@@ -516,7 +516,7 @@ type Vendorer struct {
 	// Root is the repository root, the folder holding .git.
 	Root string
 
-	// TargetDir is where skills are written, Root/.atkins/skills.
+	// TargetDir is where Install writes skills, Root/.atkins/skills.
 	TargetDir string
 
 	// SkipDirs are directory names not descended into.
@@ -568,7 +568,7 @@ const (
 <summary><code>var ConfigNames</code></summary>
 
 ```go
-// ConfigNames are the default config file names to search for, in order of preference.
+// ConfigNames are the default configuration file names to search for, in order of preference.
 var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.yaml"}
 ```
 
@@ -578,7 +578,7 @@ var ConfigNames = []string{".atkins.yml", ".atkins.yaml", "atkins.yml", "atkins.
 <summary><code>var ErrJobSkipped</code></summary>
 
 ```go
-// ErrJobSkipped is returned when a job's if condition evaluates to false.
+// ErrJobSkipped reports a job whose if condition evaluates to false.
 var ErrJobSkipped = errors.New("job skipped")
 ```
 
@@ -671,184 +671,184 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (ExecError) Len () int`
 - `func (ProgressObserverFunc) OnJobProgress (ev JobProgressEvent)`
 
-### DefaultOptions
+### `DefaultOptions`
 
-DefaultOptions returns the default executor options.
+`DefaultOptions` returns the default executor options.
 
 ```go
 func DefaultOptions() *Options
 ```
 
-### DiscoverConfig
+### `DiscoverConfig`
 
-DiscoverConfig searches for a config file starting from the given directory,
-traversing parent directories until a config file is found or root is reached.
-Returns the absolute path to the config file and the directory containing it.
+`DiscoverConfig` searches for a configuration file starting from the given directory,
+traversing parent directories until it finds a configuration file or reaches root.
+Returns the absolute path to the configuration file and the directory containing it.
 
 ```go
 func DiscoverConfig(startDir string) (string, error)
 ```
 
-### DiscoverConfigFromCwd
+### `DiscoverConfigFromCwd`
 
-DiscoverConfigFromCwd is a convenience wrapper that starts from the current working directory.
+`DiscoverConfigFromCwd` is a convenience wrapper that starts from the current working directory.
 
 ```go
 func DiscoverConfigFromCwd() (string, error)
 ```
 
-### DiscoverEnvironment
+### `DiscoverEnvironment`
 
-DiscoverEnvironment scans for marker files starting from startDir,
-traversing parent directories until the filesystem root is reached.
-Root is set to the highest directory that contains any markers.
+`DiscoverEnvironment` scans for marker files starting from startDir,
+traversing parent directories up to the filesystem root.
+Root holds the highest directory that contains any markers.
 
 ```go
 func DiscoverEnvironment(startDir string) (*Environment, error)
 ```
 
-### DiscoverEnvironmentFromCwd
+### `DiscoverEnvironmentFromCwd`
 
-DiscoverEnvironmentFromCwd is a convenience wrapper that starts from the current working directory.
+`DiscoverEnvironmentFromCwd` is a convenience wrapper that starts from the current working directory.
 
 ```go
 func DiscoverEnvironmentFromCwd() (*Environment, error)
 ```
 
-### EvaluateIf
+### `EvaluateIf`
 
-EvaluateIf evaluates the If condition using expr-lang.
-Returns true if the condition is met, false if no condition or condition is false.
-When multiple conditions are provided, all must be true (AND logic).
+`EvaluateIf` evaluates the If condition using expr-lang.
+Returns true if the condition holds, false if no condition or condition is false.
+With more than one condition, all must be true (AND logic).
 Returns error only for invalid expressions.
 
 ```go
 func EvaluateIf(ctx *ExecutionContext) (bool, error)
 ```
 
-### EvaluateJobIf
+### `EvaluateJobIf`
 
-EvaluateJobIf evaluates the If condition on a job using expr-lang.
-Returns true if the condition is met or no condition is set.
-When multiple conditions are provided, all must be true (AND logic).
+`EvaluateJobIf` evaluates the If condition on a job using expr-lang.
+Returns true if the condition holds or the job has no condition.
+With more than one condition, all must be true (AND logic).
 Returns error only for invalid expressions.
 
 ```go
 func EvaluateJobIf(ctx *ExecutionContext) (bool, error)
 ```
 
-### ExpandFor
+### `ExpandFor`
 
-ExpandFor expands a for loop into multiple iteration contexts.
+`ExpandFor` expands a for loop into one context per iteration.
 Supports patterns: "item in items" (items is a variable name),
 "(index, item) in items", "(key, value) in items",
 or any of the above with bash expansion: "item in $(ls ./bin/*.test)".
-When multiple iterators are provided, computes the cartesian product.
+With more than one iterator, it computes the cartesian product.
 
 ```go
 func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)
 ```
 
-### FindRepositoryRoot
+### `FindRepositoryRoot`
 
-FindRepositoryRoot returns the folder holding .git, starting at
+`FindRepositoryRoot` returns the folder holding .git, starting at
 startDir and traversing parent directories.
 
 ```go
 func FindRepositoryRoot(startDir string) (string, error)
 ```
 
-### GetDependencies
+### `GetDependencies`
 
-GetDependencies converts depends_on field (string or []string) to a slice of job names.
+`GetDependencies` converts depends_on field (string or []string) to a slice of job names.
 
 ```go
 func GetDependencies(dependsOn any) []string
 ```
 
-### InterpolateCommand
+### `InterpolateCommand`
 
-InterpolateCommand interpolates a command string.
+`InterpolateCommand` interpolates a command string.
 
 ```go
 func InterpolateCommand(cmd string, ctx *ExecutionContext) (string, error)
 ```
 
-### InterpolateMap
+### `InterpolateMap`
 
-InterpolateMap recursively interpolates all string values in a map.
+`InterpolateMap` recursively interpolates all string values in a map.
 
 ```go
 func InterpolateMap(ctx *ExecutionContext, m map[string]any) error
 ```
 
-### InterpolateString
+### `InterpolateString`
 
-InterpolateString replaces ${{ expression }} with values from context.
+`InterpolateString` replaces ${{ expression }} with values from context.
 Supports variable interpolation, dot notation, and expr expressions with ?? and || operators.
 
 ```go
 func InterpolateString(s string, ctx *ExecutionContext) (string, error)
 ```
 
-### IsEchoCommand
+### `IsEchoCommand`
 
-IsEchoCommand checks if a command is a bare echo command.
+`IsEchoCommand` checks if a command is a bare echo command.
 
 ```go
 func IsEchoCommand(cmd string) bool
 ```
 
-### ListPipelines
+### `ListPipelines`
 
-ListPipelines returns pipelines formatted as a string in a flat list format:
+`ListPipelines` returns pipelines formatted as a string in a flat list format:
 Main Pipeline, then Aliases, then Skills.
 
 ```go
 func ListPipelines(pipelines []*model.Pipeline) string
 ```
 
-### ListPipelinesJSON
+### `ListPipelinesJSON`
 
-ListPipelinesJSON outputs pipelines in JSON format.
+`ListPipelinesJSON` outputs pipelines in JSON format.
 
 ```go
 func ListPipelinesJSON(pipelines []*model.Pipeline) error
 ```
 
-### ListPipelinesYAML
+### `ListPipelinesYAML`
 
-ListPipelinesYAML outputs pipelines in YAML format.
+`ListPipelinesYAML` outputs pipelines in YAML format.
 
 ```go
 func ListPipelinesYAML(pipelines []*model.Pipeline) error
 ```
 
-### LoadPipeline
+### `LoadPipeline`
 
-LoadPipeline loads and parses a pipeline from a yaml file.
+`LoadPipeline` loads and parses a pipeline from a yaml file.
 Returns the number of documents loaded, the parsed pipeline, and any error.
 
 ```go
 func LoadPipeline(filePath string) ([]*model.Pipeline, error)
 ```
 
-### LoadPipelineFromReader
+### `LoadPipelineFromReader`
 
-LoadPipelineFromReader loads and parses a pipeline from an io.Reader.
+`LoadPipelineFromReader` loads and parses a pipeline from an io.Reader.
 Returns the parsed pipeline(s) and any error.
 
 ```go
 func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error)
 ```
 
-### MatchWhenPattern
+### `MatchWhenPattern`
 
-MatchWhenPattern reports whether a `when: files:` pattern resolves to
+`MatchWhenPattern` reports whether a `when: files:` pattern resolves to
 something inside dir, and what it resolved to.
 
-A pattern carrying a glob meta character is expanded, so a skill can
-activate on the contents of a folder rather than its name:
+MatchWhenPattern expands a pattern carrying a glob meta character, so a
+skill can activate on the contents of a folder and not only its name:
 `schema/*.up.sql` matches a folder of migrations, while `schema/`
 matches any folder of that name.
 
@@ -856,21 +856,21 @@ matches any folder of that name.
 func MatchWhenPattern(dir, pattern string) (string, bool)
 ```
 
-### MergeSkillVariables
+### `MergeSkillVariables`
 
-MergeSkillVariables merges variables from a skill's Decl into the context.
+`MergeSkillVariables` merges variables from a skill's Decl into the context.
 When depth > 1, variables are already on the stack from a parent pipeline,
-so new vars are treated as defaults (existing keys are preserved).
+so new vars act only as defaults (existing keys win).
 At depth <= 1 it behaves identically to MergeVariables.
 
 ```go
 func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error
 ```
 
-### MergeVariables
+### `MergeVariables`
 
-MergeVariables merges variables from Decl into the execution context.
-When both vars and env.vars are present, they are resolved together using
+`MergeVariables` merges variables from Decl into the execution context.
+When both vars and env.vars are present, it resolves them together using
 a unified dependency graph so that cross-references work correctly
 (e.g., vars using $(echo $ENV_VAR) and env using ${{ var_name }}).
 
@@ -878,103 +878,103 @@ a unified dependency graph so that cross-references work correctly
 func MergeVariables(ctx *ExecutionContext, decl *model.Decl) error
 ```
 
-### NewContextVariables
+### `NewContextVariables`
 
-NewContextVariables creates a ContextVariables from a map of evaluated values.
+`NewContextVariables` creates a ContextVariables from a map of evaluated values.
 
 ```go
 func NewContextVariables(values map[string]any) *ContextVariables
 ```
 
-### NewContextVariablesWithResolver
+### `NewContextVariablesWithResolver`
 
-NewContextVariablesWithResolver creates a ContextVariables with pending values
-that are evaluated lazily on first access via Get().
+`NewContextVariablesWithResolver` creates a ContextVariables with pending values
+that resolve lazily on first access via Get().
 
 ```go
 func NewContextVariablesWithResolver(pending map[string]any, resolver func(string) (string, error)) *ContextVariables
 ```
 
-### NewEnv
+### `NewEnv`
 
-NewEnv builds an Env from KEY=VALUE strings, the form os.Environ and
+`NewEnv` builds an Env from KEY=VALUE strings, the form os.Environ and
 exec.Cmd use. The caller supplies the slice, so a process
 environment, a captured one or a literal all read the same way.
 
 A later entry wins, matching what exec does with a duplicate name.
-Entries without a name are skipped.
+NewEnv skips entries without a name.
 
 ```go
 func NewEnv(environ []string) Env
 ```
 
-### NewExecError
+### `NewExecError`
 
-NewExecError creates an ExecError from a psexec.Result.
+`NewExecError` creates an ExecError from a psexec.Result.
 
 ```go
 func NewExecError(result psexec.Result) ExecError
 ```
 
-### NewExecutor
+### `NewExecutor`
 
-NewExecutor creates a new executor with default options.
+`NewExecutor` creates a new executor with default options.
 
 ```go
 func NewExecutor() *Executor
 ```
 
-### NewExecutorWithOptions
+### `NewExecutorWithOptions`
 
-NewExecutorWithOptions creates a new executor with custom options.
+`NewExecutorWithOptions` creates a new executor with custom options.
 
 ```go
 func NewExecutorWithOptions(opts *Options) *Executor
 ```
 
-### NewLineCapturingWriter
+### `NewLineCapturingWriter`
 
-NewLineCapturingWriter creates a new LineCapturingWriter.
+`NewLineCapturingWriter` creates a new LineCapturingWriter.
 
 ```go
 func NewLineCapturingWriter() *LineCapturingWriter
 ```
 
-### NewLinter
+### `NewLinter`
 
-NewLinter creates a new linter.
+`NewLinter` creates a new linter.
 
 ```go
 func NewLinter(pipeline *model.Pipeline) *Linter
 ```
 
-### NewLinterWithPipelines
+### `NewLinterWithPipelines`
 
-NewLinterWithPipelines creates a linter with access to all pipelines for cross-pipeline validation.
+`NewLinterWithPipelines` creates a linter with access to all pipelines for cross-pipeline validation.
 
 ```go
 func NewLinterWithPipelines(pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter
 ```
 
-### NewPipeline
+### `NewPipeline`
 
-NewPipeline allocates a new *Pipeline with dependencies.
+`NewPipeline` allocates a new *Pipeline with dependencies.
 
 ```go
 func NewPipeline(data *model.Pipeline, opts PipelineOptions) *Pipeline
 ```
 
-### NewSkillResolver
+### `NewSkillResolver`
 
-NewSkillResolver will provide a task resolver for a skill pipeline.
+`NewSkillResolver` returns a task resolver for a skill pipeline.
 
 ```go
 func NewSkillResolver(pipeline *model.Pipeline) *TaskResolver
 ```
 
-### NewSkillsLoader
+### `NewSkillsLoader`
 
-NewSkillsLoader creates a loader for the given workspace.
+`NewSkillsLoader` creates a loader for the given workspace.
 workspaceDir is the folder containing .atkins/ (used as Dir for skills without when:).
 startDir is where to start searching for when: files (typically user's cwd).
 
@@ -982,25 +982,25 @@ startDir is where to start searching for when: files (typically user's cwd).
 func NewSkillsLoader(workspaceDir, startDir string) *SkillsLoader
 ```
 
-### NewTaskResolver
+### `NewTaskResolver`
 
-NewTaskResolver will provide a task resolver for a set of pipelines.
+`NewTaskResolver` returns a task resolver for a set of pipelines.
 
 ```go
 func NewTaskResolver(pipelines []*model.Pipeline) *TaskResolver
 ```
 
-### NewVendorer
+### `NewVendorer`
 
-NewVendorer creates a vendorer writing into root/.atkins/skills.
+`NewVendorer` creates a vendorer writing into root/.atkins/skills.
 
 ```go
 func NewVendorer(sourceDir, root string) *Vendorer
 ```
 
-### ProcessDecl
+### `ProcessDecl`
 
-ProcessDecl processes a Decl and returns a map of variables.
+`ProcessDecl` processes a Decl and returns a map of variables.
 It handles:
 - Manual vars with interpolation ($(...), ${{ ... }})
 - Include files (.yml format)
@@ -1010,26 +1010,26 @@ It handles:
 func ProcessDecl(ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)
 ```
 
-### ResolveJobDependencies
+### `ResolveJobDependencies`
 
-ResolveJobDependencies returns jobs in dependency order.
+`ResolveJobDependencies` returns jobs in dependency order.
 Returns the jobs to run and any resolution errors.
 
 ```go
 func ResolveJobDependencies(jobs map[string]*model.Job, startingJob string) ([]string, error)
 ```
 
-### RunPipeline
+### `RunPipeline`
 
-RunPipeline runs a pipeline with the given options.
+`RunPipeline` runs a pipeline with the given options.
 
 ```go
 func RunPipeline(ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error
 ```
 
-### Sanitize
+### `Sanitize`
 
-Sanitize processes raw terminal output and returns clean lines.
+`Sanitize` processes raw terminal output and returns clean lines.
 It handles:
 - Cursor up + clear sequences (\033[nA\033[J) used by treeview
 - Carriage returns (\r) by taking content after the last \r
@@ -1042,252 +1042,252 @@ Returns sanitized lines with colors preserved.
 func Sanitize(in string) ([]string, error)
 ```
 
-### StripANSI
+### `StripANSI`
 
-StripANSI removes all ANSI escape sequences from a string.
+`StripANSI` removes all ANSI escape sequences from a string.
 
 ```go
 func StripANSI(in string) string
 ```
 
-### ValidateJobRequirements
+### `ValidateJobRequirements`
 
-ValidateJobRequirements checks that all required variables are present in the context.
+`ValidateJobRequirements` checks that all required variables are present in the context.
 Returns an error with a clear message listing missing variables.
 
 ```go
 func ValidateJobRequirements(ctx *ExecutionContext, job *model.Job) error
 ```
 
-### VisualLength
+### `VisualLength`
 
-VisualLength returns the visual length of a string (excluding ANSI sequences).
+`VisualLength` returns the visual length of a string (excluding ANSI sequences).
 
 ```go
 func VisualLength(s string) int
 ```
 
-### Clone
+### `Clone`
 
-Clone creates a copy with the same resolver.
+`Clone` creates a copy with the same resolver.
 
 ```go
 func (*ContextVariables) Clone() model.VariableStorage
 ```
 
-### Get
+### `Get`
 
-Get returns a variable value, evaluating lazily if pending.
+`Get` returns a variable value, evaluating lazily if pending.
 
 ```go
 func (*ContextVariables) Get(key string) any
 ```
 
-### GetWithError
+### `GetWithError`
 
-GetWithError returns a variable value and any lazy evaluation error.
+`GetWithError` returns a variable value and any lazy evaluation error.
 
 ```go
 func (*ContextVariables) GetWithError(key string) (any, error)
 ```
 
-### IsResolved
+### `IsResolved`
 
-IsResolved reports whether a variable has completed lazy evaluation.
+`IsResolved` reports whether a variable has completed lazy evaluation.
 
 ```go
 func (*ContextVariables) IsResolved(key string) bool
 ```
 
-### ResolveAll
+### `ResolveAll`
 
-ResolveAll evaluates all pending promises and returns the first error encountered.
+`ResolveAll` evaluates all pending promises and returns the first error encountered.
 
 ```go
 func (*ContextVariables) ResolveAll() error
 ```
 
-### Set
+### `Set`
 
-Set stores a value directly (already resolved).
+`Set` stores a value directly (already resolved).
 
 ```go
 func (*ContextVariables) Set(key string, value any)
 ```
 
-### SetResolver
+### `SetResolver`
 
-SetResolver updates the resolver function. Used when the resolver
+`SetResolver` updates the resolver function. Used when the resolver
 needs a reference to the ContextVariables itself (circular setup).
 
 ```go
 func (*ContextVariables) SetResolver(resolver func(string) (string, error))
 ```
 
-### Walk
+### `Walk`
 
-Walk iterates over all resolved values.
+`Walk` iterates over all resolved values.
 
 ```go
 func (*ContextVariables) Walk(fn func(key string, value any))
 ```
 
-### Copy
+### `Copy`
 
-Copy copies everything except Context. Variables are cloned.
-jobTracker is shared (not copied) to maintain consistent dependency tracking.
+`Copy` copies everything except Context. It clones Variables.
+The copy shares jobTracker (no copy) to keep dependency tracking consistent.
 
 ```go
 func (*ExecutionContext) Copy() *ExecutionContext
 ```
 
-### EmitProgress
+### `EmitProgress`
 
-EmitProgress sends a job progress event if an observer is set.
+`EmitProgress` sends a job progress event if the context has an observer.
 
 ```go
 func (*ExecutionContext) EmitProgress(ev JobProgressEvent)
 ```
 
-### IsJobCompleted
+### `IsJobCompleted`
 
-IsJobCompleted checks if a job has been completed.
+`IsJobCompleted` checks if a job has completed.
 
 ```go
 func (*ExecutionContext) IsJobCompleted(jobName string) bool
 ```
 
-### MarkJobCompleted
+### `MarkJobCompleted`
 
-MarkJobCompleted marks a job as completed.
+`MarkJobCompleted` marks a job as completed.
 
 ```go
 func (*ExecutionContext) MarkJobCompleted(jobName string)
 ```
 
-### NextStepIndex
+### `NextStepIndex`
 
-NextStepIndex returns the next sequential step index for this job execution.
+`NextStepIndex` returns the next sequential step index for this job execution.
 This ensures each step/iteration gets a unique number.
 
 ```go
 func (*ExecutionContext) NextStepIndex() int
 ```
 
-### Render
+### `Render`
 
-Render refreshes the treeview.
+`Render` refreshes the treeview.
 
 ```go
 func (*ExecutionContext) Render()
 ```
 
-### Resolve
+### `Resolve`
 
-Resolve resolves a task name using skill-local scope first, then global.
+`Resolve` resolves a task name using skill-local scope first, then global.
 If the task has a ":" prefix, it resolves in global scope only (strict).
 
 ```go
 func (*ExecutionContext) Resolve(taskName string) (*model.ResolvedTask, error)
 ```
 
-### Resolver
+### `Resolver`
 
-Resolver provides task resolution in the execution context.
+`Resolver` resolves tasks in the execution context.
 
 ```go
 func (*ExecutionContext) Resolver() *TaskResolver
 ```
 
-### SkillResolver
+### `SkillResolver`
 
-SkillResolver provides task resolution in skill context.
+`SkillResolver` resolves tasks in skill context.
 
 ```go
 func (*ExecutionContext) SkillResolver() *TaskResolver
 ```
 
-### ExecuteJob
+### `ExecuteJob`
 
-ExecuteJob runs a single job.
+`ExecuteJob` runs a single job.
 
 ```go
 func (*Executor) ExecuteJob(parentCtx context.Context, execCtx *ExecutionContext) error
 ```
 
-### Error
+### `Error`
 
-Error returns the error as a user message.
+`Error` returns the error as a user message.
 
 ```go
 func (*FuzzyMatchError) Error() string
 ```
 
-### GetLines
+### `GetLines`
 
-GetLines returns all captured output as lines.
+`GetLines` returns all captured output as lines.
 
 ```go
 func (*LineCapturingWriter) GetLines() []string
 ```
 
-### String
+### `String`
 
-String returns the raw captured output.
+`String` returns the raw captured output.
 
 ```go
 func (*LineCapturingWriter) String() string
 ```
 
-### Write
+### `Write`
 
-Write implements io.Writer.
+`Write` implements io.Writer.
 
 ```go
 func (*LineCapturingWriter) Write(p []byte) (int, error)
 ```
 
-### Lint
+### `Lint`
 
-Lint validates the pipeline and returns any errors.
+`Lint` validates the pipeline and returns any errors.
 
 ```go
 func (*Linter) Lint() []LintError
 ```
 
-### ID
+### `ID`
 
-ID returns the skill namespace, the file name without its extension.
+`ID` returns the skill namespace, the file name without its extension.
 
 ```go
 func (*Skill) ID() string
 ```
 
-### AddSkillsDir
+### `AddSkillsDir`
 
-AddSkillsDir adds an additional skills directory to search.
+`AddSkillsDir` adds another skills directory to search.
 Directories added later have lower precedence.
 
 ```go
 func (*SkillsLoader) AddSkillsDir(dir string)
 ```
 
-### FindFile
+### `FindFile`
 
-FindFile searches for files matching any of the given patterns starting from
+`FindFile` searches for files matching any of the given patterns starting from
 startDir and traversing parent directories. Returns (found, matchDir) where
 matchDir is the directory containing the first matched file.
 
-For each directory (starting with startDir, going up), all patterns are checked.
-This means closer matches are preferred over pattern order.
+For each directory (starting with startDir, going up), it checks all patterns.
+This means closer matches win over pattern order.
 
 ```go
 func (*SkillsLoader) FindFile(patterns []string, startDir string) (string, bool)
 ```
 
-### FindFolder
+### `FindFolder`
 
-FindFolder searches for a directory with the given name starting from startDir
+`FindFolder` searches for a directory with the given name starting from startDir
 and traversing parent directories. Returns (found, containingDir) where
 containingDir is the parent directory that contains the named folder.
 
@@ -1295,9 +1295,9 @@ containingDir is the parent directory that contains the named folder.
 func (*SkillsLoader) FindFolder(name, startDir string) (string, bool)
 ```
 
-### Load
+### `Load`
 
-Load discovers and returns all enabled skill pipelines.
+`Load` discovers and returns all enabled skill pipelines.
 
 A skill from an earlier directory shadows one of the same ID found
 later, so a project skill wins over the global one it shares a name
@@ -1308,13 +1308,13 @@ does not shadow anything.
 func (*SkillsLoader) Load() ([]*model.Pipeline, error)
 ```
 
-### Scan
+### `Scan`
 
-Scan returns every skill file in the loader's directories, in
-directory order, whether or not its when: block is satisfied.
+`Scan` returns every skill file in the loader's directories, in
+directory order, whether its when: block matches or not.
 
 Load drops the skills that do not apply here; Scan keeps them so
-`atkins --help` can list what is installed rather than only what the
+`atkins --help` can list every installed skill, beyond the ones the
 current directory activates. Two directories carrying the same skill
 ID both appear, the higher-priority one first.
 
@@ -1322,61 +1322,61 @@ ID both appear, the higher-priority one first.
 func (*SkillsLoader) Scan() ([]*Skill, error)
 ```
 
-### Resolve
+### `Resolve`
 
-Resolve resolves a task name to its pipeline and job.
+`Resolve` resolves a task name to its pipeline and job.
 
 ```go
 func (*TaskResolver) Resolve(taskName string) (*model.ResolvedTask, error)
 ```
 
-### ResolveName
+### `ResolveName`
 
-ResolveName resolves a name to the pipeline and job.
+`ResolveName` resolves a name to the pipeline and job.
 It tries explicit matching, then checks aliases, then fuzzy matches jobs.
-If no job is matched, an error is returned.
+If no job matches, it returns an error.
 
 ```go
 func (*TaskResolver) ResolveName(name string, strict bool) (*model.ResolvedTask, error)
 ```
 
-### ResolveWithFallback
+### `ResolveWithFallback`
 
-ResolveWithFallback tries resolving with r first, then falls back to the
-fallback resolver. If the task has a ":" prefix, only the fallback (global)
-resolver is used.
+`ResolveWithFallback` tries resolving with r first, then falls back to the
+fallback resolver. If the task has a ":" prefix, it uses only the fallback
+(global) resolver.
 
 ```go
 func (*TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)
 ```
 
-### Pending
+### `Pending`
 
-Pending returns the IDs a write would create or overwrite, leaving
+`Pending` returns the IDs a write would create or overwrite, leaving
 out the skills already vendored unchanged.
 
 ```go
 func (*VendorResult) Pending() []string
 ```
 
-### Install
+### `Install`
 
-Install copies the selected skills into TargetDir, creating it when it
+`Install` copies the selected skills into TargetDir, creating it when it
 doesn't exist, and overwrites a vendored copy that has drifted from
-its source. Vendored skills are tracked files like any other, so
+its source. Git tracks vendored skills like any other file, so
 reverting an unwanted change is the user's call, not this command's.
 
 ```go
 func (*Vendorer) Install(result *VendorResult) error
 ```
 
-### Plan
+### `Plan`
 
-Plan reads the source skills and decides which of them this
+`Plan` reads the source skills and decides which of them this
 repository uses, without writing anything.
 
-A skill is used when its when: block matches a path anywhere in the
-repository, when it has no when: block at all (it is active
+The repository uses a skill when its when: block matches a path anywhere
+in the repository, when it has no when: block at all (it's active
 everywhere), or when a pipeline in the repository - or another
 selected skill - references one of its jobs.
 
@@ -1384,9 +1384,9 @@ selected skill - references one of its jobs.
 func (*Vendorer) Plan() (*VendorResult, error)
 ```
 
-### Run
+### `Run`
 
-Run plans the vendoring and installs what it selected.
+`Run` plans the vendoring and installs what it selected.
 
 Plan on its own is the dry run: it reports the same selection without
 touching the repository.
@@ -1395,48 +1395,48 @@ touching the repository.
 func (*Vendorer) Run() (*VendorResult, error)
 ```
 
-### Environ
+### `Environ`
 
-Environ returns the environment as a slice of KEY=VALUE strings.
+`Environ` returns the environment as a slice of KEY=VALUE strings.
 
 ```go
 func (Env) Environ() []string
 ```
 
-### Sanitized
+### `Sanitized`
 
-Sanitized returns a copy of the environment with atkins' own settings
+`Sanitized` returns a copy of the environment with atkins' own settings
 removed.
 
-It is what an agent hands to a command that arrived with a job: the
+An agent passes this copy to a command that arrived with a job: the
 command keeps PATH and the rest of the machine's environment, and the
-variables it is meant to receive are set by name afterwards. Removing
-the prefixes wholesale keeps a setting added later with the process
-that was configured with it.
+agent sets the variables for it by name afterwards. Removing the
+prefixes wholesale keeps a setting added later with the process that
+owns it.
 
 ```go
 func (Env) Sanitized() Env
 ```
 
-### Error
+### `Error`
 
-Error implements the error interface.
+`Error` implements the error interface.
 
 ```go
 func (ExecError) Error() string
 ```
 
-### Len
+### `Len`
 
-Len returns the length of the error output.
+`Len` returns the length of the error output.
 
 ```go
 func (ExecError) Len() int
 ```
 
-### OnJobProgress
+### `OnJobProgress`
 
-OnJobProgress implements ProgressObserver.
+`OnJobProgress` implements ProgressObserver.
 
 ```go
 func (ProgressObserverFunc) OnJobProgress(ev JobProgressEvent)

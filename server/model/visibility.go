@@ -11,10 +11,10 @@ const (
 	// requires the per-job token atkins prints as part of the URL.
 	VisibilityPrivate JobVisibility = "private"
 
-	// VisibilityPublic is the single-team instance the CI/CD server was
-	// first written for: every authenticated user reads every job, and
-	// the job page opens for anyone holding the URL. It is a choice an
-	// admin makes, not the state an instance starts in.
+	// VisibilityPublic is the single-team instance the CI/CD server
+	// first targeted: every authenticated user reads every job, and the
+	// job page opens for anyone holding the URL. An admin picks it; a
+	// new instance starts private.
 	VisibilityPublic JobVisibility = "public"
 )
 

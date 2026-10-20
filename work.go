@@ -16,7 +16,7 @@ import (
 //
 // Flags override the resolved configuration, which already carries the
 // document values and the ATKINS_* overlay. An empty flag leaves the
-// configured value alone, so the three layers stack rather than fight.
+// configured value alone, so the three layers stack and never fight.
 type WorkerOptions struct {
 	Server   string
 	Token    string
@@ -38,7 +38,7 @@ func (o *WorkerOptions) Bind(fs *pflag.FlagSet) {
 	fs.StringVar(&o.DataDir, "data-dir", "", "Directory for the repository cache and job work trees")
 }
 
-// Worker provides a cli.Command that runs the atkins CI/CD agent.
+// Worker returns a cli.Command that runs the atkins CI/CD agent.
 func Worker() *cli.Command {
 	opts := &WorkerOptions{}
 
@@ -80,7 +80,7 @@ func runWorker(ctx context.Context, opts *WorkerOptions) error {
 	return agent.Run(ctx)
 }
 
-// override replaces a configured value when a flag was given.
+// override replaces a configured value when the user passes a flag.
 func override(target *string, value string) {
 	if strings.TrimSpace(value) != "" {
 		*target = value

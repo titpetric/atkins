@@ -76,10 +76,10 @@ func (f *AutoFixer) AttemptFix(ctx context.Context, task *model.ResolvedTask, al
 
 // AutoFixConfig holds configuration for auto-fix behavior.
 type AutoFixConfig struct {
-	// Enabled controls whether auto-fix is attempted.
+	// Enabled controls whether the agent attempts an auto-fix.
 	Enabled bool
 
-	// MaxRetries is the maximum number of fix+retry cycles.
+	// MaxRetries caps the number of fix+retry cycles.
 	MaxRetries int
 
 	// FixTaskSuffix is the suffix used to find fix tasks (default: "fix").

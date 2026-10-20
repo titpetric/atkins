@@ -8,17 +8,17 @@ import (
 // about the step type (task vs command). Implementations decide how
 // to execute each type.
 type StepDispatcher interface {
-	// Task is called when the step references another job via task:.
+	// Task runs when the step references another job via task:.
 	Task(step *Step) error
-	// Command is called for each executable command in the step.
+	// Command runs for each executable command in the step.
 	Command(step *Step, index int, cmd string) error
 }
 
-// PipelineWalkFunc is called for each job in a pipeline during Walk.
+// PipelineWalkFunc runs for each job in a pipeline during Walk.
 type PipelineWalkFunc func(name string, job *Job) error
 
 // Walk iterates over all jobs in the pipeline in deterministic order.
-// The "default" job is visited first, followed by remaining jobs in
+// Walk visits the "default" job first, followed by remaining jobs in
 // sorted order.
 func (p *Pipeline) Walk(fn PipelineWalkFunc) error {
 	jobs := p.GetJobs()
@@ -46,7 +46,7 @@ func (p *Pipeline) Walk(fn PipelineWalkFunc) error {
 	return nil
 }
 
-// JobWalkFunc is called for each step in a job during Walk.
+// JobWalkFunc runs for each step in a job during Walk.
 type JobWalkFunc func(index int, step *Step) error
 
 // Walk iterates over all steps (children) of the job.

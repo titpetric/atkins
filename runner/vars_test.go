@@ -36,7 +36,7 @@ func TestVariableEvaluation_DependencyOrdering(t *testing.T) {
 			// Mixed: bash + interpolation
 			"mixed_bash_interp": "$(echo ${{ plain_string }})",
 
-			// Multiple dependencies in one value
+			// More than one dependency in one value
 			"multi_dep": "${{ plain_string }} and ${{ plain_number }}",
 
 			// Deep chain stress test

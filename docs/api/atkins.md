@@ -30,8 +30,8 @@ type Options struct {
 	Exec             string
 
 	// CI/CD client flags. Login and Register take the server URL;
-	// Logout applies to the server last logged in to. Dispatch hands
-	// the run to an agent instead of running it here, and Local runs
+	// Logout applies to the server last logged in to. Dispatch sends
+	// the run to an agent and runs nothing here, and Local runs
 	// here without recording anything on the server.
 	Login    string
 	Register string
@@ -43,7 +43,7 @@ type Options struct {
 	Config bool
 
 	// Vendor copies the skills this repository uses into .atkins/skills.
-	// It reports the selection and writes nothing unless Write is set.
+	// It reports the selection and writes nothing unless Write is true.
 	Vendor bool
 	Write  bool
 
@@ -69,7 +69,7 @@ type ServerOptions struct {
 	// other.
 	Database string
 
-	// ArtefactDir is where the bytes of job artefacts are stored.
+	// ArtefactDir is where the server stores the bytes of job artefacts.
 	ArtefactDir string
 
 	// SigningKey signs access tokens. Required.
@@ -93,7 +93,7 @@ type ServerOptions struct {
 // WorkerOptions holds `atkins worker` command-line arguments.
 // Flags override the resolved configuration, which already carries the
 // document values and the ATKINS_* overlay. An empty flag leaves the
-// configured value alone, so the three layers stack rather than fight.
+// configured value alone, so the three layers stack and never fight.
 type WorkerOptions struct {
 	Server   string
 	Token    string
@@ -137,60 +137,60 @@ var (
 - `func (*ServerOptions) Bind (fs *pflag.FlagSet)`
 - `func (*WorkerOptions) Bind (fs *pflag.FlagSet)`
 
-### HelpFlags
+### `HelpFlags`
 
-HelpFlags returns one flag set carrying every flag atkins defines, for
-the three commands together. Help detection needs to know which of
+`HelpFlags` returns one flag set carrying every flag atkins defines, for
+the three commands together. Help detection has to tell which of
 them take a value, and the three sets share no names.
 
 ```go
 func HelpFlags() *pflag.FlagSet
 ```
 
-### HelpRequested
+### `HelpRequested`
 
-HelpRequested reports whether a command line is asking for the help
-document rather than a run.
+`HelpRequested` reports whether a command line requests the help
+document and no run.
 
 A -h or --help that is the value of a string flag is not a help
 request: `atkins -x "--help"` runs a prompt. The flag set says which
-flags take a value, so the two cases are told apart by the same rules
+flags take a value, so the same rules tell the two cases apart that
 pflag parses by. Everything after a bare -- is an argument.
 
 ```go
 func HelpRequested(flags *pflag.FlagSet, args []string) bool
 ```
 
-### Pipeline
+### `Pipeline`
 
-Pipeline provides a cli.Command that runs the atkins command pipeline.
+`Pipeline` returns a cli.Command that runs the atkins command pipeline.
 
 ```go
 func Pipeline() *cli.Command
 ```
 
-### Server
+### `Server`
 
-Server provides a cli.Command that runs the atkins CI/CD server.
+`Server` returns a cli.Command that runs the atkins CI/CD server.
 
 ```go
 func Server() *cli.Command
 ```
 
-### Worker
+### `Worker`
 
-Worker provides a cli.Command that runs the atkins CI/CD agent.
+`Worker` returns a cli.Command that runs the atkins CI/CD agent.
 
 ```go
 func Worker() *cli.Command
 ```
 
-### WriteHelp
+### `WriteHelp`
 
-WriteHelp renders `atkins --help` to a writer.
+`WriteHelp` renders `atkins --help` to a writer.
 
-The skills are scanned rather than loaded: the document lists what is
-installed, marking what this directory does not activate, because a
+WriteHelp scans the skills and loads none: the document lists every
+installed skill, marking what this directory does not activate, because a
 reader asking what atkins can do is not always standing in a
 repository that answers.
 
@@ -198,29 +198,29 @@ repository that answers.
 func WriteHelp(w io.Writer) error
 ```
 
-### Bind
+### `Bind`
 
-Bind registers the server flags.
+`Bind` registers the server flags.
 
 ```go
 func (*ServerOptions) Bind(fs *pflag.FlagSet)
 ```
 
-### Bind
+### `Bind`
 
-Bind registers the worker flags.
+`Bind` registers the worker flags.
 
 ```go
 func (*WorkerOptions) Bind(fs *pflag.FlagSet)
 ```
 
-### NewOptions
+### `NewOptions`
 
 ```go
 func NewOptions() *Options
 ```
 
-### Bind
+### `Bind`
 
 ```go
 func (*Options) Bind(fs *cli.FlagSet)

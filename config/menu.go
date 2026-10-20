@@ -14,7 +14,7 @@ import (
 
 // Menu edits a configuration document interactively.
 type Menu struct {
-	// Path is the document being edited.
+	// Path is the document the menu edits.
 	Path string
 
 	config *Config
@@ -41,8 +41,8 @@ func NewMenu(path string) (*Menu, error) {
 	}, nil
 }
 
-// SetIO redirects the menu, so it can be driven from something other
-// than a terminal.
+// SetIO redirects the menu, so something other than a terminal can
+// drive it.
 func (m *Menu) SetIO(in io.Reader, out io.Writer) {
 	m.in = bufio.NewReader(in)
 	m.out = out
@@ -194,7 +194,7 @@ func (m *Menu) prompt(label string) (string, error) {
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			// A piped stdin that ran out means "done"; treat it as
-			// quit rather than erroring on every subsequent read.
+			// quit and stop erroring on every later read.
 			return "q", nil
 		}
 		return "", err

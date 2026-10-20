@@ -19,7 +19,7 @@ type Node struct {
 	UpdatedAt    time.Time
 	StartOffset  float64 // Seconds offset from run start
 	Duration     float64 // Duration in seconds
-	If           string  // Condition that was evaluated (for conditional steps)
+	If           string  // Condition the step evaluates (for conditional steps)
 	Children     []*Node
 	Dependencies []string
 	Deferred     bool
@@ -29,7 +29,7 @@ type Node struct {
 }
 
 // NewNode creates a new tree node.
-// Multi-line names are trimmed to the first line with a summary suffix.
+// It trims a multi-line name to the first line with a summary suffix.
 func NewNode(name string) *Node {
 	now := time.Now()
 	return &Node{
@@ -128,7 +128,7 @@ func (n *Node) Label() string {
 }
 
 // SetName sets the display name of a node. Nil-safe: no-op on nil receiver.
-// Multi-line names are trimmed to the first line with a summary suffix.
+// It trims a multi-line name to the first line with a summary suffix.
 func (n *Node) SetName(name string) {
 	if n == nil {
 		return
@@ -171,7 +171,7 @@ func (n *Node) SetDuration(duration float64) {
 	n.UpdatedAt = time.Now()
 }
 
-// SetIf sets the condition string that was evaluated. Nil-safe: no-op on nil receiver.
+// SetIf sets the evaluated condition string. Nil-safe: no-op on nil receiver.
 func (n *Node) SetIf(condition string) {
 	if n == nil {
 		return
@@ -248,7 +248,7 @@ func (n *Node) AddChild(child *Node) {
 	n.Children = append(n.Children, child)
 }
 
-// AddChildren adds multiple child nodes.
+// AddChildren adds child nodes.
 func (n *Node) AddChildren(children ...*Node) {
 	n.mu.Lock()
 	defer n.mu.Unlock()

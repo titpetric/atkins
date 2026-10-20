@@ -4,7 +4,7 @@ subtitle: Running specific jobs with targeting syntax
 layout: page
 ---
 
-When you have multiple jobs and skills, Atkins provides flexible syntax for targeting exactly which job to run. You can target jobs by name, by skill namespace, or by alias. Understanding the resolution order helps when job names overlap.
+When you have many jobs and skills, Atkins lets you target exactly the job to run. You can target jobs by name, by skill namespace, or by alias. Understanding the resolution order helps when job names overlap.
 
 ## Basic Targeting
 
@@ -44,7 +44,7 @@ jobs:
     depends_on: [lint, test, build]
 ```
 
-If no default is found, Atkins shows available jobs:
+Without a default job, Atkins shows available jobs:
 
 ```text
 atkins: Available jobs for this project:
@@ -65,8 +65,8 @@ atkins :build
 ```
 
 Use this when:
-- A skill has aliased `build` but you want the main pipeline's `build`
-- You want to skip alias resolution entirely
+- A skill has aliased `build` and you need the main pipeline's `build`
+- You need to skip alias resolution entirely
 
 ### Invoke Skill Pipeline Job
 
@@ -162,7 +162,7 @@ Jobs can have alternative names:
 
 ![Namespace](./job-targeting/namespace.png)
 
-Now all of these work:
+Now each of these works:
 
 ```bash
 atkins docker:build  # Full name
@@ -183,20 +183,20 @@ When you invoke `atkins <name>`, resolution follows this precedence:
 6. **Skills alias** - alias matches in a skill pipeline
 7. **Fuzzy match** - substring/suffix match (single match only)
 
-If no match is found, Atkins returns an error.
+If nothing matches, Atkins returns an error.
 
 Main pipeline jobs and aliases take precedence over skills. If your main pipeline has a job with `aliases: [default]`, running `atkins default` will invoke it even if a skill has a job literally named `default`.
 
 ## Fuzzy Matching
 
-If no exact match is found, Atkins tries fuzzy matching:
+Without an exact match, Atkins tries fuzzy matching:
 
 ```bash
 # If 'docker:build' exists
 atkins build  # Matches via suffix
 ```
 
-When multiple matches exist:
+When two or more matches exist:
 
 ```
 INFO: found 2 matching jobs:
@@ -209,7 +209,7 @@ Use the full name or `:` prefix to disambiguate.
 
 ## Jobs Named Like a Namespace
 
-A `:` in a job's own name has no special meaning to job resolution; it is matched as an exact key in the job map, the same as a name with no colon in it:
+A `:` in a job's own name has no special meaning to job resolution; Atkins matches the name as an exact key in the job map, the same as a name with no colon in it:
 
 ```yaml
 jobs:
@@ -266,8 +266,8 @@ atkins :docker:push
 ### When to Use `:` Prefix
 
 Use the `:` prefix when:
-- You want to bypass alias resolution
-- A skill has aliased a common name you want to skip
+- You need to bypass alias resolution
+- A skill has aliased a common name you need to skip
 
 ```bash
 # Main pipeline has 'up' job, runs via exact match

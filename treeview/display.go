@@ -41,7 +41,7 @@ func NewDisplayWithFinal(finalOnly bool) *Display {
 }
 
 // NewSilentDisplay creates a display that produces no output.
-// Used when JSON/YAML output mode is enabled.
+// Used for JSON/YAML output mode.
 func NewSilentDisplay() *Display {
 	return &Display{
 		lastLineCount: 0,
@@ -57,7 +57,7 @@ func (d *Display) IsTerminal() bool {
 }
 
 // Invalidate resets the line counter so the next Render does not
-// roll back over output that was produced outside the tree (e.g. by
+// roll back over output from outside the tree (for example from
 // an interactive command).
 func (d *Display) Invalidate() {
 	d.mu.Lock()
@@ -65,7 +65,7 @@ func (d *Display) Invalidate() {
 	d.lastLineCount = 0
 }
 
-// Render outputs the tree, updating in-place if previously rendered.
+// Render outputs the tree, updating in-place after the first render.
 func (d *Display) Render(root *Node) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -113,7 +113,7 @@ func (d *Display) RenderStatic(root *Node) {
 }
 
 // RenderFinal clears the live-updating tree and prints the full tree statically.
-// This should be called when execution completes so the output is scrollable.
+// Call it when execution completes so the output is scrollable.
 func (d *Display) RenderFinal(root *Node) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

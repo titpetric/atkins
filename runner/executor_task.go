@@ -16,7 +16,7 @@ import (
 )
 
 // executeTaskStep executes the task/job references of a step. A step may
-// name several jobs in one task: field (`task: lint test build`); they run
+// name more than one job in one task: field (`task: lint test build`); they run
 // in sequence and the step fails on the first one that fails.
 func (e *Executor) executeTaskStep(ctx context.Context, execCtx *ExecutionContext, step *model.Step, stepNode *treeview.Node) error {
 	tasks := step.Tasks()
@@ -93,7 +93,7 @@ func (e *Executor) executeTaskRef(ctx context.Context, execCtx *ExecutionContext
 	// Check if this step has a for loop
 	if !step.For.IsEmpty() {
 		// Handle task invocation with for loop
-		// Don't add task node as child here - iteration nodes will be added instead
+		// Don't add task node as child here - the loop adds iteration nodes
 		return e.executeTaskStepWithLoop(ctx, execCtx, step, taskRef, stepNode, taskJob, taskJobNode, targetPipeline)
 	}
 
@@ -148,12 +148,12 @@ func (e *Executor) executeTaskRef(ctx context.Context, execCtx *ExecutionContext
 		if err := MergeSkillVariables(taskCtx, targetPipeline.Decl); err != nil {
 			return err
 		}
-		// Evaluate task job dir and vars with proper ordering
+		// Resolve task job dir and vars with proper ordering
 		if err := evaluateDirAndVars(taskCtx, taskJob, false, "task"); err != nil {
 			return err
 		}
 		// Merge step-level vars (call-site overrides)
-		// This allows step vars to be interpolated and override task defaults
+		// This lets interpolated step vars override task defaults
 		if err := MergeVariables(taskCtx, step.Decl); err != nil {
 			return err
 		}
@@ -233,7 +233,7 @@ func (e *Executor) executeTaskRef(ctx context.Context, execCtx *ExecutionContext
 	return err
 }
 
-// executeTaskStepWithLoop executes a task multiple times via a for loop with loop variables
+// executeTaskStepWithLoop executes a task once per iteration of a for loop with loop variables
 func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *ExecutionContext, step *model.Step, taskRef string, stepNode *treeview.Node, taskJob *model.Job, taskJobNode *treeview.TreeNode, targetPipeline *model.Pipeline) error {
 	defer execCtx.Render()
 
@@ -262,7 +262,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 		return nil
 	}
 
-	// Build iteration nodes as children of the step node (similar to executeStepWithForLoop)
+	// Build iteration nodes as children of the step node (like executeStepWithForLoop)
 	iterationNodes := make([]*treeview.TreeNode, 0, len(iterations))
 	for idx, iteration := range iterations {
 		// Create iteration context for node name interpolation
@@ -324,7 +324,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 	var errMu sync.Mutex
 
 	for idx, iter := range iterations {
-		// Check if context was cancelled before starting next iteration
+		// Check if the context ended before starting next iteration
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -361,20 +361,20 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 				return err
 			}
 
-			// Evaluate task job dir and vars with proper ordering
+			// Resolve task job dir and vars with proper ordering
 			if err := evaluateDirAndVars(iterCtx, taskJob, false, "task"); err != nil {
 				iterTreeNode.SetStatus(treeview.StatusFailed)
 				return err
 			}
 
 			// Merge step-level vars (call-site overrides) with iteration context
-			// This allows step vars like `path: $(dirname "${{item}}")` to be interpolated
+			// This lets interpolation resolve step vars like `path: $(dirname "${{item}}")`
 			if err := MergeVariables(iterCtx, iterationDecl); err != nil {
 				iterTreeNode.SetStatus(treeview.StatusFailed)
 				return err
 			}
 
-			// Validate job requirements (loop variables should satisfy requires)
+			// Check job requirements (loop variables must cover requires)
 			if err := ValidateJobRequirements(iterCtx, taskJob); err != nil {
 				iterTreeNode.SetStatus(treeview.StatusFailed)
 				return err

@@ -39,7 +39,7 @@ func TestRenderJobEntry_FailedLongError(t *testing.T) {
 	longError := strings.Repeat("x", 100)
 	result := agent.RenderJobEntry("go:test", false, true, 1*time.Second, longError)
 
-	// Error should be truncated to fit on one line
+	// The view truncates the error to fit on one line
 	// The truncation happens at 80 chars -> 77 + "..."
 	assert.Contains(t, result, "...")
 	// Check that the full error is not present

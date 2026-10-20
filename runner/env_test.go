@@ -193,7 +193,7 @@ func TestEnvDeclPrecedence(t *testing.T) {
 }
 
 func TestIncludeDecl_UnmarshalString(t *testing.T) {
-	// This would normally be tested via YAML unmarshalling,
+	// YAML unmarshalling would normally cover this,
 	// but we test the logic directly
 	includeDecl := &model.IncludeDecl{}
 
@@ -205,7 +205,7 @@ func TestIncludeDecl_UnmarshalString(t *testing.T) {
 }
 
 func TestIncludeDecl_UnmarshalList(t *testing.T) {
-	// Simulate setting multiple files
+	// Simulate setting two files
 	includeDecl := &model.IncludeDecl{}
 	includeDecl.Files = []string{".env", ".env.local", ".env.production"}
 

@@ -82,7 +82,7 @@ func (l *Linter) validateTaskInvocations() {
 			continue
 		}
 
-		// Check if both steps and cmds are defined (warning)
+		// Check if the job declares both steps and cmds (warning)
 		if len(job.Steps) > 0 && len(job.Cmds) > 0 {
 			l.errors = append(l.errors, LintError{
 				Job:    jobName,
@@ -180,7 +180,7 @@ func ResolveJobDependencies(jobs map[string]*model.Job, startingJob string) ([]s
 		return []string{}, nil
 	}
 
-	// If a specific job is requested, resolve its dependency chain
+	// If the caller names a specific job, resolve its dependency chain
 	if startingJob != "" {
 		if _, exists := jobs[startingJob]; !exists {
 			return nil, fmt.Errorf("job '%s' not found", startingJob)
@@ -189,7 +189,7 @@ func ResolveJobDependencies(jobs map[string]*model.Job, startingJob string) ([]s
 	}
 
 	// Otherwise, resolve root jobs (those without ':' in name)
-	// Mark nested jobs so they won't be executed directly
+	// Mark nested jobs so they won't run directly
 	for name, job := range jobs {
 		if job.Name == "" {
 			job.Name = name
@@ -256,7 +256,7 @@ func resolveDependencyChain(jobs map[string]*model.Job, jobName string) ([]strin
 // Returns an error with a clear message listing missing variables.
 func ValidateJobRequirements(ctx *ExecutionContext, job *model.Job) error {
 	if len(job.Requires) == 0 {
-		return nil // No requirements to validate
+		return nil // No requirements to check
 	}
 
 	var missing []string

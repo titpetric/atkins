@@ -13,8 +13,8 @@ type Command struct {
 	// Title is one line on what the command does.
 	Title string
 
-	// Default marks the command that runs when none is named. Its flags
-	// are printed as the global ones.
+	// Default marks the command that runs when the user names none. Write
+	// prints its flags as the global ones.
 	Default bool
 
 	// Flags are the command's own flags, nil when it has none.

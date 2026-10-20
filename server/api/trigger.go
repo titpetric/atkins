@@ -15,12 +15,12 @@ import (
 
 // TriggerRequest is the body of POST /api/repository/{repositoryID}/trigger.
 //
-// It is the "POST a job name to a project endpoint" trigger: a cron, a
+// This is the "POST a job name to a project endpoint" trigger: a cron, a
 // webhook receiver or another job can queue work for a repository the
 // server already knows, without a checkout of its own.
 type TriggerRequest struct {
-	// Job is the atkins job to run, e.g. "analyze". Either this or
-	// Command is required; Job is turned into `atkins <job>`.
+	// Job is the atkins job to run, e.g. "analyze". The request needs
+	// this or Command; the server turns Job into `atkins <job>`.
 	Job string `json:"job"`
 
 	// Command overrides the whole invocation when a bare job name is
@@ -32,12 +32,12 @@ type TriggerRequest struct {
 
 	// Ref pins what gets checked out: a branch, a tag, a commit sha or
 	// a fully qualified refname. Empty lets the agent resolve the
-	// repository's default branch when the job runs, which is what a
-	// "run this nightly" trigger wants.
+	// repository's default branch when the job runs, the behaviour a
+	// "run this nightly" trigger needs.
 	Ref string `json:"ref"`
 
-	// CloneDepth limits the history of the work tree. 0 is all of it.
-	// A fan-out over tags usually wants 1: each child builds one commit
+	// CloneDepth limits the history of the work tree. 0 is the full
+	// history. A fan-out over tags sets 1: each child builds one commit
 	// and never looks behind it.
 	CloneDepth int64 `json:"clone_depth"`
 
@@ -46,7 +46,7 @@ type TriggerRequest struct {
 	Branch   string `json:"branch"`
 	Revision string `json:"revision"`
 
-	// Params are handed to the job as ATKINS_JOB_PARAMS. This is how a
+	// Params reach the job as ATKINS_JOB_PARAMS. This is how a
 	// dispatching job passes a tag or a commit to each child.
 	Params map[string]any `json:"params"`
 
@@ -98,8 +98,8 @@ func (s *Handlers) trigger(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// The allowlist governs triggers exactly as it governs dispatch: a
-	// repository that may not be built may not be built on a schedule
-	// either.
+	// repository the server may not build stays unbuilt on a schedule
+	// too.
 	allowed, err := s.allowedRepository(r, repository.Slug)
 	if err != nil {
 		return err
@@ -114,8 +114,8 @@ func (s *Handlers) trigger(w http.ResponseWriter, r *http.Request) error {
 		return requestError(http.StatusBadRequest, err)
 	}
 
-	// An empty ref is left empty rather than filled in with the default
-	// branch here: a nightly trigger should follow the branch, and the
+	// An empty ref stays empty, with no default branch filled in
+	// here: a nightly trigger should follow the branch, and the
 	// agent records which commit it resolved to when it runs.
 	job, err := s.jobs.Create(r.Context(), storage.JobRequest{
 		ParentID:         req.ParentID,
@@ -139,9 +139,9 @@ func (s *Handlers) trigger(w http.ResponseWriter, r *http.Request) error {
 
 // RetryJob queues a copy of a finished job.
 //
-// A retry is a new job rather than a reset of the old one: the previous
-// attempt keeps its output and its outcome, which is the whole point of
-// looking at a failure after retrying it.
+// A retry is a new job and leaves the old one as it stands: the previous
+// attempt keeps its output and its outcome, so the failure stays there
+// to look at after retrying it.
 func (s *Handlers) RetryJob(w http.ResponseWriter, r *http.Request) {
 	s.respond(w, r, s.retryJob(w, r))
 }
@@ -180,13 +180,13 @@ func (s *Handlers) retryJob(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// The retry keeps the original's parent, so a re-run child stays
-	// under the job that dispatched it rather than becoming a root of
+	// under the job that dispatched it and does not become a root of
 	// its own.
 	//
-	// It repeats the ref rather than the commit the first attempt
-	// resolved: a retry is "run this again", and a job pointed at a
-	// branch is asking for whatever that branch holds now. Pin the
-	// commit in the ref if you want the same code twice.
+	// It repeats the ref, and drops the commit the original resolved: a
+	// retry is "run this again", and a job pointed at a branch runs
+	// whatever that branch holds now. Pin the commit in the ref to build
+	// the same code twice.
 	job, err := s.jobs.Create(r.Context(), storage.JobRequest{
 		ParentID:         previous.ParentID,
 		RepositoryID:     previous.RepositoryID,
@@ -197,7 +197,7 @@ func (s *Handlers) retryJob(w http.ResponseWriter, r *http.Request) error {
 		CloneDepth:       previous.CloneDepth,
 		Labels:           splitLabels(previous.Labels),
 		Params:           previous.Params,
-		// A retry collects what the original was asked to collect;
+		// A retry collects what the original collects;
 		// otherwise the re-run of a failed job would come back without
 		// the files that explain it.
 		Artefacts: model.ArtefactPatterns(previous.ArtefactPaths),

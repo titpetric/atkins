@@ -57,7 +57,7 @@ func New(workDir string, opts *Options) (*Agent, error) {
 		}
 	}
 
-	// Try to load main pipeline config too
+	// Try to load the main pipeline configuration too
 	if configPath, configDir, err := runner.DiscoverConfigFromCwd(); err == nil && configPath != "" {
 		if mainPipelines, loadErr := runner.LoadPipeline(configPath); loadErr == nil {
 			// Prepend main pipeline(s) - they take priority

@@ -6,8 +6,8 @@ import (
 )
 ```
 
-Package assert is a minimalistic drop-in replacement for testify/assert.
-It is based on fortio.org/assert and is internal to this module.
+Package `assert` is a minimalistic drop-in replacement for testify/assert.
+It derives from fortio.org/assert and stays internal to this module.
 
 ## Types
 
@@ -15,7 +15,7 @@ It is based on fortio.org/assert and is internal to this module.
 <summary><code>type TestSuite</code></summary>
 
 ```go
-// TestSuite to be used as base struct for test suites.
+// TestSuite is the base struct for test suites.
 // Replaces https://pkg.go.dev/github.com/stretchr/testify@v1.8.0/suite.
 type TestSuite struct {
 	t *testing.T
@@ -80,330 +80,330 @@ var AnError = errors.New("assert.AnError general error for testing")
 - `func (*TestSuite) SetT (t *testing.T)`
 - `func (*TestSuite) T () *testing.T`
 
-### Assert
+### `Assert`
 
-Assert is similar to True() under a different name and earlier
+`Assert` matches True() under a different name and earlier
 fortio/stats test implementation.
 
 ```go
 func Assert(t testing.TB, cond bool, msg string, rest ...any)
 ```
 
-### CheckEquals
+### `CheckEquals`
 
-CheckEquals checks if actual == expect and fails the test and logs
+`CheckEquals` checks if actual == expect and fails the test and logs
 failure (including filename:linenum if they are not equal).
 
 ```go
 func CheckEquals(t testing.TB, actual, expected any, msg ...any)
 ```
 
-### Contains
+### `Contains`
 
-Contains checks that needle is in haystack.
+`Contains` checks that needle is in haystack.
 
 ```go
 func Contains(t testing.TB, haystack, needle any, msg ...any)
 ```
 
-### DirExists
+### `DirExists`
 
-DirExists checks that path exists and is a directory.
+`DirExists` checks that path exists and is a directory.
 
 ```go
 func DirExists(t testing.TB, path string, msg ...any)
 ```
 
-### ElementsMatch
+### `ElementsMatch`
 
-ElementsMatch checks that two arrays or slices hold the same elements
+`ElementsMatch` checks that two arrays or slices hold the same elements
 with the same multiplicity, in any order.
 
 ```go
 func ElementsMatch(t testing.TB, listA, listB any, msg ...any)
 ```
 
-### Empty
+### `Empty`
 
-Empty checks that value is nil, zero, or has length zero.
+`Empty` checks that value is nil, zero, or has length zero.
 
 ```go
 func Empty(t testing.TB, value any, msg ...any)
 ```
 
-### Equal
+### `Equal`
 
-Equal also checks for a equal b.
+`Equal` also checks for a equal b.
 
 ```go
 func Equal(t testing.TB, a, b any, msg ...any)
 ```
 
-### EqualValues
+### `EqualValues`
 
-EqualValues checks for a equal b.
+`EqualValues` checks for a equal b.
 
 ```go
 func EqualValues(t testing.TB, a, b any, msg ...any)
 ```
 
-### Error
+### `Error`
 
-Error checks/expects an error.
+`Error` checks/expects an error.
 
 ```go
 func Error(t testing.TB, err error, msg ...any)
 ```
 
-### ErrorAs
+### `ErrorAs`
 
-ErrorAs checks that err, or an error it wraps, is assignable to
+`ErrorAs` checks that err, or an error it wraps, is assignable to
 target, which must be a non-nil pointer.
 
 ```go
 func ErrorAs(t testing.TB, err error, target any, msg ...any)
 ```
 
-### ErrorContains
+### `ErrorContains`
 
-ErrorContains checks that err is non-nil and its message contains want.
+`ErrorContains` checks that err is non-nil and its message contains want.
 
 ```go
 func ErrorContains(t testing.TB, err error, want string, msg ...any)
 ```
 
-### ErrorIs
+### `ErrorIs`
 
-ErrorIs checks that err matches target.
+`ErrorIs` checks that err matches target.
 
 ```go
 func ErrorIs(t testing.TB, err, target error, msg ...any)
 ```
 
-### Errorf
+### `Errorf`
 
-Errorf is a local variant to get the right line numbers.
+`Errorf` is a local variant to get the right line numbers.
 
 ```go
 func Errorf(t testing.TB, format string, rest ...any)
 ```
 
-### Eventually
+### `Eventually`
 
-Eventually polls condition every tick until it returns true or
+`Eventually` polls condition every tick until it returns true or
 waitFor elapses.
 
 ```go
 func Eventually(t testing.TB, condition func() bool, waitFor, tick time.Duration, msg ...any)
 ```
 
-### Fail
+### `Fail`
 
-Fail fails the test.
+`Fail` fails the test.
 
 ```go
 func Fail(t testing.TB, msg string, args ...any)
 ```
 
-### False
+### `False`
 
-False checks bool is false.
+`False` checks bool is false.
 
 ```go
 func False(t testing.TB, b bool, msg ...any)
 ```
 
-### FileExists
+### `FileExists`
 
-FileExists checks that path exists and is a regular file.
+`FileExists` checks that path exists and is a regular file.
 
 ```go
 func FileExists(t testing.TB, path string, msg ...any)
 ```
 
-### Greater
+### `Greater`
 
-Greater checks that actual is greater than expected.
+`Greater` checks that actual is greater than expected.
 
 ```go
 func Greater(t testing.TB, actual, expected any, msg ...any)
 ```
 
-### GreaterOrEqual
+### `GreaterOrEqual`
 
-GreaterOrEqual checks that actual is greater than or equal to expected.
+`GreaterOrEqual` checks that actual is greater than or equal to expected.
 
 ```go
 func GreaterOrEqual(t testing.TB, actual, expected any, msg ...any)
 ```
 
-### IsIncreasing
+### `IsIncreasing`
 
-IsIncreasing checks that every item is greater than the item before it.
+`IsIncreasing` checks that every item is greater than the item before it.
 
 ```go
 func IsIncreasing(t testing.TB, value any, msg ...any)
 ```
 
-### JSONEq
+### `JSONEq`
 
-JSONEq checks that two JSON documents carry the same value, ignoring
+`JSONEq` checks that two JSON documents carry the same value, ignoring
 key order and whitespace.
 
 ```go
 func JSONEq(t testing.TB, expected, actual string, msg ...any)
 ```
 
-### Len
+### `Len`
 
-Len checks the length of a string, array, channel, map, or slice.
+`Len` checks the length of a string, array, channel, map, or slice.
 
 ```go
 func Len(t testing.TB, value any, expected int, msg ...any)
 ```
 
-### Less
+### `Less`
 
-Less checks that actual is less than expected.
+`Less` checks that actual is less than expected.
 
 ```go
 func Less(t testing.TB, actual, expected any, msg ...any)
 ```
 
-### LessOrEqual
+### `LessOrEqual`
 
-LessOrEqual checks that actual is less than or equal to expected.
+`LessOrEqual` checks that actual is less than or equal to expected.
 
 ```go
 func LessOrEqual(t testing.TB, actual, expected any, msg ...any)
 ```
 
-### Nil
+### `Nil`
 
-Nil checks that value is nil, including a typed nil.
+`Nil` checks that value is nil, including a typed nil.
 
 ```go
 func Nil(t testing.TB, value any, msg ...any)
 ```
 
-### NoDirExists
+### `NoDirExists`
 
-NoDirExists checks that path is not a directory. A regular file at
+`NoDirExists` checks that path is not a directory. A regular file at
 path passes, matching testify.
 
 ```go
 func NoDirExists(t testing.TB, path string, msg ...any)
 ```
 
-### NoError
+### `NoError`
 
-NoError checks for no errors (nil).
+`NoError` checks for no errors (nil).
 
 ```go
 func NoError(t testing.TB, err error, msg ...any)
 ```
 
-### NoFileExists
+### `NoFileExists`
 
-NoFileExists checks that path is not a regular file. A directory at
+`NoFileExists` checks that path is not a regular file. A directory at
 path passes, matching testify.
 
 ```go
 func NoFileExists(t testing.TB, path string, msg ...any)
 ```
 
-### NotContains
+### `NotContains`
 
-NotContains checks that needle is not in haystack.
+`NotContains` checks that needle is not in haystack.
 
 ```go
 func NotContains(t testing.TB, haystack, needle any, msg ...any)
 ```
 
-### NotEmpty
+### `NotEmpty`
 
-NotEmpty checks that value is neither nil nor empty.
+`NotEmpty` checks that value is neither nil nor empty.
 
 ```go
 func NotEmpty(t testing.TB, value any, msg ...any)
 ```
 
-### NotEqual
+### `NotEqual`
 
-NotEqual checks for a not equal b.
+`NotEqual` checks for a not equal b.
 
 ```go
 func NotEqual(t testing.TB, a, b any, msg ...any)
 ```
 
-### NotNil
+### `NotNil`
 
-NotNil checks that value is not nil, including a typed nil.
+`NotNil` checks that value is not nil, including a typed nil.
 
 ```go
 func NotNil(t testing.TB, value any, msg ...any)
 ```
 
-### NotZero
+### `NotZero`
 
-NotZero checks that value is not the zero value for its type.
+`NotZero` checks that value is not the zero value for its type.
 
 ```go
 func NotZero(t testing.TB, value any, msg ...any)
 ```
 
-### ObjectsAreEqualValues
+### `ObjectsAreEqualValues`
 
-ObjectsAreEqualValues returns true if a == b (through refection).
+`ObjectsAreEqualValues` returns true if a == b (through refection).
 
 ```go
 func ObjectsAreEqualValues(a, b any) bool
 ```
 
-### Positive
+### `Positive`
 
-Positive checks that value is a number greater than zero.
+`Positive` checks that value is numeric and greater than zero.
 
 ```go
 func Positive(t testing.TB, value any, msg ...any)
 ```
 
-### Run
+### `Run`
 
-Run runs the test suite with SetupTest first and TearDownTest after.
+`Run` runs the test suite with SetupTest first and TearDownTest after.
 Replaces https://pkg.go.dev/github.com/stretchr/testify/suite#Run.
 
 ```go
 func Run(t *testing.T, suite hasT)
 ```
 
-### True
+### `True`
 
-True checks bool is true.
+`True` checks bool is true.
 
 ```go
 func True(t testing.TB, b bool, msg ...any)
 ```
 
-### Zero
+### `Zero`
 
-Zero checks that value is the zero value for its type.
+`Zero` checks that value is the zero value for its type.
 
 ```go
 func Zero(t testing.TB, value any, msg ...any)
 ```
 
-### SetT
+### `SetT`
 
-SetT sets the testing.T in the suite object.
+`SetT` sets the testing.T in the suite object.
 
 ```go
 func (*TestSuite) SetT(t *testing.T)
 ```
 
-### T
+### `T`
 
-T returns the current testing.T.
+`T` returns the current testing.T.
 
 ```go
 func (*TestSuite) T() *testing.T

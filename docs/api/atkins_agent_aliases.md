@@ -53,34 +53,34 @@ type Aliases = AliasStore
 - `func (*AliasStore) Add (phrase,prompt string)`
 - `func (*AliasStore) Match (input string) string`
 
-### NewAliasStore
+### `NewAliasStore`
 
-NewAliasStore loads or creates the alias store.
+`NewAliasStore` loads or creates the alias store.
 
 ```go
 func NewAliasStore() *AliasStore
 ```
 
-### ParseCorrection
+### `ParseCorrection`
 
-ParseCorrection detects "if I say X, run Y" style corrections.
+`ParseCorrection` detects "if I say X, run Y" style corrections.
 Returns (phrase, task, true) if matched.
 
 ```go
 func ParseCorrection(input string) (string, string, bool)
 ```
 
-### Add
+### `Add`
 
-Add records a new alias mapping.
+`Add` records a new alias mapping.
 
 ```go
 func (*AliasStore) Add(phrase, prompt string)
 ```
 
-### Match
+### `Match`
 
-Match checks if the input matches any alias phrase.
+`Match` checks if the input matches any alias phrase.
 Returns the target task name, or empty string if no match.
 
 ```go

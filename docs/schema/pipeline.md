@@ -29,7 +29,7 @@ jobs:       # or 'tasks:'
 | `name`    | string | Pipeline name displayed in output         |
 | `vars`    | map    | Variables available to all jobs           |
 | `env`     | object | Environment variables for all jobs        |
-| `include` | list   | Files to include for additional variables |
+| `include` | list   | Files to include for more variables       |
 | `jobs`    | map    | Job definitions (GHA-style)               |
 | `tasks`   | map    | Task definitions (Taskfile-style)         |
 | `when`    | object | Conditions for skill activation           |
@@ -52,7 +52,7 @@ tasks:
       - go build
 ```
 
-If both are defined, `jobs` takes precedence.
+If a pipeline declares both, `jobs` takes precedence.
 
 ## Pipeline Variables
 
@@ -117,11 +117,11 @@ jobs:
       - run: go build ./...
 ```
 
-The `when.files` condition activates this skill when `go.mod` exists. Entries carrying `*`, `?` or `[...]` are expanded as globs, so `schema/*.up.sql` activates on a folder of migrations rather than on any folder named `schema`.
+The `when.files` condition activates this skill when `go.mod` exists. Atkins expands entries carrying `*`, `?` or `[...]` as globs, so `schema/*.up.sql` activates on a folder of migrations and skips a `schema` folder without them.
 
 ## Multi-Document Pipelines
 
-A single file can contain multiple pipelines using YAML document separators:
+A single file can contain two or more pipelines using YAML document separators:
 
 ```yaml
 name: Main Pipeline

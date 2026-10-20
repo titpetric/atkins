@@ -6,17 +6,17 @@ import (
 )
 ```
 
-Package config owns the atkins configuration document.
+Package `config` owns the atkins configuration document.
 
-Configuration has two layers. The document — .atkins/config.yml,
-falling back to the embedded RuntimeDefaultConfig — is the source of
+Configuration has two layers. The document (.atkins/config.yml,
+falling back to the embedded RuntimeDefaultConfig) is the source of
 truth. Environment variables are an overlay on top of it, for
 containers and CI, and only where they are actually set: an unset or
 empty ATKINS_* variable leaves the configured value alone.
 
-Every field is checked on load, and an empty one takes the default
-from the embedded document. A half-written config fails at start-up
-with a message naming the field, rather than at the first request.
+Load checks every field, and an empty one takes the default from the
+embedded document. A half-written configuration fails at start-up
+with a message naming the field, long before the first request.
 
 ## Types
 
@@ -54,18 +54,18 @@ type AgentConfig struct {
 ```go
 // ClientConfig is the dispatching side.
 type ClientConfig struct {
-	// Server is the URL runs are dispatched to. Empty falls back to
+	// Server is the URL that dispatch sends runs to. Empty falls back to
 	// the server this machine last logged in to.
 	Server string `yaml:"server" json:"server" env:"ATKINS_SERVER"`
 
-	// Credentials is where login tokens are stored. Empty means
+	// Credentials is where the client stores login tokens. Empty means
 	// $HOME/.atkins/credentials.json.
 	Credentials string `yaml:"credentials" json:"credentials" env:"ATKINS_CREDENTIALS"`
 
 	// Labels constrain which agents may run this machine's jobs.
 	Labels []string `yaml:"labels" json:"labels" env:"ATKINS_LABELS"`
 
-	// Dispatch hands every run to an agent instead of running it here.
+	// Dispatch sends every run to an agent and runs nothing here.
 	// Off, the default, is what `--dispatch` turns on for one run.
 	Dispatch bool `yaml:"dispatch" json:"dispatch" env:"ATKINS_DISPATCH"`
 
@@ -115,7 +115,7 @@ type Field struct {
 	// Env is the variable that overrides it at runtime, if any.
 	Env string
 
-	// Secret marks a value that should not be echoed back in full.
+	// Secret marks a value that the menu never echoes back in full.
 	Secret bool
 
 	// value points at the live field so Set writes through.
@@ -131,7 +131,7 @@ type Field struct {
 ```go
 // Menu edits a configuration document interactively.
 type Menu struct {
-	// Path is the document being edited.
+	// Path is the document the menu edits.
 	Path string
 
 	config *Config
@@ -155,15 +155,14 @@ type ServerConfig struct {
 	Database   string `yaml:"database" json:"database" env:"PLATFORM_DB_DEFAULT"`
 	Connection string `yaml:"connection" json:"connection" env:"ATKINS_DB_CONNECTION"`
 
-	// SigningKey signs access tokens. Required; there is deliberately
-	// no default.
+	// SigningKey signs access tokens. Required, with no default.
 	SigningKey string `yaml:"signing_key" json:"signing_key" env:"ATKINS_SIGNING_KEY"`
 
 	// AgentToken is the shared secret agents enrol with.
 	AgentToken string `yaml:"agent_token" json:"agent_token" env:"ATKINS_AGENT_TOKEN"`
 
-	// ArtefactDir is the root the bytes of job artefacts are written
-	// under. The database records what an artefact is; this is where
+	// ArtefactDir is the root the server writes the bytes of job
+	// artefacts under. The database records what an artefact is; this is where
 	// the file itself goes.
 	ArtefactDir string `yaml:"artefact_dir" json:"artefact_dir" env:"ATKINS_ARTEFACT_DIR"`
 
@@ -219,9 +218,9 @@ const Version = 1
 ```go
 // RuntimeDefaultConfig is the default configuration document, embedded
 // so an unconfigured install still has a complete and valid set of
-// values rather than a scatter of zero values.
+// values and no scatter of zero values.
 //
-// It is also what `atkins --config` writes when a project has no
+// The configuration menu also writes it when a project has no
 // .atkins/config.yml yet, comments and all, so the file a user first
 // opens explains itself.
 //
@@ -255,20 +254,20 @@ var RuntimeDefaultConfig []byte
 - `func (Field) Set (raw string) error`
 - `func (Field) String () string`
 
-### Default
+### `Default`
 
-Default returns the embedded configuration.
+`Default` returns the embedded configuration.
 
-It is the base every other layer is applied to, and the source of the
-value substituted for any field left empty.
+Every other layer applies on top of this base, and it supplies the
+value for any field left empty.
 
 ```go
 func Default() (*Config, error)
 ```
 
-### Discover
+### `Discover`
 
-Discover walks up from dir looking for .atkins/config.yml, so a
+`Discover` walks up from dir looking for .atkins/config.yml, so a
 command run deep inside a project still finds the project's
 configuration.
 
@@ -276,9 +275,9 @@ configuration.
 func Discover(dir string) string
 ```
 
-### EnvironmentNames
+### `EnvironmentNames`
 
-EnvironmentNames returns the variables that can override a field,
+`EnvironmentNames` returns the variables that can override a field,
 keyed by the field path they apply to. The configuration menu uses it
 to warn that an edit will be overridden at runtime.
 
@@ -286,122 +285,122 @@ to warn that an edit will be overridden at runtime.
 func EnvironmentNames() map[string]string
 ```
 
-### Load
+### `Load`
 
-Load reads the effective configuration for a directory.
+`Load` reads the effective configuration for a directory.
 
 The layers, each overriding the last: the embedded default, the user
 document at $HOME/.atkins/config.yml, the project document found by
-walking up from dir, and finally the environment overlay. The result
-is validated, which fills anything still empty.
+walking up from dir, and finally the environment overlay. Validation
+of the result fills anything still empty.
 
 ```go
 func Load(dir string) (*Config, error)
 ```
 
-### LoadFile
+### `LoadFile`
 
-LoadFile reads a single document, with defaults and validation but
-without the user layer or the environment overlay. It is what the
-configuration menu edits.
+`LoadFile` reads a single document, with defaults and validation but
+without the user layer or the environment overlay. The
+configuration menu edits this result.
 
 ```go
 func LoadFile(path string) (*Config, error)
 ```
 
-### NewMenu
+### `NewMenu`
 
-NewMenu opens the document at path for editing, starting from the
+`NewMenu` opens the document at path for editing, starting from the
 embedded defaults when it doesn't exist yet.
 
 ```go
 func NewMenu(path string) (*Menu, error)
 ```
 
-### Paths
+### `Paths`
 
-Paths returns the configuration documents that apply to dir, in the
-order they should be merged.
+`Paths` returns the configuration documents that apply to dir, in the
+order Load merges them.
 
 ```go
 func Paths(dir string) []string
 ```
 
-### ProjectPath
+### `ProjectPath`
 
-ProjectPath returns where a project's configuration belongs: the
-document that exists, or the path one would be created at.
+`ProjectPath` returns where a project's configuration belongs: the
+document that exists, or the path where a new one belongs.
 
 ```go
 func ProjectPath(dir string) string
 ```
 
-### SplitList
+### `SplitList`
 
-SplitList parses a comma separated value into a list, dropping empty
-entries so `a,,b` and `a , b` both give two items.
+`SplitList` parses a comma separated value into a list, dropping empty
+entries so `a,,b` and `a , b` both return two items.
 
 ```go
 func SplitList(value string) []string
 ```
 
-### ApplyEnvironment
+### `ApplyEnvironment`
 
-ApplyEnvironment overlays ATKINS_* variables onto the configuration.
+`ApplyEnvironment` overlays ATKINS_* variables onto the configuration.
 
-The overlay is driven by `env` struct tags, so adding a field to the
-document gives it an override for free. Only variables that are set
-and non-empty are applied: an empty variable means "not configured
-here", which is what lets a container set one field without wiping
-the rest of the document.
+`env` struct tags drive the overlay, so adding a field to the
+document adds an override for free. The overlay applies only variables
+that hold a non-empty value: an empty variable means "not configured
+here", so a container can set one field without wiping the rest of
+the document.
 
-A value that doesn't parse is ignored rather than fatal. The
-alternative is a container that refuses to start because of a typo in
-an optional tuning knob, and Validate still catches anything that
-would leave the config unusable.
+The overlay skips a value that doesn't parse, and that is never fatal.
+The alternative is a container that fails to start because of a typo in
+an optional tuning knob, and the validation pass still catches anything
+that would leave the configuration unusable.
 
 ```go
 func (*Config) ApplyEnvironment(environ []string)
 ```
 
-### Encode
+### `Encode`
 
-Encode renders the configuration as YAML.
+`Encode` renders the configuration as YAML.
 
 ```go
 func (*Config) Encode() ([]byte, error)
 ```
 
-### Field
+### `Field`
 
-Field returns one field by path.
+`Field` returns one field by path.
 
 ```go
 func (*Config) Field(path string) (Field, bool)
 ```
 
-### Fields
+### `Fields`
 
-Fields returns every editable field, in document order.
+`Fields` returns every editable field, in document order.
 
 ```go
 func (*Config) Fields() []Field
 ```
 
-### Save
+### `Save`
 
-Save writes the configuration, creating the .atkins directory.
+`Save` writes the configuration, creating the .atkins directory.
 
 ```go
 func (*Config) Save(path string) error
 ```
 
-### Validate
+### `Validate`
 
-Validate fills empty fields from the embedded defaults and checks
+`Validate` fills empty fields from the embedded defaults and checks
 what remains.
 
-Defaulting and checking are one pass on purpose: "unset" and
+Defaulting and checking share one pass: "unset" and
 "invalid" are different problems, and only the second is worth
 refusing to start over. A missing timeout is a value nobody chose; a
 negative one is a value somebody got wrong.
@@ -410,51 +409,51 @@ negative one is a value somebody got wrong.
 func (*Config) Validate() error
 ```
 
-### Run
+### `Run`
 
-Run drives the menu until the user quits.
+`Run` drives the menu until the user quits.
 
 ```go
 func (*Menu) Run() error
 ```
 
-### SetIO
+### `SetIO`
 
-SetIO redirects the menu, so it can be driven from something other
-than a terminal.
+`SetIO` redirects the menu, so something other than a terminal can
+drive it.
 
 ```go
 func (*Menu) SetIO(in io.Reader, out io.Writer)
 ```
 
-### Display
+### `Display`
 
-Display renders the value for a listing, masking secrets and marking
+`Display` renders the value for a listing, masking secrets and marking
 empties so a blank line is never ambiguous.
 
 ```go
 func (Field) Display() string
 ```
 
-### Kind
+### `Kind`
 
-Kind names the value type, for the edit prompt.
+`Kind` names the value type, for the edit prompt.
 
 ```go
 func (Field) Kind() string
 ```
 
-### Set
+### `Set`
 
-Set parses and assigns a value, reporting what didn't parse.
+`Set` parses and assigns a value, reporting what didn't parse.
 
 ```go
 func (Field) Set(raw string) error
 ```
 
-### String
+### `String`
 
-String renders the current value for display.
+`String` renders the current value for display.
 
 ```go
 func (Field) String() string

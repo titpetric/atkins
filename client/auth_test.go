@@ -35,7 +35,7 @@ func TestPrompterPrefersTheEnvironment(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "from-env@example.com", email)
 
-	// No prompt is shown when the value came from the environment.
+	// The prompter shows no prompt when the value comes from the environment.
 	assert.Empty(t, out.String())
 }
 
@@ -43,8 +43,8 @@ func TestPrompterRefusesAPasswordWithoutATerminal(t *testing.T) {
 	var out bytes.Buffer
 	prompt := client.NewPrompterFrom(strings.NewReader("secret\n"), &out)
 
-	// Reading a password from a pipe would echo it; the caller is told
-	// to use the environment instead.
+	// Reading a password from a pipe would echo it; the error tells the
+	// caller to use the environment.
 	_, err := prompt.Password("Password")
 	assert.ErrorIs(t, err, client.ErrNoTerminal)
 
@@ -102,7 +102,7 @@ func TestRunRegisterRejectsAShortPassword(t *testing.T) {
 	t.Setenv(client.EnvEmail, "ci@example.com")
 	t.Setenv(client.EnvPassword, "short")
 
-	// Caught at the prompt rather than after a round trip.
+	// The prompt catches it before any round trip.
 	err := client.RunRegister(t.Context(), fake.URL)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "at least")

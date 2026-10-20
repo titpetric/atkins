@@ -14,17 +14,17 @@ import (
 )
 
 // HeaderArtefactChecksum carries the SHA256 the agent computed while
-// reading the file. It is optional; when present the server compares it
-// against what actually arrived, so a truncated upload is a 400 rather
-// than an artefact nobody can use.
+// reading the file. The header is optional; when present the server
+// compares it against what actually arrived, so a truncated upload is a
+// 400 and never an artefact nobody can use.
 const HeaderArtefactChecksum = "X-Atkins-Checksum"
 
-// ArtefactView is how an artefact is described over the API.
+// ArtefactView describes an artefact over the API.
 //
-// It is a projection rather than the row: `storage_key` says where the
-// bytes sit on the server, and that is the server's business. The rule
-// is the same one SSHKeyView follows — the projection is the guard, not
-// a `json:"-"` somebody has to remember to add to a new column.
+// ArtefactView is a projection of the row: `storage_key` says where the
+// bytes sit on the server, and that is the server's business. SSHKeyView
+// follows the same rule: the projection is the guard, and nobody has to
+// remember to add a `json:"-"` to a new column.
 type ArtefactView struct {
 	ID          string `json:"id"`
 	JobID       string `json:"job_id"`
@@ -60,7 +60,7 @@ func artefactView(artefact model.JobArtefact) ArtefactView {
 
 // UploadArtefact stores a file a job produced.
 //
-// The body is the file itself rather than a multipart form: an artefact
+// The body is the file itself, with no multipart form: an artefact
 // is bytes, and a raw body streams from the agent's disk to the
 // server's without either side building an envelope around it. The
 // name, the media type and the checksum are small enough to be
@@ -71,8 +71,8 @@ func (s *Handlers) UploadArtefact(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Handlers) uploadArtefact(w http.ResponseWriter, r *http.Request) error {
-	// Artefacts are pushed by the agent that ran the job, exactly like
-	// its output.
+	// The agent that ran the job pushes its artefacts, exactly like its
+	// output.
 	agent, err := s.requireAgent(r)
 	if err != nil {
 		return err
@@ -89,7 +89,7 @@ func (s *Handlers) uploadArtefact(w http.ResponseWriter, r *http.Request) error 
 	maxSize := s.settings.Bytes(model.SettingArtefactMaxSize)
 
 	// The store stops reading at the limit on its own. This caps what
-	// the server will take off the socket at all, so the remainder of
+	// the server will take off the socket at all, so the rest of
 	// an oversized upload is not politely drained after the refusal.
 	// A limit of zero is "no limit", which an admin can choose.
 	var body io.Reader = r.Body
@@ -126,8 +126,8 @@ func (s *Handlers) listArtefacts(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	// The files a job produced are read on the same terms as the job
-	// itself, so the job is loaded and scoped first. Listing is the
+	// The files a job produced follow the same read rules as the job
+	// itself, so the handler loads and scopes the job first. Listing is the
 	// cheapest way to learn an artefact ID, and a scoped ledger with an
 	// open index is not scoped at all.
 	job, err := s.readableJob(r, user, platform.URLParam(r, "jobID"))
@@ -164,7 +164,7 @@ func (s *Handlers) downloadArtefact(w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	// A job the caller may not read is a 404 here too — an artefact
+	// A job the caller may not read is a 404 here too: an artefact
 	// holds the built binary, the scan output and the coverage report,
 	// which is the half of a run worth guessing an ID for.
 	job, err := s.readableJob(r, user, platform.URLParam(r, "jobID"))
@@ -195,7 +195,7 @@ func (s *Handlers) downloadArtefact(w http.ResponseWriter, r *http.Request) erro
 func WriteArtefact(w http.ResponseWriter, artefact *model.JobArtefact, contents io.Reader) {
 	w.Header().Set("Content-Type", artefact.ContentType)
 	w.Header().Set("Content-Length", strconv.FormatInt(artefact.Size, 10))
-	// A job's output is not to be trusted as a page: an artefact named
+	// Nobody may trust a job's output as a page: an artefact named
 	// report.html is a file to save, never something to run in the
 	// server's origin.
 	w.Header().Set("Content-Disposition", "attachment; filename="+strconv.Quote(downloadName(artefact.Path)))
@@ -217,8 +217,8 @@ func downloadName(path string) string {
 
 // mapArtefactError turns an artefact failure into a status.
 //
-// Oversize is 413 because the request was too big to accept; too many
-// is 422 because the request was fine and the job was not, which is how
+// Oversize is 413 because the request is too big to accept; too many
+// is 422 because the request is fine and the job is not, matching how
 // the runaway-nesting limit already reports itself.
 func mapArtefactError(err error) error {
 	switch {

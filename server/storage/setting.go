@@ -17,9 +17,9 @@ import (
 
 // SettingStorage reads and writes runtime configuration.
 //
-// Values are cached in memory because they are read on the dispatch
-// path, which runs on every atkins invocation. The cache is invalidated
-// on write, and this process is the only writer.
+// SettingStorage caches values in memory because the dispatch path reads
+// them, and that path runs on every atkins invocation. A write clears
+// the cache, and this process is the only writer.
 type SettingStorage struct {
 	db *sqlx.DB
 
@@ -74,7 +74,7 @@ func (s *SettingStorage) Get(name string) string {
 // Override returns the stored value for a setting, and whether an admin
 // has stored one at all.
 //
-// It is the distinction Get deliberately hides: Get answers "what is
+// This is the distinction Get hides: Get answers "what is
 // this setting worth", falling back to the registry default, which is
 // the wrong question when a start-up flag configures the same thing.
 // A default is not a decision, and it must not outrank one written in
@@ -99,7 +99,7 @@ func (s *SettingStorage) Int(name string) int64 {
 	return parsed
 }
 
-// Bytes returns a setting parsed as a size, such as 32MB.
+// Bytes returns a setting parsed as a size, such as `32MB`.
 func (s *SettingStorage) Bytes(name string) int64 {
 	parsed, _ := model.ParseBytes(s.Get(name))
 	return parsed
@@ -112,8 +112,8 @@ func (s *SettingStorage) Duration(name string) time.Duration {
 }
 
 // All returns every setting with its effective value, in registry
-// order, so an admin sees the whole surface rather than only what has
-// been overridden.
+// order, so an admin sees the whole surface and not only the
+// overrides.
 func (s *SettingStorage) All() []SettingValue {
 	definitions := model.SettingDefinitions()
 
@@ -168,8 +168,8 @@ func (s *SettingStorage) Set(ctx context.Context, name, value, userID string) er
 	setting.SetCreatedAt(now)
 	setting.SetUpdatedAt(now)
 
-	// REPLACE keeps this a single statement whether or not the setting
-	// has been written before.
+	// REPLACE keeps this a single statement whether the setting has a
+	// stored row or not.
 	if err := client(s.db).Replace(ctx, model.SettingTable, setting); err != nil {
 		return fmt.Errorf("save setting: %w", err)
 	}

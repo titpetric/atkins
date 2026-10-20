@@ -25,8 +25,8 @@ func newTable(w io.Writer, headers ...string) *table {
 	return &table{w: w, headers: headers}
 }
 
-// row appends one row. A row shorter than the header list is padded with
-// empty cells, and a longer one is truncated, so a caller cannot produce
+// row appends one row. It pads a row shorter than the header list with
+// empty cells and truncates a longer one, so a caller cannot produce
 // a table markdown will not parse.
 func (t *table) row(cells ...string) {
 	out := make([]string, len(t.headers))

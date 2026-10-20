@@ -4,7 +4,7 @@ subtitle: Why and how to migrate from other tools
 layout: page
 ---
 
-If you're using Taskfile, GitHub Actions workflows for local tasks, or another task runner, Atkins offers a familiar syntax.
+If you're using Taskfile, GitHub Actions workflows for local tasks, or another task runner, Atkins uses a familiar syntax.
 
 Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspired) so migration often involves only minor changes to your existing configuration.
 
@@ -22,7 +22,7 @@ Atkins supports two syntax styles (Taskfile-compatible and GitHub Actions-inspir
 - Full environment inheritance: Commands inherit the shell environment automatically, reducing configuration boilerplate
 - Local and CI parity: The same configuration works for local development and CI environments
 - Smaller binary: Single ~10MB binary with minimal dependencies
-- Skills system: Modular, reusable pipelines that can be shared across projects and activated conditionally
+- Skills system: Modular, reusable pipelines that projects share and activate conditionally
 
 ## Migration Guides
 
@@ -33,7 +33,7 @@ Choose the guide that matches your current tool:
 
 ## Using Atkins in CI
 
-Atkins can run inside CI environments alongside or instead of native CI syntax. Pull the binary from the Docker image:
+Atkins can run inside CI environments alongside native CI syntax or in its place. Pull the binary from the Docker image:
 
 ```dockerfile
 COPY --from=titpetric/atkins:latest /usr/local/bin/atkins /usr/local/bin/atkins

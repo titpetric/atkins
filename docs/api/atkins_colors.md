@@ -32,185 +32,185 @@ import (
 - `func VisualLength (s string) int`
 - `func White (text string) string`
 
-### BrightCyan
+### `BrightCyan`
 
-BrightCyan returns text in bright cyan color.
+`BrightCyan` returns text in bright cyan color.
 
 ```go
 func BrightCyan(text string) string
 ```
 
-### BrightGreen
+### `BrightGreen`
 
-BrightGreen returns text in bright green color.
+`BrightGreen` returns text in bright green color.
 
 ```go
 func BrightGreen(text string) string
 ```
 
-### BrightMagenta
+### `BrightMagenta`
 
-BrightMagenta returns text in bright magenta color.
+`BrightMagenta` returns text in bright magenta color.
 
 ```go
 func BrightMagenta(text string) string
 ```
 
-### BrightOrange
+### `BrightOrange`
 
-BrightOrange returns text in bright orange color.
+`BrightOrange` returns text in bright orange color.
 
 ```go
 func BrightOrange(text string) string
 ```
 
-### BrightRed
+### `BrightRed`
 
-BrightRed returns text in bright red color.
+`BrightRed` returns text in bright red color.
 
 ```go
 func BrightRed(text string) string
 ```
 
-### BrightWhite
+### `BrightWhite`
 
-BrightWhite returns text in bright white color.
+`BrightWhite` returns text in bright white color.
 
 ```go
 func BrightWhite(text string) string
 ```
 
-### BrightYellow
+### `BrightYellow`
 
-BrightYellow returns text in bright yellow color.
+`BrightYellow` returns text in bright yellow color.
 
 ```go
 func BrightYellow(text string) string
 ```
 
-### Cyan
+### `Cyan`
 
-Cyan returns text in cyan color.
+`Cyan` returns text in cyan color.
 
 ```go
 func Cyan(text string) string
 ```
 
-### Dim
+### `Dim`
 
-Dim returns text in dim color.
+`Dim` returns text in dim color.
 
 ```go
 func Dim(text string) string
 ```
 
-### Gray
+### `Gray`
 
-Gray returns text in gray color.
+`Gray` returns text in gray color.
 
 ```go
 func Gray(text string) string
 ```
 
-### Green
+### `Green`
 
-Green returns text in green color.
+`Green` returns text in green color.
 
 ```go
 func Green(text string) string
 ```
 
-### MediumGray
+### `MediumGray`
 
-MediumGray returns text in medium gray (50%) color.
+`MediumGray` returns text in medium gray (50%) color.
 
 ```go
 func MediumGray(text string) string
 ```
 
-### PrintFail
+### `PrintFail`
 
-PrintFail prints a failed item with error message.
+`PrintFail` prints a failed item with error message.
 
 ```go
 func PrintFail(name, errMsg string)
 ```
 
-### PrintHeader
+### `PrintHeader`
 
-PrintHeader prints a header with bright cyan color.
+`PrintHeader` prints a header with bright cyan color.
 
 ```go
 func PrintHeader(title string)
 ```
 
-### PrintInfo
+### `PrintInfo`
 
-PrintInfo prints an information line.
+`PrintInfo` prints an information line.
 
 ```go
 func PrintInfo(key, value string)
 ```
 
-### PrintPass
+### `PrintPass`
 
-PrintPass prints a passing item.
+`PrintPass` prints a passing item.
 
 ```go
 func PrintPass(name string)
 ```
 
-### PrintSectionEnd
+### `PrintSectionEnd`
 
-PrintSectionEnd prints a section end marker.
+`PrintSectionEnd` prints a section end marker.
 
 ```go
 func PrintSectionEnd(section string, success bool)
 ```
 
-### PrintSectionStart
+### `PrintSectionStart`
 
-PrintSectionStart prints a section start marker.
+`PrintSectionStart` prints a section start marker.
 
 ```go
 func PrintSectionStart(section string)
 ```
 
-### PrintSuccess
+### `PrintSuccess`
 
-PrintSuccess prints a success message.
+`PrintSuccess` prints a success message.
 
 ```go
 func PrintSuccess(text string)
 ```
 
-### PrintWarning
+### `PrintWarning`
 
-PrintWarning prints a warning message.
+`PrintWarning` prints a warning message.
 
 ```go
 func PrintWarning(text string)
 ```
 
-### StripANSI
+### `StripANSI`
 
-StripANSI removes all ANSI escape sequences from a string.
+`StripANSI` removes all ANSI escape sequences from a string.
 
 ```go
 func StripANSI(in string) string
 ```
 
-### VisualLength
+### `VisualLength`
 
-VisualLength returns the visual length of a string (excluding ANSI sequences).
+`VisualLength` returns the visual length of a string (excluding ANSI sequences).
 
 ```go
 func VisualLength(s string) int
 ```
 
-### White
+### `White`
 
-White returns text in white color.
+`White` returns text in white color.
 
 ```go
 func White(text string) string

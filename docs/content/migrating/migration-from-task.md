@@ -18,7 +18,7 @@ Here's a complete side-by-side comparison showing variable interpolation, shell 
 
 ## Structure Comparison
 
-The overall structure is nearly identical. Atkins doesn't require a `version` field.
+The structure is nearly identical. Atkins doesn't require a `version` field.
 
 **Taskfile:**
 
@@ -52,7 +52,7 @@ The `task: <name>` syntax for invoking other tasks works identically in both too
 
 ## Shell Substitution
 
-Taskfile uses the `sh:` field for dynamic values. Atkins uses bash-style `$(...)` which can also be used inline within commands.
+Taskfile uses the `sh:` field for dynamic values. Atkins uses bash-style `$(...)` which also works inline within commands.
 
 **Taskfile:**
 
@@ -148,7 +148,7 @@ task --list-all  # -l requires descriptions
 atkins -l  # Shows all tasks; uses command as description if none provided
 ```
 
-Atkins always shows tasks, displaying the command when no description is set.
+Atkins always shows tasks, displaying the command when a task has no description.
 
 ## What Works Directly
 

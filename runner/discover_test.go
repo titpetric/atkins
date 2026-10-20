@@ -13,7 +13,7 @@ func TestDiscoverConfig_CurrentDir(t *testing.T) {
 	// Create temp directory structure
 	tmpDir := t.TempDir()
 
-	// Create config in current dir
+	// Create configuration in current dir
 	configPath := filepath.Join(tmpDir, ".atkins.yml")
 	err := os.WriteFile(configPath, []byte("name: test"), 0o644)
 	assert.NoError(t, err)
@@ -32,7 +32,7 @@ func TestDiscoverConfig_ParentDir(t *testing.T) {
 	err := os.MkdirAll(subDir, 0o755)
 	assert.NoError(t, err)
 
-	// Create config in root
+	// Create configuration in root
 	configPath := filepath.Join(tmpDir, ".atkins.yml")
 	err = os.WriteFile(configPath, []byte("name: test"), 0o644)
 	assert.NoError(t, err)
@@ -48,7 +48,7 @@ func TestDiscoverConfig_PreferDotFile(t *testing.T) {
 	// Create temp directory structure
 	tmpDir := t.TempDir()
 
-	// Create both configs
+	// Create both configuration files
 	dotConfig := filepath.Join(tmpDir, ".atkins.yml")
 	regularConfig := filepath.Join(tmpDir, "atkins.yml")
 	err := os.WriteFile(dotConfig, []byte("name: dot"), 0o644)
@@ -78,14 +78,14 @@ func TestDiscoverConfig_FallbackToAtkins(t *testing.T) {
 }
 
 func TestDiscoverConfig_AtkinsFolderOnly(t *testing.T) {
-	// Create temp directory with only .atkins/ folder (no config file)
+	// Create temp directory with only .atkins/ folder (no configuration file)
 	tmpDir := t.TempDir()
 
 	atkinsDir := filepath.Join(tmpDir, ".atkins", "skills")
 	err := os.MkdirAll(atkinsDir, 0o755)
 	assert.NoError(t, err)
 
-	// Should return empty config path but valid config dir
+	// Expect an empty configuration path but a valid configuration dir
 	foundPath, foundDir, err := runner.DiscoverConfig(tmpDir)
 	assert.NoError(t, err)
 	assert.Equal(t, "", foundPath)
@@ -111,7 +111,7 @@ func TestDiscoverConfig_AtkinsFolderFromSubdir(t *testing.T) {
 }
 
 func TestDiscoverConfig_ConfigFilePreferredOverAtkinsFolder(t *testing.T) {
-	// Create temp directory with both config file and .atkins/ folder
+	// Create temp directory with both configuration file and .atkins/ folder
 	tmpDir := t.TempDir()
 
 	configPath := filepath.Join(tmpDir, ".atkins.yml")
@@ -130,7 +130,7 @@ func TestDiscoverConfig_ConfigFilePreferredOverAtkinsFolder(t *testing.T) {
 }
 
 func TestDiscoverConfig_NotFound(t *testing.T) {
-	// Create temp directory with no config
+	// Create temp directory with no configuration
 	tmpDir := t.TempDir()
 
 	_, _, err := runner.DiscoverConfig(tmpDir)
@@ -145,7 +145,7 @@ func TestDiscoverConfig_DeepNesting(t *testing.T) {
 	err := os.MkdirAll(deepDir, 0o755)
 	assert.NoError(t, err)
 
-	// Create config at root
+	// Create configuration at root
 	configPath := filepath.Join(tmpDir, ".atkins.yml")
 	err = os.WriteFile(configPath, []byte("name: test"), 0o644)
 	assert.NoError(t, err)

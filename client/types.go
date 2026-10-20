@@ -5,7 +5,7 @@ import (
 )
 
 // The payload types below mirror github.com/titpetric/atkins/server/api.
-// They are re-declared rather than imported so the atkins CLI links
+// This package declares its own copies with no import, so the atkins CLI links
 // against net/http alone; importing the server package would pull the
 // platform, chi and sqlx trees into every atkins build.
 
@@ -34,7 +34,7 @@ type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-// TokenResponse is returned by login, register and refresh.
+// TokenResponse is the reply to login, register and refresh.
 type TokenResponse struct {
 	UserID       string `json:"user_id"`
 	Username     string `json:"username"`
@@ -46,9 +46,9 @@ type TokenResponse struct {
 // RepositoryPayload describes the checkout a run happens in.
 //
 // Ref is what the agent checks out: a branch, a tag, a commit sha or a
-// fully qualified refname. The client fills it with the commit it is
-// sitting on, because a run dispatched from a laptop should build that
-// commit rather than whatever the branch has moved to by the time an
+// fully qualified refname. The client fills it with the commit it
+// sits on, because a run dispatched from a laptop builds that
+// commit and never whatever the branch has moved to by the time an
 // agent picks the job up.
 type RepositoryPayload struct {
 	RemoteURL     string `json:"remote_url"`
@@ -66,15 +66,15 @@ type DispatchRequest struct {
 	Params           map[string]any    `json:"params,omitempty"`
 	Artefacts        []string          `json:"artefacts,omitempty"`
 
-	// Agent names the machine already running the job. Set, the job is
-	// recorded as running there instead of queued for an agent to
-	// claim: it is how a run that happens on a laptop still appears on
+	// Agent names the machine already running the job. When set, the
+	// server records the job as running there and queues nothing for an
+	// agent to claim: a run that happens on a laptop still appears on
 	// the server, with the log and the outcome an agent would have
 	// reported.
 	Agent string `json:"agent,omitempty"`
 }
 
-// DispatchResponse is returned by POST /api/dispatch.
+// DispatchResponse is the reply to POST /api/dispatch.
 type DispatchResponse struct {
 	JobID          string `json:"job_id"`
 	ParentID       string `json:"parent_id,omitempty"`
@@ -125,7 +125,7 @@ type ClaimRequest struct {
 	Labels  []string `json:"labels,omitempty"`
 }
 
-// ClaimResponse is returned when an agent leases a job. The repository
+// ClaimResponse is the reply when an agent leases a job. The repository
 // travels with the job so an agent can start cloning without a second
 // round trip.
 type ClaimResponse struct {
@@ -181,7 +181,7 @@ type Artefact struct {
 	URL         string `json:"url"`
 }
 
-// ArtefactUpload is one file being pushed to the server.
+// ArtefactUpload is one file an agent pushes to the server.
 type ArtefactUpload struct {
 	// Path is the name the pipeline gave the file, relative to the
 	// directory the job ran in.
@@ -192,10 +192,10 @@ type ArtefactUpload struct {
 
 	// Checksum is the SHA256 the agent computed while reading the
 	// file. The server compares it against what arrives, so a
-	// truncated upload is refused rather than stored.
+	// server refuses a truncated upload and stores nothing.
 	Checksum string
 
-	// Content is the file. It is streamed rather than buffered: an
+	// Content is the file. The client streams it with no buffer: an
 	// artefact is as large as the server's limit allows.
 	Content io.Reader
 }

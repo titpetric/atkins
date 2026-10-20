@@ -48,11 +48,11 @@ jobs:
 
 ## Key Differences
 
-### No Triggers, and Runners Are Labels
+### No Triggers; Runners Are Labels
 
-Atkins has no equivalent to `on:`. Nothing watches your repository for pushes, tags or pull requests; a run starts when something invokes `atkins`. Use your existing CI, a cron job, or a webhook receiver to do the invoking.
+Atkins has no counterpart to `on:`. Nothing watches your repository for pushes, tags or pull requests; a run starts when something invokes `atkins`. Use your existing CI, a cron job, or a webhook receiver to do the invoking.
 
-`runs-on:` has a partial equivalent. With the [CI/CD server](../usage/ci-cd), an agent advertises what it can run, and a dispatched job only lands on an agent advertising every label it asks for:
+`runs-on:` has a partial counterpart. With the [CI/CD server](../usage/ci-cd), an agent advertises what it can run, and a dispatched job only lands on an agent advertising every label the job lists:
 
 ```bash
 # The agent declares what it can run
@@ -62,11 +62,11 @@ atkins worker --labels linux,arm64,docker
 ATKINS_LABELS=linux,arm64,docker atkins --dispatch build
 ```
 
-`ATKINS_LABELS` only matters together with `--login` and `--dispatch`; a plain `atkins build` runs on the machine you typed it on regardless of the variable. Unlike GitHub's hosted runners, you provide the machines.
+`ATKINS_LABELS` only matters together with `--login` and `--dispatch`; a plain `atkins build` runs on the machine you typed it on regardless of the variable. Unlike GitHub's hosted runners, the machines are yours to run.
 
 ### No `uses:` Actions
 
-Atkins has no equivalent to GitHub's action marketplace. Actions like `actions/checkout` or `actions/setup-go` must be replaced with shell commands or handled by your CI environment:
+Atkins has no counterpart to GitHub's action marketplace. Replace actions like `actions/checkout` or `actions/setup-go` with shell commands, or leave them to your CI environment:
 
 ```yaml
 # GHA actions have no Atkins equivalent
@@ -76,7 +76,7 @@ Atkins has no equivalent to GitHub's action marketplace. Actions like `actions/c
 
 ### Inline Job Invocation
 
-Atkins supports `task:` to invoke another job inline within a step. GitHub Actions has no equivalent; GHA jobs form a DAG via `needs:` and cannot call each other mid-execution.
+Atkins supports `task:` to invoke another job inline within a step. GitHub Actions has no counterpart; GHA jobs form a DAG via `needs:` and cannot call each other mid-execution.
 
 **Atkins:**
 
@@ -171,7 +171,7 @@ jobs:
 
 ## Secrets
 
-GitHub Actions provides encrypted secrets via the `secrets` context. Atkins has no built-in secrets management.
+GitHub Actions stores encrypted secrets in the `secrets` context. Atkins has no built-in secrets management.
 
 **GitHub Actions:**
 
@@ -205,7 +205,7 @@ Or use a secrets manager that populates the environment (Vault, AWS Secrets Mana
 
 ## Matrix Builds
 
-GHA's matrix strategy maps to Atkins' `for:` loops. Atkins supports multi-iterator syntax for cartesian products (all combinations), which is a direct equivalent to GHA's multi-dimensional matrix:
+GHA's matrix strategy maps to Atkins' `for:` loops. Atkins supports multi-iterator syntax for cartesian products (all combinations), which maps directly to GHA's multi-dimensional matrix:
 
 **GitHub Actions:**
 
@@ -241,10 +241,10 @@ Both produce 4 iterations: `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin
 
 **Key advantages of Atkins' approach:**
 
-- No separate `strategy` block - iterators are defined inline
+- No separate `strategy` block - iterators sit inline
 - Variables can come from `vars:`, inline arrays, or shell commands
 - Works with any step type (`run:`, `task:`, `cmd:`)
-- Nested tasks can add additional iteration dimensions
+- Nested tasks can add more iteration dimensions
 
 For single-dimension iteration:
 
@@ -313,8 +313,8 @@ jobs:
 |---------------------|-----------------------------|---------------------------------------|
 | Triggers            | `on: [push]`                | Not supported (use CI or cron)        |
 | Runner selection    | `runs-on:`                  | `ATKINS_LABELS` on self-hosted agents |
-| Hosted runners      | GitHub-hosted               | Machines you provide                  |
-| Marketplace actions | `uses: actions/checkout@v4` | No equivalent                         |
+| Hosted runners      | GitHub-hosted               | Machines you run                      |
+| Marketplace actions | `uses: actions/checkout@v4` | No counterpart                        |
 | Job dependencies    | `needs:`                    | `depends_on:`                         |
 | Inline job calls    | Not supported               | `task:` in steps                      |
 | Secrets             | `${{ secrets.X }}`          | Environment variables                 |

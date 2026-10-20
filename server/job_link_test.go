@@ -35,7 +35,7 @@ func TestJobPayloadCarriesTheViewToken(t *testing.T) {
 	assert.NotEmpty(t, dispatched.ViewToken)
 
 	// The token the dispatch printed is rebuildable from the job itself,
-	// which is the whole point: a lost terminal is not a lost job.
+	// so a lost terminal is not a lost job.
 	job := readJob(t, url, admin.Token, dispatched.JobID)
 	assert.Equal(t, dispatched.ViewToken, job.ViewToken)
 	assert.Equal(t, "/job/"+dispatched.JobID+"?t="+dispatched.ViewToken, job.URL)
@@ -48,8 +48,8 @@ func TestJobPayloadCarriesTheViewToken(t *testing.T) {
 	assert.Len(t, listed, 1)
 	assert.Equal(t, dispatched.ViewToken, listed[0].ViewToken)
 
-	// The link works in a browser with no session, which is what the
-	// token is for.
+	// The link works in a browser with no session: the token exists for
+	// that.
 	status, _, _ = fetch(t, url+job.URL, "")
 	assert.Equal(t, http.StatusOK, status)
 }
@@ -81,7 +81,7 @@ func TestJobPayloadIsStillScoped(t *testing.T) {
 
 	// Handing out the token is safe because the caller had to pass the
 	// job scope to get here. Somebody who may not read the job still
-	// gets a 404 rather than a link to it.
+	// gets a 404 and no link to it.
 	status := call(t, http.MethodGet, url+"/api/job/"+theirs.JobID, dev.Token, nil, nil)
 	assert.Equal(t, http.StatusNotFound, status)
 }
@@ -97,7 +97,7 @@ func TestIndexListsTheSignedInUsersJobs(t *testing.T) {
 	theirs := dispatch(t, url, admin.Token, "atkins theirs", "")
 
 	// With no session there is nothing to scope a listing by, so the
-	// page says where to sign in rather than listing the instance.
+	// page says where to sign in and lists nothing.
 	anonymous := newBrowser(t, url)
 	status, body := anonymous.get("/")
 	assert.Equal(t, http.StatusOK, status)

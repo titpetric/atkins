@@ -16,7 +16,7 @@ type Field struct {
 	// Env is the variable that overrides it at runtime, if any.
 	Env string
 
-	// Secret marks a value that should not be echoed back in full.
+	// Secret marks a value that the menu never echoes back in full.
 	Secret bool
 
 	// value points at the live field so Set writes through.
@@ -70,7 +70,7 @@ func collectFields(value reflect.Value, prefix string, fields *[]Field) {
 			continue
 		}
 
-		// The document version is derived, not edited.
+		// Load derives the document version; the menu never edits it.
 		if path == "version" {
 			continue
 		}

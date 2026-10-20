@@ -5,11 +5,11 @@ import (
 	"unicode"
 )
 
-// DefaultContentType is what an artefact is served as when the agent
-// could not tell what it uploaded.
+// DefaultContentType is the media type the server sends for an artefact
+// when the agent could not tell what it uploaded.
 const DefaultContentType = "application/octet-stream"
 
-// MaxArtefactPathLength bounds the name an artefact is stored under.
+// MaxArtefactPathLength bounds the name the server stores an artefact under.
 // The value is a path, not prose; anything longer is a mistake or an
 // attempt to fill a column.
 const MaxArtefactPathLength = 512
@@ -18,26 +18,25 @@ const MaxArtefactPathLength = 512
 // path relative to the directory the job ran in, or "" when the name
 // cannot mean that.
 //
-// This is the same decision cleanWorkingDirectory makes, and it is made
-// here for the same reason: the value arrives over the network and ends
-// up addressing bytes on the server's disk. An absolute path or a `..`
-// escape is rejected outright rather than repaired, because a caller
-// asking for `../../etc/passwd` should be told no, not quietly handed
-// `etc/passwd`.
+// This is the same decision cleanWorkingDirectory makes, for the same
+// reason: the value arrives over the network and then addresses bytes on
+// the server's disk. ArtefactPath rejects an absolute path or a `..`
+// escape outright and never repairs it: a caller that names
+// `../../etc/passwd` gets a refusal, and never a quiet `etc/passwd`.
 func ArtefactPath(value string) string {
 	return relativePath(value)
 }
 
 // ArtefactPattern normalizes one collection glob, or returns "".
 //
-// A pattern is a path with `*` and `**` in it, so it is held to exactly
-// the same rules as a path: relative, no `..`, no leading separator.
+// A pattern is a path with `*` and `**` in it, so the same rules apply
+// as for a path: relative, no `..`, no leading separator.
 func ArtefactPattern(value string) string {
 	return relativePath(value)
 }
 
 // relativePath cleans a slash-separated path that must stay inside the
-// directory it is relative to.
+// directory it starts from.
 func relativePath(value string) string {
 	value = strings.TrimSpace(strings.ReplaceAll(value, `\`, "/"))
 	if value == "" || len(value) > MaxArtefactPathLength || strings.HasPrefix(value, "/") {
@@ -68,8 +67,8 @@ func relativePath(value string) string {
 
 // ArtefactContentType sanitizes a client-declared media type.
 //
-// It is echoed back on download, so a header the agent invented must
-// not be able to carry a newline into the response.
+// The server echoes the value back on download, so a header the agent
+// invented must not carry a newline into the response.
 func ArtefactContentType(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" || len(value) > 128 || strings.ContainsFunc(value, unicode.IsControl) {
@@ -82,10 +81,10 @@ func ArtefactContentType(value string) string {
 // into the globs an agent should collect, dropping anything that could
 // not name a file inside the checkout.
 //
-// Patterns are validated where they are read rather than only where
-// they are written: a pattern can be stored by one version of the
-// server and read by another, and the agent is the one that touches the
-// filesystem.
+// ArtefactPatterns checks patterns where the server reads them, on top
+// of where it writes them: one version of the server can store a
+// pattern and another can read it, and the agent is the one that touches
+// the filesystem.
 func ArtefactPatterns(value string) []string {
 	parts := strings.Split(value, ",")
 
@@ -113,9 +112,10 @@ func JoinArtefactPatterns(patterns []string) string {
 // segment, `**` across segments, exactly as the repository allowlist
 // patterns do.
 //
-// Unlike MatchRepository this is case-sensitive: repository slugs are
-// lowercased on the way in, filenames are not, and `*.JSON` collecting
-// `scan.json` on one agent and not another would be worse than strict.
+// Unlike MatchRepository this is case-sensitive: the server lowercases
+// repository slugs on the way in and leaves filenames alone, and
+// `*.JSON` collecting `scan.json` on one agent and not another would be
+// worse than strict.
 func MatchArtefactPath(pattern, value string) bool {
 	pattern = strings.TrimSpace(pattern)
 	value = strings.TrimSpace(value)

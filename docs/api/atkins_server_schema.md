@@ -6,7 +6,7 @@ import (
 )
 ```
 
-Package schema holds the SQL migrations for the atkins CI/CD server.
+Package `schema` holds the SQL migrations for the atkins CI/CD server.
 
 The migrations are the source of truth for the data model. One file
 owns one table, and files are append-only once applied anywhere: a
@@ -19,9 +19,9 @@ regenerate ../model and ./docs after changing any migration.
 
 - `func Migrations () fs.FS`
 
-### Migrations
+### `Migrations`
 
-Migrations returns the embedded migrations filesystem.
+`Migrations` returns the embedded migrations filesystem.
 
 ```go
 func Migrations() fs.FS

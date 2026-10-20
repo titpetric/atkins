@@ -13,12 +13,12 @@ import (
 	"github.com/titpetric/atkins/runner"
 )
 
-// HelpRequested reports whether a command line is asking for the help
-// document rather than a run.
+// HelpRequested reports whether a command line requests the help
+// document and no run.
 //
 // A -h or --help that is the value of a string flag is not a help
 // request: `atkins -x "--help"` runs a prompt. The flag set says which
-// flags take a value, so the two cases are told apart by the same rules
+// flags take a value, so the same rules tell the two cases apart that
 // pflag parses by. Everything after a bare -- is an argument.
 func HelpRequested(flags *pflag.FlagSet, args []string) bool {
 	for index := 0; index < len(args); index++ {
@@ -59,7 +59,7 @@ func takesValue(flags *pflag.FlagSet, arg string) bool {
 }
 
 // HelpFlags returns one flag set carrying every flag atkins defines, for
-// the three commands together. Help detection needs to know which of
+// the three commands together. Help detection has to tell which of
 // them take a value, and the three sets share no names.
 func HelpFlags() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("atkins", pflag.ContinueOnError)
@@ -71,8 +71,8 @@ func HelpFlags() *pflag.FlagSet {
 
 // WriteHelp renders `atkins --help` to a writer.
 //
-// The skills are scanned rather than loaded: the document lists what is
-// installed, marking what this directory does not activate, because a
+// WriteHelp scans the skills and loads none: the document lists every
+// installed skill, marking what this directory does not activate, because a
 // reader asking what atkins can do is not always standing in a
 // repository that answers.
 func WriteHelp(w io.Writer) error {
@@ -102,14 +102,14 @@ func WriteHelp(w io.Writer) error {
 }
 
 // isTerminal reports whether a writer is a terminal. A help document on
-// its way to a file or a pipe is left as plain markdown.
+// its way to a file or a pipe stays plain markdown.
 func isTerminal(w io.Writer) bool {
 	file, ok := w.(*os.File)
 	return ok && term.IsTerminal(int(file.Fd()))
 }
 
 // scanSkills returns every skill file installed for this directory, the
-// repository's own first, and the directories they were read from.
+// repository's own first, and the directories it read them from.
 func scanSkills() ([]*runner.Skill, []string) {
 	cwd, err := os.Getwd()
 	if err != nil {

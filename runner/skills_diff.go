@@ -49,7 +49,7 @@ func (v *Vendorer) compareFile(path string) (status VendorStatus, added, removed
 		fromLabel = rel
 	}
 
-	// A diff that can't be rendered is not worth failing over; the line
+	// A diff that fails to render is not worth failing over; the line
 	// counts above are what the caller reports either way.
 	diff, _ = difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 		A:        from,

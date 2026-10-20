@@ -46,7 +46,7 @@ func (h *ShellHistory) Add(command string, exitCode int, duration time.Duration,
 }
 
 // Match returns shell history entries where the command starts with or
-// contains the given input. Results are returned most-recent-first.
+// contains the given input, most recent first.
 func (h *ShellHistory) Match(input string) []ShellHistoryEntry {
 	lower := strings.ToLower(input)
 	var matches []ShellHistoryEntry

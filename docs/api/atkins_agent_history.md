@@ -44,34 +44,34 @@ type ShellHistoryEntry struct {
 - `func (*ShellHistory) FindExact (command string) *ShellHistoryEntry`
 - `func (*ShellHistory) Match (input string) []ShellHistoryEntry`
 
-### NewShellHistory
+### `NewShellHistory`
 
-NewShellHistory loads or creates a shell history file.
+`NewShellHistory` loads or creates a shell history file.
 
 ```go
 func NewShellHistory() *ShellHistory
 ```
 
-### Add
+### `Add`
 
-Add records a command execution.
+`Add` records a command execution.
 
 ```go
 func (*ShellHistory) Add(command string, exitCode int, duration time.Duration, dir string)
 ```
 
-### FindExact
+### `FindExact`
 
-FindExact returns the most recent entry matching the exact command, or nil.
+`FindExact` returns the most recent entry matching the exact command, or nil.
 
 ```go
 func (*ShellHistory) FindExact(command string) *ShellHistoryEntry
 ```
 
-### Match
+### `Match`
 
-Match returns shell history entries where the command starts with or
-contains the given input. Results are returned most-recent-first.
+`Match` returns shell history entries where the command starts with or
+contains the given input, most recent first.
 
 ```go
 func (*ShellHistory) Match(input string) []ShellHistoryEntry

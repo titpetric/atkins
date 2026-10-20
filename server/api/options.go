@@ -6,7 +6,7 @@ import (
 	"github.com/titpetric/atkins/server/storage"
 )
 
-// Options is passed from the server module scope. Every field has a
+// Options carries values from the server module scope. Every field has a
 // usable zero value except the storages, which the module wires after
 // it has a database handle.
 type Options struct {
@@ -19,7 +19,7 @@ type Options struct {
 
 	// AllowRegistration opens /api/user/register to anyone. When
 	// false, registration still succeeds while the instance has no
-	// users at all, so a fresh server can be bootstrapped without
+	// users at all, so an operator can bootstrap a fresh server without
 	// shell access to the database.
 	AllowRegistration bool
 
@@ -39,7 +39,7 @@ type Options struct {
 	SSHKeyStorage         *storage.SSHKeyStorage
 }
 
-// DefaultTokenTTL is the access token lifetime. It is short because the
+// DefaultTokenTTL is the access token lifetime. It stays short because the
 // CLI holds a refresh token and renews silently; a leaked access token
 // is only useful for the rest of the hour.
 const DefaultTokenTTL = time.Hour

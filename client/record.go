@@ -9,9 +9,9 @@ import (
 	"time"
 )
 
-// RecordOptions describes the local run being logged.
+// RecordOptions describes the local run that a server logs.
 type RecordOptions struct {
-	// Directory is where atkins was invoked. Empty means the process
+	// Directory is the directory atkins runs in. Empty means the process
 	// working directory.
 	Directory string
 
@@ -22,13 +22,13 @@ type RecordOptions struct {
 	Server string
 }
 
-// Recorder is a run happening here that is logged on a CI/CD server.
+// Recorder is a run happening here that a CI/CD server logs.
 //
-// It is the other half of dispatch: the pipeline executes on this
+// Recording is the other half of dispatch: the pipeline executes on this
 // machine, as it does on a machine that never logged in, and the server
-// ends up with the job an agent would have produced — the same command,
+// stores the job an agent would have produced: the same command,
 // checkout, output, exit code and duration. A history of what a team
-// runs should not depend on where the tooling happens to be installed.
+// runs must not depend on where the tooling lives.
 //
 // A nil *Recorder is the unrecorded run, and every method tolerates it,
 // so the caller has no branch to write.
@@ -45,22 +45,22 @@ type Recorder struct {
 	stop func()
 }
 
-// recordHeartbeat is how often the lease is renewed. It is well inside
-// the server's default lease of 15 minutes, and a local run that dies
-// without reporting — a closed laptop, a killed terminal — is reclaimed
-// as a timeout the same way an agent that disappears is.
+// recordHeartbeat is how often the recorder renews the lease. It sits well
+// inside the server's default lease of 15 minutes, and the server reclaims a
+// local run that dies without reporting (a closed laptop, a killed terminal)
+// as a timeout, the same way it reclaims an agent that disappears.
 const recordHeartbeat = 30 * time.Second
 
 // logChunk bounds one append, so a long transcript arrives in pieces
-// rather than as one request the server may refuse.
+// and never as one request the server may refuse.
 const logChunk = 32 * 1024
 
 // Record opens a job for a run about to happen here.
 //
 // It returns nil when there is nothing to record against: no
 // credential, no git repository, recording turned off, or a server that
-// can't be reached. Recording is bookkeeping, and losing it must not
-// cost the run — unlike dispatch, which is the run.
+// doesn't answer. Recording is bookkeeping, and losing it must not
+// cost the run. Dispatch differs: there the request is the run.
 func Record(ctx context.Context, opts RecordOptions) *Recorder {
 	if !Settings().Record || DispatchDisabled() {
 		return nil
@@ -119,8 +119,8 @@ func Record(ctx context.Context, opts RecordOptions) *Recorder {
 		agentID: agentID,
 	}
 
-	// The commit is recorded the way an agent records what it checked
-	// out, so a job page says which code the log came from.
+	// The recorder reports the commit the way an agent reports what it
+	// checked out, so a job page says which code the log came from.
 	recorder.reportCheckout(ctx, checkout)
 	recorder.appendLog(ctx, header(checkout, command, agentID))
 	recorder.heartbeat(ctx)
@@ -128,7 +128,7 @@ func Record(ctx context.Context, opts RecordOptions) *Recorder {
 	return recorder
 }
 
-// URL is where the run is watched in a browser, empty when unrecorded.
+// URL is where a browser shows the run, empty when unrecorded.
 func (r *Recorder) URL() string {
 	if r == nil {
 		return ""
@@ -137,7 +137,7 @@ func (r *Recorder) URL() string {
 }
 
 // Write buffers output for the job log. It makes a Recorder an
-// io.Writer, which is what lets the runner hand it a transcript without
+// io.Writer, so the runner can write a transcript to it without
 // knowing what a job is.
 func (r *Recorder) Write(p []byte) (int, error) {
 	if r == nil {
@@ -169,17 +169,17 @@ func (r *Recorder) appendLog(ctx context.Context, content string) {
 	}
 }
 
-// Finish flushes what was written and settles the job.
+// Finish flushes the buffered output and settles the job.
 //
-// The status is derived from the same exit code the shell sees, so a
+// Finish derives the status from the same exit code the shell sees, so a
 // recorded run and the terminal it ran in never disagree.
 func (r *Recorder) Finish(ctx context.Context, exitCode int, runErr error) {
 	if r == nil {
 		return
 	}
 
-	// A pipeline that reported a failure without an exit code — the
-	// shell sees zero, the run did not work — is recorded as failed.
+	// A pipeline that reported a failure without an exit code (the
+	// shell sees zero, the run did not work) counts as failed.
 	// The job page saying passed is the one reading nobody can correct.
 	status := StatusPassed
 	if exitCode != 0 || runErr != nil {
@@ -211,9 +211,9 @@ func (r *Recorder) Cancelled(ctx context.Context) {
 	})
 }
 
-// settle stops the lease renewals, ships what was buffered and reports
-// the outcome. It runs on a context of its own: a run cancelled with
-// ctrl-C has to file that it was, and the context it was cancelled with
+// settle stops the lease renewals, ships the buffered output and reports
+// the outcome. It runs on a context of its own: a run that ctrl-C cancels
+// still has to file the cancellation, and the cancelled context
 // would abandon the report along with the run.
 func (r *Recorder) settle(ctx context.Context, status JobStatusRequest) {
 	if r.stop != nil {
@@ -250,7 +250,7 @@ func (r *Recorder) reportCheckout(ctx context.Context, checkout *Checkout) {
 	defer cancel()
 
 	// A checkout nobody could record is not worth a word: the log that
-	// follows is the record, and it is already on its way.
+	// follows is the record, and that log is already on its way.
 	_ = r.client.ReportCheckout(callCtx, r.jobID, JobCheckoutRequest{
 		Ref:       ref,
 		CommitSHA: checkout.Revision,
@@ -274,10 +274,10 @@ func (r *Recorder) heartbeat(ctx context.Context) {
 				return
 			case <-ticker.C:
 				callCtx, callCancel := context.WithTimeout(ctx, configuredTimeout())
-				// A missed renewal is retried on the next tick. The run
+				// The next tick retries a missed renewal. The run
 				// is here and continues either way; what it risks is the
-				// server reclaiming the record, which is what a run that
-				// really has gone away looks like too.
+				// server reclaiming the record, the same outcome a run that
+				// really has gone away gets.
 				_ = r.client.Heartbeat(callCtx, r.jobID, r.agentID)
 				callCancel()
 			}

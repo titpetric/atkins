@@ -29,10 +29,10 @@ type Agent struct {
 ```go
 // AutoFixConfig holds configuration for auto-fix behavior.
 type AutoFixConfig struct {
-	// Enabled controls whether auto-fix is attempted.
+	// Enabled controls whether the agent attempts an auto-fix.
 	Enabled bool
 
-	// MaxRetries is the maximum number of fix+retry cycles.
+	// MaxRetries caps the number of fix+retry cycles.
 	MaxRetries int
 
 	// FixTaskSuffix is the suffix used to find fix tasks (default: "fix").
@@ -100,7 +100,7 @@ type ExecutionDoneMsg struct {
 <summary><code>type ExecutionProgressExported</code></summary>
 
 ```go
-// ExecutionProgressExported is exported for testing. Use newExecutionProgress in production.
+// ExecutionProgressExported exports executionProgress for tests. Use newExecutionProgress in production.
 type ExecutionProgressExported = executionProgress
 ```
 
@@ -164,7 +164,7 @@ type (
 <summary><code>type JobProgressClosedMsg</code></summary>
 
 ```go
-// JobProgressClosedMsg signals the progress channel was closed.
+// JobProgressClosedMsg signals that the progress channel has closed.
 type JobProgressClosedMsg struct{}
 ```
 
@@ -288,7 +288,7 @@ type Registry = SlashRegistry
 <summary><code>type RetryMsg</code></summary>
 
 ```go
-// RetryMsg signals a task should be retried.
+// RetryMsg signals that the model retries a task.
 type RetryMsg struct {
 	Task *model.ResolvedTask
 }
@@ -359,7 +359,7 @@ type SlashCommand struct {
 <summary><code>type SlashRegistry</code></summary>
 
 ```go
-// SlashRegistry wraps the generic registry to implement CommandLookup.
+// SlashRegistry wraps the generic registry and satisfies CommandLookup.
 type SlashRegistry struct {
 	*registry.Registry[*SlashCommand]
 }
@@ -508,283 +508,283 @@ var (
 - `func (Model) Update (msg tea.Msg) (tea.Model, tea.Cmd)`
 - `func (Model) View () tea.View`
 
-### DefaultAutoFixConfig
+### `DefaultAutoFixConfig`
 
-DefaultAutoFixConfig returns the default auto-fix configuration.
+`DefaultAutoFixConfig` returns the default auto-fix configuration.
 
 ```go
 func DefaultAutoFixConfig() *AutoFixConfig
 ```
 
-### DefaultRegistry
+### `DefaultRegistry`
 
-DefaultRegistry returns the built-in slash commands.
+`DefaultRegistry` returns the built-in slash commands.
 
 ```go
 func DefaultRegistry() *Registry
 ```
 
-### DetectPromptMode
+### `DetectPromptMode`
 
-DetectPromptMode returns the appropriate mode based on input.
+`DetectPromptMode` returns the appropriate mode based on input.
 
 ```go
 func DetectPromptMode(input string) PromptMode
 ```
 
-### New
+### `New`
 
-New creates a new Agent with discovered skills.
+`New` creates a new Agent with discovered skills.
 
 ```go
 func New(workDir string, opts *Options) (*Agent, error)
 ```
 
-### NewAutoFixer
+### `NewAutoFixer`
 
-NewAutoFixer creates a new auto-fixer.
+`NewAutoFixer` creates a new auto-fixer.
 
 ```go
 func NewAutoFixer(resolver *runner.TaskResolver, skills []*model.Pipeline) *AutoFixer
 ```
 
-### NewBreadcrumb
+### `NewBreadcrumb`
 
-NewBreadcrumb creates a new breadcrumb tracker.
+`NewBreadcrumb` creates a new breadcrumb tracker.
 
 ```go
 func NewBreadcrumb() *Breadcrumb
 ```
 
-### NewExecutionProgressForTest
+### `NewExecutionProgressForTest`
 
-NewExecutionProgressForTest creates an executionProgress for testing.
+`NewExecutionProgressForTest` creates an executionProgress for testing.
 
 ```go
 func NewExecutionProgressForTest() *executionProgress
 ```
 
-### NewExecutor
+### `NewExecutor`
 
-NewExecutor creates a new executor.
+`NewExecutor` creates a new executor.
 
 ```go
 func NewExecutor(ctx context.Context, agent *Agent, rtr *router.Router, out Output) *Executor
 ```
 
-### NewJobView
+### `NewJobView`
 
-NewJobView creates a new job view.
+`NewJobView` creates a new job view.
 
 ```go
 func NewJobView() *JobView
 ```
 
-### NewModel
+### `NewModel`
 
-NewModel creates a new bubbletea model for the agent.
+`NewModel` creates a new bubbletea model for the agent.
 
 ```go
 func NewModel(agent *Agent, version string) Model
 ```
 
-### NewStdOutput
+### `NewStdOutput`
 
-NewStdOutput creates a new stdout-based output.
+`NewStdOutput` creates a new stdout-based output.
 
 ```go
 func NewStdOutput() *StdOutput
 ```
 
-### RenderJobEntry
+### `RenderJobEntry`
 
-RenderJobEntry renders a single job entry in gotestsum style.
+`RenderJobEntry` renders a single job entry in gotestsum style.
 
 ```go
 func RenderJobEntry(name string, running, failed bool, duration time.Duration, errMsg string) string
 ```
 
-### RenderJobSummary
+### `RenderJobSummary`
 
-RenderJobSummary renders a summary line in gotestsum style.
+`RenderJobSummary` renders a summary line in gotestsum style.
 
 ```go
 func RenderJobSummary(total, passed, failed int, duration time.Duration) string
 ```
 
-### UsageText
+### `UsageText`
 
-UsageText returns the usage help text for non-interactive mode.
+`UsageText` returns the usage help text for non-interactive mode.
 
 ```go
 func UsageText() string
 ```
 
-### Exec
+### `Exec`
 
-Exec processes a single prompt non-interactively and exits.
+`Exec` processes a single prompt non-interactively and exits.
 
 ```go
 func (*Agent) Exec(ctx context.Context, prompt, version string) error
 ```
 
-### Options
+### `Options`
 
-Options returns the agent options.
+`Options` returns the agent options.
 
 ```go
 func (*Agent) Options() *Options
 ```
 
-### Pipelines
+### `Pipelines`
 
-Pipelines returns the loaded pipelines.
+`Pipelines` returns the loaded pipelines.
 
 ```go
 func (*Agent) Pipelines() []*model.Pipeline
 ```
 
-### Resolver
+### `Resolver`
 
-Resolver returns the task resolver.
+`Resolver` returns the task resolver.
 
 ```go
 func (*Agent) Resolver() *runner.TaskResolver
 ```
 
-### Run
+### `Run`
 
-Run starts the interactive REPL.
+`Run` starts the interactive REPL.
 
 ```go
 func (*Agent) Run(ctx context.Context, version string) error
 ```
 
-### WorkDir
+### `WorkDir`
 
-WorkDir returns the working directory.
+`WorkDir` returns the working directory.
 
 ```go
 func (*Agent) WorkDir() string
 ```
 
-### AttemptFix
+### `AttemptFix`
 
-AttemptFix runs the fix task and reports success.
+`AttemptFix` runs the fix task and reports success.
 
 ```go
 func (*AutoFixer) AttemptFix(ctx context.Context, task *model.ResolvedTask, allPipelines []*model.Pipeline) error
 ```
 
-### CanFix
+### `CanFix`
 
-CanFix checks if a fix skill exists for the given task.
+`CanFix` checks if a fix skill exists for the given task.
 e.g., if "go:test" fails, checks for "go:fix".
 
 ```go
 func (*AutoFixer) CanFix(task *model.ResolvedTask) bool
 ```
 
-### GetFixTask
+### `GetFixTask`
 
-GetFixTask returns the fix task for a given skill.
+`GetFixTask` returns the fix task for a given skill.
 "go:test" -> "go:fix", "docker:build" -> "docker:fix".
 
 ```go
 func (*AutoFixer) GetFixTask(task *model.ResolvedTask) (*model.ResolvedTask, error)
 ```
 
-### ExecuteRoute
+### `ExecuteRoute`
 
-ExecuteRoute handles a routed command and returns an error if execution failed.
+`ExecuteRoute` handles a routed command and returns an error if execution failed.
 
 ```go
 func (*Executor) ExecuteRoute(route *router.Route) error
 ```
 
-### ExecuteShell
+### `ExecuteShell`
 
-ExecuteShell runs a shell command.
+`ExecuteShell` runs a shell command.
 
 ```go
 func (*Executor) ExecuteShell(command string) error
 ```
 
-### ExecuteShellCapture
+### `ExecuteShellCapture`
 
-ExecuteShellCapture runs a shell command and captures output.
+`ExecuteShellCapture` runs a shell command and captures output.
 
 ```go
 func (*Executor) ExecuteShellCapture(command string) ShellResult
 ```
 
-### ExecuteTask
+### `ExecuteTask`
 
-ExecuteTask runs a resolved task.
+`ExecuteTask` runs a resolved task.
 
 ```go
 func (*Executor) ExecuteTask(task *model.ResolvedTask) error
 ```
 
-### HelpText
+### `HelpText`
 
-HelpText returns formatted help text for all commands.
+`HelpText` returns formatted help text for all commands.
 
 ```go
 func (*Registry) HelpText() string
 ```
 
-### HasCommand
+### `HasCommand`
 
-HasCommand returns true if the command exists in the registry.
+`HasCommand` returns true if the command exists in the registry.
 
 ```go
 func (*SlashRegistry) HasCommand(name string) bool
 ```
 
-### Init
+### `Init`
 
-Init implements tea.Model.
+`Init` implements tea.Model.
 
 ```go
 func (Model) Init() tea.Cmd
 ```
 
-### Update
+### `Update`
 
-Update implements tea.Model.
+`Update` implements tea.Model.
 
 ```go
 func (Model) Update(msg tea.Msg) (tea.Model, tea.Cmd)
 ```
 
-### View
+### `View`
 
-View implements tea.Model.
+`View` implements tea.Model.
 
 ```go
 func (Model) View() tea.View
 ```
 
-### CommandOutput
+### `CommandOutput`
 
 ```go
 func (*StdOutput) CommandOutput(text string)
 ```
 
-### Error
+### `Error`
 
 ```go
 func (*StdOutput) Error(text string)
 ```
 
-### Info
+### `Info`
 
 ```go
 func (*StdOutput) Info(text string)
 ```
 
-### Prompt
+### `Prompt`
 
 ```go
 func (*StdOutput) Prompt(text string)

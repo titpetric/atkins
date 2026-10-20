@@ -9,7 +9,7 @@ import (
 // Validate fills empty fields from the embedded defaults and checks
 // what remains.
 //
-// Defaulting and checking are one pass on purpose: "unset" and
+// Defaulting and checking share one pass: "unset" and
 // "invalid" are different problems, and only the second is worth
 // refusing to start over. A missing timeout is a value nobody chose; a
 // negative one is a value somebody got wrong.
@@ -101,8 +101,8 @@ func (s *ServerConfig) applyDefaults(defaults ServerConfig) {
 // problems reports server values that cannot work.
 //
 // A missing signing key is not listed here: it only matters when the
-// server actually starts, and `atkins --config` should not refuse to
-// open a document just because the machine isn't a server.
+// server actually starts, and the configuration menu must open a
+// document even when the machine isn't a server.
 func (s *ServerConfig) problems() []string {
 	var problems []string
 

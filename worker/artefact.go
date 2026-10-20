@@ -24,7 +24,7 @@ import (
 // setting registry; these keep a runaway pipeline from turning into
 // thousands of pointless requests before the server says no.
 const (
-	// maxCollected bounds how many files one job may offer.
+	// maxCollected bounds how many files one job may upload.
 	maxCollected = 200
 
 	// uploadTimeout bounds a single artefact transfer.
@@ -33,7 +33,7 @@ const (
 
 // candidate is one file to upload.
 type candidate struct {
-	// path is the name the artefact is stored under, relative to the
+	// path is the name the server stores the artefact under, relative to the
 	// directory the job ran in.
 	path string
 
@@ -44,18 +44,17 @@ type candidate struct {
 // collect uploads what the job produced and reports how many artefacts
 // the server accepted.
 //
-// It runs whether the command passed or failed, on purpose: the files
-// produced by a failure — a coverage report, a scan that found
-// something, a core dump — are usually the ones worth having.
+// It runs whether the command passed or failed: the files a failure
+// produces - a coverage report, a scan that found something, a core
+// dump - tend to be the ones worth having.
 func (w *Worker) collect(ctx context.Context, job *jobContext, workspace *Workspace) int {
 	candidates := w.candidates(job, workspace)
 	if len(candidates) == 0 {
 		return 0
 	}
 
-	// The job's own deadline has usually just expired when it timed
-	// out, and the artefacts of a timeout are worth as much as any
-	// others.
+	// The job's own deadline has just expired when the job times out,
+	// and the artefacts of a timeout are worth as much as any others.
 	ctx = context.WithoutCancel(ctx)
 
 	uploaded := 0
@@ -112,7 +111,7 @@ func (w *Worker) candidates(job *jobContext, workspace *Workspace) []candidate {
 
 	// The declared globs, matched against the checkout the command ran
 	// in. A job that already writes coverage.json where it writes it
-	// can be collected without editing the pipeline.
+	// reaches the server without editing the pipeline.
 	if patterns := model.ArtefactPatterns(job.Job.ArtefactPaths); len(patterns) > 0 {
 		walkTree(workspace.Dir, patterns, found)
 	}
@@ -139,7 +138,7 @@ func (w *Worker) candidates(job *jobContext, workspace *Workspace) []candidate {
 // walkTree collects files under root into found, keyed by their path
 // relative to root. A nil patterns list takes everything.
 //
-// Collection walks the tree rather than expanding the patterns into
+// Collection walks the tree and never expands the patterns into
 // paths. That is the difference between a pattern that can only select
 // among files that are already inside the checkout, and one that gets
 // handed to the filesystem and can name `../../etc/passwd`. WalkDir
@@ -161,8 +160,8 @@ func walkTree(root string, patterns []string, found map[string]string) {
 		}
 
 		if entry.IsDir() {
-			// Never the repository's own object store: it is large, it
-			// is not an output, and nobody asked for it.
+			// Never the repository's own object store: it's large, it
+			// holds no output, and no pattern names it.
 			if entry.Name() == ".git" {
 				return filepath.SkipDir
 			}
@@ -197,8 +196,8 @@ func walkTree(root string, patterns []string, found map[string]string) {
 	})
 }
 
-// matchesAny reports whether a path is wanted. No patterns means the
-// whole tree was asked for.
+// matchesAny reports whether a path matches one of the patterns. No
+// patterns means the whole tree matches.
 func matchesAny(patterns []string, value string) bool {
 	if len(patterns) == 0 {
 		return true

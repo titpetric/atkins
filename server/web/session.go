@@ -16,7 +16,7 @@ import (
 )
 
 // sessionCookie carries a signed reference to a row in the session
-// table. It is not a second credential: the session it names is the one
+// table. The cookie is not a second credential: the session it names is the one
 // `atkins --login` creates, and revoking it logs the browser out of the
 // admin pages exactly as `atkins --logout` logs the CLI out.
 const sessionCookie = "atkins_session"
@@ -25,7 +25,7 @@ const sessionCookie = "atkins_session"
 const csrfField = "csrf_token"
 
 // maxFormBytes bounds a submitted form. A deploy key is the largest
-// thing posted here and it is measured in kilobytes.
+// thing posted here, and its size runs to kilobytes.
 const maxFormBytes = 1 << 20
 
 // errNoSession means the request carried no usable session cookie.
@@ -41,7 +41,7 @@ type session struct {
 }
 
 // sign returns the HMAC of value under the server signing key, scoped
-// by purpose so a cookie value can never be replayed as a CSRF token.
+// by purpose so nobody can replay a cookie value as a CSRF token.
 func (h *Handlers) sign(purpose, value string) string {
 	mac := hmac.New(sha256.New, []byte(h.signingKey))
 	mac.Write([]byte(purpose))
@@ -114,7 +114,7 @@ func (h *Handlers) authenticate(r *http.Request) (*session, error) {
 
 // setSessionCookie writes the cookie for a freshly created session.
 //
-// Secure is set only over TLS: a cookie marked Secure is never sent
+// It sets Secure only over TLS: a browser never sends a Secure cookie
 // back over http, which would make the local instance on :3200
 // impossible to log into.
 func (h *Handlers) setSessionCookie(w http.ResponseWriter, r *http.Request, stored *model.Session) {
@@ -162,8 +162,8 @@ type pageHandler func(http.ResponseWriter, *http.Request, *session)
 
 // admin gates a page on an admin session.
 //
-// An unauthenticated visitor is sent to the login form rather than
-// shown a 401 they can do nothing with. An authenticated non-admin gets
+// It redirects an unauthenticated visitor to the login form, and never
+// shows a 401 they can do nothing with. An authenticated non-admin gets
 // a 403: they are somebody, just not somebody with these pages.
 func (h *Handlers) admin(next pageHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +216,7 @@ func (h *Handlers) submit(next pageHandler) http.HandlerFunc {
 
 // parseForm reads a bounded form body and refuses a cross-origin post.
 //
-// The origin check is "reject a mismatch" rather than "require a
+// The origin check is "reject a mismatch", and not "require a
 // match": curl and older browsers send no Origin at all, and a request
 // with no Origin is not a cross-site one.
 func (h *Handlers) parseForm(w http.ResponseWriter, r *http.Request) error {
@@ -233,7 +233,7 @@ func (h *Handlers) parseForm(w http.ResponseWriter, r *http.Request) error {
 
 // LoginForm renders the login page.
 func (h *Handlers) LoginForm(w http.ResponseWriter, r *http.Request) {
-	// Already signed in: nothing to ask for.
+	// Already signed in: no form to show.
 	if current, err := h.authenticate(r); err == nil && current.User.IsAdmin {
 		http.Redirect(w, r, "/admin/repository", http.StatusSeeOther)
 		return
@@ -247,7 +247,7 @@ func (h *Handlers) LoginForm(w http.ResponseWriter, r *http.Request) {
 
 // loginPage is the view model for the login form.
 type loginPage struct {
-	// Next is where to go after a successful login. It is always a
+	// Next is where to go after a successful login. It always holds a
 	// path on this server; see safeNext.
 	Next  string
 	Error string
@@ -269,7 +269,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.users.Authenticate(r.Context(), r.PostFormValue("email"), r.PostFormValue("password"))
 	if err != nil {
-		// Both failure modes are reported as one: the login page is
+		// The page reports both failure modes as one: the login page is
 		// reachable by anyone, and it should not answer "does this
 		// address have an account here".
 		h.render(w, r, loginView(&loginPage{
@@ -306,7 +306,7 @@ func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Revoking the row is what makes this a logout rather than a
+		// Revoking the row makes this a logout and more than a
 		// cookie deletion: an access token minted from the same session
 		// stops working too.
 		if err := h.sessions.Revoke(r.Context(), current.Session.ID); err != nil {

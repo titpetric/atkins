@@ -29,10 +29,10 @@ func TestMergeSkillVariables_PreservesExistingKeys(t *testing.T) {
 	err := runner.MergeSkillVariables(ctx, decl)
 	assert.NoError(t, err)
 
-	// Existing keys must be preserved
+	// Existing keys keep their values
 	assert.Equal(t, "from-caller", ctx.Variables.Get("name"))
 	assert.Equal(t, "v1.0.0", ctx.Variables.Get("semver"))
-	// New keys from skill should be added
+	// The merge adds new keys from the skill
 	assert.Equal(t, "new-value", ctx.Variables.Get("extra"))
 	// Interpolated new key uses the skill's own value (not caller's) during resolution,
 	// but since "name" existed on stack, the skill's "name" resolved to "from-skill" internally;

@@ -17,8 +17,8 @@ func TestAnsiSpansSplitsOnAppearance(t *testing.T) {
 }
 
 func TestAnsiSpansCarriesAppearanceForward(t *testing.T) {
-	// atkins writes its tree as one attribute per sequence — bold, then
-	// a colour — and expects both to hold until they are reset.
+	// atkins writes its tree as one attribute per sequence (bold, then
+	// a colour), and both hold until a reset.
 	spans := ansiSpans("\x1b[1m\x1b[37mheading\x1b[0m\ntail")
 
 	assert.Len(t, spans, 2)
@@ -44,7 +44,7 @@ func TestAnsiSpansHandlesTheRestOfSGR(t *testing.T) {
 		{"colour then default", "\x1b[31;39mx", ""},
 		{"bold then normal weight", "\x1b[1;22mx", ""},
 		// An unknown parameter costs the colour it named, not the line:
-		// a 256-colour tool renders as plain text rather than as an
+		// a 256-colour tool renders as plain text and never as an
 		// unclosed span.
 		{"256 colour", "\x1b[38;5;208mx", ""},
 		{"bare reset", "\x1b[mx", ""},
@@ -93,7 +93,7 @@ func TestAnsiSpansOnPlainOutput(t *testing.T) {
 
 func TestLogSpansJoinsEntries(t *testing.T) {
 	// A colour set in one chunk of output holds into the next: the
-	// entries are one stream that happened to be flushed in pieces.
+	// entries are one stream that the agent flushed in pieces.
 	spans := logSpans([]model.JobLog{
 		{Content: "\x1b[32mfirst"},
 		{Content: " second\x1b[0m"},
@@ -113,11 +113,11 @@ func TestJobPageRendersColourAndStillEscapes(t *testing.T) {
 	}, Links{}))
 
 	assert.Contains(t, rendered, `<span class="ansi-fg-green ansi-bold">ok</span>`)
-	// The escape sequences are gone from the text, rather than shown.
+	// The escape sequences leave the text and do not show.
 	assert.NotContains(t, rendered, "[1m")
 	assert.NotContains(t, rendered, "\x1b")
 	// And output is still output: colouring it changes nothing about
-	// what a build is allowed to put on the page.
+	// what a build may put on the page.
 	assert.NotContains(t, rendered, "<script>alert(1)</script>")
 	assert.Contains(t, rendered, "&lt;script&gt;")
 }

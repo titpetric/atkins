@@ -48,10 +48,10 @@ func TestExtractRepoFromURL(t *testing.T) {
 }
 
 func TestCaptureGitInfo(t *testing.T) {
-	// This test runs in a git repository, so it should return info
+	// This test runs in a git repository, so CaptureGitInfo returns metadata
 	info := CaptureGitInfo()
 
-	// May be nil if not in a git repo
+	// Nil outside a git repository
 	if info != nil {
 		assert.NotEmpty(t, info.Commit)
 		assert.NotEmpty(t, info.Branch)
@@ -59,7 +59,7 @@ func TestCaptureGitInfo(t *testing.T) {
 }
 
 func TestCaptureModulePath(t *testing.T) {
-	// This test runs in a Go module, so it should return the path
+	// This test runs in a Go module, so CaptureModulePath returns the path
 	path := CaptureModulePath()
 
 	// Should find the atkins module path

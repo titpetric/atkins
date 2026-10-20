@@ -36,8 +36,8 @@ type PipelineOptions struct {
 	Progress     ProgressObserver  // Optional observer for job progress events
 
 	// Transcript receives the finished tree, the same rendering the
-	// terminal is left with. It is how a caller records the run
-	// somewhere else — a CI job log — without changing what a person
+	// terminal ends with. A caller uses it to record the run
+	// somewhere else - a CI job log - without changing what a person
 	// watching it sees.
 	Transcript io.Writer
 }
@@ -61,7 +61,7 @@ func buildAndAddStepsToJob(jobNode *treeview.TreeNode, steps []*model.Step) {
 	for _, step := range steps {
 		stepNode := treeview.NewPendingStepNode(step.DisplayLabel(), step.IsDeferred(), step.Summarize)
 		stepNode.SetQuiet(step.Quiet)
-		// Only add command child nodes if step has multiple commands (single command already shown in label)
+		// Only add command child nodes if step has more than one command (the label already shows a single command)
 		commands := step.Commands()
 		if len(commands) > 1 {
 			for _, cmd := range commands {
@@ -128,7 +128,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		}
 	}
 
-	// Evaluate pipeline-level working directory BEFORE merging variables,
+	// Resolve pipeline-level working directory BEFORE merging variables,
 	// so that $(command) interpolation in vars runs from the correct directory.
 	if pipeline.Dir != "" {
 		dir, err := InterpolateString(pipeline.Dir, pipelineCtx)
@@ -183,7 +183,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	// e.g. if "default" depends_on "fmt", depAncestors["fmt"] = ["default"].
 	depAncestors := buildDepAncestors(allJobs, jobs)
 
-	// Pre-populate all jobs as pending - include all jobs that might be invoked
+	// Pre-populate all jobs as pending - include all jobs the run might invoke
 	jobNodes := make(map[string]*treeview.TreeNode)
 	jobsToCreate := make(map[string]bool)
 
@@ -216,7 +216,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		return canonicalName, resolved.Job, nil
 	}
 
-	// Recursively find all jobs that might be invoked
+	// Recursively find all jobs the run might invoke
 	var findInvokedJobs func(taskRef string, parentJobName string) error
 	findInvokedJobs = func(taskRef string, parentJobName string) error {
 		// Resolve the task reference
@@ -262,8 +262,8 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		}
 	}
 
-	// Create job nodes for all jobs that might be invoked
-	// Only add root-level jobs to the tree display; nested jobs are added when invoked as tasks
+	// Create job nodes for all jobs the run might invoke
+	// Only add root-level jobs to the tree display; a nested job joins when a task invokes it
 	jobsToCreateSorted := treeview.SortByOrder(jobsToCreate, jobOrder)
 	for _, jobName := range jobsToCreateSorted {
 		// Look up job from current pipeline or cross-pipeline jobs
@@ -357,8 +357,8 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			if step.Task == "" || !step.For.IsEmpty() || i >= len(stepChildren) {
 				continue
 			}
-			// A step may reference several jobs (`task: lint test build`);
-			// each is attached under the same step node, in order.
+			// A step may reference more than one job (`task: lint test build`);
+			// each one goes under the same step node, in order.
 			for _, taskRef := range step.Tasks() {
 				taskJob := allJobs[taskRef]
 				if taskJob == nil {
@@ -587,11 +587,11 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	return runErr
 }
 
-// writeTranscript hands the finished tree to the caller's writer.
+// writeTranscript writes the finished tree to the caller's writer.
 //
 // It renders the same thing RenderFinal prints, colours included, so a
-// job page reads like the terminal the run happened in rather than like
-// a second, plainer account of it.
+// job page reads like the terminal the run happened in, with no second,
+// plainer account of it.
 func (p *Pipeline) writeTranscript(root *treeview.Node) {
 	if p.opts.Transcript == nil {
 		return
@@ -674,7 +674,7 @@ func parseEnv(env string) (string, string) {
 	return "", ""
 }
 
-// printAvailableJobs prints available jobs in a format similar to task.
+// printAvailableJobs prints available jobs in a format like task's.
 func printAvailableJobs(jobs map[string]*model.Job, pipelineID string) {
 	names := treeview.SortJobsByDepth(slices.Collect(maps.Keys(jobs)))
 	maxLen := 0

@@ -60,9 +60,8 @@ func adminViews() map[string]templ.Component {
 // handler have to agree on. A rename on one side alone would turn every
 // form into a 403 nobody could explain.
 //
-// It used to grep the embedded .html sources. There are none now, so it
-// asks the better question instead: does the page a browser is served
-// carry the field?
+// It checks the rendered page: does the page a browser receives carry
+// the field?
 func TestAdminFormsCarryTheCSRFField(t *testing.T) {
 	for name, page := range adminViews() {
 		t.Run(name, func(t *testing.T) {
@@ -188,8 +187,8 @@ func TestSettingsPageRendersFromTheRegistry(t *testing.T) {
 
 	for _, definition := range model.SettingDefinitions() {
 		assert.Contains(t, rendered, definition.Name)
-		// Escaped, not raw: a description containing an apostrophe —
-		// "a finished job's record" — reaches the page as `&#39;`.
+		// Escaped, not raw: a description containing an apostrophe
+		// ("a finished job's record") reaches the page as `&#39;`.
 		assert.Contains(t, rendered, html.EscapeString(definition.Description))
 	}
 
@@ -197,7 +196,7 @@ func TestSettingsPageRendersFromTheRegistry(t *testing.T) {
 	assert.Contains(t, rendered, `<option value="allowlist"`)
 	assert.Contains(t, rendered, `<option value="open" selected`)
 
-	// Nothing is overridden, so nothing offers a reset.
+	// No setting has an override, so no reset button shows.
 	assert.NotContains(t, rendered, `value="reset"`)
 }
 
@@ -318,8 +317,8 @@ func TestSSHKeyPageEscapesKeyNames(t *testing.T) {
 }
 
 // TestFlashMessagesAreEscaped covers the notice and error a redirect
-// puts in the query string. They are the one place on these pages where
-// text from a URL is rendered back.
+// puts in the query string. They are the one place on these pages that
+// renders text from a URL back.
 func TestFlashMessagesAreEscaped(t *testing.T) {
 	page := samplePage(sectionAllowlist)
 	page.Notice = xss

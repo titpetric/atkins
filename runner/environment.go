@@ -12,7 +12,7 @@ type Environment struct {
 	Root string // Project root directory
 }
 
-// projectMarkers defines files/directories that indicate a project root.
+// projectMarkers defines files/directories that mark a project root.
 var projectMarkers = []string{
 	"go.mod",
 	"Dockerfile",
@@ -23,8 +23,8 @@ var projectMarkers = []string{
 }
 
 // DiscoverEnvironment scans for marker files starting from startDir,
-// traversing parent directories until the filesystem root is reached.
-// Root is set to the highest directory that contains any markers.
+// traversing parent directories up to the filesystem root.
+// Root holds the highest directory that contains any markers.
 func DiscoverEnvironment(startDir string) (*Environment, error) {
 	absStart, err := filepath.Abs(startDir)
 	if err != nil {

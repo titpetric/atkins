@@ -17,7 +17,7 @@ type Env map[string]string
 // environment, a captured one or a literal all read the same way.
 //
 // A later entry wins, matching what exec does with a duplicate name.
-// Entries without a name are skipped.
+// NewEnv skips entries without a name.
 func NewEnv(environ []string) Env {
 	env := make(Env, len(environ))
 	for _, entry := range environ {
@@ -43,7 +43,7 @@ func (e Env) Environ() []string {
 }
 
 // sanitizedPrefixes name the settings atkins keeps to the process that
-// was configured with them. ATKINS_ holds the credentials a server or
+// owns them. ATKINS_ holds the credentials a server or
 // an agent runs with, among them the enrolment token and the signing
 // key, and PLATFORM_ holds the database URLs, which carry their own
 // passwords.
@@ -52,11 +52,11 @@ var sanitizedPrefixes = []string{"ATKINS_", "PLATFORM_"}
 // Sanitized returns a copy of the environment with atkins' own settings
 // removed.
 //
-// It is what an agent hands to a command that arrived with a job: the
+// An agent passes this copy to a command that arrived with a job: the
 // command keeps PATH and the rest of the machine's environment, and the
-// variables it is meant to receive are set by name afterwards. Removing
-// the prefixes wholesale keeps a setting added later with the process
-// that was configured with it.
+// agent sets the variables for it by name afterwards. Removing the
+// prefixes wholesale keeps a setting added later with the process that
+// owns it.
 func (e Env) Sanitized() Env {
 	if e == nil {
 		return nil
@@ -139,7 +139,7 @@ func processEnv(ctx *ExecutionContext, decl *model.EnvDecl) (map[string]string, 
 // Format: KEY=VALUE (one per line, # for comments)
 func loadEnvFile(filePath string, env map[string]string) error {
 	// Interpolate the file path in case it contains variables
-	// For now, support simple shell expansion
+	// Support simple shell expansion
 	expandedPath := os.ExpandEnv(filePath)
 
 	file, err := os.Open(expandedPath)

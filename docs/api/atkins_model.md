@@ -95,7 +95,7 @@ type IncludeDecl struct {
 ```go
 // Iterator represents a single for-loop iteration specification,
 // using format "item in items" or "(idx, item) in items". The alternative
-// "items as item" syntax is normalized to "item in items" when decoded.
+// "items as item" syntax decodes to the normalized "item in items".
 type Iterator string
 ```
 
@@ -136,8 +136,8 @@ type Job struct {
 	Timeout     string       `yaml:"timeout,omitempty"`  // e.g., "10m", "300s"
 	Summarize   bool         `yaml:"summarize,omitempty"`
 	Quiet       bool         `yaml:"quiet,omitempty"`
-	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, output is printed with tree indentation
-	TTY         bool         `yaml:"tty,omitempty"`         // If true, allocate a PTY for all steps (enables color output)
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation
+	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for all steps (enables color output)
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 
 	Name   string `yaml:"-"`
@@ -151,7 +151,7 @@ type Job struct {
 <summary><code>type JobWalkFunc</code></summary>
 
 ```go
-// JobWalkFunc is called for each step in a job during Walk.
+// JobWalkFunc runs for each step in a job during Walk.
 type JobWalkFunc func(index int, step *Step) error
 ```
 
@@ -164,7 +164,7 @@ type JobWalkFunc func(index int, step *Step) error
 // Label represents a display label for a step or command.
 type Label struct {
 	Text       string              // The display text (e.g., "docker compose up" or "run: splint fix ./...")
-	Type       string              // The type of operation: "task", "run", "cmd", "cmds"
+	Type       string              // The operation kind: "task", "run", "cmd", "cmds"
 	ShowPrefix bool                // Whether to display the type prefix (e.g., "run:")
 	Status     string              // Optional status indicator (e.g., "●", "✓", "✗")
 	Color      func(string) string // Optional color function to apply to the label
@@ -203,7 +203,7 @@ type Pipeline struct {
 <summary><code>type PipelineWalkFunc</code></summary>
 
 ```go
-// PipelineWalkFunc is called for each job in a pipeline during Walk.
+// PipelineWalkFunc runs for each job in a pipeline during Walk.
 type PipelineWalkFunc func(name string, job *Job) error
 ```
 
@@ -258,8 +258,8 @@ type Step struct {
 	Verbose     bool         `yaml:"verbose,omitempty"`
 	Summarize   bool         `yaml:"summarize,omitempty"`
 	Quiet       bool         `yaml:"quiet,omitempty"`
-	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, output is printed with tree indentation
-	TTY         bool         `yaml:"tty,omitempty"`         // If true, allocate a PTY for the command (enables color output)
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation
+	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for the command (enables color output)
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 	HidePrefix  bool         `yaml:"-"`                     // If true, don't show "run:" prefix in display
 }
@@ -275,9 +275,9 @@ type Step struct {
 // about the step type (task vs command). Implementations decide how
 // to execute each type.
 type StepDispatcher interface {
-	// Task is called when the step references another job via task:.
+	// Task runs when the step references another job via task:.
 	Task(step *Step) error
-	// Command is called for each executable command in the step.
+	// Command runs for each executable command in the step.
 	Command(step *Step, index int, cmd string) error
 }
 ```
@@ -288,11 +288,11 @@ type StepDispatcher interface {
 <summary><code>type VariableStorage</code></summary>
 
 ```go
-// VariableStorage provides access to variables with lazy evaluation support.
-// Implementations may defer evaluation until Get is called.
+// VariableStorage stores variables with lazy evaluation support.
+// Implementations may defer evaluation until the first Get call.
 type VariableStorage interface {
 	// Get returns a variable value. If the variable is pending evaluation,
-	// it will be evaluated on first access and cached.
+	// Get evaluates it on first access and caches the result.
 	Get(key string) any
 
 	// Set stores a value directly (already evaluated).
@@ -303,7 +303,7 @@ type VariableStorage interface {
 	Clone() VariableStorage
 
 	// Walk iterates over all evaluated variables.
-	// The function is called for each key-value pair while holding a lock.
+	// Walk calls the function for each key-value pair while holding a lock.
 	Walk(fn func(key string, value any))
 }
 ```
@@ -348,225 +348,225 @@ type VariableStorage interface {
 - `func (Conditionals) String () string`
 - `func (Iterators) IsEmpty () bool`
 
-### NewLabel
+### `NewLabel`
 
-NewLabel creates a new label with the given text and type.
+`NewLabel` creates a new label with the given text and type.
 Use builder methods like WithPrefix(), WithStatus(), and WithColor() to customize.
 
 ```go
 func NewLabel(text, labelType string) *Label
 ```
 
-### NewResolvedTask
+### `NewResolvedTask`
 
-NewResolvedTask creates a ResolvedTask with all required fields.
+`NewResolvedTask` creates a ResolvedTask with all required fields.
 
 ```go
 func NewResolvedTask(pipeline *Pipeline, job *Job, name string) *ResolvedTask
 ```
 
-### UnmarshalYAML
+### `UnmarshalYAML`
 
-UnmarshalYAML implements custom unmarshalling for Conditionals,
+`UnmarshalYAML` implements custom unmarshalling for Conditionals,
 supporting single string ("enabled == true") or list of strings.
 
 ```go
 func (*Conditionals) UnmarshalYAML(node *yaml.Node) error
 ```
 
-### UnmarshalYAML
+### `UnmarshalYAML`
 
-UnmarshalYAML implements custom unmarshalling for `depends_on`,
+`UnmarshalYAML` implements custom unmarshalling for `depends_on`,
 taking a string value, or a slice of strings.
 
 ```go
 func (*Dependencies) UnmarshalYAML(node *yaml.Node) error
 ```
 
-### UnmarshalYAML
+### `UnmarshalYAML`
 
-UnmarshalYAML implements custom unmarshalling for IncludeDecl to support string or []string.
+`UnmarshalYAML` implements custom unmarshalling for IncludeDecl to support string or []string.
 
 ```go
 func (*IncludeDecl) UnmarshalYAML(node *yaml.Node) error
 ```
 
-### UnmarshalYAML
+### `UnmarshalYAML`
 
-UnmarshalYAML implements custom unmarshalling for Iterators,
+`UnmarshalYAML` implements custom unmarshalling for Iterators,
 supporting single string ("item in items") or list of strings.
 
 ```go
 func (*Iterators) UnmarshalYAML(node *yaml.Node) error
 ```
 
-### Children
+### `Children`
 
-Children returns job steps for execution.
+`Children` returns job steps for execution.
 
 ```go
 func (*Job) Children() []*Step
 ```
 
-### GetAliases
+### `GetAliases`
 
-GetAliases returns the job aliases or nil.
+`GetAliases` returns the job aliases or nil.
 
 ```go
 func (*Job) GetAliases() []string
 ```
 
-### IsRootLevel
+### `IsRootLevel`
 
-IsRootLevel returns true if the job is a root-level job (no ':' in name).
+`IsRootLevel` returns true if the job is a root-level job (no ':' in name).
 
 ```go
 func (*Job) IsRootLevel() bool
 ```
 
-### ShouldShow
+### `ShouldShow`
 
-ShouldShow returns true if the job should be displayed in the tree output.
-Root jobs are shown by default. Nested jobs are hidden unless Show is true.
+`ShouldShow` returns true if the tree output displays the job.
+The tree shows root jobs by default and hides nested jobs unless Show is true.
 
 ```go
 func (*Job) ShouldShow() bool
 ```
 
-### UnmarshalYAML
+### `UnmarshalYAML`
 
-UnmarshalYAML implements custom unmarshalling for Job to trim whitespace and handle Decl.
+`UnmarshalYAML` implements custom unmarshalling for Job to trim whitespace and handle Decl.
 It also supports parsing a job from a simple string (e.g., "up: docker compose up").
 
 ```go
 func (*Job) UnmarshalYAML(node *yaml.Node) error
 ```
 
-### Walk
+### `Walk`
 
-Walk iterates over all steps (children) of the job.
+`Walk` iterates over all steps (children) of the job.
 
 ```go
 func (*Job) Walk(fn JobWalkFunc) error
 ```
 
-### ForDisplay
+### `ForDisplay`
 
-ForDisplay returns the formatted label with color and status for rendering.
+`ForDisplay` returns the formatted label with color and status for rendering.
 This includes ANSI color codes and status indicators.
 
 ```go
 func (*Label) ForDisplay() string
 ```
 
-### String
+### `String`
 
-String returns the formatted label as a clean string (no ANSI codes or status).
+`String` returns the formatted label as a clean string (no ANSI codes or status).
 Use this for node names and comparisons.
 
 ```go
 func (*Label) String() string
 ```
 
-### WithColor
+### `WithColor`
 
-WithColor sets a color function to apply to the label.
+`WithColor` sets a color function to apply to the label.
 
 ```go
 func (*Label) WithColor(colorFn func(string) string) *Label
 ```
 
-### WithPrefix
+### `WithPrefix`
 
-WithPrefix sets whether to show the type prefix in output.
+`WithPrefix` sets whether to show the type prefix in output.
 
 ```go
 func (*Label) WithPrefix(show bool) *Label
 ```
 
-### WithStatus
+### `WithStatus`
 
-WithStatus sets the status indicator to display.
+`WithStatus` sets the status indicator to display.
 
 ```go
 func (*Label) WithStatus(status string) *Label
 ```
 
-### GetAliases
+### `GetAliases`
 
-GetAliases will give key => value mapping for commands in a pipeline.
+`GetAliases` returns a key => value mapping for commands in a pipeline.
 Explicit job aliases take precedence over auto-generated aliases (like skill ID -> default).
 
 ```go
 func (*Pipeline) GetAliases() map[string]string
 ```
 
-### GetJobs
+### `GetJobs`
 
-GetJobs will returned the defined jobs in the pipeline.
+`GetJobs` will returned the defined jobs in the pipeline.
 
 ```go
 func (*Pipeline) GetJobs() map[string]*Job
 ```
 
-### GetKeys
+### `GetKeys`
 
-GetKeys will return the available targets in the pipeline. It uses the
+`GetKeys` will return the available targets in the pipeline. It uses the
 pipeline ID to optionally prefix job/tasks map keys. The default
-job is ordered first in the result.
+job comes first in the result.
 
 ```go
 func (*Pipeline) GetKeys() []string
 ```
 
-### HasJobs
+### `HasJobs`
 
-HasJobs returns true if the pipeline has any jobs or tasks defined.
+`HasJobs` returns true if the pipeline has any jobs or tasks defined.
 
 ```go
 func (*Pipeline) HasJobs() bool
 ```
 
-### JobNames
+### `JobNames`
 
-JobNames returns the names of all jobs (or tasks) in the pipeline.
+`JobNames` returns the names of all jobs (or tasks) in the pipeline.
 
 ```go
 func (*Pipeline) JobNames() []string
 ```
 
-### UnmarshalYAML
+### `UnmarshalYAML`
 
-UnmarshalYAML implements custom unmarshalling for Pipeline to handle Decl.
+`UnmarshalYAML` implements custom unmarshalling for Pipeline to handle Decl.
 
 ```go
 func (*Pipeline) UnmarshalYAML(node *yaml.Node) error
 ```
 
-### Walk
+### `Walk`
 
-Walk iterates over all jobs in the pipeline in deterministic order.
-The "default" job is visited first, followed by remaining jobs in
+`Walk` iterates over all jobs in the pipeline in deterministic order.
+Walk visits the "default" job first, followed by remaining jobs in
 sorted order.
 
 ```go
 func (*Pipeline) Walk(fn PipelineWalkFunc) error
 ```
 
-### Commands
+### `Commands`
 
-Commands returns all executable commands from this step as a slice.
+`Commands` returns all executable commands from this step as a slice.
 For steps with a single command (Run/Cmd), returns a slice with one element.
-For steps with multiple commands (Cmds), returns the full slice.
+For steps with a command list (Cmds), returns the full slice.
 Returns an empty slice for Task steps.
 
 ```go
 func (*Step) Commands() []string
 ```
 
-### Dispatch
+### `Dispatch`
 
-Dispatch routes the step to the appropriate StepDispatcher method
+`Dispatch` routes the step to the appropriate StepDispatcher method
 based on the step type. Task steps call d.Task, command steps call
 d.Command for each command.
 
@@ -574,26 +574,26 @@ d.Command for each command.
 func (*Step) Dispatch(d StepDispatcher) error
 ```
 
-### DisplayLabel
+### `DisplayLabel`
 
-DisplayLabel returns a display label for the step, always showing prefixes.
-This is used during execution to clearly show what type of operation is being run.
+`DisplayLabel` returns a display label for the step, always showing prefixes.
+Execution uses it to show which kind of operation runs.
 
 ```go
 func (*Step) DisplayLabel() string
 ```
 
-### IsDeferred
+### `IsDeferred`
 
-IsDeferred returns true if deferred is filled.
+`IsDeferred` returns true if the step sets deferred.
 
 ```go
 func (*Step) IsDeferred() bool
 ```
 
-### Label
+### `Label`
 
-Label returns a structured label for the step with information about how to display it.
+`Label` returns a structured label for the step with information about how to display it.
 showPrefix controls whether to include the type prefix (e.g., "run:", "task:").
 HidePrefix overrides this to never show the prefix (for simple shorthand tasks).
 
@@ -601,54 +601,54 @@ HidePrefix overrides this to never show the prefix (for simple shorthand tasks).
 func (*Step) Label(showPrefix bool) *Label
 ```
 
-### String
+### `String`
 
-String returns a string representation of the step.
+`String` returns a string representation of the step.
 
 ```go
 func (*Step) String() string
 ```
 
-### Tasks
+### `Tasks`
 
-Tasks returns the job names referenced by the step's task: field.
-A single task: value may name several jobs separated by whitespace
-(`task: lint test build`), which run in sequence and are equivalent to
+`Tasks` returns the job names referenced by the step's task: field.
+A single task: value may name more than one job, separated by whitespace
+(`task: lint test build`), which run in sequence and match
 one task: step per job. Returns an empty slice for command steps.
 
 ```go
 func (*Step) Tasks() []string
 ```
 
-### UnmarshalYAML
+### `UnmarshalYAML`
 
-UnmarshalYAML implements custom unmarshalling for Step to support various formats and handle Decl.
+`UnmarshalYAML` implements custom unmarshalling for Step to accept the shorthand formats and decode Decl.
 
 ```go
 func (*Step) UnmarshalYAML(node *yaml.Node) error
 ```
 
-### IsEmpty
+### `IsEmpty`
 
-IsEmpty returns true if there are no conditions.
+`IsEmpty` returns true if there are no conditions.
 
 ```go
 func (Conditionals) IsEmpty() bool
 ```
 
-### String
+### `String`
 
-String returns a display representation of the conditions.
+`String` returns a display representation of the conditions.
 Single condition returns the expression as-is.
-Multiple conditions are parenthesized and joined with " && ".
+More than one condition returns each in parentheses, joined with " && ".
 
 ```go
 func (Conditionals) String() string
 ```
 
-### IsEmpty
+### `IsEmpty`
 
-IsEmpty returns true if there are no iterators.
+`IsEmpty` returns true if there are no iterators.
 
 ```go
 func (Iterators) IsEmpty() bool

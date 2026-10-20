@@ -25,7 +25,7 @@ func CaptureGitInfo() *GitInfo {
 		info.Repository = extractRepoFromURL(info.RemoteURL)
 	}
 
-	// Return nil if no git info was captured
+	// Return nil when git reports no commit, branch or remote
 	if info.Commit == "" && info.Branch == "" && info.RemoteURL == "" {
 		return nil
 	}
@@ -35,7 +35,7 @@ func CaptureGitInfo() *GitInfo {
 
 // extractRepoFromURL extracts repository name from a git URL.
 func extractRepoFromURL(url string) string {
-	// Handle SSH URLs: git@github.com:owner/repo.git
+	// SSH URLs: git@github.com:owner/name.git
 	if strings.HasPrefix(url, "git@") {
 		url = strings.TrimPrefix(url, "git@")
 		url = strings.Replace(url, ":", "/", 1)

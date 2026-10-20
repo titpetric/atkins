@@ -24,7 +24,7 @@ Use `for:` in steps to invoke tasks or run commands repeatedly with different lo
 1. **`for:` in a step** - defines the loop with `for: variable in collection`, or equivalently `for: collection as variable`
 2. **`task:` or `run:` in the same step** - the action to perform for each iteration
 3. **Loop variable** - becomes available as `${{ variable }}`
-4. **`requires:`** - invoked tasks can declare required variables to validate they are present
+4. **`requires:`** - invoked tasks can declare required variables and check they are present
 
 ## Multi-Iterator (Matrix)
 
@@ -40,8 +40,8 @@ steps:
 
 This produces 4 iterations: `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`.
 
-This is similar to GitHub Actions' `matrix` strategy, but more flexible:
-- Variables are defined inline or from pipeline vars
+This resembles GitHub Actions' `matrix` strategy, but more flexible:
+- Variables come inline or from pipeline vars
 - No separate `strategy` block needed
 - Works with any step type (`run:`, `task:`, `cmd:`)
 

@@ -10,14 +10,14 @@ import (
 
 const renderDoc = "# Title\n\n" + sampleTable + "\n\nA trailing paragraph.\n"
 
-// TestRenderNoColor checks the document is returned byte for byte when
-// color is false, which is what a file or a pipe gets.
+// TestRenderNoColor checks Render returns the document byte for byte when
+// color is false, as for a file or a pipe.
 func TestRenderNoColor(t *testing.T) {
 	assert.Equal(t, renderDoc, Render(renderDoc, false))
 }
 
-// TestRenderColor checks the table is redrawn with borders, the heading
-// is coloured, and the rest of the document is untouched.
+// TestRenderColor checks Render redraws the table with borders, colours
+// the heading, and leaves the rest of the document alone.
 func TestRenderColor(t *testing.T) {
 	out := Render(renderDoc, true)
 
@@ -35,19 +35,19 @@ func TestRenderColor(t *testing.T) {
 	assert.Contains(t, colors.StripANSI(out), "List jobs")
 }
 
-// TestRenderColorizesSubheading checks a heading below level 1 is
-// coloured bright white rather than bright cyan, matching helpdoc's own
-// heading() scheme.
+// TestRenderColorizesSubheading checks Render colours a heading below
+// level 1 bright white, matching helpdoc's own heading() scheme where
+// level 1 gets bright cyan.
 func TestRenderColorizesSubheading(t *testing.T) {
 	out := Render("## A job\n\nProse.\n", true)
 
 	assert.Contains(t, out, colors.BrightWhite("## A job"))
 }
 
-// TestRenderDoesNotDoubleColorHeading checks a heading the caller already
-// coloured, as helpdoc's own headings are, is left alone: Sections
-// isolates it same as a plain one, but it no longer starts with `#` so
-// the heading regexp does not match it.
+// TestRenderDoesNotDoubleColorHeading checks Render leaves alone a heading
+// the caller already coloured, as helpdoc does with its own headings:
+// Sections isolates it same as a plain one, but it starts with an escape
+// code and not `#`, so the heading regexp does not match it.
 func TestRenderDoesNotDoubleColorHeading(t *testing.T) {
 	coloured := colors.BrightCyan("# Title")
 	out := Render(coloured+"\n\nProse.\n", true)

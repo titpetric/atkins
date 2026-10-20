@@ -149,7 +149,7 @@ func (p *Parser) allSkillInfos() []skillInfo {
 	return infos
 }
 
-// matchKeywordsToSkill tries to match extracted keywords to available skills.
+// matchKeywordsToSkill matches extracted keywords to available skills.
 func (p *Parser) matchKeywordsToSkill(keywords []string) *model.ResolvedTask {
 	if len(keywords) == 0 {
 		return nil
@@ -158,8 +158,8 @@ func (p *Parser) matchKeywordsToSkill(keywords []string) *model.ResolvedTask {
 	allKW := agentmodel.ExpandKeywords(keywords)
 
 	// 1. Try colon-joined combinations (most specific first)
-	//    ["go", "test"] → "go:test"
-	//    ["test", "simple"] → "test:simple"
+	//    ["go", "test"] -> "go:test"
+	//    ["test", "simple"] -> "test:simple"
 	if len(allKW) >= 2 {
 		// Try all pairs, original keywords first
 		for i := 0; i < len(keywords); i++ {
@@ -194,7 +194,7 @@ func (p *Parser) matchKeywordsToSkill(keywords []string) *model.ResolvedTask {
 		return resolved
 	}
 
-	// 5. Loose prefix/substring matching — prefer more specific (longer) matches.
+	// 5. Loose prefix/substring matching: prefer more specific (longer) matches.
 	if resolved := p.matchSkillLoose(allKW); resolved != nil {
 		return resolved
 	}

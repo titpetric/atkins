@@ -4,7 +4,7 @@ subtitle: Job configuration and dependencies
 layout: page
 ---
 
-A job groups related steps and controls how they execute. Jobs are defined as a map under `jobs:` or `tasks:`.
+A job groups related steps and controls how they execute. A pipeline declares jobs as a map under `jobs:` or `tasks:`.
 
 ## Job Fields
 
@@ -19,11 +19,11 @@ A job groups related steps and controls how they execute. Jobs are defined as a 
 | `detach: true`      | Run the job in background (parallel)                         |
 | `aliases:`          | Alternative names for invoking the job                       |
 | `requires:`         | Required variables when invoked via a for loop               |
-| `if:`               | Conditional execution (string or list; list items are ANDed) |
+| `if:`               | Conditional execution (string or list; all items must pass)  |
 | `dir:`              | Working directory for all steps                              |
-| `timeout:`          | Maximum execution time (e.g. `"10m"`, `"300s"`)              |
+| `timeout:`          | Execution time limit (e.g. `"10m"`, `"300s"`)                |
 | `passthru: true`    | Output printed with tree indentation                         |
-| `tty: true`         | Allocate a PTY for color output                              |
+| `tty: true`         | Attach a PTY for color output                                |
 | `interactive: true` | Stream output live and connect stdin                         |
 | `quiet: true`       | Suppress output                                              |
 | `summarize: true`   | Summarize output                                             |
@@ -64,7 +64,7 @@ tasks:
   logs: docker compose logs -f
 ```
 
-This is equivalent to:
+This matches:
 
 ```yaml
 tasks:

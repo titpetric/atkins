@@ -12,7 +12,7 @@ func TestTriggerQueuesAJobByName(t *testing.T) {
 	url := testServer(t)
 	admin := register(t, url)
 
-	// A repository is known once something has been dispatched for it.
+	// The server knows a repository once a dispatch names it.
 	seed := dispatch(t, url, admin.Token, "atkins", "")
 
 	var triggered dispatchResponse
@@ -29,7 +29,7 @@ func TestTriggerQueuesAJobByName(t *testing.T) {
 	assert.Equal(t, http.StatusOK, status)
 
 	// A job name becomes the invocation, so a trigger payload stays a
-	// name rather than a shell string.
+	// name and never a shell string.
 	assert.Equal(t, "atkins analyze", job["command"])
 	assert.JSONEq(t, `{"tag":"v1.2.3"}`, job["params"].(string))
 	assert.Equal(t, model.JobStatusPending, job["status"])
@@ -63,8 +63,8 @@ func TestTriggerAcceptsATag(t *testing.T) {
 	admin := register(t, url)
 	seed := dispatch(t, url, admin.Token, "atkins", "")
 
-	// The point of the ref field: a tag says it is a tag rather than
-	// travelling in the branch field and working by accident.
+	// The ref field exists for this: a tag names itself as a tag and
+	// does not travel in the branch field, working by accident.
 	var triggered dispatchResponse
 	status := call(t, http.MethodPost, url+"/api/repository/"+seed.RepositoryID+"/trigger", admin.Token, map[string]any{
 		"job": "analyzeTag",
@@ -163,8 +163,8 @@ func TestTriggerRespectsTheAllowlist(t *testing.T) {
 
 	setSetting(t, url, admin.Token, model.SettingRepositoryPolicy, model.PolicyAllowlist)
 
-	// A repository that may not be built may not be built on a
-	// schedule either.
+	// A repository the server may not build stays unbuilt on a
+	// schedule too.
 	status := call(t, http.MethodPost, url+"/api/repository/"+seed.RepositoryID+"/trigger", admin.Token, map[string]any{
 		"job": "analyze",
 	}, nil)

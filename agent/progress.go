@@ -11,7 +11,7 @@ import (
 	"github.com/titpetric/atkins/runner"
 )
 
-// ExecutionProgressExported is exported for testing. Use newExecutionProgress in production.
+// ExecutionProgressExported exports executionProgress for tests. Use newExecutionProgress in production.
 type ExecutionProgressExported = executionProgress
 
 // NewExecutionProgressForTest creates an executionProgress for testing.
@@ -19,7 +19,7 @@ func NewExecutionProgressForTest() *executionProgress {
 	return newExecutionProgress()
 }
 
-// runningJob tracks a currently running job.
+// runningJob tracks a running job.
 type runningJob struct {
 	StartedAt time.Time
 	Parents   []string

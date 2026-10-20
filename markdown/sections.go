@@ -5,8 +5,8 @@
 // It exists for one caller: `atkins --help` builds one long markdown
 // document, and a table in it reads better in a terminal as a bordered,
 // coloured grid than as pipe-delimited text. Sections splits the document
-// so a table block can be found and replaced without disturbing the
-// prose around it; Render does the replacing.
+// so Render can find and replace a table block without disturbing the
+// prose around it.
 package markdown
 
 import (
@@ -15,9 +15,9 @@ import (
 
 // Sections splits a document into the blocks a blank line separates.
 //
-// A fenced code block (opened and closed by a line starting with ```) is
-// kept as one section even when it contains a blank line, so a YAML
-// example inside `atkins --help` is never split mid-fence.
+// A fenced code block (a line starting with ``` opens and closes it) stays
+// one section even when it contains a blank line, so Sections never splits
+// a YAML example inside `atkins --help` mid-fence.
 func Sections(doc string) []string {
 	lines := strings.Split(doc, "\n")
 

@@ -6,7 +6,7 @@ import (
 	"github.com/titpetric/atkins/psexec"
 )
 
-// ErrJobSkipped is returned when a job's if condition evaluates to false.
+// ErrJobSkipped reports a job whose if condition evaluates to false.
 var ErrJobSkipped = errors.New("job skipped")
 
 // ExecError represents an error from command execution.

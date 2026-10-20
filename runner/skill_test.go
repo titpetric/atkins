@@ -9,7 +9,7 @@ import (
 )
 
 // TestSkill_ID checks ID reads the namespace off the pipeline and
-// answers for a zero value rather than panicking.
+// answers for a zero value without panicking.
 func TestSkill_ID(t *testing.T) {
 	var missing *runner.Skill
 	assert.Empty(t, missing.ID())

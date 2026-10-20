@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// Options provides configuration for the executor.
+// Options holds configuration for the executor.
 type Options struct {
 	DefaultTimeout time.Duration
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/titpetric/atkins/internal/assert"
 )
 
-// TestTable checks a table is padded to the widest cell and carries the
+// TestTable checks a table pads to the widest cell and carries the
 // GFM rule row.
 func TestTable(t *testing.T) {
 	var out bytes.Buffer
@@ -37,8 +37,8 @@ func TestTableEmpty(t *testing.T) {
 	assert.Empty(t, out.String())
 }
 
-// TestTableShortRow checks a row with fewer cells than headers is padded
-// rather than producing a table markdown cannot parse.
+// TestTableShortRow checks row pads a row with fewer cells than headers,
+// so the table stays one markdown can parse.
 func TestTableShortRow(t *testing.T) {
 	var out bytes.Buffer
 

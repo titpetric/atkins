@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	// The platform used to register the sql drivers for its callers and
-	// no longer does, so the binary picks the one it needs. modernc's
+	// The platform leaves sql driver registration to its callers, so the
+	// binary picks the one it needs. modernc's
 	// sqlite is a pure Go translation and keeps CGO_ENABLED=0, which the
 	// release build in atkins.yml relies on.
 	_ "modernc.org/sqlite"
@@ -27,8 +27,8 @@ func start() error {
 
 	// The cli package prints a command list and nothing else, and its
 	// help hook is per command. The long document covers the flags, the
-	// skills and the schema at once, so --help is answered here before
-	// a command is selected.
+	// skills and the schema at once, so main answers --help here before
+	// selecting a command.
 	if HelpRequested(HelpFlags(), os.Args[1:]) {
 		return WriteHelp(os.Stdout)
 	}

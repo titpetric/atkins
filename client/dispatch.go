@@ -9,8 +9,8 @@ import (
 )
 
 // Environment variables a dispatched run exports to its steps. They are
-// the CI/CD contract: a command running under an agent can tell it is
-// part of a job, address that job, and dispatch children under it.
+// the CI/CD contract: a command running under an agent can tell that it
+// belongs to a job, address that job, and dispatch children under it.
 const (
 	// EnvJobID is the job the command is running as. A nested atkins
 	// invocation reads it and dispatches its own job as a child.
@@ -22,14 +22,14 @@ const (
 	// EnvRootJobID is the top of this job's tree, stable across nesting.
 	EnvRootJobID = "ATKINS_ROOT_JOB_ID"
 
-	// EnvJobParams is the JSON object the job was dispatched with.
+	// EnvJobParams is the JSON object the job carries from its dispatch.
 	EnvJobParams = "ATKINS_JOB_PARAMS"
 
 	// EnvArtefacts is a directory the job copies files into to have
-	// them kept. Whatever is in it when the command exits is uploaded
-	// and attached to the job.
+	// them kept. When the command exits, the agent uploads whatever the
+	// directory holds and attaches it to the job.
 	//
-	// It is the declaration that needs no schema: a pipeline says what
+	// The directory is the declaration that needs no schema: a pipeline says what
 	// it wants kept by putting it somewhere, which works for any
 	// command in any language without atkins having to parse its
 	// output or its configuration.
@@ -43,35 +43,35 @@ const (
 	// comma separated.
 	EnvLabels = "ATKINS_LABELS"
 
-	// EnvNoDispatch runs locally instead of dispatching, without
-	// logging out. An agent sets it for the command it runs, which is
-	// what stops a job from dispatching itself forever.
+	// EnvNoDispatch makes atkins run locally and skip dispatch, without
+	// logging out. An agent sets it for the command it runs, and that
+	// stops a job from dispatching itself forever.
 	EnvNoDispatch = "ATKINS_NO_DISPATCH"
 
-	// EnvCI is set for every run an agent performs, matching what
+	// EnvCI marks every run an agent performs, matching what
 	// other CI systems export.
 	EnvCI = "CI"
 )
 
-// Dispatched is a job handed to a server.
+// Dispatched is a job that a server accepted.
 //
-// A nil *Dispatched means the run was not delegated and the caller
-// should execute it locally.
+// A nil *Dispatched means the server holds no job for the run and the
+// caller executes it locally.
 type Dispatched struct {
 	// JobID is the server's ID for the run.
 	JobID string
 
-	// URL is where the job is watched in a browser. It is the only
-	// thing atkins prints when it delegates a run.
+	// URL is where a browser shows the job. atkins prints this one
+	// line when it delegates a run.
 	URL string
 
 	// RepositorySlug is the normalized repository the job belongs to.
 	RepositorySlug string
 }
 
-// DispatchOptions describes the run being handed over.
+// DispatchOptions describes the run that atkins dispatches.
 type DispatchOptions struct {
-	// Directory is where atkins was invoked. Empty means the process
+	// Directory is the directory atkins runs in. Empty means the process
 	// working directory.
 	Directory string
 
@@ -82,19 +82,18 @@ type DispatchOptions struct {
 	Server string
 }
 
-// ErrDispatchDisabled is returned when the environment forbids handing
-// the run over: an agent sets it for the command it runs, which is what
+// ErrDispatchDisabled reports that the environment forbids dispatching
+// the run: an agent sets the variable for the command it runs, and that
 // stops a job from dispatching itself forever.
 var ErrDispatchDisabled = errors.New(EnvNoDispatch + " is set")
 
-// Dispatch hands the current run to the CI/CD server this machine is
+// Dispatch sends the current run to the CI/CD server this machine has
 // logged in to, and returns where to watch it.
 //
-// Handing a run over is asked for — by --dispatch, or by
-// `client.dispatch` in the configuration — so every reason it can't
-// happen is an error rather than a quiet local run. The one that isn't
-// worth stopping over is a repository nobody can clone, and that is
-// refused before the job exists: an unpushed commit dispatches a job
+// Dispatch runs only on request (--dispatch, or `client.dispatch` in the
+// configuration), so every reason it can't happen is an error and never
+// a quiet local run. A repository nobody can clone gets its refusal
+// before the job exists: an unpushed commit dispatches a job
 // that dies in `git checkout` on a machine nobody is watching.
 func Dispatch(ctx context.Context, opts DispatchOptions) (*Dispatched, error) {
 	if DispatchDisabled() {
@@ -162,7 +161,7 @@ func shortRevision(revision string) string {
 	return revision
 }
 
-// DispatchDisabled reports whether ATKINS_NO_DISPATCH is set to a
+// DispatchDisabled reports whether ATKINS_NO_DISPATCH holds a
 // true-ish value.
 func DispatchDisabled() bool {
 	value := strings.TrimSpace(os.Getenv(EnvNoDispatch))
@@ -175,9 +174,9 @@ func DispatchDisabled() bool {
 
 // Command renders an argv as the command to record.
 //
-// argv[0] is replaced with `atkins` rather than reduced to its base
-// name: the recorded command is re-run on another machine, where the
-// binary is called `atkins`, and what this one happens to be named is a
+// Command replaces argv[0] with `atkins` and keeps no part of the local
+// name: the recorded command runs again on another machine, where the
+// binary has the name `atkins`, and the local binary's name is a
 // fact about this laptop. A build under test as `./bin/atkins-linux-amd64`,
 // the `atkins.old` the install job leaves behind, or a distro package
 // named `atkins-cli` would otherwise queue a command no agent can run,
@@ -197,8 +196,8 @@ func Command(argv []string) string {
 	return strings.Join(command, " ")
 }
 
-// commandName is what an agent invokes, whatever the local binary is
-// called.
+// commandName is what an agent invokes, whatever the local binary's
+// name.
 const commandName = "atkins"
 
 // Labels returns the labels constraining which agents may run this

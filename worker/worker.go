@@ -1,13 +1,13 @@
 // Package worker is the atkins CI/CD agent.
 //
-// An agent claims jobs from a server, reproduces the checkout they were
-// dispatched from, runs the command, streams the output back and
-// reports the outcome. It is the half that makes `atkins` on a laptop
-// hand its work to a machine that has the tooling.
+// An agent claims jobs from a server, reproduces the checkout each job
+// came from, runs the command, streams the output back and reports the
+// outcome. This half lets `atkins` on a laptop pass its work to a
+// machine that has the tooling.
 //
-// The agent keeps a repository cache under <DataDir>/repos so repeated
-// jobs for one repository fetch rather than clone, and gives every job
-// its own work tree under <DataDir>/work.
+// The agent keeps a repository cache under DataDir so repeated jobs for
+// one repository fetch and skip the clone, and builds every job its own
+// work tree under <DataDir>/work.
 package worker
 
 import (
@@ -37,15 +37,15 @@ type jobContext struct {
 	Job        *client.Job
 	Repository *client.Repository
 
-	// Lease is the claim being renewed while the job runs. It is nil
+	// Lease is the claim the agent renews while the job runs. Lease is nil
 	// until run starts one.
 	Lease *lease
 }
 
 // New returns a Worker, authenticating against the server.
 //
-// The agent logs in like any other user. When Register is set and the
-// credentials don't match an account, it creates one: on a fresh
+// The agent logs in like any other user. With Register on and no account
+// matching the credentials, it creates one: on a fresh
 // instance there is nobody to create it for them.
 func New(ctx context.Context, opts *Options) (*Worker, error) {
 	if opts == nil {
@@ -63,8 +63,8 @@ func New(ctx context.Context, opts *Options) (*Worker, error) {
 
 // applyDefaults fills the zero values the configuration cannot supply.
 //
-// Everything else is defaulted by the config package on load; only the
-// agent identity depends on the machine rather than on the document.
+// The configuration package fills every other default on load; only the
+// agent identity depends on the machine and not on the document.
 func applyDefaults(opts *Options) {
 	if opts.AgentID == "" {
 		opts.AgentID, _ = os.Hostname()
@@ -136,7 +136,7 @@ func authenticate(ctx context.Context, opts *Options) (*client.Client, error) {
 	return c, nil
 }
 
-// Run claims and executes jobs until the context is cancelled.
+// Run claims and executes jobs until the context ends.
 func (w *Worker) Run(ctx context.Context) error {
 	log.Printf("[agent] %s polling %s every %s (labels: %v, data: %s)",
 		w.opts.AgentID, w.client.Server(), w.opts.PollInterval, w.opts.Labels, w.opts.DataDir)
@@ -179,12 +179,12 @@ func (w *Worker) run(ctx context.Context, job *jobContext) {
 	log.Printf("[agent] job %s: %s", job.Job.ID, job.Job.Command)
 
 	// The lease outlives cancellation of the claim call, and the
-	// outcome still has to be reported if the agent is shutting down.
+	// agent still has to report the outcome during shutdown.
 	ctx, cancel := context.WithTimeout(ctx, w.opts.JobTimeout)
 	defer cancel()
 
 	// Losing the lease cancels the job the same way the timeout does,
-	// which is what stops the command: a cancelled job whose build runs
+	// and that stops the command: a cancelled job whose build runs
 	// on to completion holds the agent's one slot for whatever a person
 	// pressed cancel to get away from.
 	job.Lease = w.heartbeat(ctx, job.Job.ID, cancel)
@@ -196,7 +196,7 @@ func (w *Worker) run(ctx context.Context, job *jobContext) {
 	}
 
 	// Re-check the allowlist here, not only at dispatch: this job may
-	// have been queued while its repository was still permitted.
+	// have entered the queue while the allowlist still permitted its repository.
 	allowed, err := w.allowed(ctx, job.Repository.Slug)
 	if err != nil {
 		w.fail(ctx, job, err.Error())
@@ -255,17 +255,18 @@ func (w *Worker) run(ctx context.Context, job *jobContext) {
 	log.Printf("[agent] job %s: %s (exit %d)", job.Job.ID, status, result.ExitCode)
 }
 
-// stopped records that the job was taken away while the agent was
-// running it.
+// stopped records that the server took the job away while the agent
+// ran it.
 //
-// No status is reported. The job has already settled — cancelled by a
-// person, or reclaimed after a lease expired and handed to another
-// agent — and a late `failed` from here would overwrite the outcome
-// somebody asked for. Artefacts are not collected for the same reason:
-// a page that says cancelled should not go on growing files.
+// stopped reports no status. The job has already settled - a person
+// cancelled it, or the server reclaimed it after a lease expired and
+// passed it to another agent - and a late `failed` from here would
+// overwrite the outcome somebody chose. stopped collects no artefacts
+// for the same reason: a page that says cancelled must not go on
+// growing files.
 //
 // What does go up is a line saying what happened, so a cancelled job
-// reads as cancelled rather than as a build that stopped mid-sentence.
+// reads as cancelled and not as a build that stopped mid-sentence.
 func (w *Worker) stopped(ctx context.Context, job *jobContext) {
 	log.Printf("[agent] job %s: stopped, the server no longer leases it to this agent", job.Job.ID)
 
@@ -274,7 +275,7 @@ func (w *Worker) stopped(ctx context.Context, job *jobContext) {
 }
 
 // fail records an agent-side failure: something that went wrong around
-// the command rather than inside it.
+// the command and not inside it.
 func (w *Worker) fail(ctx context.Context, job *jobContext, message string) {
 	// A job the server has taken back is not this agent's to settle,
 	// whatever went wrong on the way to running it.
@@ -294,7 +295,7 @@ func (w *Worker) fail(ctx context.Context, job *jobContext, message string) {
 }
 
 // report settles the job, using a context that survives job timeout so
-// a timed-out job still lands as `timeout` rather than as a dead lease.
+// a timed-out job still lands as `timeout` and not as a dead lease.
 func (w *Worker) report(ctx context.Context, jobID string, req client.JobStatusRequest) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), reportTimeout)
 	defer cancel()
@@ -340,7 +341,7 @@ func (w *Worker) appendLog(ctx context.Context, jobID, stream, content string) {
 
 // lease is the claim an agent holds on a job while it runs it.
 type lease struct {
-	// revoked is set when the server stops recognising the claim.
+	// revoked turns true when the server stops recognising the claim.
 	revoked atomic.Bool
 
 	// Stop ends the renewals and waits for them to finish.
@@ -348,13 +349,13 @@ type lease struct {
 }
 
 // Revoked reports whether the server has taken the job back. A nil
-// lease has nothing to lose, which is what a direct call to fail in a
-// test has.
+// lease has nothing to lose, and a direct call to fail in a test
+// passes one.
 func (l *lease) Revoked() bool {
 	return l != nil && l.revoked.Load()
 }
 
-// heartbeat renews the lease until the returned lease is stopped, and
+// heartbeat renews the lease until the caller stops the returned lease, and
 // calls lost when the server stops recognising it.
 //
 // A rejected heartbeat is not a network problem to retry: the server
@@ -404,8 +405,8 @@ func (w *Worker) heartbeat(ctx context.Context, jobID string, lost context.Cance
 // leaseLost reports whether a heartbeat failure means the job is no
 // longer this agent's to run.
 //
-// The server answers 409 for both spellings of that — the job has
-// settled, or another agent holds it — and anything else is a bad
+// The server answers 409 for both spellings of that - the job has
+// settled, or another agent holds it - and anything else is a bad
 // connection or a server having a moment, which the next tick retries.
 func leaseLost(err error) bool {
 	var apiErr *client.APIError

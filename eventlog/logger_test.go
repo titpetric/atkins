@@ -94,7 +94,7 @@ func TestLogger_LogExec_Skip(t *testing.T) {
 func TestLogger_NilSafe(t *testing.T) {
 	var logger *Logger
 
-	// All methods should be safe to call on nil
+	// Every method is safe to call on nil
 	logger.LogExec(ResultPass, "id", "run", 0, 100, nil)
 	assert.Nil(t, logger.GetEvents())
 	assert.Equal(t, float64(0), logger.GetElapsed())
@@ -177,7 +177,7 @@ func TestLogger_DebugGoroutineID(t *testing.T) {
 	events := logger.GetEvents()
 	assert.Len(t, events, 1)
 
-	// Goroutine ID should be non-zero when debug is enabled
+	// Goroutine ID is non-zero with debug on
 	assert.Greater(t, events[0].GoroutineID, uint64(0))
 }
 
@@ -195,7 +195,7 @@ func TestLogger_NoGoroutineIDWithoutDebug(t *testing.T) {
 	events := logger.GetEvents()
 	assert.Len(t, events, 1)
 
-	// Goroutine ID should be zero when debug is disabled
+	// Goroutine ID is zero with debug off
 	assert.Equal(t, uint64(0), events[0].GoroutineID)
 }
 

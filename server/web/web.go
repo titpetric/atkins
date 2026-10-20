@@ -1,11 +1,11 @@
 // Package web serves the browser-facing pages of the atkins CI/CD
 // server.
 //
-// Two surfaces live here, and they are deliberately different.
+// Two surfaces live here, and they differ.
 //
-// `atkins` prints one URL when it dispatches a job —
-// `<server>/job/{ULID}?t=<token>` — and that page is where the run is
-// watched: status, timing, the command, and the output the agent
+// `atkins` prints one URL when it dispatches a job,
+// `<server>/job/{ULID}?t=<token>`, and a person watches the run on that
+// page: status, timing, the command, and the output the agent
 // captured. It takes no session, because the point of printing a URL in
 // a terminal is that pasting it into a browser just works; a private
 // instance checks the token in that URL instead.
@@ -50,18 +50,18 @@ type Handlers struct {
 	sshKeys      *storage.SSHKeyStorage
 
 	// tokens mints and checks the per-job view tokens. It holds the
-	// server's signing key, so a link stops working when the key is
-	// rotated.
+	// server's signing key, so a link stops working when an operator
+	// rotates the key.
 	tokens *auth.JWT
 
 	// signingKey authenticates the session cookie and derives CSRF
-	// tokens. It is the same secret tokens holds, kept raw because the
-	// cookie and CSRF HMACs are computed directly rather than as JWTs.
+	// tokens. It holds the same secret as tokens, kept raw because the
+	// handlers compute the cookie and CSRF HMACs directly, with no JWT.
 	// Rotating it logs the browser out along with everything else.
 	signingKey string
 }
 
-// Options is passed from the server module scope.
+// Options carries values from the server module scope.
 type Options struct {
 	JobStorage            *storage.JobStorage
 	JobLogStorage         *storage.JobLogStorage
@@ -75,15 +75,14 @@ type Options struct {
 
 	// SigningKey is the server's access token signing key. It derives
 	// the per-job view tokens, and without it the admin pages refuse
-	// every session rather than trusting an unauthenticated cookie.
+	// every session and never trust an unauthenticated cookie.
 	SigningKey string
 }
 
 // NewHandlers returns Handlers for the page routes.
 //
-// The error is always nil. It survives from when the templates were
-// parsed at construction: templ compiles them instead, so a broken page
-// is a build failure rather than a start-up one. The signature stays so
+// The error is always nil. templ compiles the templates, so a broken
+// page is a build failure and never a start-up one. The signature stays so
 // callers do not have to change when something here does need to fail.
 func NewHandlers(opts Options) (*Handlers, error) {
 	handlers := &Handlers{
@@ -108,18 +107,18 @@ func NewHandlers(opts Options) (*Handlers, error) {
 // The job pages have no session to check: the browser reading them never
 // logged in. What a private instance checks instead is the per-job view
 // token in the URL atkins printed, which keeps the one thing that has
-// to stay true — a pasted URL opens the job — without also handing the
+// to stay true (a pasted URL opens the job) without also opening the
 // job to anyone who guesses a ULID.
 //
-// The artefact download shares that trust model rather than a weaker or
-// a stronger one. A file a job produced is no more sensitive than the
-// output that produced it, so it is reachable on exactly the terms the
-// page is: same token, same setting. A download link on a page a browser
-// can open must not be a link that fails, and a browser has no bearer
-// token to offer. `GET /api/job/{id}/artefact/{id}` is the authenticated
-// door for scripts.
+// The artefact download shares that trust model, neither weaker nor
+// stronger. A file a job produced is no more sensitive than the output
+// that produced it, so the same terms as the page apply: same token,
+// same setting. A download link on a page a browser can open must not be
+// a link that fails, and a browser has no bearer token to send.
+// `GET /api/job/{id}/artefact/{id}` is the authenticated door for
+// scripts.
 //
-// Everything under `/admin` is gated on an admin session instead. Those
+// Everything under `/admin` requires an admin session instead. Those
 // pages are not reached from a printed URL, so there is nothing to
 // preserve by leaving them open.
 func (h *Handlers) Mount(r platform.Router) {
@@ -182,28 +181,28 @@ type IndexPage struct {
 	// that will not change on its own.
 	Refresh int
 
-	// Private is set when the listing is withheld for want of a session,
-	// so the page can offer a way in rather than looking like an
-	// instance nobody has ever used.
+	// Private reports a listing withheld for want of a session, so the
+	// page can show a way in and not look like an instance nobody has
+	// ever used.
 	Private bool
 
-	// Scoped is set when the listing is the signed-in user's own runs
-	// rather than everything on the instance.
+	// Scoped reports a listing of the signed-in user's own runs, and
+	// not everything on the instance.
 	Scoped bool
 
-	// SignedIn is set when the visitor has a session, which decides
-	// whether the page offers a sign-in link or an admin one.
+	// SignedIn reports a visitor with a session, which decides whether
+	// the page shows a sign-in link or an admin one.
 	SignedIn bool
 }
 
 // Index lists recent jobs.
 //
-// A private instance scopes the listing to whoever is signed in, the
+// A private instance scopes the listing to the signed-in user, the
 // way /api/job does for a bearer token: an owner who lost the URL atkins
 // printed can find the job here and the link carries its view token. A
-// visitor with no session is told where to sign in — the page still
-// answers, because it is the server's front door and a health check
-// probing it should find a server rather than a refusal.
+// visitor with no session sees where to sign in: the page still
+// answers, because this page is the server's front door and a health
+// check probing it has to find a server and not a refusal.
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 	page := IndexPage{Refresh: 5}
 	filter := storage.ListFilter{Limit: 50}
@@ -240,7 +239,7 @@ func (h *Handlers) Job(w http.ResponseWriter, r *http.Request) {
 
 	jobID := platform.URLParam(r, "jobID")
 
-	// The token is checked before the job is loaded, so a wrong one
+	// The handler checks the token before loading the job, so a wrong one
 	// tells a caller nothing about whether the job exists.
 	if !h.public() && !h.tokens.ValidViewToken(jobID, platform.QueryParam(r, ViewTokenParam)) {
 		h.fail(w, r, http.StatusForbidden,
@@ -324,7 +323,7 @@ func childrenOf(jobs []model.Job, parentID string) []model.Job {
 	return children
 }
 
-// render writes a component, reporting failures as a 500 rather than a
+// render writes a component, reporting failures as a 500 and never as a
 // half-written page.
 func (h *Handlers) render(w http.ResponseWriter, r *http.Request, page templ.Component) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -359,9 +358,9 @@ func (h *Handlers) links() Links {
 }
 
 // Listing reports whether the front page lists anything to a visitor
-// with no session, which is what a job page opened from a printed URL
-// has. A signed-in visitor gets a listing either way, but the markup
-// cannot tell one from the other and a link to an empty page is worse
+// with no session, the state of a job page opened from a printed URL.
+// A signed-in visitor gets a listing either way, but the markup cannot
+// tell one from the other and a link to an empty page is worse
 // than no link.
 func (l Links) Listing() bool {
 	return l.public
@@ -369,8 +368,8 @@ func (l Links) Listing() bool {
 
 // Job is where a job page lives, token and all.
 //
-// Every link a page renders goes through here, so following a parent or
-// a child from a job you were given a link to keeps working: each hop
+// Every link a page renders comes from here, so following a parent or
+// a child from a job you hold a link to keeps working: each hop
 // carries the token for the job it points at, and never the token for
 // the job it came from.
 func (l Links) Job(jobID string) string {
@@ -380,7 +379,7 @@ func (l Links) Job(jobID string) string {
 // Artefact is where an artefact downloads from.
 //
 // It carries the token of the job the artefact belongs to, so a
-// download is reachable exactly when the page listing it is.
+// download opens exactly when the page listing it opens.
 func (l Links) Artefact(jobID, artefactID string) string {
 	return l.withToken("/job/"+jobID+"/artefact/"+artefactID, jobID)
 }

@@ -10,7 +10,7 @@ import (
 )
 
 // SkillsLoader discovers and loads skill pipelines from .atkins/skills/ directories.
-// It evaluates `when:` conditions to determine which skills are enabled and sets
+// It checks `when:` conditions to determine which skills apply and sets
 // the appropriate working directory for each skill based on the rules.
 type SkillsLoader struct {
 	// SkillsDirs are the directories to search for skill files, in priority order.
@@ -36,7 +36,7 @@ func NewSkillsLoader(workspaceDir, startDir string) *SkillsLoader {
 	}
 }
 
-// AddSkillsDir adds an additional skills directory to search.
+// AddSkillsDir adds another skills directory to search.
 // Directories added later have lower precedence.
 func (l *SkillsLoader) AddSkillsDir(dir string) {
 	l.SkillsDirs = append(l.SkillsDirs, dir)
@@ -69,10 +69,10 @@ func (l *SkillsLoader) Load() ([]*model.Pipeline, error) {
 }
 
 // Scan returns every skill file in the loader's directories, in
-// directory order, whether or not its when: block is satisfied.
+// directory order, whether its when: block matches or not.
 //
 // Load drops the skills that do not apply here; Scan keeps them so
-// `atkins --help` can list what is installed rather than only what the
+// `atkins --help` can list every installed skill, beyond the ones the
 // current directory activates. Two directories carrying the same skill
 // ID both appear, the higher-priority one first.
 func (l *SkillsLoader) Scan() ([]*Skill, error) {
@@ -113,7 +113,7 @@ func (l *SkillsLoader) Scan() ([]*Skill, error) {
 }
 
 // loadSkill reads a skill file and the optional markdown companion
-// beside it: go.yml is documented by go.md in the same directory.
+// beside it: go.md in the same directory documents go.yml.
 // A missing or unreadable companion leaves Doc empty and is not an
 // error, because the guide is optional.
 func (l *SkillsLoader) loadSkill(path string) (*Skill, error) {
@@ -134,7 +134,7 @@ func (l *SkillsLoader) loadSkill(path string) (*Skill, error) {
 }
 
 // loadSkillFile loads a single skill pipeline from a YAML file.
-// Sets Pipeline.ID from the filename (e.g., "go.yml" → "go").
+// Sets Pipeline.ID from the filename (e.g., "go.yml" -> "go").
 func (l *SkillsLoader) loadSkillFile(path string) (*model.Pipeline, error) {
 	pipelines, err := LoadPipeline(path)
 	if err != nil {
@@ -151,7 +151,7 @@ func (l *SkillsLoader) loadSkillFile(path string) (*model.Pipeline, error) {
 	return pipeline, nil
 }
 
-// evaluateWhen checks if a skill's when: condition is satisfied.
+// evaluateWhen checks if a skill's when: condition matches.
 func (l *SkillsLoader) evaluateWhen(pipeline *model.Pipeline) (workDir string, enabled bool) {
 	// No when: condition means always enabled, use workspace dir
 	if pipeline.When == nil || len(pipeline.When.Files) == 0 {
@@ -191,8 +191,8 @@ func (l *SkillsLoader) FindFolder(name, startDir string) (containingDir string, 
 // startDir and traversing parent directories. Returns (found, matchDir) where
 // matchDir is the directory containing the first matched file.
 //
-// For each directory (starting with startDir, going up), all patterns are checked.
-// This means closer matches are preferred over pattern order.
+// For each directory (starting with startDir, going up), it checks all patterns.
+// This means closer matches win over pattern order.
 func (l *SkillsLoader) FindFile(patterns []string, startDir string) (matchDir string, found bool) {
 	// First, check absolute paths (no traversal needed)
 	for _, pattern := range patterns {
@@ -228,8 +228,8 @@ func (l *SkillsLoader) FindFile(patterns []string, startDir string) (matchDir st
 // MatchWhenPattern reports whether a `when: files:` pattern resolves to
 // something inside dir, and what it resolved to.
 //
-// A pattern carrying a glob meta character is expanded, so a skill can
-// activate on the contents of a folder rather than its name:
+// MatchWhenPattern expands a pattern carrying a glob meta character, so a
+// skill can activate on the contents of a folder and not only its name:
 // `schema/*.up.sql` matches a folder of migrations, while `schema/`
 // matches any folder of that name.
 func MatchWhenPattern(dir, pattern string) (match string, found bool) {

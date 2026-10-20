@@ -8,7 +8,7 @@ Atkins uses [expr-lang](https://expr-lang.org/) for conditional expressions in `
 
 ## Expression Syntax
 
-Expressions are evaluated as boolean conditions:
+Atkins reads expressions as boolean conditions:
 
 ```yaml
 if: version > 1

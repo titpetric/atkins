@@ -44,9 +44,9 @@ func TestLeaseTTLSettingTakesEffectWithoutRestart(t *testing.T) {
 
 	setSetting(t, url, admin.Token, model.SettingJobLeaseTTL, "30s")
 
-	// The next claim uses the new window. `job.lease_ttl` is documented
-	// as configuration an admin changes without a restart, and reading
-	// it once at start-up made that promise false.
+	// The next claim uses the new window. The documentation lists
+	// `job.lease_ttl` as configuration an admin changes without a
+	// restart, and reading it once at start-up made that promise false.
 	assert.Equal(t, 30*time.Second, leaseWindow(claim(t, url, agent.Token, "agent-1").Job))
 }
 
@@ -60,7 +60,7 @@ func TestMaxDepthSettingTakesEffectWithoutRestart(t *testing.T) {
 
 	setSetting(t, url, admin.Token, model.SettingJobMaxDepth, "1")
 
-	// A grandchild is depth 2, one past the limit that was just set.
+	// A grandchild is depth 2, one past the limit the test just set.
 	status := call(t, http.MethodPost, url+"/api/dispatch", admin.Token, map[string]any{
 		"repository": map[string]string{"remote_url": "git@github.com:titpetric/atkins.git"},
 		"command":    "atkins",
@@ -105,8 +105,8 @@ func TestConfiguredMaxDepthOutranksTheRegistryDefault(t *testing.T) {
 	}, nil)
 	assert.Equal(t, http.StatusUnprocessableEntity, status)
 
-	// Resetting a setting that was never stored leaves the configured
-	// value in charge rather than falling back to the default of 3.
+	// Resetting a setting with no stored value leaves the configured
+	// value in charge, and the default of 3 stays out of it.
 	status = call(t, http.MethodDelete, url+"/api/admin/setting/"+model.SettingJobMaxDepth, admin.Token, nil, nil)
 	assert.Equal(t, http.StatusOK, status)
 

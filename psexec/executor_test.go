@@ -328,8 +328,8 @@ func TestExecutor_Interactive_NoTerminal(t *testing.T) {
 }
 
 func TestExecutor_Interactive_NoTerminal_ProcessCleanup(t *testing.T) {
-	// When term.MakeRaw fails, the already-started process must be waited
-	// for so it does not become a zombie.
+	// When term.MakeRaw fails, Run must wait for the already-started process
+	// so it does not become a zombie.
 	exec := psexec.New()
 	ctx := context.Background()
 
@@ -342,10 +342,10 @@ func TestExecutor_Interactive_NoTerminal_ProcessCleanup(t *testing.T) {
 	assert.False(t, result.Success())
 	assert.Equal(t, 1, result.ExitCode())
 
-	// Give the process time to create the marker (it was started before MakeRaw failed)
+	// Wait for the process to create the marker (it starts before MakeRaw fails)
 	time.Sleep(200 * time.Millisecond)
 
-	// The marker should exist — proves the process was started
+	// The marker proves the process started
 	_, err := os.Stat(marker)
 	// Process may or may not have had time to create the file before
 	// ptmx.Close sent SIGHUP, but either way the process should not be a zombie.
@@ -369,14 +369,14 @@ func TestExecutor_Interactive_NoTerminal_DoesNotHang(t *testing.T) {
 
 	select {
 	case <-done:
-		// OK — returned promptly
+		// OK - returned promptly
 	case <-time.After(5 * time.Second):
 		t.Fatal("interactive mode on non-TTY hung for > 5s")
 	}
 }
 
 func TestExecutor_WithPTY_CapturesAllOutput(t *testing.T) {
-	// Regression: ensure that ALL output lines are captured, including
+	// Regression: Result captures ALL output lines, including
 	// the final line printed just before the process exits.
 	exec := psexec.New()
 	ctx := context.Background()
@@ -392,7 +392,7 @@ func TestExecutor_WithPTY_CapturesAllOutput(t *testing.T) {
 
 func TestExecutor_WithPTY_BackgroundChild(t *testing.T) {
 	// A command that spawns a background child must not cause the PTY
-	// read to hang. The session leader (bash) exiting must be sufficient.
+	// read to hang. The session leader (bash) exiting must end the read.
 	exec := psexec.New()
 	ctx := context.Background()
 
@@ -414,7 +414,7 @@ func TestExecutor_WithPTY_BackgroundChild(t *testing.T) {
 }
 
 func TestExecutor_WithPTY_SequentialRuns(t *testing.T) {
-	// Multiple sequential PTY executions must all work correctly;
+	// Back-to-back PTY executions must all work correctly;
 	// no leaked goroutines or file descriptors should interfere.
 	exec := psexec.New()
 	ctx := context.Background()

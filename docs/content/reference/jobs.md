@@ -6,7 +6,7 @@ layout: page
 
 Jobs define units of work in a pipeline. Each job contains steps to execute.
 
-Jobs can be defined using either `jobs:` (GitHub Actions style) or `tasks:` (Taskfile style). Both are interchangeable.
+A pipeline defines jobs with either `jobs:` (GitHub Actions style) or `tasks:` (Taskfile style). Both are interchangeable.
 
 ## Properties
 
@@ -32,7 +32,7 @@ Jobs can be defined using either `jobs:` (GitHub Actions style) or `tasks:` (Tas
 | `summarize`   | bool        | `false` | Summarize output                         |
 | `quiet`       | bool        | `false` | Suppress output                          |
 | `passthru`    | bool        | `false` | Print output with tree indentation       |
-| `tty`         | bool        | `false` | Allocate PTY for all steps               |
+| `tty`         | bool        | `false` | Attach a PTY to all steps                |
 | `interactive` | bool        | `false` | Stream output live, connect stdin        |
 
 ## Basic Job
@@ -71,7 +71,7 @@ Execute jobs conditionally using `if`:
 
 ## String Shorthand
 
-Jobs can be written as bare strings, useful for simple commands and skills:
+A job can be a bare string, useful for simple commands and skills:
 
 ```yaml
 jobs:
@@ -80,7 +80,7 @@ jobs:
   lint: golangci-lint run
 ```
 
-This is equivalent to:
+This matches:
 
 ```yaml
 jobs:

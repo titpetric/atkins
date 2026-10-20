@@ -24,22 +24,22 @@ func NewJobLogStorage(db *sqlx.DB) *JobLogStorage {
 
 // Stream names for job output.
 const (
-	// StreamOutput is combined stdout and stderr from the command.
+	// StreamOutput holds stdout and stderr from the command, combined.
 	StreamOutput = "output"
 
 	// StreamError is the agent's own commentary: clone failures,
-	// timeouts, anything that happened around the command rather than
-	// inside it.
+	// timeouts, anything that happened around the command and outside
+	// it.
 	StreamError = "error"
 )
 
 // MaxLogChunk bounds one appended chunk. A job that prints a gigabyte
-// should fill the page slowly rather than the database quickly.
+// should fill the page slowly, and never the database quickly.
 const MaxLogChunk = 256 * 1024
 
 // Append adds a chunk of output to a job.
 //
-// Chunks are numbered per job so the page can render them in the order
+// Append numbers chunks per job so the page can render them in the order
 // the agent produced them, without relying on timestamp resolution.
 func (s *JobLogStorage) Append(ctx context.Context, jobID, stream, content string) error {
 	ctx, span := oida.StartAuto(ctx, s.Append, oida.KindDatabase)

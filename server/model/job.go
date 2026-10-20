@@ -58,7 +58,7 @@ var terminalJobStatuses = []JobStatus{
 
 // TerminalJobStatuses returns the states a job settles into. Retention
 // sweeps use it: a job that has not settled is never old enough to
-// delete, however long ago it was queued.
+// delete, no matter how old its queue time.
 func TerminalJobStatuses() []JobStatus {
 	statuses := make([]JobStatus, len(terminalJobStatuses))
 	copy(statuses, terminalJobStatuses)
@@ -83,10 +83,10 @@ func (j *Job) IsTerminal() bool {
 // CleanWorkingDirectory normalizes a caller-supplied path into a clean
 // path relative to the repository root.
 //
-// An agent will cd into this, so an absolute path or a `..` escape is
-// dropped rather than stored: the value only ever means "somewhere
-// inside this checkout". Every route that queues a job goes through
-// here, because a guard on one of them is no guard at all.
+// An agent will cd into this, so CleanWorkingDirectory drops an absolute
+// path or a `..` escape and never stores it: the value only ever means
+// "somewhere inside this checkout". Every route that queues a job calls
+// it, because a guard on one of them is no guard at all.
 func CleanWorkingDirectory(dir string) string {
 	dir = strings.TrimSpace(dir)
 	if dir == "" || dir == "." || dir == "/" {

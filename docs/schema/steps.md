@@ -25,7 +25,7 @@ jobs:
 | `name`        | string      | Display name for the step                  |
 | `run`         | string      | Shell command to execute                   |
 | `cmd`         | string      | Alternative to `run`                       |
-| `cmds`        | list        | Multiple commands in one step              |
+| `cmds`        | list        | A list of commands in one step             |
 | `task`        | string      | Invoke another job/task                    |
 | `dir`         | string      | Working directory                          |
 | `if`          | string/list | Condition for execution (list items ANDed) |
@@ -35,7 +35,7 @@ jobs:
 | `detach`      | bool        | Run in background                          |
 | `deferred`    | bool        | Run at end (cleanup)                       |
 | `passthru`    | bool        | Show output with tree indentation          |
-| `tty`         | bool        | Allocate PTY (enables colors)              |
+| `tty`         | bool        | Attach a PTY (enables colors)              |
 | `interactive` | bool        | Enable stdin                               |
 | `summarize`   | bool        | Collapse output after completion           |
 
@@ -65,7 +65,7 @@ cmds:
   - cmd: go build ./...
 ```
 
-### Multiple Commands
+### Command Lists
 
 ```yaml
 steps:
@@ -112,11 +112,11 @@ jobs:
       - run: go build ./...
 ```
 
-### Multiple Tasks Per Step
+### Many Tasks Per Step
 
-A single `task:` may name several jobs separated by whitespace. They run in
-sequence and the step fails on the first job that fails, so this is equivalent
-to writing one `task:` step per job:
+A single `task:` may name more than one job, separated by whitespace. They run in
+sequence and the step fails on the first job that fails, so this matches
+writing one `task:` step per job:
 
 ```yaml
 jobs:
@@ -125,8 +125,8 @@ jobs:
       - task: lint test build
 ```
 
-Names may repeat (`task: build build`), and each name is resolved
-independently, so namespaced and `:`-prefixed references can be mixed
+Names may repeat (`task: build build`), and Atkins resolves each name
+independently, so one `task:` can mix namespaced and `:`-prefixed references
 (`task: go:lint :build test`).
 
 ### Cross-Pipeline References

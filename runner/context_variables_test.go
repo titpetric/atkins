@@ -72,7 +72,7 @@ func TestContextVariables_LazyEvaluation(t *testing.T) {
 		assert.Equal(t, "resolved:input", result)
 		assert.Equal(t, 1, evalCount, "should evaluate on first Get")
 
-		// Second Get should return cached value
+		// Second Get returns the cached value
 		result2 := vars.Get("lazy")
 		assert.Equal(t, "resolved:input", result2)
 		assert.Equal(t, 1, evalCount, "should not re-evaluate on second Get")
@@ -167,7 +167,7 @@ func TestContextVariables_Walk(t *testing.T) {
 // TestContextVariables_CycleDetection tests that circular dependencies fail deterministically.
 func TestContextVariables_CycleDetection(t *testing.T) {
 	t.Run("direct self-reference", func(t *testing.T) {
-		// a depends on itself: a resolves → calls Get("a") → cycle
+		// a depends on itself: a resolves -> calls Get("a") -> cycle
 		vars := runner.NewContextVariablesWithResolver(
 			map[string]any{"a": "${{a}}"},
 			nil, // set below
@@ -175,7 +175,7 @@ func TestContextVariables_CycleDetection(t *testing.T) {
 		// We need the resolver to call back into vars.Get.
 		// Use SetResolver to wire it up after construction.
 		vars.SetResolver(func(s string) (string, error) {
-			// Simulate interpolation: "${{a}}" → Get("a")
+			// Simulate interpolation: "${{a}}" -> Get("a")
 			if s == "${{a}}" {
 				val := vars.Get("a")
 				if val == nil {
@@ -276,7 +276,7 @@ func TestContextVariables_LoopPattern(t *testing.T) {
 
 		assert.Equal(t, []string{"item:a", "item:b", "item:c"}, results)
 
-		// Parent should be unchanged
+		// Parent stays the same
 		assert.Nil(t, parent.Get("item"), "parent should not have loop var")
 		assert.Nil(t, parent.Get("index"), "parent should not have loop var")
 	})

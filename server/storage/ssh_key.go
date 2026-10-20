@@ -18,8 +18,8 @@ import (
 //
 // The private material never leaves this package except through
 // ListForAgent, which is reachable only by an enrolled agent. Admin
-// listings carry the fingerprint and the public key, which is what an
-// operator needs to install the key on the forge.
+// listings carry the fingerprint and the public key: what an operator
+// needs to install the key on the forge.
 type SSHKeyStorage struct {
 	db *sqlx.DB
 }
@@ -31,11 +31,11 @@ func NewSSHKeyStorage(db *sqlx.DB) *SSHKeyStorage {
 
 // SSHKeyRequest is the input for adding a key.
 type SSHKeyRequest struct {
-	// Name identifies the key to operators. It is unique.
+	// Name identifies the key to operators. Each name is unique.
 	Name string `json:"name"`
 
 	// Host scopes the key to one git host, e.g. github.com. Empty
-	// offers the key for any host.
+	// matches any host.
 	Host string `json:"host"`
 
 	// PrivateKey is the PEM-encoded key. It must not be passphrase
@@ -61,8 +61,8 @@ func (s *SSHKeyStorage) Create(ctx context.Context, userID string, req SSHKeyReq
 	private := strings.TrimSpace(req.PrivateKey) + "\n"
 	signer, err := ssh.ParsePrivateKey([]byte(private))
 	if err != nil {
-		// Parsing here rather than at clone time turns a typo into a
-		// 400 now, instead of a mysterious job failure later.
+		// Parsing here, ahead of clone time, turns a typo into a 400
+		// now and spares a mysterious job failure later.
 		return nil, fmt.Errorf("%w: %s", model.ErrInvalidSSHKey, err)
 	}
 

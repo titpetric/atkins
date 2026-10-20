@@ -20,7 +20,7 @@ func TestChunks(t *testing.T) {
 	t.Run("splits on a line boundary", func(t *testing.T) {
 		parts := chunks("aaaa\nbbbb\ncccc\n", 10)
 
-		// The cut lands after a newline rather than mid-line, so a log
+		// The cut lands after a newline and never mid-line, so a log
 		// entry is never half a line of somebody's build output.
 		assert.Len(t, parts, 2)
 		assert.Equal(t, "aaaa\nbbbb\n", parts[0])
@@ -28,8 +28,8 @@ func TestChunks(t *testing.T) {
 	})
 
 	t.Run("splits a line longer than the chunk", func(t *testing.T) {
-		// One enormous line — minified output, a base64 blob — has no
-		// boundary to find, and must still be shipped rather than held.
+		// One enormous line (minified output, a base64 blob) has no
+		// boundary to find, and the recorder still ships it and holds nothing back.
 		parts := chunks(strings.Repeat("x", 25), 10)
 
 		assert.Len(t, parts, 3)

@@ -21,7 +21,7 @@ import (
 )
 
 // testRepository is a git repository built for the checkout tests, and
-// the shas of the things a job can ask for.
+// the shas of the refs a job can name.
 type testRepository struct {
 	// Path is the work tree, usable as a clone remote.
 	Path string
@@ -44,8 +44,8 @@ const (
 // two commits back, and a second branch.
 //
 // Every commit writes a different marker.txt, so a test can tell which
-// commit ended up in the work tree by reading a file rather than by
-// trusting what the agent reported about itself.
+// commit landed in the work tree by reading a file, without trusting
+// what the agent reported about itself.
 func gitRepository(t *testing.T) *testRepository {
 	t.Helper()
 
@@ -103,7 +103,7 @@ type agentServer struct {
 	checkout   client.JobCheckoutRequest
 	heartbeats int
 
-	// artefacts records what was uploaded, keyed by the path the agent
+	// artefacts records each upload, keyed by the path the agent
 	// declared.
 	artefacts map[string][]byte
 
@@ -112,8 +112,8 @@ type agentServer struct {
 	refuseArtefacts bool
 
 	// revokeLease answers every heartbeat with the 409 a server sends
-	// once the job has settled — which is what a cancel looks like from
-	// the agent's side.
+	// once the job has settled - a cancel looks like that from the
+	// agent's side.
 	revokeLease bool
 }
 
@@ -195,7 +195,7 @@ func newAgentServer(t *testing.T, policy client.PolicyResponse) *agentServer {
 	return fake
 }
 
-// result reports what the server was told.
+// result reports what the agent sent the server.
 func (f *agentServer) result() (string, client.JobStatusRequest) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -292,7 +292,7 @@ func TestRunClonesAndExecutes(t *testing.T) {
 	assert.Equal(t, int64(0), status.ExitCode)
 	assert.Contains(t, output, "at-root")
 
-	// The repository is cached for the next job rather than re-cloned.
+	// The agent caches the repository for the next job and skips a re-clone.
 	assert.DirExists(t, filepath.Join(worker.opts.DataDir, "repos", "local", "demo.git"))
 }
 
@@ -304,7 +304,7 @@ func TestRunChecksOutWhatTheJobNamed(t *testing.T) {
 		ref  string
 
 		// marker is the file content only that commit has, so the test
-		// reads the work tree rather than the agent's own account of it.
+		// reads the work tree and ignores the agent's own account of it.
 		marker string
 		commit string
 		branch string
@@ -367,7 +367,7 @@ func TestRunChecksOutWhatTheJobNamed(t *testing.T) {
 			assert.Contains(t, output, test.marker)
 			assert.Contains(t, output, "branch="+test.branch+"\n")
 
-			// The commit is recorded, not just the ref: a tag moves, and
+			// The checkout records the commit, not just the ref: a tag moves, and
 			// "v1.0.0" alone does not say which code ran.
 			checkout := fake.checkedOut()
 			assert.Equal(t, test.commit, checkout.CommitSHA)
@@ -389,8 +389,8 @@ func TestRunFailsOnAMissingRef(t *testing.T) {
 
 	output, status := fake.result()
 	assert.Equal(t, client.StatusFailed, status.Status)
-	// Naming the ref is the whole point: a job that quietly built the
-	// default branch instead would be a green run of the wrong code.
+	// Naming the ref matters most: a job that quietly built the default
+	// branch in its place would be a green run of the wrong code.
 	assert.Contains(t, output, `ref "v9.9.9" not found in local/demo`)
 	assert.NotContains(t, output, "should-not-run")
 	assert.Empty(t, fake.checkedOut().CommitSHA)
@@ -424,7 +424,7 @@ func TestShallowJobLeavesTheCacheComplete(t *testing.T) {
 	worker.run(t.Context(), checkoutJob(repository.Path, testTag, 1, "true"))
 
 	// Depth is a property of the work tree, never of the cache: the
-	// cache is shared, and one job asking for a single commit must not
+	// jobs share the cache, and one job requesting a single commit must not
 	// cost the next one the history it already has.
 	cache := filepath.Join(worker.opts.DataDir, "repos", "local", "demo.git")
 	count, err := worker.gitOutput(t.Context(), cache, "rev-list", "--count", "refs/heads/main")
@@ -454,7 +454,7 @@ func TestRunExportsTheCheckoutEnvironment(t *testing.T) {
 	// ATKINS_REVISION keeps its name and now always holds a resolved
 	// commit, so a pipeline can pin an artefact even under a moving tag.
 	assert.Contains(t, output, "revision="+repository.Tagged)
-	// A tag is not a branch, and saying it was would be a lie a pipeline
+	// A tag is not a branch, and calling it one would be a lie a pipeline
 	// could act on.
 	assert.Contains(t, output, "branch=\n")
 }
@@ -556,7 +556,7 @@ func TestEnvironmentTakesTheWorkspaceValues(t *testing.T) {
 }
 
 // A checkout that resolved to nothing publishes nothing, so a job sees
-// an unset variable rather than an empty one.
+// an unset variable where an empty one would mislead.
 func TestEnvironmentOmitsAnEmptyCheckout(t *testing.T) {
 	fake := newAgentServer(t, client.PolicyResponse{Policy: model.PolicyOpen})
 	worker := testWorker(t, fake)
@@ -581,8 +581,8 @@ func TestRunReportsAFailingCommand(t *testing.T) {
 	output, status := fake.result()
 	assert.Equal(t, client.StatusFailed, status.Status)
 	assert.Equal(t, int64(3), status.ExitCode)
-	// stderr is captured too: a failure with no output is not a
-	// diagnosis.
+	// The agent captures stderr too: a failure with no output tells
+	// nobody anything.
 	assert.Contains(t, output, "nope")
 }
 
@@ -601,7 +601,7 @@ func TestRunRefusesADisallowedRepository(t *testing.T) {
 	assert.Contains(t, output, "not on the repository allowlist")
 	assert.NotContains(t, output, "should-not-run")
 
-	// Nothing was cloned: the refusal happens before the network does.
+	// No clone exists: the refusal happens before the network does.
 	assert.NoDirExists(t, filepath.Join(worker.opts.DataDir, "repos", "local", "demo.git"))
 }
 
@@ -650,7 +650,7 @@ func TestRunTimesOut(t *testing.T) {
 	worker.run(t.Context(), job(remote, "", "sleep 30"))
 
 	_, status := fake.result()
-	// A stuck job is reported as timed out rather than holding its
+	// The agent reports a stuck job as timed out and does not hold its
 	// lease until the server reclaims it.
 	assert.Equal(t, client.StatusTimeout, status.Status)
 	assert.Contains(t, status.Error, "timeout")
@@ -678,7 +678,7 @@ func TestSecondJobFetchesTheCachedRepository(t *testing.T) {
 	assert.DirExists(t, cache)
 
 	// Drop a marker into the cache: a second job must reuse this
-	// directory rather than clone over it.
+	// directory and not clone over it.
 	marker := filepath.Join(cache, "atkins-cache-marker")
 	assert.NoError(t, os.WriteFile(marker, []byte("kept"), 0o644))
 
@@ -699,25 +699,25 @@ func TestRunStopsWhenTheServerTakesTheJobBack(t *testing.T) {
 	worker := testWorker(t, fake)
 	worker.opts.HeartbeatInterval = 50 * time.Millisecond
 
-	// Outside the work tree, which is removed when the job ends: the
-	// marker has to outlive the cleanup to say whether the command ran
-	// on after the job was taken away.
+	// Outside the work tree, which the agent removes when the job ends:
+	// the marker has to outlive the cleanup to say whether the command
+	// ran on after the server took the job away.
 	marker := filepath.Join(t.TempDir(), "late.txt")
 
 	worker.run(t.Context(), job(remote, "", "sleep 1; touch "+marker))
 
 	// A cancelled job stays cancelled. The agent must not settle a job
 	// the server has already finished, or a late `failed` overwrites the
-	// outcome somebody asked for.
+	// outcome somebody chose.
 	assert.False(t, fake.settled(), "the agent reported a status for a job it no longer held")
 
-	// The page should say why it stopped, rather than ending mid-build.
+	// The page says why it stopped and does not end mid-build.
 	output, _ := fake.result()
 	assert.Contains(t, output, "took this job back")
 
 	// Long enough for the command to have finished on its own. The
-	// whole point is that it did not: the process group is killed, not
-	// merely abandoned while it runs to completion.
+	// test checks that it did not: the agent kills the process group and
+	// does not merely abandon it while it runs to completion.
 	time.Sleep(1500 * time.Millisecond)
 	assert.NoFileExists(t, marker, "the command outlived the job it belonged to")
 }
@@ -725,14 +725,14 @@ func TestRunStopsWhenTheServerTakesTheJobBack(t *testing.T) {
 func TestLeaseLost(t *testing.T) {
 	assert.True(t, leaseLost(&client.APIError{StatusCode: http.StatusConflict}))
 
-	// A server having a moment is not a job being taken away, and the
+	// A server having a moment does not take the job away, and the
 	// next tick retries it.
 	assert.False(t, leaseLost(&client.APIError{StatusCode: http.StatusInternalServerError}))
 	assert.False(t, leaseLost(errors.New("connection refused")))
 	assert.False(t, leaseLost(nil))
 
-	// A nil lease has nothing to lose: fail() is called directly in
-	// tests that never started one.
+	// A nil lease has nothing to lose: tests that never started one
+	// call fail() directly.
 	var none *lease
 	assert.False(t, none.Revoked())
 }

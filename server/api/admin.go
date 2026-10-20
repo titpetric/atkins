@@ -12,7 +12,7 @@ import (
 	"github.com/titpetric/atkins/server/storage"
 )
 
-// UserView is how a user is described over the API. It exists so a
+// UserView describes a user over the API. It exists so a
 // password hash can never reach a response by accident.
 type UserView struct {
 	ID       string `json:"id"`
@@ -41,7 +41,7 @@ func NewUserView(user *model.User) UserView {
 	}
 }
 
-// SSHKeyView is how a key is described to an operator: everything
+// SSHKeyView describes a key to an operator: everything
 // needed to recognize and install it, and none of the private half.
 type SSHKeyView struct {
 	ID          string `json:"id"`
@@ -55,8 +55,8 @@ type SSHKeyView struct {
 
 // NewSSHKeyView projects a stored key onto the operator-facing view.
 //
-// It is exported so the admin pages project keys the same way the API
-// does. The projection is the guard against disclosing private
+// The package exports it so the admin pages project keys the same way
+// the API does. The projection is the guard against disclosing private
 // material, so there must be exactly one of it.
 func NewSSHKeyView(key model.SSHKey) SSHKeyView {
 	view := SSHKeyView{
@@ -158,7 +158,7 @@ func (s *Handlers) updateUser(w http.ResponseWriter, r *http.Request) error {
 	userID := platform.URLParam(r, "userID")
 
 	// Refuse the two moves that lock everyone out: an admin removing
-	// their own last privilege, or the last admin being deactivated.
+	// their own last privilege, or deactivating the last admin.
 	if err := s.users.GuardLastAdmin(r.Context(), userID, flags); err != nil {
 		switch {
 		case errors.Is(err, model.ErrLastAdmin):

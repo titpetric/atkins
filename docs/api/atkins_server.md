@@ -6,13 +6,13 @@ import (
 )
 ```
 
-Package server is the atkins CI/CD server: a platform.Module that
+Package `server` is the atkins CI/CD server: a platform.Module that
 authenticates atkins clients and records the jobs they dispatch.
 
-The shape of the system is deliberately small. `atkins --login https://domain` stores a credential. From then on every atkins run
+The shape of the system is small. `atkins --login https://domain` stores a credential. From then on every atkins run
 posts to /api/dispatch with three things: which git repository, which
 directory inside its work tree, and the atkins command. The server
-writes a job row and hands back an ID; atkins manages its own job
+writes a job row and returns an ID; atkins runs its own job
 dispatch from there, and agents claim queued work over /api/job/claim.
 
 Mount it in a platform server:
@@ -41,7 +41,7 @@ type Module struct {
 	artefacts *storage.JobArtefactStorage
 	settings  *storage.SettingStorage
 
-	// tracer records the background sweeps. It is the platform's
+	// tracer records the background sweeps. It holds the platform's
 	// recorder when the host enabled telemetry, and nil otherwise;
 	// every oida entry point tolerates a nil one.
 	tracer *oida.Tracer
@@ -78,8 +78,8 @@ type Options struct {
 	// PLATFORM_DB_ATKINS, falling back to PLATFORM_DB_DEFAULT).
 	Connection string
 
-	// ArtefactDir is the root the bytes of job artefacts are written
-	// under. Empty selects DefaultArtefactDir.
+	// ArtefactDir is the root the server writes the bytes of job
+	// artefacts under. Empty selects DefaultArtefactDir.
 	ArtefactDir string
 
 	// TokenTTL is the access token lifetime.
@@ -88,9 +88,9 @@ type Options struct {
 	// SessionTTL is how long a login lasts before a re-login.
 	SessionTTL time.Duration
 
-	// AllowRegistration opens /api/user/register. Registration is
-	// always allowed while the instance has no human users, so a fresh
-	// server can be bootstrapped with `atkins --register`.
+	// AllowRegistration opens /api/user/register. Registration always
+	// stays open while the instance has no human users, so an operator
+	// can bootstrap a fresh server with `atkins --register`.
 	AllowRegistration bool
 
 	// MaxJobDepth bounds job nesting. A job at the limit cannot
@@ -101,16 +101,15 @@ type Options struct {
 	// server reclaims it as timed out.
 	LeaseTTL time.Duration
 
-	// ReclaimInterval is how often expired leases are swept. Zero
+	// ReclaimInterval is how often the server sweeps expired leases. Zero
 	// disables the sweep.
 	ReclaimInterval time.Duration
 
 	// RetentionInterval is how often job.retention and
-	// job.log_retention are applied. Zero disables the sweep. It is a
-	// start-up flag rather than a setting because it is a property of
-	// the machine — how much load it will take to keep the tables
-	// trimmed — while the windows themselves are policy an admin
-	// changes from the API.
+	// job.log_retention apply. Zero disables the sweep. This is a
+	// start-up flag and not a setting because it describes the machine
+	// (how much load it will take to keep the tables trimmed), while the
+	// windows themselves are policy an admin changes from the API.
 	RetentionInterval time.Duration
 }
 ```
@@ -124,8 +123,8 @@ type Options struct {
 
 ```go
 // DefaultArtefactDir is where artefact bytes go when nothing says
-// otherwise: beside the database, which is where the rest of a small
-// instance's state already lives.
+// otherwise: beside the database, where the rest of a small instance's
+// state already lives.
 const DefaultArtefactDir = "artefacts"
 ```
 
@@ -166,53 +165,53 @@ const (
 - `func (*Module) Start (ctx context.Context) error`
 - `func (*Module) Stop (context.Context) error`
 
-### FromConfig
+### `FromConfig`
 
-FromConfig builds module options from a resolved server config.
+`FromConfig` builds module options from a resolved server configuration.
 
 ```go
 func FromConfig(cfg config.ServerConfig) *Options
 ```
 
-### NewModule
+### `NewModule`
 
-NewModule returns the atkins server module. A nil opts selects
+`NewModule` returns the atkins server module. A nil opts selects
 NewOptions, which reads the environment.
 
 ```go
 func NewModule(opts *Options) *Module
 ```
 
-### NewOptions
+### `NewOptions`
 
-NewOptions returns options from the embedded default configuration.
-It is the fallback for a caller that has no resolved config.
+`NewOptions` returns options from the embedded default configuration.
+It covers a caller that has no resolved configuration.
 
 ```go
 func NewOptions() *Options
 ```
 
-### Mount
+### `Mount`
 
-Mount registers the API and page routes.
+`Mount` registers the API and page routes.
 
 ```go
 func (*Module) Mount(_ context.Context, r platform.Router) error
 ```
 
-### Name
+### `Name`
 
-Name returns the module name.
+`Name` returns the module name.
 
 ```go
 func (*Module) Name() string
 ```
 
-### Start
+### `Start`
 
-Start connects the database, applies migrations and wires handlers.
+`Start` connects the database, applies migrations and wires handlers.
 
-A missing signing key is fatal rather than defaulted: a server that
+A missing signing key is fatal, with no default: a server that
 signs tokens with a well-known key is a server anyone can mint an
 admin token for.
 
@@ -220,9 +219,9 @@ admin token for.
 func (*Module) Start(ctx context.Context) error
 ```
 
-### Stop
+### `Stop`
 
-Stop halts the background sweeps and waits for them to finish.
+`Stop` halts the background sweeps and waits for them to finish.
 
 ```go
 func (*Module) Stop(context.Context) error

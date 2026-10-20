@@ -6,18 +6,18 @@ import (
 )
 ```
 
-Package helpdoc renders `atkins --help`.
+Package `helpdoc` renders `atkins --help`.
 
-The help is a document rather than a flag dump: the usage line, the
-commands, every flag with its default, the skills installed on this
-machine with the jobs each contributes, and a reference for the
-atkins.yml schema. Someone reading it, or an agent, should be able to
-run atkins and write a pipeline without opening a second page.
+The help reads as a document: the usage line, the commands, every flag
+with its default, the skills installed on this machine with the jobs
+each contributes, and a reference for the atkins.yml schema. A person
+or an agent reading it can run atkins and write a pipeline without
+opening a second page.
 
-The document is built as plain markdown throughout, with padded table
-cells so it reads as columns in a file too. Colour - on the headings,
-and on every table, redrawn with borders by the markdown package - is
-added only when the caller says the writer is a terminal, so
+Write builds the document as plain markdown throughout, with padded
+table cells so it reads as columns in a file too. Write adds colour -
+on the headings, and on every table, which the markdown package redraws
+with borders - only when the caller says the writer is a terminal, so
 `atkins --help > help.md` is a document and not a screenshot of one.
 
 ## Types
@@ -35,8 +35,8 @@ type Command struct {
 	// Title is one line on what the command does.
 	Title string
 
-	// Default marks the command that runs when none is named. Its flags
-	// are printed as the global ones.
+	// Default marks the command that runs when the user names none. Write
+	// prints its flags as the global ones.
 	Default bool
 
 	// Flags are the command's own flags, nil when it has none.
@@ -55,7 +55,7 @@ type Options struct {
 	// Name is the executable name in the usage line.
 	Name string
 
-	// Version is printed under the usage line, empty to leave it out.
+	// Version prints under the usage line, empty to leave it out.
 	Version string
 
 	// Commands are the subcommands, the default one first.
@@ -66,7 +66,7 @@ type Options struct {
 	// directory does not activate.
 	Skills []*runner.Skill
 
-	// SkillDirs are the directories the skills were read from, in
+	// SkillDirs are the directories the skills come from, in
 	// precedence order, printed so a reader knows where to add one.
 	SkillDirs []string
 
@@ -84,22 +84,22 @@ type Options struct {
 - `func Schema () string`
 - `func Write (w io.Writer, opts *Options) error`
 
-### Schema
+### `Schema`
 
-Schema returns the atkins.yml reference as markdown, without a heading
+`Schema` returns the atkins.yml reference as markdown, without a heading
 of its own.
 
 ```go
 func Schema() string
 ```
 
-### Write
+### `Write`
 
-Write renders the whole help document.
+`Write` renders the whole help document.
 
-The sections are ordered so a reader can stop early: what to type,
-then the flags, then what the installed skills offer, then the schema
-for writing a pipeline of your own.
+The section order lets a reader stop early: what to type, then the
+flags, then the jobs the installed skills add, then the schema for
+writing a pipeline of your own.
 
 ```go
 func Write(w io.Writer, opts *Options) error

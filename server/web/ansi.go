@@ -12,12 +12,11 @@ import (
 // are escape sequences a person has to read around, and a real build
 // turns into noise.
 //
-// The bytes are kept as they arrived: the database holds what the
-// command produced and `GET /api/job/{id}/log` hands it back raw, for
-// a script that wants to re-colour it or strip it. The translation
-// happens here, at the last moment, and emits classes rather than style
-// attributes so the palette lives in one stylesheet with the rest of
-// the page.
+// The bytes stay as they arrived: the database holds what the command
+// produced and `GET /api/job/{id}/log` returns it raw, for a script
+// that re-colours or strips it. The translation happens here, at the
+// last moment, and emits classes and no style attributes so the
+// palette lives in one stylesheet with the rest of the page.
 
 // LogSpan is a run of output that shares one appearance.
 type LogSpan struct {
@@ -74,10 +73,10 @@ var ansiColours = map[int]string{
 
 // logSpans splits captured output into runs of one appearance.
 //
-// Only SGR sequences — the ones that set a colour or a weight — become
-// spans. Everything else an escape sequence can ask for moves a cursor
-// or clears a line, which a page that is not a terminal cannot honour
-// and must not print either, so those are dropped.
+// Only SGR sequences (the ones that set a colour or a weight) become
+// spans. Every other escape sequence moves a cursor or clears a line,
+// which a page that is not a terminal cannot honour and must not print
+// either, so logSpans drops them.
 func logSpans(entries []model.JobLog) []LogSpan {
 	var raw strings.Builder
 	for _, entry := range entries {
@@ -119,7 +118,7 @@ func ansiSpans(content string) []LogSpan {
 		}
 
 		if final == 'm' {
-			// The appearance changes here, so what came before it is a
+			// The appearance changes here, so the text ahead of it forms a
 			// span of its own.
 			emit()
 			state = applySGR(state, params)
@@ -136,9 +135,9 @@ func ansiSpans(content string) []LogSpan {
 // escapeSequence measures the escape sequence at the front of content.
 //
 // It reports the parameters of a CSI sequence, its final byte, how many
-// bytes to skip, and whether the sequence is complete. An OSC sequence
-// (a terminal title, say) is measured and reported with a final byte
-// that no caller acts on, which is how it gets dropped.
+// bytes to skip, and whether the sequence is complete. It measures an
+// OSC sequence (a terminal title, say) and reports a final byte that no
+// caller acts on, so the sequence drops out.
 func escapeSequence(content string) (params string, final byte, width int, ok bool) {
 	if len(content) < 2 {
 		return "", 0, 0, false
@@ -172,8 +171,8 @@ func escapeSequence(content string) (params string, final byte, width int, ok bo
 
 // applySGR folds one SGR sequence into the appearance.
 //
-// Unknown parameters are ignored rather than treated as a reset: an
-// unrecognised colour should cost the colour, not the whole line.
+// applySGR ignores unknown parameters and does not treat them as a
+// reset: an unrecognised colour costs the colour and keeps the line.
 func applySGR(state ansiState, params string) ansiState {
 	if params == "" {
 		// A bare ESC[m is ESC[0m.

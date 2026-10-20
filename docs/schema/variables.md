@@ -6,7 +6,7 @@ layout: page
 
 # Variables & Interpolation
 
-Atkins provides powerful variable interpolation that's YAML-friendly and doesn't conflict with shell syntax.
+Atkins supports variable interpolation that's YAML-friendly and doesn't conflict with shell syntax.
 
 ## Declaring Variables
 

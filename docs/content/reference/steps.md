@@ -6,11 +6,11 @@ layout: page
 
 Steps are the individual commands or actions within a job.
 
-Steps can be defined using either `steps:` (GitHub Actions style) or `cmds:` (Taskfile style). Both are interchangeable.
+A job defines steps with either `steps:` (GitHub Actions style) or `cmds:` (Taskfile style). Both are interchangeable.
 
 ## String Shorthand
 
-Steps can be written as bare strings without `run:` or `cmd:` prefix:
+A step can be a bare string without `run:` or `cmd:` prefix:
 
 ```yaml
 steps:
@@ -27,7 +27,7 @@ steps:
 | `desc`        | string      | -       | Step description (shown in output)       |
 | `run`         | string      | -       | Command to execute                       |
 | `cmd`         | string      | -       | Alias for `run`                          |
-| `cmds`        | list        | -       | Multiple commands to run in sequence     |
+| `cmds`        | list        | -       | Commands to run in sequence              |
 | `task`        | string      | -       | Task/job to invoke                       |
 | `if`          | string/list | -       | Conditional execution (list items ANDed) |
 | `for`         | string/list | -       | Loop iteration                           |
@@ -38,7 +38,7 @@ steps:
 | `deferred`    | bool        | `false` | Run on cleanup (like Go defer)           |
 | `defer`       | string/obj  | -       | Deferred step (shorthand or object)      |
 | `detach`      | bool        | `false` | Run in background                        |
-| `tty`         | bool        | `false` | Allocate PTY (enables colors)            |
+| `tty`         | bool        | `false` | Attach a PTY (enables colors)            |
 | `interactive` | bool        | `false` | Stream output live, connect stdin        |
 | `verbose`     | bool        | `false` | Show output                              |
 | `summarize`   | bool        | `false` | Summarize output                         |

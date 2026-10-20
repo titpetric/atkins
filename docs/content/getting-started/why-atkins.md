@@ -4,20 +4,20 @@ subtitle: When and why to choose Atkins
 layout: page
 ---
 
-Atkins is a command runner that works the same way on your laptop and in CI. It emphasizes simplicity and YAML-friendly syntax. Atkins runs tasks locally and in automation, and can attach to its own [CI/CD server](../usage/ci-cd) to distribute those runs across agents. It is not a hosted CI platform: there are no managed runners, no marketplace and no secrets vault.
+Atkins is a command runner that works the same way on your laptop and in CI. It emphasizes simplicity and YAML-friendly syntax. Atkins runs tasks locally and in automation, and can attach to its own [CI/CD server](../usage/ci-cd) to distribute those runs across agents. Atkins is no hosted CI platform: there are no managed runners, no marketplace and no secrets vault.
 
 ## When to Choose Atkins
 
 Atkins suits projects where:
 
 - Commands should inherit the full shell environment automatically. Variables set in one step are available in the next without extra configuration.
-- Secrets are handled externally. Atkins has no built-in secrets management; use your environment or a dedicated tool.
+- Secrets live outside Atkins. Atkins has no built-in secrets management; use your environment or a dedicated tool.
 - YAML files shouldn't need excessive quoting. The `${{ }}` syntax works naturally in YAML and won't collide with bash `${var}` constructs.
 - A small, standalone binary matters. Atkins ships as a single ~10MB binary with no runtime dependencies.
 - Local and CI runs should behave identically. Write a pipeline once and run it the same way everywhere.
 - Jobs run in parallel with visible progress. Use `detach: true` to run jobs concurrently; the tree view shows what's happening.
-- Pipelines should be modular and reusable. Skills let you compose and conditionally activate groups of jobs across projects.
-- Work should spread across your own machines. `atkins --login` attaches a machine to a CI/CD server; runs are recorded as jobs and agents claim them from a shared queue.
+- Pipelines stay modular and reusable. Skills let you compose and conditionally activate groups of jobs across projects.
+- Work should spread across your own machines. `atkins --login` attaches a machine to a CI/CD server; the server records runs as jobs and agents claim them from a shared queue.
 
 ## Examples
 
@@ -60,7 +60,7 @@ Run jobs concurrently with `detach: true` and see progress in the tree view:
 | Environment inheritance  | Full [^15]                  | Explicit [^16]                   | Partial [^17]                  | Full                       |
 | Parallel execution       | Yes (`detach: true`) [^18]  | Yes (jobs) [^19]                 | Yes (`--parallel`) [^20]       | Yes (parallel hooks) [^21] |
 | Conditional execution    | `if:` (expr-lang) [^22]     | `if:` (expressions) [^23]        | `preconditions:` [^24]         | `skip` patterns [^25]      |
-| File discovery           | Auto-discovers config [^26] | Fixed `.github/workflows/` [^27] | `Taskfile.yml` [^28]           | `.lefthook.yml` [^29]      |
+| File discovery           | Auto-discovers configuration [^26] | Fixed `.github/workflows/` [^27] | `Taskfile.yml` [^28]           | `.lefthook.yml` [^29]      |
 | Dependencies             | `depends_on:`               | `needs:`                         | `deps:`                        | N/A                        |
 | Plugin/extension system  | Skills [^30]                | Actions marketplace [^31]        | Includes [^32]                 | N/A                        |
 | Output formats           | Tree, JSON, YAML            | Logs                             | Text                           | Text                       |

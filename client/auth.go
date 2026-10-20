@@ -10,8 +10,8 @@ import (
 	"github.com/titpetric/atkins/colors"
 )
 
-// MinPasswordLength mirrors what the server accepts, so a typo is
-// caught at the prompt rather than after a round trip.
+// MinPasswordLength mirrors what the server accepts, so the prompt
+// catches a typo before any round trip.
 const MinPasswordLength = 8
 
 // RunLogin drives `atkins --login https://domain`.
@@ -134,8 +134,8 @@ func RunLogout(ctx context.Context, server string) error {
 
 	target := c.Server()
 	if err := c.Logout(ctx); err != nil {
-		// The local credential is already gone; say so rather than
-		// leaving the user unsure which side succeeded.
+		// The local credential is already gone; say so, and tell the user
+		// which side succeeded.
 		fmt.Fprintf(os.Stderr, "%s local credential removed, server reported: %v\n", colors.BrightYellow("WARN:"), err)
 		return nil
 	}

@@ -23,7 +23,7 @@ import (
 //	PLATFORM_DB_ATKINS="sqlite://file:atkins.db"
 //	PLATFORM_DB_DEFAULT="sqlite://file:atkins.db"
 //
-// The named connection wins when both are set. With neither, the
+// The named connection wins when both exist. With neither, the
 // platform default is an in-memory sqlite database, which is useful for
 // tests and useless for a server: the server command sets
 // PLATFORM_DB_DEFAULT to a file when the environment doesn't.
@@ -32,8 +32,8 @@ const ConnectionName = "atkins"
 // DB returns the shared connection pool for the atkins server.
 //
 // An empty name selects ConnectionName. Naming it explicitly lets one
-// process host more than one atkins database, which is what the module
-// tests use to keep their fixtures apart: the platform caches pools by
+// process host more than one atkins database; the module tests rely on
+// that to keep their fixtures apart: the platform caches pools by
 // connection name for the life of the process.
 func DB(ctx context.Context, name string) (*sqlx.DB, error) {
 	if name == "" {

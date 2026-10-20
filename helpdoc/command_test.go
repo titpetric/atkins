@@ -9,7 +9,7 @@ import (
 	"github.com/titpetric/atkins/internal/assert"
 )
 
-// TestCommand checks a command carries the flag set it was given.
+// TestCommand checks a command carries the flag set passed to it.
 func TestCommand(t *testing.T) {
 	flags := pflag.NewFlagSet("server", pflag.ContinueOnError)
 	var addr string

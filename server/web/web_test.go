@@ -14,7 +14,7 @@ import (
 // render runs a component the way a handler does and returns the page.
 //
 // Components are plain functions, so a render test needs no Handlers
-// and no storage — which is most of what the templ port bought.
+// and no storage: most of what the templ port bought.
 func render(t *testing.T, page templ.Component) string {
 	t.Helper()
 
@@ -25,9 +25,9 @@ func render(t *testing.T, page templ.Component) string {
 }
 
 func TestPagesRender(t *testing.T) {
-	// A page that cannot render is now a compile error rather than a
-	// start-up one, so what is left to check is that each one produces
-	// a document at all.
+	// A page that cannot render is a compile error and never a start-up
+	// one, so the remaining check is that each one produces a document
+	// at all.
 	pages := map[string]templ.Component{
 		"index": indexView(IndexPage{}, Links{}),
 		"job":   jobView(&JobPage{Job: &model.Job{ID: "job-1"}}, Links{}),
@@ -88,8 +88,8 @@ func TestJobPageEscapesOutput(t *testing.T) {
 		Log: []model.JobLog{{Content: "<script>alert(1)</script>"}},
 	}, Links{}))
 
-	// Job output is whatever a build printed, and it is rendered into a
-	// page anyone with the URL can open.
+	// Job output is whatever a build printed, and the server renders it
+	// into a page anyone with the URL can open.
 	assert.NotContains(t, rendered, "<script>alert(1)</script>")
 	assert.Contains(t, rendered, "&lt;script&gt;")
 }
@@ -110,8 +110,8 @@ func TestJobPageListsArtefacts(t *testing.T) {
 
 	assert.Contains(t, rendered, "reports/scan.json")
 	assert.Contains(t, rendered, "2.0 KB")
-	// The link a browser can follow: no bearer token to offer, so it
-	// is the page's own route rather than the API's.
+	// The link a browser can follow: no bearer token to send, so it
+	// points at the page's own route and not the API's.
 	assert.Contains(t, rendered, "/job/"+job.ID+"/artefact/01J000000000000000000ART1")
 }
 
@@ -139,8 +139,8 @@ func TestDuration(t *testing.T) {
 	job.SetFinishedAt(started.Add(90 * time.Second))
 	assert.Equal(t, "1m30s", duration(job))
 
-	// A running job is measured against now, so the page shows it
-	// climbing rather than showing nothing.
+	// The page measures a running job against now, so it shows the
+	// duration climbing and not an empty cell.
 	unfinished := &model.Job{}
 	unfinished.SetStartedAt(time.Now().Add(-2 * time.Second))
 	assert.NotEqual(t, "—", duration(unfinished))

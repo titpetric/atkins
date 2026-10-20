@@ -4,7 +4,7 @@ subtitle: File inclusion reference
 layout: page
 ---
 
-`include:` reads one or more files into `vars`, at the pipeline, job or step level. It does not merge jobs: an included file's `jobs:` section, if it has one, is ignored. To share jobs across files, use [Skills](../usage/skills).
+`include:` reads one or more files into `vars`, at the pipeline, job or step level. It does not merge jobs: Atkins ignores an included file's `jobs:` section, if it has one. To share jobs across files, use [Skills](../usage/skills).
 
 ## Basic Include
 
@@ -15,7 +15,7 @@ layout: page
 
 ![Includes](./includes/main.png)
 
-`ci/build.yml` and `ci/test.yml` are plain YAML documents of variables, not pipelines. Their top-level keys land in `vars`, exactly as if they had been written into `main.yml` directly.
+`ci/build.yml` and `ci/test.yml` are plain YAML documents of variables, not pipelines. Their top-level keys land in `vars`, exactly as if `main.yml` declared them directly.
 
 ## Merge Order
 
@@ -32,13 +32,13 @@ vars:
 
 ## Relative Paths
 
-A path in `include:` is resolved from the current working directory atkins was run from, not from the file that declares it. A pipeline that includes a file next to itself only works when invoked from that directory; write the include relative to where the pipeline is meant to be run, or resolve it with `$(...)` first.
+Atkins resolves a path in `include:` from the current working directory of the `atkins` process, not from the file that declares it. A pipeline that includes a file next to itself only works when invoked from that directory; write the include relative to the directory you run the pipeline from, or resolve it with `$(...)` first.
 
-No glob expansion happens: `include: ci/*.yml` is read as a literal filename and fails with "no such file or directory" rather than matching multiple files. List every file `include:` should read.
+No glob expansion happens: Atkins reads `include: ci/*.yml` as a literal filename and fails with "no such file or directory". List every file `include:` should read.
 
 ## Environment Includes
 
-`env: include:` does the same for `env`, but reads a dotenv file (`KEY=value` lines) instead of YAML:
+`env: include:` does the same for `env`, but reads a dotenv file (`KEY=value` lines) in place of YAML:
 
 ```yaml
 env:

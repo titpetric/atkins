@@ -14,7 +14,7 @@ func TestDisplayCreation(t *testing.T) {
 	t.Run("NewDisplay creates display with correct defaults", func(t *testing.T) {
 		display := treeview.NewDisplay()
 		assert.NotNil(t, display)
-		// IsTerminal depends on whether tests are run in a TTY
+		// IsTerminal depends on whether the tests run in a TTY
 	})
 
 	t.Run("NewDisplayWithFinal creates display with finalOnly mode", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestDisplayInvalidate(t *testing.T) {
 func TestDisplayCleanup(t *testing.T) {
 	t.Run("Cleanup is safe to call multiple times", func(t *testing.T) {
 		display := treeview.NewSilentDisplay()
-		// Cleanup should be a no-op and safe to call
+		// Cleanup is a no-op and safe to call
 		display.Cleanup()
 		display.Cleanup()
 	})
@@ -75,11 +75,11 @@ func TestDisplayRenderFinal(t *testing.T) {
 		display := treeview.NewSilentDisplay()
 		root := treeview.NewNode("pipeline")
 
-		// Simulate multiple render calls
+		// Simulate repeated render calls
 		display.Render(root)
 		display.Render(root)
 
-		// Final render should work
+		// Final render succeeds
 		display.RenderFinal(root)
 	})
 }
@@ -129,7 +129,7 @@ func TestSlidingWindowCalculation(t *testing.T) {
 func TestDisplayRollbackCalculation(t *testing.T) {
 	t.Run("rollback should match lines printed when output grows past terminal height", func(t *testing.T) {
 		// Simulate the scenario where output exceeds terminal height
-		// and we need to ensure rollback is calculated correctly
+		// and check the rollback count
 
 		termHeight := 30
 
@@ -259,9 +259,9 @@ func TestDisplayLineCountAccuracy(t *testing.T) {
 func TestDisplayCursorMovementSequences(t *testing.T) {
 	t.Run("cursor up value should not exceed terminal height", func(t *testing.T) {
 		// This test validates that the ANSI cursor-up sequence value
-		// is bounded properly to prevent over-rollback
+		// stays within bounds to prevent over-rollback
 
-		// Simulate multiple renders and track the cursor-up values
+		// Simulate repeated renders and track the cursor-up values
 		termHeight := 30
 		renders := []int{10, 20, 30, 40, 50, 60}
 
@@ -274,7 +274,7 @@ func TestDisplayCursorMovementSequences(t *testing.T) {
 
 			rollback := lastLineCount
 
-			// The rollback should never exceed what we previously printed
+			// The rollback never exceeds the line count of the last render
 			// AND should never exceed terminal height
 			assert.LessOrEqual(t, rollback, termHeight,
 				"rollback should not exceed terminal height")
@@ -347,7 +347,7 @@ func TestRenderANSISequences(t *testing.T) {
 	})
 }
 
-// simulateRender simulates what Display.Render does and returns debug info
+// simulateRender simulates what Display.Render does and returns debug details
 func simulateRender(termHeight, totalLines, lastLineCount int) (lineCount, rollback int, wouldScroll bool) {
 	lineCount = totalLines
 	if termHeight > 0 && lineCount > termHeight {

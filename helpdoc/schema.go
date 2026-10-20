@@ -6,11 +6,11 @@ import (
 	_ "embed"
 )
 
-// schema.md is written by hand, not generated. It is a reduction of the
+// A person writes schema.md by hand; no generator touches it. It reduces the
 // JSON Schema `splint -schema -i model` prints: the keys an author
 // types, in the spellings the model's UnmarshalYAML methods accept,
 // without the Go field names and the display-only fields a pipeline file
-// cannot set. Regenerating it from the schema would lose all of that.
+// cannot set. Regenerating it from the schema would lose that.
 //
 // TestSchemaDocumentsModelKeys keeps it honest: it reads the yaml tags
 // off model.Pipeline, model.Job and model.Step and fails when this file

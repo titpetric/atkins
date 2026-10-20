@@ -1,6 +1,5 @@
-// Package psexec provides process execution capabilities with support for
-// interactive terminals, PTY allocation, and streaming output over various
-// transports including websockets.
+// Package psexec runs processes with support for interactive terminals,
+// PTY allocation, and streaming output over transports such as websockets.
 //
 // # Basic Usage
 //
@@ -25,7 +24,7 @@
 //
 // # Command Configuration
 //
-// Commands can be configured by setting struct fields directly:
+// Set struct fields directly to configure a command:
 //
 //	cmd := psexec.NewCommand("my-program")
 //	cmd.Dir = "/tmp"
@@ -87,7 +86,7 @@
 //
 // # WebSocket Integration
 //
-// The Process type is designed for websocket transport:
+// The Process type suits websocket transport:
 //
 //	proc, _ := exec.Start(ctx, cmd)
 //	defer proc.Close()

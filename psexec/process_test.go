@@ -93,7 +93,7 @@ func TestProcess_Close(t *testing.T) {
 	err = proc.Close()
 	assert.NoError(t, err)
 
-	// Double close should be safe
+	// Double close is safe
 	err = proc.Close()
 	assert.NoError(t, err)
 
@@ -187,7 +187,7 @@ func TestProcess_Signal_NotStarted(t *testing.T) {
 
 	if err == nil {
 		defer func() { assert.NoError(t, proc.Close()) }()
-		// If somehow started, signal should work
+		// If somehow started, signal succeeds
 		_ = proc.Signal(os.Kill)
 		proc.Wait()
 	}
@@ -273,7 +273,7 @@ func TestProcess_ContextCancellation_KillsProcess(t *testing.T) {
 	result := proc.Wait()
 	assert.False(t, result.Success())
 
-	// Give OS time to clean up
+	// Wait for the OS to clean up
 	time.Sleep(50 * time.Millisecond)
 
 	// Verify process is dead using kill -0

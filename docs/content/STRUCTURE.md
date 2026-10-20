@@ -36,7 +36,7 @@ This is the table of contents for the docs:
 
 ### Introduction
 
-Overview of Atkins: what it is, key features (interactive tree display, parallel execution, multiple syntax styles, smart interpolation, skills system), a quick example, design philosophy, and output formats.
+Overview of Atkins: a definition, key features (interactive tree display, parallel execution, two syntax styles, smart interpolation, skills system), a quick example, design philosophy, and output formats.
 
 ### Installation
 
@@ -70,11 +70,11 @@ Step-level fields: `run`/`cmd`/`cmds`/`task`, conditions, loops, `deferred`, and
 
 ### Includes
 
-Composing a pipeline from multiple files with `include:` at the pipeline, job or step level.
+Composing a pipeline from two or more YAML files with `include:` at the pipeline, job or step level.
 
 ### Templating
 
-The [expr-lang](https://expr-lang.org/) expression syntax `if:` conditions evaluate.
+The [expr-lang](https://expr-lang.org/) expression syntax of `if:` conditions.
 
 ## Usage
 

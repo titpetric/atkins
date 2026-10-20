@@ -24,7 +24,7 @@ type LoginRequest struct {
 	Hostname string `json:"hostname"`
 }
 
-// TokenResponse is what the login and refresh endpoints return. It is
+// TokenResponse is what the login and refresh endpoints return, and
 // exactly what the CLI persists in ~/.atkins/credentials.json.
 type TokenResponse struct {
 	UserID       string `json:"user_id"`
@@ -194,7 +194,7 @@ func (s *Handlers) refreshToken(w http.ResponseWriter, r *http.Request) error {
 		return requestError(http.StatusForbidden, model.ErrUserInactive)
 	}
 
-	// Rotate: the presented refresh token is spent, and the client
+	// Rotate: this spends the presented refresh token, and the client
 	// stores the replacement returned below.
 	rotated, err := s.sessions.Rotate(r.Context(), session.ID)
 	if err != nil {

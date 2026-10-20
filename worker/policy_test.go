@@ -12,7 +12,7 @@ import (
 	"github.com/titpetric/atkins/server/model"
 )
 
-// policyServer serves a fixed policy, counting how often it is asked.
+// policyServer serves a fixed policy, counting the requests for it.
 func policyServer(t *testing.T, policy client.PolicyResponse, fail *bool) (*Worker, *int) {
 	t.Helper()
 
@@ -70,8 +70,8 @@ func TestAllowedUnderAllowlist(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, allowed)
 
-	// A job queued while its repository was listed must not run once
-	// the rule is gone; this is the agent's own gate on that.
+	// A job queued while the allowlist listed its repository must not
+	// run once the rule goes; this is the agent's own gate on that.
 	allowed, err = worker.allowed(t.Context(), "github.com/someone/else")
 	assert.NoError(t, err)
 	assert.False(t, allowed)

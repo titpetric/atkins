@@ -1,15 +1,15 @@
 // Package helpdoc renders `atkins --help`.
 //
-// The help is a document rather than a flag dump: the usage line, the
-// commands, every flag with its default, the skills installed on this
-// machine with the jobs each contributes, and a reference for the
-// atkins.yml schema. Someone reading it, or an agent, should be able to
-// run atkins and write a pipeline without opening a second page.
+// The help reads as a document: the usage line, the commands, every flag
+// with its default, the skills installed on this machine with the jobs
+// each contributes, and a reference for the atkins.yml schema. A person
+// or an agent reading it can run atkins and write a pipeline without
+// opening a second page.
 //
-// The document is built as plain markdown throughout, with padded table
-// cells so it reads as columns in a file too. Colour - on the headings,
-// and on every table, redrawn with borders by the markdown package - is
-// added only when the caller says the writer is a terminal, so
+// Write builds the document as plain markdown throughout, with padded
+// table cells so it reads as columns in a file too. Write adds colour -
+// on the headings, and on every table, which the markdown package redraws
+// with borders - only when the caller says the writer is a terminal, so
 // `atkins --help > help.md` is a document and not a screenshot of one.
 package helpdoc
 
@@ -32,9 +32,9 @@ import (
 
 // Write renders the whole help document.
 //
-// The sections are ordered so a reader can stop early: what to type,
-// then the flags, then what the installed skills offer, then the schema
-// for writing a pipeline of your own.
+// The section order lets a reader stop early: what to type, then the
+// flags, then the jobs the installed skills add, then the schema for
+// writing a pipeline of your own.
 func Write(w io.Writer, opts *Options) error {
 	name := opts.Name
 	if name == "" {
@@ -61,7 +61,7 @@ func Write(w io.Writer, opts *Options) error {
 	d.heading(2, "atkins.yml")
 	d.raw(Schema())
 
-	// Every table above was written as plain GFM: markdown.Render redraws
+	// Every table above is plain GFM: markdown.Render redraws
 	// them as bordered ANSI tables for a terminal, and leaves the
 	// document as markdown for a file or a pipe.
 	_, err := io.WriteString(w, markdown.Render(buf.String(), opts.Color))
@@ -77,9 +77,9 @@ type document struct {
 }
 
 // gap writes the blank line that separates two blocks, and writes
-// nothing when the last block already ended with one. Every block
-// spacing goes through it, so a section that ends in a table and one
-// that ends in a paragraph are followed by the same single blank line.
+// nothing when the last block already ended with one. All block spacing
+// calls it, so a section that ends in a table and one that ends in a
+// paragraph both get the same single blank line after them.
 func (d *document) gap() {
 	if d.started && !d.blank {
 		fmt.Fprintln(d.w)
@@ -88,7 +88,7 @@ func (d *document) gap() {
 }
 
 // heading writes a markdown heading, coloured for a terminal. Every
-// heading but the first opens with a blank line, which is what separates
+// heading but the first opens with a blank line, and that line separates
 // the sections; the document itself starts at its first byte.
 func (d *document) heading(level int, text string) {
 	line := strings.Repeat("#", level) + " " + text
@@ -178,7 +178,7 @@ func (d *document) flags(commands []Command) {
 	}
 }
 
-// skills writes where skills live and what each installed one offers.
+// skills writes where skills live and the jobs each installed one adds.
 func (d *document) skills(opts *Options) {
 	d.heading(2, "Skills")
 
@@ -237,7 +237,7 @@ func (d *document) skill(skill *runner.Skill) {
 		names = append(names, name)
 	}
 
-	// The default job runs when the skill is named on its own, so it
+	// The default job runs when the user names the skill on its own, so it
 	// heads the list; the rest are alphabetical.
 	sort.Slice(names, func(i, j int) bool {
 		if (names[i] == "default") != (names[j] == "default") {
@@ -273,7 +273,7 @@ func describe(job *model.Job) string {
 	return ""
 }
 
-// purpose returns what a skill says it is for: its help: line, or the
+// purpose returns the stated purpose of a skill: its help: line, or the
 // pipeline name when it carries none.
 func purpose(skill *runner.Skill) string {
 	if skill.Pipeline.Help != "" {
@@ -319,8 +319,8 @@ func dedupe(skills []*runner.Skill) []*runner.Skill {
 }
 
 // shorten writes a path the way a reader would type it: relative to the
-// working directory when it is inside it, under ~ when it is inside the
-// home directory, absolute otherwise.
+// working directory when it sits inside it, under ~ when it sits inside
+// the home directory, absolute otherwise.
 func shorten(path string) string {
 	if cwd, err := os.Getwd(); err == nil {
 		if rel, err := filepath.Rel(cwd, path); err == nil && !strings.HasPrefix(rel, "..") {

@@ -25,7 +25,7 @@ func NewRepositoryRuleStorage(db *sqlx.DB) *RepositoryRuleStorage {
 
 // RuleRequest is the input for creating an allowlist rule.
 type RuleRequest struct {
-	// Pattern is matched against the repository slug. See
+	// Pattern matches against the repository slug. See
 	// model.MatchRepository for the syntax.
 	Pattern string `json:"pattern"`
 
@@ -114,8 +114,8 @@ func (s *RepositoryRuleStorage) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// AllowedUnderPolicy reports whether a slug may be built under the
-// given policy. Under "open" everything is; under "allowlist" a rule
+// AllowedUnderPolicy reports whether the given policy lets the server
+// build a slug. Under "open" everything is; under "allowlist" a rule
 // has to say so.
 //
 // Dispatch, triggers and the admin pages all ask this question, and an
@@ -132,8 +132,8 @@ func (s *RepositoryRuleStorage) AllowedUnderPolicy(ctx context.Context, policy m
 // The caller decides whether the allowlist applies at all; this only
 // answers "does any active rule match", which is false for an empty
 // list. In allowlist mode that is the intended answer: an operator who
-// turns the policy on without writing a rule has asked for nothing to
-// run.
+// turns the policy on without writing a rule has chosen that nothing
+// runs.
 func (s *RepositoryRuleStorage) Allowed(ctx context.Context, slug string) (bool, error) {
 	ctx, span := oida.StartAuto(ctx, s.Allowed, oida.KindDatabase)
 	defer span.End()
