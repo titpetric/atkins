@@ -55,7 +55,7 @@ A workspace checkout can hold tooling for every project cloned inside it:
     └── atkins.yml
 ```
 
-Running atkins in `~/ws/dockerfiles` loads the project's own `.atkins/skills/`, then the `.atkins/skills/` of every parent folder, nearest first. Under `$HOME` the search stops below `$HOME`, because the global skills load on their own. Outside `$HOME` it goes on to the filesystem root. `atkins --help` and `atkins -l` list the parent folders' skills too.
+Running atkins in `~/ws/dockerfiles` loads the project's own `.atkins/skills/`, then the `.atkins/skills/` of every parent folder, nearest first. Under `$HOME` the search stops below `$HOME`, because the global skills load on their own. Outside `$HOME` it goes on to the filesystem root. `atkins --help` and `atkins -l` list the parent folders' skills too. A pipeline file given with `-f` loads the skills of its own folder and the folders above it, the same as a discovered one.
 
 ## Creating a Skill
 

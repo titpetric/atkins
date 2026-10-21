@@ -184,11 +184,14 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 		var configDir string
 
 		if fileExplicitlySet {
-			// If the user passed -f/--file, use it directly
+			// If the user passed -f/--file, use it directly. Its folder
+			// is where the skills load from, as for a discovered file;
+			// atkins stays in the working directory.
 			absPath, err = filepath.Abs(opts.File)
 			if err != nil {
 				return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 			}
+			configDir = filepath.Dir(absPath)
 		} else {
 			// Discover the configuration file by traversing parent directories
 			var configPath string

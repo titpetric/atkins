@@ -223,3 +223,19 @@ func TestSkillFromParentFolderJailed(t *testing.T) {
 	assert.Contains(t, ids(&Options{}), "a")
 	assert.NotContains(t, ids(&Options{Jail: true}), "a")
 }
+
+// TestSkillFromParentFolderExplicitFile checks a pipeline file passed
+// with -f sees the skills of the folders above it, so its jobs can
+// reference them.
+func TestSkillFromParentFolderExplicitFile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	_, proj := writeWorkspace(t)
+	assert.NoError(t, os.WriteFile(filepath.Join(proj, "atkins.yml"), []byte("name: proj\njobs:\n  default:\n    steps:\n      - task: a:default\n"), 0o644))
+
+	assert.NoError(t, runIn(t, proj, "--final", "-f=atkins.yml", "default"))
+
+	// A skill job a pipeline calls runs where that pipeline runs.
+	_, err := os.Stat(filepath.Join(proj, "a.out"))
+	assert.NoError(t, err)
+}
