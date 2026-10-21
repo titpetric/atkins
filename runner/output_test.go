@@ -246,7 +246,7 @@ func TestBuildListOutput_Fields(t *testing.T) {
 		When:    &model.PipelineWhen{Files: []string{"compose.yml"}, Here: true},
 		Matched: "/ws/proj/compose.yml",
 		Jobs: map[string]*model.Job{
-			"custom": {Args: true},
+			"custom": {Args: true, Steps: []*model.Step{{Run: "echo first"}, {Exec: []string{"docker", "compose"}}, {Exec: []string{"true"}}}},
 			"shell":  {Interactive: true},
 			"build":  {Inactive: true, When: &model.PipelineWhen{Files: []string{"compose.yml"}, Contains: "build:"}},
 		},
@@ -287,6 +287,8 @@ func TestBuildListOutput_Fields(t *testing.T) {
 	assert.Len(t, items, 2, "compose:build does not match and does not list")
 	assert.Equal(t, "compose:custom", items["custom"].ID)
 	assert.True(t, items["custom"].Args)
+	assert.Equal(t, []string{"docker", "compose"}, items["custom"].Exec, "the first exec: step the arguments follow")
+	assert.Nil(t, items["shell"].Exec)
 	assert.False(t, items["custom"].Interactive)
 	assert.True(t, items["shell"].Interactive)
 	assert.True(t, items["shell"].Active)

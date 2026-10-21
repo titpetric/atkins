@@ -263,6 +263,11 @@ type OutputItem struct {
 	// Args reports a job that takes arguments after a bare --.
 	Args bool `json:"args" yaml:"args"`
 
+	// Exec is the argv of the first exec: step of a job that takes
+	// arguments, as the file writes it: the command the arguments
+	// follow, for a caller to show before it runs the job.
+	Exec []string `json:"exec,omitempty" yaml:"exec,omitempty"`
+
 	// Active is false for a job of an inactive skill, which only a
 	// listing with --all includes. A job whose own when: block does not
 	// match never lists.

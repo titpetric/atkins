@@ -46,6 +46,11 @@ type OutputItem struct {
 	// Args reports a job that takes arguments after a bare --.
 	Args bool `json:"args" yaml:"args"`
 
+	// Exec is the argv of the first exec: step of a job that takes
+	// arguments, as the file writes it: the command the arguments
+	// follow, for a caller to show before it runs the job.
+	Exec []string `json:"exec,omitempty" yaml:"exec,omitempty"`
+
 	// Active is false for a job of an inactive skill, which only a
 	// listing with --all includes. A job whose own when: block does not
 	// match never lists.
@@ -293,6 +298,20 @@ func outputWhen(when *model.PipelineWhen, matched string) *OutputWhen {
 	}
 }
 
+// argsExec returns the argv of the first exec: step of a job that takes
+// arguments, nil for any other job.
+func argsExec(job *model.Job) []string {
+	if job == nil || !job.Args {
+		return nil
+	}
+	for _, step := range job.Children() {
+		if step != nil && len(step.Exec) > 0 {
+			return step.Exec
+		}
+	}
+	return nil
+}
+
 // buildPipelineSection builds a section for a pipeline.
 func buildPipelineSection(p *model.Pipeline, prefix string) OutputSection {
 	jobs := p.GetJobs()
@@ -322,6 +341,7 @@ func buildPipelineSection(p *model.Pipeline, prefix string) OutputSection {
 			Name:        name,
 			Interactive: job.Interactive,
 			Args:        job.Args,
+			Exec:        argsExec(job),
 			Active:      !p.Inactive,
 			When:        outputWhen(job.When, job.Matched),
 		})

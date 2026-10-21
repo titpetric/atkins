@@ -512,6 +512,7 @@ Go build and test
         "cmd": "atkins compose:custom",
         "interactive": false,
         "args": true,
+        "exec": ["docker", "compose"],
         "active": true
       }
     ]
@@ -529,6 +530,7 @@ Go build and test
 | `when`        | The `when:` block, with `matched` naming the file that satisfied it     |
 | `cmds[].name` | The job name without the skill prefix, or the alias                     |
 | `cmds[].args` | The job takes arguments after `--`                                      |
+| `cmds[].exec` | For a job with `args`, the `exec:` argv of its first such step          |
 | `cmds[].when` | The job's own `when:` block and its match                               |
 
 `--all` adds the skills whose `when:` block doesn't match, with `active: false`, so a caller sees every skill installed for a folder. A job whose own `when:` block doesn't match stays out, with or without `--all`.
