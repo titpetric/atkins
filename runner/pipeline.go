@@ -40,6 +40,11 @@ type PipelineOptions struct {
 	// somewhere else - a CI job log - without changing what a person
 	// watching it sees.
 	Transcript io.Writer
+
+	// Args are the command line arguments after a bare --, handed to
+	// the requested jobs. Only the exec: steps of a job with args: true
+	// use them.
+	Args []string
 }
 
 // Pipeline holds pipeline execution logic.
@@ -228,6 +233,14 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			return err
 		}
 
+		if job.Inactive {
+			err := fmt.Errorf("job %q does not apply here: its when: block does not match", canonicalName)
+			if parentJobName != "" {
+				return fmt.Errorf("[jobs.%s.step]: %w", parentJobName, err)
+			}
+			return err
+		}
+
 		if jobsToCreate[canonicalName] {
 			return nil // Already processed
 		}
@@ -403,6 +416,9 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 
 		jobCtx := pipelineCtx.Copy()
 		jobCtx.Job = job
+		if slices.Contains(jobs, jobName) {
+			jobCtx.Args = p.opts.Args
+		}
 		jobCtx.Depth = 1
 		jobCtx.StepSequence = 0 // Reset step counter for each job
 

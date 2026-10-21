@@ -110,7 +110,12 @@ func (l *SkillsLoader) Load() ([]*model.Pipeline, error) {
 	if err != nil {
 		return nil, err
 	}
+	return activePipelines(skills), nil
+}
 
+// activePipelines returns the pipelines of the active skills, the first
+// one for each ID.
+func activePipelines(skills []*Skill) []*model.Pipeline {
 	seen := make(map[string]bool)
 
 	var pipelines []*model.Pipeline
@@ -122,7 +127,63 @@ func (l *SkillsLoader) Load() ([]*model.Pipeline, error) {
 		pipelines = append(pipelines, skill.Pipeline)
 	}
 
-	return pipelines, nil
+	return pipelines
+}
+
+// LoadAll returns the skill pipelines Load returns, followed by the
+// skills whose when: block does not match, marked Inactive.
+//
+// An inactive skill shadows nothing: it appears only for an ID no
+// active skill carries, once, from the highest-priority directory.
+// `atkins -l --json --all` lists them so a caller sees every skill
+// installed for a folder; a run never uses LoadAll.
+func (l *SkillsLoader) LoadAll() ([]*model.Pipeline, error) {
+	skills, err := l.Scan()
+	if err != nil {
+		return nil, err
+	}
+	return MergeSkills(activePipelines(skills), inactivePipelines(skills)), nil
+}
+
+// inactivePipelines returns the pipelines of the skills that are not
+// active, marked Inactive.
+func inactivePipelines(skills []*Skill) []*model.Pipeline {
+	var pipelines []*model.Pipeline
+	for _, skill := range skills {
+		if skill.Active {
+			continue
+		}
+		skill.Pipeline.Inactive = true
+		pipelines = append(pipelines, skill.Pipeline)
+	}
+	return pipelines
+}
+
+// MergeSkills appends the skill pipelines in more to pipelines, skipping
+// an ID pipelines already carries. An active pipeline from more takes
+// the place of an inactive one with the same ID, so a skill that applies
+// wins over one that does not, whatever directory each comes from.
+func MergeSkills(pipelines, more []*model.Pipeline) []*model.Pipeline {
+	index := make(map[string]int)
+	for i, p := range pipelines {
+		if p.ID != "" {
+			if _, ok := index[p.ID]; !ok {
+				index[p.ID] = i
+			}
+		}
+	}
+
+	for _, p := range more {
+		i, ok := index[p.ID]
+		switch {
+		case !ok:
+			index[p.ID] = len(pipelines)
+			pipelines = append(pipelines, p)
+		case pipelines[i].Inactive && !p.Inactive:
+			pipelines[i] = p
+		}
+	}
+	return pipelines
 }
 
 // Scan returns every skill file in the loader's directories, in
@@ -155,7 +216,8 @@ func (l *SkillsLoader) Scan() ([]*Skill, error) {
 				return nil, fmt.Errorf("failed to load skill %s: %w", skillPath, err)
 			}
 
-			skill.Dir, skill.Active = l.evaluateWhen(skill.Pipeline, l.owner(skillsDir))
+			skill.Dir, skill.Matched, skill.Active = l.evaluateWhen(skill.Pipeline, l.owner(skillsDir))
+			skill.Pipeline.Matched = skill.Matched
 
 			// Set Dir only if not already explicitly set in the skill file
 			if skill.Active && skill.Pipeline.Dir == "" {
@@ -217,19 +279,18 @@ func (l *SkillsLoader) owner(skillsDir string) string {
 }
 
 // evaluateWhen checks if a skill's when: condition matches.
-func (l *SkillsLoader) evaluateWhen(pipeline *model.Pipeline, workspaceDir string) (workDir string, enabled bool) {
+func (l *SkillsLoader) evaluateWhen(pipeline *model.Pipeline, workspaceDir string) (workDir, matched string, enabled bool) {
 	// No when: condition means always enabled, use workspace dir
-	if pipeline.When == nil || len(pipeline.When.Files) == 0 {
-		return workspaceDir, true
+	if pipeline.When.IsEmpty() {
+		return workspaceDir, "", true
 	}
 
-	// Find the first matching file from any pattern
-	matchDir, found := l.FindFile(pipeline.When.Files, l.StartDir)
+	match, found := MatchWhen(pipeline.When, l.StartDir)
 	if !found {
-		return "", false
+		return "", "", false
 	}
 
-	return matchDir, true
+	return match.Dir, match.File, true
 }
 
 // FindFolder searches for a directory with the given name starting from startDir

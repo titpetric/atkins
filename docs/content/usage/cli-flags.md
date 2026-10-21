@@ -9,7 +9,7 @@ Atkins command-line flags select the pipeline file, the jobs to run, and the out
 ## Usage
 
 ```bash
-atkins [flags] [job-names...]
+atkins [flags] [job-names...] [-- job-args...]
 atkins server [flags]
 atkins worker [flags]
 ```
@@ -26,6 +26,7 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 | `--working-directory` | `-w`  | Change to this directory before running                                        |
 | `--jail`              |       | Load skills from the project only, ignoring parent folders and `$HOME/.atkins` |
 | `--list`              | `-l`  | List the jobs and dependencies instead of running them                         |
+| `--all`               |       | With `--list`, include the skills whose `when:` block doesn't match            |
 | `--lint`              |       | Check the pipeline for errors and exit                                         |
 
 ### Output
@@ -98,7 +99,12 @@ atkins lint test build
 
 # Run namespaced job
 atkins go:test
+
+# Pass arguments to a job with args: true
+atkins compose:custom -- ps -a
 ```
+
+Everything after a bare `--` is an argument for the job, never a job name or a pipeline file. The job must be the only one named and must set `args: true`; its `exec:` steps get the arguments appended as literal argv, and no shell parses them. See [Skills](./skills#job-arguments).
 
 ## Listing Jobs
 
@@ -111,7 +117,12 @@ atkins -l -y
 
 # List as JSON
 atkins -l -j
+
+# List as JSON, inactive skills included
+atkins -l -j --all
 ```
+
+The JSON and YAML listings name each section's kind, file, run folder and `when:` match, and each job's `name`, `interactive` and `args`. `--all` adds the skills whose `when:` block doesn't match, with `active: false`. See [Skills](./skills#listing-as-json) for the fields.
 
 Example output with `-l`:
 
@@ -140,6 +151,24 @@ Checks for:
 - Missing job dependencies
 - Invalid task references
 - Ambiguous step definitions
+- `contains:` expressions in a `when:` block that don't compile
+
+`-l` runs the same checks first. With `--json` or `--yaml`, a failure prints the findings in that format and exits with status 1:
+
+```json
+{
+  "error": "pipeline 'Broken' has errors",
+  "lint": [
+    {
+      "pipeline": "Broken",
+      "path": "/home/user/proj/atkins.yml",
+      "job": "default",
+      "issue": "missing task reference",
+      "detail": "step references task 'missing', but job \"missing\" not found"
+    }
+  ]
+}
+```
 
 ## Output Modes
 

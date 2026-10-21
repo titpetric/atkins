@@ -16,7 +16,9 @@ import (
 type Options struct {
 	File             string
 	Jobs             []string
+	Args             []string
 	List             bool
+	All              bool
 	Lint             bool
 	Debug            bool
 	LogFile          string

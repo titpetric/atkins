@@ -42,7 +42,33 @@ func NewLinterWithPipelines(pipeline *model.Pipeline, allPipelines []*model.Pipe
 func (l *Linter) Lint() []LintError {
 	l.validateDependencies()
 	l.validateTaskInvocations()
+	l.validateWhen()
 	return l.errors
+}
+
+// validateWhen checks that every contains: expression in a when: block
+// compiles, on the pipeline and on each job.
+func (l *Linter) validateWhen() {
+	if err := ValidateWhen(l.pipeline.When); err != nil {
+		l.errors = append(l.errors, LintError{
+			Job:    "when",
+			Issue:  "invalid when",
+			Detail: err.Error(),
+		})
+	}
+
+	for jobName, job := range l.pipeline.GetJobs() {
+		if job == nil {
+			continue
+		}
+		if err := ValidateWhen(job.When); err != nil {
+			l.errors = append(l.errors, LintError{
+				Job:    jobName,
+				Issue:  "invalid when",
+				Detail: err.Error(),
+			})
+		}
+	}
 }
 
 // validateDependencies checks that all depends_on references exist

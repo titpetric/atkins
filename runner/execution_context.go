@@ -73,6 +73,10 @@ type ExecutionContext struct {
 
 	// Parents is the ancestor job chain for nested task invocations.
 	Parents []string
+
+	// Args are the command line arguments after a bare --. The exec:
+	// steps of a job with args: true append them to their argv.
+	Args []string
 }
 
 // Resolver resolves tasks in the execution context.
@@ -121,6 +125,7 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 		jobTracker:   e.jobTracker,
 		Progress:     e.Progress,
 		Parents:      append([]string(nil), e.Parents...),
+		Args:         e.Args,
 	}
 }
 

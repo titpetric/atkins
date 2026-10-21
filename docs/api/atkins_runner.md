@@ -104,6 +104,10 @@ type ExecutionContext struct {
 
 	// Parents is the ancestor job chain for nested task invocations.
 	Parents []string
+
+	// Args are the command line arguments after a bare --. The exec:
+	// steps of a job with args: true append them to their argv.
+	Args []string
 }
 ```
 
@@ -226,14 +230,79 @@ type Options struct {
 </details>
 
 <details>
+<summary><code>type OutputError</code></summary>
+
+```go
+// OutputError is the list output for a pipeline that fails the linter.
+type OutputError struct {
+	Error string            `json:"error" yaml:"error"`
+	Lint  []OutputLintError `json:"lint" yaml:"lint"`
+}
+```
+
+</details>
+
+<details>
 <summary><code>type OutputItem</code></summary>
 
 ```go
 // OutputItem represents a single command in the list output.
 type OutputItem struct {
-	ID   string `json:"id" yaml:"id"`
+	ID string `json:"id" yaml:"id"`
+
+	// Name is the job name inside its pipeline, without the skill
+	// prefix, or the alias itself.
+	Name string `json:"name" yaml:"name"`
+
 	Desc string `json:"desc,omitempty" yaml:"desc,omitempty"`
 	Cmd  string `json:"cmd" yaml:"cmd"`
+
+	// Interactive reports a job that reads from the terminal.
+	Interactive bool `json:"interactive" yaml:"interactive"`
+
+	// Args reports a job that takes arguments after a bare --.
+	Args bool `json:"args" yaml:"args"`
+
+	// Active is false for a job of an inactive skill, which only a
+	// listing with --all includes. A job whose own when: block does not
+	// match never lists.
+	Active bool `json:"active" yaml:"active"`
+
+	When *OutputWhen `json:"when,omitempty" yaml:"when,omitempty"`
+}
+```
+
+</details>
+
+<details>
+<summary><code>type OutputLintError</code></summary>
+
+```go
+// OutputLintError is one linter finding in OutputError.
+type OutputLintError struct {
+	Pipeline string `json:"pipeline" yaml:"pipeline"`
+	Path     string `json:"path,omitempty" yaml:"path,omitempty"`
+	Job      string `json:"job" yaml:"job"`
+	Issue    string `json:"issue" yaml:"issue"`
+	Detail   string `json:"detail" yaml:"detail"`
+}
+```
+
+</details>
+
+<details>
+<summary><code>type OutputOptions</code></summary>
+
+```go
+// OutputOptions adjusts the list output.
+type OutputOptions struct {
+	// All includes the skills whose when: block does not match, with
+	// active: false.
+	All bool
+
+	// Dir is the folder the main pipeline runs in when it sets no
+	// dir: of its own. Empty means the folder of its file.
+	Dir string
 }
 ```
 
@@ -245,8 +314,45 @@ type OutputItem struct {
 ```go
 // OutputSection represents a pipeline section in the list output.
 type OutputSection struct {
+	// ID is the skill namespace, empty for the main pipeline and the
+	// aliases.
+	ID string `json:"id" yaml:"id"`
+
+	// Kind is one of pipeline, skill or aliases.
+	Kind string `json:"kind" yaml:"kind"`
+
+	// Path is the file the section loads from, empty for the aliases
+	// and for a pipeline read from stdin.
+	Path string `json:"path,omitempty" yaml:"path,omitempty"`
+
+	// Dir is the folder the section's jobs run in, empty for the
+	// aliases and for an inactive skill.
+	Dir string `json:"dir,omitempty" yaml:"dir,omitempty"`
+
+	// Active is false for a skill whose when: block does not match.
+	// Only a listing with --all includes one.
+	Active bool `json:"active" yaml:"active"`
+
+	When *OutputWhen `json:"when,omitempty" yaml:"when,omitempty"`
+
 	Desc string       `json:"desc" yaml:"desc"`
 	Cmds []OutputItem `json:"cmds" yaml:"cmds"`
+}
+```
+
+</details>
+
+<details>
+<summary><code>type OutputWhen</code></summary>
+
+```go
+// OutputWhen reports a when: block in the list output and the file that
+// satisfied it.
+type OutputWhen struct {
+	Files    []string `json:"files" yaml:"files"`
+	Here     bool     `json:"here,omitempty" yaml:"here,omitempty"`
+	Contains string   `json:"contains,omitempty" yaml:"contains,omitempty"`
+	Matched  string   `json:"matched,omitempty" yaml:"matched,omitempty"`
 }
 ```
 
@@ -287,6 +393,11 @@ type PipelineOptions struct {
 	// somewhere else - a CI job log - without changing what a person
 	// watching it sees.
 	Transcript io.Writer
+
+	// Args are the command line arguments after a bare --, handed to
+	// the requested jobs. Only the exec: steps of a job with args: true
+	// use them.
+	Args []string
 }
 ```
 
@@ -369,6 +480,10 @@ type Skill struct {
 	// the directory the scan started in. Only an active skill
 	// contributes its jobs to a run.
 	Active bool
+
+	// Matched is the file that satisfied the when: block, empty for a
+	// skill without one or one that is not active.
+	Matched string
 }
 ```
 
@@ -531,7 +646,37 @@ type Vendorer struct {
 
 </details>
 
+<details>
+<summary><code>type WhenMatch</code></summary>
+
+```go
+// WhenMatch is the outcome of evaluating a when: block.
+type WhenMatch struct {
+	// Dir is the folder holding the matched file, where a skill runs.
+	Dir string
+
+	// File is the path the matching pattern resolved to.
+	File string
+}
+```
+
+</details>
+
 ## Consts
+
+<details>
+<summary><code>const KindPipeline, KindSkill, KindAliases</code></summary>
+
+```go
+// Section kinds in the list output.
+const (
+	KindPipeline = "pipeline"
+	KindSkill    = "skill"
+	KindAliases  = "aliases"
+)
+```
+
+</details>
 
 <details>
 <summary><code>const JobProgressRunning, JobProgressPassed, JobProgressFailed, JobProgressSkipped</code></summary>
@@ -591,6 +736,8 @@ var ErrJobSkipped = errors.New("job skipped")
 
 ## Function symbols
 
+- `func ActivePipelines (pipelines []*model.Pipeline) []*model.Pipeline`
+- `func ApplyJobWhen (pipelines []*model.Pipeline, startDir string)`
 - `func DefaultOptions () *Options`
 - `func DiscoverConfig (startDir string) (string, error)`
 - `func DiscoverConfigFromCwd () (string, error)`
@@ -606,12 +753,14 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func InterpolateString (s string, ctx *ExecutionContext) (string, error)`
 - `func IsEchoCommand (cmd string) bool`
 - `func ListPipelines (pipelines []*model.Pipeline) string`
-- `func ListPipelinesJSON (pipelines []*model.Pipeline) error`
-- `func ListPipelinesYAML (pipelines []*model.Pipeline) error`
+- `func ListPipelinesJSON (pipelines []*model.Pipeline, opts ...OutputOptions) error`
+- `func ListPipelinesYAML (pipelines []*model.Pipeline, opts ...OutputOptions) error`
 - `func LoadPipeline (filePath string) ([]*model.Pipeline, error)`
 - `func LoadPipelineFromReader (r io.Reader) ([]*model.Pipeline, error)`
+- `func MatchWhen (when *model.PipelineWhen, startDir string) (WhenMatch, bool)`
 - `func MatchWhenPattern (dir,pattern string) (string, bool)`
 - `func MergeSkillVariables (ctx *ExecutionContext, decl *model.Decl) error`
+- `func MergeSkills (pipelines,more []*model.Pipeline) []*model.Pipeline`
 - `func MergeVariables (ctx *ExecutionContext, decl *model.Decl) error`
 - `func NewContextVariables (values map[string]any) *ContextVariables`
 - `func NewContextVariablesWithResolver (pending map[string]any, resolver func(string) (string, error)) *ContextVariables`
@@ -622,18 +771,22 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func NewLineCapturingWriter () *LineCapturingWriter`
 - `func NewLinter (pipeline *model.Pipeline) *Linter`
 - `func NewLinterWithPipelines (pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter`
+- `func NewOutputError (pipeline *model.Pipeline, lintErrors []LintError) OutputError`
 - `func NewPipeline (data *model.Pipeline, opts PipelineOptions) *Pipeline`
 - `func NewSkillResolver (pipeline *model.Pipeline) *TaskResolver`
 - `func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader`
 - `func NewTaskResolver (pipelines []*model.Pipeline) *TaskResolver`
 - `func NewVendorer (sourceDir,root string) *Vendorer`
 - `func ParentWorkspaces (dir,home string) []string`
+- `func PrintJSON (v any) error`
+- `func PrintYAML (v any) error`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
 - `func Sanitize (in string) ([]string, error)`
 - `func StripANSI (in string) string`
 - `func ValidateJobRequirements (ctx *ExecutionContext, job *model.Job) error`
+- `func ValidateWhen (when *model.PipelineWhen) error`
 - `func VisualLength (s string) int`
 - `func (*ContextVariables) Clone () model.VariableStorage`
 - `func (*ContextVariables) Get (key string) any`
@@ -665,6 +818,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*SkillsLoader) FindFile (patterns []string, startDir string) (string, bool)`
 - `func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)`
 - `func (*SkillsLoader) Load () ([]*model.Pipeline, error)`
+- `func (*SkillsLoader) LoadAll () ([]*model.Pipeline, error)`
 - `func (*SkillsLoader) Scan () ([]*Skill, error)`
 - `func (*TaskResolver) Resolve (taskName string) (*model.ResolvedTask, error)`
 - `func (*TaskResolver) ResolveName (name string, strict bool) (*model.ResolvedTask, error)`
@@ -678,6 +832,26 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (ExecError) Error () string`
 - `func (ExecError) Len () int`
 - `func (ProgressObserverFunc) OnJobProgress (ev JobProgressEvent)`
+
+### `ActivePipelines`
+
+`ActivePipelines` returns the pipelines a run sees. It drops the
+inactive skills, and returns a copy without the inactive jobs of a
+pipeline that has some.
+
+```go
+func ActivePipelines(pipelines []*model.Pipeline) []*model.Pipeline
+```
+
+### `ApplyJobWhen`
+
+`ApplyJobWhen` evaluates the when: block of every job in pipelines from
+startDir. It marks a job Inactive where its block does not match: the
+listing leaves it out and a run refuses it.
+
+```go
+func ApplyJobWhen(pipelines []*model.Pipeline, startDir string)
+```
 
 ### `DefaultOptions`
 
@@ -821,7 +995,7 @@ func ListPipelines(pipelines []*model.Pipeline) string
 `ListPipelinesJSON` outputs pipelines in JSON format.
 
 ```go
-func ListPipelinesJSON(pipelines []*model.Pipeline) error
+func ListPipelinesJSON(pipelines []*model.Pipeline, opts ...OutputOptions) error
 ```
 
 ### `ListPipelinesYAML`
@@ -829,7 +1003,7 @@ func ListPipelinesJSON(pipelines []*model.Pipeline) error
 `ListPipelinesYAML` outputs pipelines in YAML format.
 
 ```go
-func ListPipelinesYAML(pipelines []*model.Pipeline) error
+func ListPipelinesYAML(pipelines []*model.Pipeline, opts ...OutputOptions) error
 ```
 
 ### `LoadPipeline`
@@ -848,6 +1022,22 @@ Returns the parsed pipeline(s) and any error.
 
 ```go
 func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error)
+```
+
+### `MatchWhen`
+
+`MatchWhen` evaluates a when: block from startDir.
+
+An absolute pattern resolves on its own. A relative pattern resolves
+in startDir and then in every parent folder, nearest first, unless
+the block sets here: true, which keeps the search to startDir. In each
+folder MatchWhen tries every pattern, so a closer match wins over
+pattern order. With contains: set, only a regular file whose contents match the
+regular expression counts. An invalid contains: expression never
+matches; the linter reports it.
+
+```go
+func MatchWhen(when *model.PipelineWhen, startDir string) (WhenMatch, bool)
 ```
 
 ### `MatchWhenPattern`
@@ -873,6 +1063,17 @@ At depth <= 1 it behaves identically to MergeVariables.
 
 ```go
 func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error
+```
+
+### `MergeSkills`
+
+`MergeSkills` appends the skill pipelines in more to pipelines, skipping
+an ID pipelines already carries. An active pipeline from more takes
+the place of an inactive one with the same ID, so a skill that applies
+wins over one that does not, whatever directory each comes from.
+
+```go
+func MergeSkills(pipelines, more []*model.Pipeline) []*model.Pipeline
 ```
 
 ### `MergeVariables`
@@ -964,6 +1165,14 @@ func NewLinter(pipeline *model.Pipeline) *Linter
 func NewLinterWithPipelines(pipeline *model.Pipeline, allPipelines []*model.Pipeline) *Linter
 ```
 
+### `NewOutputError`
+
+`NewOutputError` builds the list output for lint findings in a pipeline.
+
+```go
+func NewOutputError(pipeline *model.Pipeline, lintErrors []LintError) OutputError
+```
+
 ### `NewPipeline`
 
 `NewPipeline` allocates a new *Pipeline with dependencies.
@@ -1018,6 +1227,22 @@ root, the same as DiscoverConfig.
 
 ```go
 func ParentWorkspaces(dir, home string) []string
+```
+
+### `PrintJSON`
+
+`PrintJSON` writes v as indented JSON to stdout.
+
+```go
+func PrintJSON(v any) error
+```
+
+### `PrintYAML`
+
+`PrintYAML` writes v as YAML to stdout.
+
+```go
+func PrintYAML(v any) error
 ```
 
 ### `ProcessDecl`
@@ -1079,6 +1304,15 @@ Returns an error with a clear message listing missing variables.
 
 ```go
 func ValidateJobRequirements(ctx *ExecutionContext, job *model.Job) error
+```
+
+### `ValidateWhen`
+
+`ValidateWhen` reports a when: block that can never match because its
+contains: expression does not compile.
+
+```go
+func ValidateWhen(when *model.PipelineWhen) error
 ```
 
 ### `VisualLength`
@@ -1348,6 +1582,20 @@ does not shadow anything.
 
 ```go
 func (*SkillsLoader) Load() ([]*model.Pipeline, error)
+```
+
+### `LoadAll`
+
+`LoadAll` returns the skill pipelines Load returns, followed by the
+skills whose when: block does not match, marked Inactive.
+
+An inactive skill shadows nothing: it appears only for an ID no
+active skill carries, once, from the highest-priority directory.
+`atkins -l --json --all` lists them so a caller sees every skill
+installed for a folder; a run never uses LoadAll.
+
+```go
+func (*SkillsLoader) LoadAll() ([]*model.Pipeline, error)
 ```
 
 ### `Scan`

@@ -223,3 +223,152 @@ func TestListPipelinesYAML(t *testing.T) {
 	assert.Len(t, parsed, 1)
 	assert.Equal(t, "Main", parsed[0].Desc)
 }
+
+// TestBuildListOutput_Fields checks the section and item fields a
+// caller reads: kind, path, dir, active and the when: match, the job
+// name, interactive and args, and that --all brings back inactive
+// skills while a job whose own when: does not match never lists.
+func TestBuildListOutput_Fields(t *testing.T) {
+	t.Parallel()
+
+	mainPipeline := &model.Pipeline{
+		Name: "Main",
+		Path: "/ws/proj/atkins.yml",
+		Jobs: map[string]*model.Job{
+			"default": {Desc: "Default"},
+		},
+	}
+	compose := &model.Pipeline{
+		ID:      "compose",
+		Name:    "Docker Compose",
+		Path:    "/ws/.atkins/skills/compose.yml",
+		Dir:     "/ws/proj",
+		When:    &model.PipelineWhen{Files: []string{"compose.yml"}, Here: true},
+		Matched: "/ws/proj/compose.yml",
+		Jobs: map[string]*model.Job{
+			"custom": {Args: true},
+			"shell":  {Interactive: true},
+			"build":  {Inactive: true, When: &model.PipelineWhen{Files: []string{"compose.yml"}, Contains: "build:"}},
+		},
+	}
+	composer := &model.Pipeline{
+		ID:       "composer",
+		Name:     "Composer",
+		Path:     "/ws/.atkins/skills/composer.yml",
+		When:     &model.PipelineWhen{Files: []string{"composer.lock"}, Here: true},
+		Inactive: true,
+		Jobs: map[string]*model.Job{
+			"update": {},
+		},
+	}
+	pipelines := []*model.Pipeline{mainPipeline, compose, composer}
+
+	output := buildListOutput(pipelines, OutputOptions{Dir: "/ws/proj/sub"})
+	assert.Len(t, output, 2, "inactive skills stay out without --all")
+
+	assert.Equal(t, KindPipeline, output[0].Kind)
+	assert.Equal(t, "", output[0].ID)
+	assert.Equal(t, "/ws/proj/atkins.yml", output[0].Path)
+	assert.Equal(t, "/ws/proj/sub", output[0].Dir)
+	assert.True(t, output[0].Active)
+
+	section := output[1]
+	assert.Equal(t, KindSkill, section.Kind)
+	assert.Equal(t, "compose", section.ID)
+	assert.Equal(t, "/ws/.atkins/skills/compose.yml", section.Path)
+	assert.Equal(t, "/ws/proj", section.Dir)
+	assert.True(t, section.Active)
+	assert.Equal(t, &OutputWhen{Files: []string{"compose.yml"}, Here: true, Matched: "/ws/proj/compose.yml"}, section.When)
+
+	items := map[string]OutputItem{}
+	for _, item := range section.Cmds {
+		items[item.Name] = item
+	}
+	assert.Len(t, items, 2, "compose:build does not match and does not list")
+	assert.Equal(t, "compose:custom", items["custom"].ID)
+	assert.True(t, items["custom"].Args)
+	assert.False(t, items["custom"].Interactive)
+	assert.True(t, items["shell"].Interactive)
+	assert.True(t, items["shell"].Active)
+
+	all := buildListOutput(pipelines, OutputOptions{All: true})
+	assert.Len(t, all, 3)
+	var last OutputSection
+	for _, section := range all {
+		if section.ID == "composer" {
+			last = section
+		}
+	}
+	assert.Equal(t, "composer", last.ID)
+	assert.False(t, last.Active)
+	assert.Equal(t, "", last.Dir)
+	assert.Equal(t, "/ws/.atkins/skills/composer.yml", last.Path)
+	assert.Len(t, last.Cmds, 1)
+	assert.False(t, last.Cmds[0].Active)
+
+	// Without options the main pipeline runs in the folder of its file.
+	plain := buildListOutput([]*model.Pipeline{mainPipeline})
+	assert.Equal(t, "/ws/proj", plain[0].Dir)
+}
+
+// TestOutputError checks the lint failure output names the pipeline,
+// its file and each finding, sorted by job.
+func TestOutputError(t *testing.T) {
+	t.Parallel()
+
+	pipeline := &model.Pipeline{Name: "Broken", Path: "/ws/atkins.yml"}
+	var result OutputError = NewOutputError(pipeline, []LintError{
+		{Job: "default", Issue: "missing task reference", Detail: "no job b"},
+	})
+	assert.Equal(t, []OutputLintError{{Pipeline: "Broken", Path: "/ws/atkins.yml", Job: "default", Issue: "missing task reference", Detail: "no job b"}}, result.Lint)
+
+	data, err := json.Marshal(result)
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{
+		"error": "pipeline 'Broken' has errors",
+		"lint": [{"pipeline": "Broken", "path": "/ws/atkins.yml", "job": "default", "issue": "missing task reference", "detail": "no job b"}]
+	}`, string(data))
+}
+
+// TestActivePipelines checks inactive skills drop out and a pipeline
+// with an inactive job is a copy without it, the original untouched.
+func TestActivePipelines(t *testing.T) {
+	t.Parallel()
+
+	compose := &model.Pipeline{ID: "compose", Jobs: map[string]*model.Job{
+		"up":    {},
+		"build": {Inactive: true},
+	}}
+	composer := &model.Pipeline{ID: "composer", Inactive: true, Jobs: map[string]*model.Job{"update": {}}}
+	plain := &model.Pipeline{Tasks: map[string]*model.Job{"default": {}}}
+
+	got := ActivePipelines([]*model.Pipeline{compose, composer, plain})
+	assert.Len(t, got, 2)
+	assert.Len(t, got[0].Jobs, 1)
+	assert.NotNil(t, got[0].Jobs["up"])
+	assert.Len(t, compose.Jobs, 2)
+	assert.True(t, got[1] == plain)
+}
+
+// TestPrintJSON checks PrintJSON and PrintYAML write a value to stdout.
+func TestPrintJSON(t *testing.T) {
+	capture := func(fn func() error) string {
+		old := os.Stdout
+		r, w, err := os.Pipe()
+		assert.NoError(t, err)
+		os.Stdout = w
+
+		assert.NoError(t, fn())
+		assert.NoError(t, w.Close())
+		os.Stdout = old
+
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, r)
+		assert.NoError(t, err)
+		return buf.String()
+	}
+
+	value := OutputError{Error: "e", Lint: []OutputLintError{}}
+	assert.Equal(t, "{\n  \"error\": \"e\",\n  \"lint\": []\n}\n", capture(func() error { return PrintJSON(value) }))
+	assert.Equal(t, "error: e\nlint: []\n", capture(func() error { return PrintYAML(value) }))
+}

@@ -27,6 +27,11 @@ func LoadPipeline(filePath string) ([]*model.Pipeline, error) {
 		return nil, err
 	}
 
+	pipelines[0].Path = filePath
+	if abs, err := filepath.Abs(filePath); err == nil {
+		pipelines[0].Path = abs
+	}
+
 	// Set default name from filename if not specified
 	if pipelines[0].Name == "" {
 		pipelines[0].Name = filepath.Base(filePath)

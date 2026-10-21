@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	yaml "gopkg.in/yaml.v3"
@@ -17,6 +18,7 @@ type Step struct {
 	Run         string       `yaml:"run,omitempty"`
 	Cmd         string       `yaml:"cmd,omitempty"`
 	Cmds        []string     `yaml:"cmds,omitempty"`
+	Exec        []string     `yaml:"exec,omitempty"` // Program and arguments, run without a shell
 	Task        string       `yaml:"task,omitempty"` // Task/job name to invoke
 	If          Conditionals `yaml:"if,omitempty"`
 	For         Iterators    `yaml:"for,omitempty"`
@@ -46,6 +48,8 @@ func (s *Step) String() string {
 		return "cmd: " + s.Cmd
 	case len(s.Cmds) > 0:
 		return fmt.Sprintf("cmds: <%d commands>", len(s.Cmds))
+	case len(s.Exec) > 0:
+		return "exec: " + s.ExecString()
 	}
 	return s.Name
 }
@@ -69,6 +73,8 @@ func (s *Step) DisplayLabel() string {
 		return "cmd: " + s.Cmd
 	case len(s.Cmds) > 0:
 		return fmt.Sprintf("cmds: <%d commands>", len(s.Cmds))
+	case len(s.Exec) > 0:
+		return "exec: " + s.ExecString()
 	}
 	return s.Name
 }
@@ -106,6 +112,12 @@ func (s *Step) Label(showPrefix bool) *Label {
 			Type:       "cmds",
 			ShowPrefix: showPrefix && !s.HidePrefix,
 		}
+	case len(s.Exec) > 0:
+		return &Label{
+			Text:       s.ExecString(),
+			Type:       "exec",
+			ShowPrefix: showPrefix && !s.HidePrefix,
+		}
 	}
 	return &Label{
 		Text:       s.Name,
@@ -125,6 +137,7 @@ func (s *Step) Tasks() []string {
 // Commands returns all executable commands from this step as a slice.
 // For steps with a single command (Run/Cmd), returns a slice with one element.
 // For steps with a command list (Cmds), returns the full slice.
+// An exec: step returns its argv rendered as one display string.
 // Returns an empty slice for Task steps.
 func (s *Step) Commands() []string {
 	if len(s.Cmds) > 0 {
@@ -136,7 +149,23 @@ func (s *Step) Commands() []string {
 	if s.Cmd != "" {
 		return []string{s.Cmd}
 	}
+	if len(s.Exec) > 0 {
+		return []string{s.ExecString()}
+	}
 	return []string{}
+}
+
+// ExecString renders the exec: argv for display, quoting an argument
+// that holds a space or a quote. No shell ever parses it.
+func (s *Step) ExecString() string {
+	parts := make([]string, 0, len(s.Exec))
+	for _, arg := range s.Exec {
+		if arg == "" || strings.ContainsAny(arg, " \t\n'\"\\$`;&|<>()*?[]{}~#") {
+			arg = strconv.Quote(arg)
+		}
+		parts = append(parts, arg)
+	}
+	return strings.Join(parts, " ")
 }
 
 // IsDeferred returns true if the step sets deferred.

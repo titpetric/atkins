@@ -36,6 +36,10 @@ type Skill struct {
 	// the directory the scan started in. Only an active skill
 	// contributes its jobs to a run.
 	Active bool
+
+	// Matched is the file that satisfied the when: block, empty for a
+	// skill without one or one that is not active.
+	Matched string
 }
 
 // ID returns the skill namespace, the file name without its extension.

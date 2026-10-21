@@ -30,8 +30,23 @@ type Job struct {
 	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for all steps (enables color output)
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 
+	// Args lets the command line pass arguments to the job: everything
+	// after a bare -- goes to the job's exec: steps as literal argv.
+	Args bool `yaml:"args,omitempty"`
+
+	// When gates the job on files in the folder atkins runs from, with
+	// the same rules as a skill's when: block.
+	When *PipelineWhen `yaml:"when,omitempty"`
+
 	Name   string `yaml:"-"`
 	Nested bool   `yaml:"-"`
+
+	// Inactive marks a job whose when: block does not match. The job
+	// stays out of the listing, and running it fails with an error.
+	Inactive bool `yaml:"-"`
+
+	// Matched is the file that satisfied the job's when: block.
+	Matched string `yaml:"-"`
 }
 
 // GetAliases returns the job aliases or nil.

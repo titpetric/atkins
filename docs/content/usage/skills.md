@@ -77,6 +77,64 @@ when:
     - schema/*.up.sql    # a folder of migrations, not any folder called schema
 ```
 
+Two keys narrow the match:
+
+- `here: true` keeps the search to the current directory. A `compose.yml` in a parent folder doesn't activate the skill, so a compose skill shows up only in the folder holding the file.
+- `contains: <regexp>` requires the matched file to match a Go regular expression. With `contains:`, a folder never matches, and for a glob any matching file counts. Atkins reads up to 1 MiB of each candidate.
+
+```yaml
+when:
+  files: [compose.yml, compose.yaml]
+  here: true
+  contains: '(?m)^\s+build:'    # only a compose file that builds an image
+```
+
+`atkins --lint` reports a `contains:` expression that doesn't compile; such a block never matches.
+
+## Job Conditions
+
+A job takes a `when:` block of its own, with the same keys and rules as the skill's. Atkins checks it from the directory atkins runs in. Where it doesn't match, the job leaves the `-l` listing, and running it, by name or through `task:`, fails with an error. The job keeps running in the skill's folder.
+
+```yaml
+name: Docker Compose
+when:
+  files: [compose.yml]
+  here: true
+
+jobs:
+  up: docker compose up -d --remove-orphans
+  build:
+    when:
+      files: [compose.yml]
+      here: true
+      contains: '(?m)^\s+build:'
+    cmd: docker compose build
+```
+
+In a folder whose `compose.yml` builds an image, `atkins -l` lists `compose:build` and `compose:up`. In a folder whose `compose.yml` only pulls images, it lists `compose:up` alone.
+
+## Job Arguments
+
+A job with `args: true` takes arguments from the command line, after a bare `--`. Atkins appends them to every `exec:` step of the job as separate arguments:
+
+```yaml
+jobs:
+  custom:
+    desc: Run docker compose with arguments
+    args: true
+    steps:
+      - exec: [docker, compose]
+```
+
+```bash
+atkins compose:custom -- ps -a       # runs: docker compose ps -a
+atkins compose:custom -- '; id'      # docker compose gets one argument, "; id"
+```
+
+An `exec:` step lists the program and its arguments and runs them without a shell. Atkins interpolates `${{ }}` in each item, and each item stays one argument. The arguments from the command line stay untouched: no interpolation, no globbing, no word splitting, so `$(id)`, `*` and `;` reach the program as typed.
+
+Arguments need exactly one job on the command line, and that job must set `args: true`; anything else fails before a step runs. A `run:` or `cmd:` step of the same job never sees the arguments. A job that `task:` invokes from an `args: true` job gets them when it sets `args: true` itself.
+
 ## Skill Help
 
 A skill states its purpose with `help:`, one or two sentences naming the files it reads and writes. `atkins --help` prints it beside the skill and the jobs decoded from the YAML.
@@ -427,6 +485,53 @@ Go build and test
 * go:build:   Build binary
 * go:test:    Run tests
 ```
+
+### Listing as JSON
+
+`atkins -l --json` describes each section of the listing for tooling. The YAML form, `-l --yaml`, carries the same fields.
+
+```json
+[
+  {
+    "id": "compose",
+    "kind": "skill",
+    "path": "/home/user/ws/.atkins/skills/compose.yml",
+    "dir": "/home/user/ws/pulse",
+    "active": true,
+    "when": {
+      "files": ["compose.yml"],
+      "here": true,
+      "matched": "/home/user/ws/pulse/compose.yml"
+    },
+    "desc": "Docker Compose",
+    "cmds": [
+      {
+        "id": "compose:custom",
+        "name": "custom",
+        "desc": "Run docker compose with arguments",
+        "cmd": "atkins compose:custom",
+        "interactive": false,
+        "args": true,
+        "active": true
+      }
+    ]
+  }
+]
+```
+
+| Field         | Meaning                                                                 |
+|---------------|-------------------------------------------------------------------------|
+| `id`          | The skill namespace; empty for the main pipeline and the aliases        |
+| `kind`        | `pipeline`, `skill` or `aliases`                                        |
+| `path`        | The file the section loads from                                         |
+| `dir`         | The folder the jobs run in; empty for the aliases and an inactive skill |
+| `active`      | `false` for a skill whose `when:` block doesn't match                   |
+| `when`        | The `when:` block, with `matched` naming the file that satisfied it     |
+| `cmds[].name` | The job name without the skill prefix, or the alias                     |
+| `cmds[].args` | The job takes arguments after `--`                                      |
+| `cmds[].when` | The job's own `when:` block and its match                               |
+
+`--all` adds the skills whose `when:` block doesn't match, with `active: false`, so a caller sees every skill installed for a folder. A job whose own `when:` block doesn't match stays out, with or without `--all`.
 
 ## See Also
 

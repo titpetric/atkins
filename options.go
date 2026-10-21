@@ -8,7 +8,9 @@ import (
 type Options struct {
 	File             string
 	Jobs             []string
+	Args             []string
 	List             bool
+	All              bool
 	Lint             bool
 	Debug            bool
 	LogFile          string
@@ -49,6 +51,7 @@ func NewOptions() *Options {
 func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.StringVarP(&o.File, "file", "f", "", "Path to pipeline file (auto-discovers .atkins.yml)")
 	fs.BoolVarP(&o.List, "list", "l", false, "List pipeline jobs and dependencies")
+	fs.BoolVar(&o.All, "all", false, "With --list, include the skills whose when: block does not match")
 	fs.BoolVar(&o.Lint, "lint", false, "Lint pipeline for errors")
 	fs.BoolVar(&o.Debug, "debug", false, "Print debug data")
 	fs.StringVar(&o.LogFile, "log", "", "Log file path for command execution")

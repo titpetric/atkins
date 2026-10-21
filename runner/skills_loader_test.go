@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/titpetric/atkins/internal/assert"
+	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
 
@@ -212,4 +213,67 @@ func TestSkillsLoader_AddWorkspace(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, pipelines, 1)
 	assert.Equal(t, other, pipelines[0].Dir)
+}
+
+// TestSkillsLoader_LoadAll checks LoadAll returns the inactive skills
+// after the active ones, marked Inactive, and that a skill from a
+// parent folder reports its path and the folder it runs in.
+func TestSkillsLoader_LoadAll(t *testing.T) {
+	t.Parallel()
+
+	ws := t.TempDir()
+	pulse := filepath.Join(ws, "pulse")
+	assert.NoError(t, os.MkdirAll(pulse, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(pulse, "compose.yml"), []byte("services: {}\n"), 0o644))
+
+	skillsDir := filepath.Join(ws, ".atkins", "skills")
+	writeSkill(t, skillsDir, "compose", "when:\n  files: [compose.yml]\n  here: true\njobs:\n  up: docker compose up -d\n", "")
+	writeSkill(t, skillsDir, "composer", "when:\n  files: [composer.lock]\n  here: true\njobs:\n  update: composer update\n", "")
+
+	loader := runner.NewSkillsLoader(pulse, pulse)
+	loader.AddWorkspace(ws)
+
+	active, err := loader.Load()
+	assert.NoError(t, err)
+	assert.Len(t, active, 1)
+	assert.Equal(t, "compose", active[0].ID)
+
+	all, err := loader.LoadAll()
+	assert.NoError(t, err)
+	assert.Len(t, all, 2)
+
+	compose, composer := all[0], all[1]
+	assert.Equal(t, "compose", compose.ID)
+	assert.False(t, compose.Inactive)
+	assert.Equal(t, filepath.Join(skillsDir, "compose.yml"), compose.Path)
+	assert.Equal(t, pulse, compose.Dir)
+	assert.Equal(t, filepath.Join(pulse, "compose.yml"), compose.Matched)
+
+	assert.Equal(t, "composer", composer.ID)
+	assert.True(t, composer.Inactive)
+	assert.Equal(t, "", composer.Dir)
+}
+
+// TestMergeSkills checks MergeSkills skips an ID already present,
+// unless the present one is inactive and the new one applies.
+func TestMergeSkills(t *testing.T) {
+	t.Parallel()
+
+	main := &model.Pipeline{Name: "main"}
+	localGo := &model.Pipeline{ID: "go"}
+	localNode := &model.Pipeline{ID: "node", Inactive: true}
+	globalGo := &model.Pipeline{ID: "go"}
+	globalNode := &model.Pipeline{ID: "node"}
+	globalRust := &model.Pipeline{ID: "rust", Inactive: true}
+
+	got := runner.MergeSkills(
+		[]*model.Pipeline{main, localGo, localNode},
+		[]*model.Pipeline{globalGo, globalNode, globalRust},
+	)
+
+	assert.Len(t, got, 4)
+	assert.True(t, got[0] == main)
+	assert.True(t, got[1] == localGo, "the local go skill shadows the global one")
+	assert.True(t, got[2] == globalNode, "an active skill replaces an inactive one")
+	assert.True(t, got[3] == globalRust)
 }

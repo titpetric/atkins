@@ -29,7 +29,7 @@ func loadSkillPipelines(workspaceDir string, startDir string, opts *Options) ([]
 	if !opts.Jail {
 		loader.AddParentWorkspaces()
 	}
-	return loader.Load()
+	return loadSkills(loader, opts)
 }
 
 // pipelineJobs is one pipeline and the jobs resolved onto it.
@@ -139,6 +139,12 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 	}
 
 	fileFlag := opts.FlagSet.Lookup("file")
+
+	// Everything after a bare -- goes to the job as arguments, and is
+	// never a job name or a pipeline file.
+	if opts.FlagSet != nil {
+		args, opts.Args = splitJobArgs(opts.FlagSet.ArgsLenAtDash(), len(opts.FlagSet.Args()), args)
+	}
 
 	// Handle positional arguments before changing directory
 	fileExplicitlySet := fileFlag != nil && fileFlag.Changed
@@ -250,21 +256,14 @@ pipelineReady:
 		if home, err := os.UserHomeDir(); err == nil {
 			globalLoader := runner.NewSkillsLoader(originalCwd, originalCwd)
 			globalLoader.SkillsDirs = []string{filepath.Join(home, ".atkins", "skills")}
-			if globalPipelines, globalErr := globalLoader.Load(); globalErr == nil {
-				seen := make(map[string]bool)
-				for _, p := range pipelines {
-					if p.ID != "" {
-						seen[p.ID] = true
-					}
-				}
-				for _, gp := range globalPipelines {
-					if !seen[gp.ID] {
-						pipelines = append(pipelines, gp)
-					}
-				}
+			if globalPipelines, globalErr := loadSkills(globalLoader, opts); globalErr == nil {
+				pipelines = runner.MergeSkills(pipelines, globalPipelines)
 			}
 		}
 	}
+
+	// A job's own when: block gates it on the folder atkins runs from.
+	runner.ApplyJobWhen(pipelines, originalCwd)
 
 	// Handle working directory override (applies to both stdin and file modes)
 	if opts.WorkingDirectory != "" {
@@ -275,22 +274,8 @@ pipelineReady:
 
 	// Handle lint mode
 	if opts.Lint || opts.List {
-		for _, pipeline := range pipelines {
-			linter := runner.NewLinterWithPipelines(pipeline, pipelines)
-			lintErrors := linter.Lint()
-			if len(lintErrors) > 0 {
-				fmt.Printf("%s Pipeline '%s' has errors:\n", colors.BrightRed("✗"), pipeline.Name)
-				for _, lintErr := range lintErrors {
-					fmt.Printf("  %s: %s\n", lintErr.Job, lintErr.Detail)
-				}
-				return io.EOF
-			}
-		}
-		if opts.Lint {
-			if len(pipelines) > 0 {
-				fmt.Printf("%s Pipeline '%s' is valid\n", colors.BrightGreen("✓"), pipelines[0].Name)
-			}
-			return nil
+		if done, err := lintPipelines(opts, pipelines); done || err != nil {
+			return err
 		}
 	}
 
@@ -309,14 +294,17 @@ pipelineReady:
 			}
 		}
 
+		listOpts := runner.OutputOptions{All: opts.All}
+		listOpts.Dir, _ = os.Getwd()
+
 		if opts.JSON {
-			return runner.ListPipelinesJSON(pipelines)
+			return runner.ListPipelinesJSON(pipelines, listOpts)
 		}
 		if opts.YAML {
-			return runner.ListPipelinesYAML(pipelines)
+			return runner.ListPipelinesYAML(pipelines, listOpts)
 		}
 
-		fmt.Print(runner.ListPipelines(pipelines))
+		fmt.Print(runner.ListPipelines(runner.ActivePipelines(pipelines)))
 		return nil
 	}
 
@@ -341,6 +329,7 @@ pipelineReady:
 		}
 	}
 
+	var targets []*model.ResolvedTask
 	for _, jobName := range opts.Jobs {
 		target, err := resolver.Resolve(jobName)
 		if err != nil {
@@ -362,6 +351,12 @@ pipelineReady:
 			os.Exit(1)
 		}
 
+		if target.Job.Inactive {
+			fmt.Fprintf(os.Stderr, "%s job %q does not apply here: its when: block does not match\n", colors.BrightRed("ERROR:"), target.Name)
+			os.Exit(1)
+		}
+		targets = append(targets, target)
+
 		pipeline := target.Pipeline
 		if pipelineJobsMap[pipeline] == nil {
 			pipelineJobsMap[pipeline] = &pipelineJobs{pipeline: pipeline}
@@ -373,6 +368,11 @@ pipelineReady:
 			resolvedName = strings.TrimPrefix(resolvedName, pipeline.ID+":")
 		}
 		pipelineJobsMap[pipeline].jobs = append(pipelineJobsMap[pipeline].jobs, resolvedName)
+	}
+
+	if err := checkJobArgs(opts.Args, opts.Jobs, targets); err != nil {
+		fmt.Fprintf(os.Stderr, "%s %v\n", colors.BrightRed("ERROR:"), err)
+		os.Exit(1)
 	}
 
 	// Dispatching the run to an agent happens only on request:
@@ -458,6 +458,7 @@ func runPipelines(
 			YAML:         opts.YAML,
 			AllPipelines: allPipelines,
 			Transcript:   transcript,
+			Args:         opts.Args,
 		})
 		if err == nil {
 			continue

@@ -554,3 +554,37 @@ func TestJobUnmarshalYAML_StringShorthand(t *testing.T) {
 	assert.Equal(t, "docker compose up -d", job.Desc)
 	assert.True(t, job.Passthru)
 }
+
+// TestPipelineWhen_Decode checks here:, contains: and a job's own when:
+// decode alongside args: and an exec: step.
+func TestPipelineWhen_Decode(t *testing.T) {
+	t.Parallel()
+
+	var pipeline model.Pipeline
+	assert.NoError(t, yaml.Unmarshal([]byte(`
+when:
+  files: [compose.yml]
+  here: true
+jobs:
+  build:
+    when:
+      files: [compose.yml]
+      here: true
+      contains: '(?m)^\s+build:'
+    cmd: docker compose build
+  custom:
+    args: true
+    steps:
+      - exec: [docker, compose]
+`), &pipeline))
+
+	assert.Equal(t, &model.PipelineWhen{Files: []string{"compose.yml"}, Here: true}, pipeline.When)
+
+	build := pipeline.Jobs["build"]
+	assert.Equal(t, `(?m)^\s+build:`, build.When.Contains)
+	assert.True(t, build.When.Here)
+
+	custom := pipeline.Jobs["custom"]
+	assert.True(t, custom.Args)
+	assert.Equal(t, []string{"docker", "compose"}, custom.Steps[0].Exec)
+}

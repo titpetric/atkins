@@ -25,6 +25,17 @@ type Pipeline struct {
 	Tasks map[string]*Job `yaml:"tasks,omitempty"`
 
 	When *PipelineWhen `yaml:"when,omitempty"`
+
+	// Path is the file the pipeline loads from, empty for stdin.
+	Path string `yaml:"-"`
+
+	// Matched is the file that satisfied the when: block of a skill,
+	// empty when the skill has no when: block or it does not match.
+	Matched string `yaml:"-"`
+
+	// Inactive marks a skill whose when: block does not match. Only the
+	// listing of -l --all carries one; it contributes no jobs to a run.
+	Inactive bool `yaml:"-"`
 }
 
 // UnmarshalYAML implements custom unmarshalling for Pipeline to handle Decl.

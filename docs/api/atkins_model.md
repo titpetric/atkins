@@ -140,8 +140,23 @@ type Job struct {
 	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for all steps (enables color output)
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 
+	// Args lets the command line pass arguments to the job: everything
+	// after a bare -- goes to the job's exec: steps as literal argv.
+	Args bool `yaml:"args,omitempty"`
+
+	// When gates the job on files in the folder atkins runs from, with
+	// the same rules as a skill's when: block.
+	When *PipelineWhen `yaml:"when,omitempty"`
+
 	Name   string `yaml:"-"`
 	Nested bool   `yaml:"-"`
+
+	// Inactive marks a job whose when: block does not match. The job
+	// stays out of the listing, and running it fails with an error.
+	Inactive bool `yaml:"-"`
+
+	// Matched is the file that satisfied the job's when: block.
+	Matched string `yaml:"-"`
 }
 ```
 
@@ -194,6 +209,17 @@ type Pipeline struct {
 	Tasks map[string]*Job `yaml:"tasks,omitempty"`
 
 	When *PipelineWhen `yaml:"when,omitempty"`
+
+	// Path is the file the pipeline loads from, empty for stdin.
+	Path string `yaml:"-"`
+
+	// Matched is the file that satisfied the when: block of a skill,
+	// empty when the skill has no when: block or it does not match.
+	Matched string `yaml:"-"`
+
+	// Inactive marks a skill whose when: block does not match. Only the
+	// listing of -l --all carries one; it contributes no jobs to a run.
+	Inactive bool `yaml:"-"`
 }
 ```
 
@@ -215,8 +241,23 @@ type PipelineWalkFunc func(name string, job *Job) error
 ```go
 // PipelineWhen is a list of files that need to exist somewhere to
 // enable the pipeline, e.g. compose.yml for compose pipeline.
+//
+// A job carries the same block to gate one job of a pipeline: where
+// its when: block does not match, the job stays out of the listing and
+// running it fails with an error.
 type PipelineWhen struct {
-	Files []string `yaml:"files"`
+	// Files lists the patterns, any of which activates the block. Each
+	// pattern resolves in the starting folder and then in every parent
+	// folder, nearest first.
+	Files []string `yaml:"files" json:"files"`
+
+	// Here restricts the search to the starting folder, so a match in
+	// a parent folder does not count.
+	Here bool `yaml:"here,omitempty" json:"here,omitempty"`
+
+	// Contains is a regular expression the matched file must match.
+	// With Contains, a pattern resolving to a folder never matches.
+	Contains string `yaml:"contains,omitempty" json:"contains,omitempty"`
 }
 ```
 
@@ -250,6 +291,7 @@ type Step struct {
 	Run         string       `yaml:"run,omitempty"`
 	Cmd         string       `yaml:"cmd,omitempty"`
 	Cmds        []string     `yaml:"cmds,omitempty"`
+	Exec        []string     `yaml:"exec,omitempty"` // Program and arguments, run without a shell
 	Task        string       `yaml:"task,omitempty"` // Task/job name to invoke
 	If          Conditionals `yaml:"if,omitempty"`
 	For         Iterators    `yaml:"for,omitempty"`
@@ -336,9 +378,11 @@ type VariableStorage interface {
 - `func (*Pipeline) JobNames () []string`
 - `func (*Pipeline) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Pipeline) Walk (fn PipelineWalkFunc) error`
+- `func (*PipelineWhen) IsEmpty () bool`
 - `func (*Step) Commands () []string`
 - `func (*Step) Dispatch (d StepDispatcher) error`
 - `func (*Step) DisplayLabel () string`
+- `func (*Step) ExecString () string`
 - `func (*Step) IsDeferred () bool`
 - `func (*Step) Label (showPrefix bool) *Label`
 - `func (*Step) String () string`
@@ -553,11 +597,21 @@ sorted order.
 func (*Pipeline) Walk(fn PipelineWalkFunc) error
 ```
 
+### `IsEmpty`
+
+`IsEmpty` reports whether the block lists no files, which leaves the
+pipeline or job active everywhere.
+
+```go
+func (*PipelineWhen) IsEmpty() bool
+```
+
 ### `Commands`
 
 `Commands` returns all executable commands from this step as a slice.
 For steps with a single command (Run/Cmd), returns a slice with one element.
 For steps with a command list (Cmds), returns the full slice.
+An exec: step returns its argv rendered as one display string.
 Returns an empty slice for Task steps.
 
 ```go
@@ -581,6 +635,15 @@ Execution uses it to show which kind of operation runs.
 
 ```go
 func (*Step) DisplayLabel() string
+```
+
+### `ExecString`
+
+`ExecString` renders the exec: argv for display, quoting an argument
+that holds a space or a quote. No shell ever parses it.
+
+```go
+func (*Step) ExecString() string
 ```
 
 ### `IsDeferred`

@@ -124,10 +124,26 @@ func (e *Executor) executeStepIteration(ctx context.Context, stepCtx *ExecutionC
 
 // executeCommand runs a single command with interpolation and respects context timeout
 func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext, step *model.Step, cmd string) error {
+	// An exec: step runs its argv without a shell; the display string
+	// in cmd is only for the tree and the log.
+	var argv []string
+	if len(step.Exec) > 0 {
+		var err error
+		argv, err = execArgv(execCtx, step)
+		if err != nil {
+			return err
+		}
+		cmd = (&model.Step{Exec: argv}).ExecString()
+	}
+
 	// Interpolate the command
-	interpolated, err := InterpolateCommand(cmd, execCtx)
-	if err != nil {
-		return fmt.Errorf("interpolation failed: %w", err)
+	interpolated := cmd
+	if argv == nil {
+		var err error
+		interpolated, err = InterpolateCommand(cmd, execCtx)
+		if err != nil {
+			return fmt.Errorf("interpolation failed: %w", err)
+		}
 	}
 
 	// Check if context is already cancelled
@@ -163,6 +179,9 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		DefaultEnv: execCtx.Env.Environ(),
 	})
 	shellCmd := executor.ShellCommand(interpolated)
+	if argv != nil {
+		shellCmd = psexec.NewCommand(argv[0], argv[1:]...)
+	}
 
 	var writer *LineCapturingWriter
 	var result psexec.Result
@@ -227,7 +246,7 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		}
 
 		// For echo commands, update the step node label with the output
-		if IsEchoCommand(interpolated) {
+		if argv == nil && IsEchoCommand(interpolated) {
 			if echoOutput := strings.TrimSpace(captured); echoOutput != "" {
 				execCtx.CurrentStep.Name = echoOutput
 			}
@@ -243,6 +262,28 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	}
 
 	return nil
+}
+
+// execArgv builds the argv of an exec: step. It interpolates each
+// exec: item on its own, and each item stays one argument. A job with args: true
+// then gets the command line arguments appended as they are, with no
+// interpolation, globbing or word splitting.
+func execArgv(execCtx *ExecutionContext, step *model.Step) ([]string, error) {
+	argv := make([]string, 0, len(step.Exec)+len(execCtx.Args))
+	for _, item := range step.Exec {
+		interpolated, err := InterpolateString(item, execCtx)
+		if err != nil {
+			return nil, fmt.Errorf("interpolation failed: %w", err)
+		}
+		argv = append(argv, interpolated)
+	}
+	if argv[0] == "" {
+		return nil, fmt.Errorf("exec: names no program")
+	}
+	if execCtx.Job != nil && execCtx.Job.Args {
+		argv = append(argv, execCtx.Args...)
+	}
+	return argv, nil
 }
 
 // IsEchoCommand checks if a command is a bare echo command.
