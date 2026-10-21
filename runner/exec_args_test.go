@@ -1,6 +1,7 @@
 package runner_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,4 +90,43 @@ func TestRunPipeline_InactiveJob(t *testing.T) {
 		})
 		assert.ErrorContains(t, err, "does not apply here")
 	}
+}
+
+// TestExecStep_Output checks an exec: step prints its output on success,
+// as a job's cmd: shorthand does, and passthru: false keeps it quiet.
+func TestExecStep_Output(t *testing.T) {
+	t.Parallel()
+
+	run := func(t *testing.T, step string) string {
+		t.Helper()
+
+		src := "name: exec\njobs:\n  custom:\n    args: true\n    steps:\n      - exec: [printf, \"%s-line\\n\"]\n" + step
+		pipelines, err := runner.LoadPipelineFromReader(strings.NewReader(src))
+		assert.NoError(t, err)
+		pipeline := pipelines[0]
+		pipeline.Dir = t.TempDir()
+
+		var transcript bytes.Buffer
+		err = runner.RunPipeline(t.Context(), pipeline, runner.PipelineOptions{
+			Jobs:         []string{"custom"},
+			Silent:       true,
+			AllPipelines: []*model.Pipeline{pipeline},
+			Args:         []string{"exec-output"},
+			Transcript:   &transcript,
+		})
+		assert.NoError(t, err)
+		return transcript.String()
+	}
+
+	t.Run("prints output", func(t *testing.T) {
+		t.Parallel()
+		out := run(t, "")
+		assert.Contains(t, out, "exec-output-line")
+	})
+
+	t.Run("passthru false", func(t *testing.T) {
+		t.Parallel()
+		out := run(t, "        passthru: false\n")
+		assert.NotContains(t, out, "exec-output-line")
+	})
 }

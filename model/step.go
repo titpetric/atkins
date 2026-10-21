@@ -216,8 +216,24 @@ func (s *Step) UnmarshalYAML(node *yaml.Node) error {
 			s.Cmds[i] = strings.TrimSpace(cmd)
 		}
 
+		// An exec: step prints its output like a job's cmd: shorthand
+		// does, unless the step sets passthru: false.
+		if len(s.Exec) > 0 && !hasKey(node, "passthru") {
+			s.Passthru = true
+		}
+
 		return nil
 	}
 
 	return fmt.Errorf("invalid step format: expected string or object, got %v", node.Kind)
+}
+
+// hasKey reports whether a mapping node sets the key.
+func hasKey(node *yaml.Node, key string) bool {
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return true
+		}
+	}
+	return false
 }

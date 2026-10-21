@@ -21,29 +21,29 @@ steps:
 
 ## Properties
 
-| Field         | Type        | Default | Description                              |
-|---------------|-------------|---------|------------------------------------------|
-| `name`        | string      | -       | Step name for display                    |
-| `desc`        | string      | -       | Step description (shown in output)       |
-| `run`         | string      | -       | Command to execute                       |
-| `cmd`         | string      | -       | Alias for `run`                          |
-| `cmds`        | list        | -       | Commands to run in sequence              |
-| `task`        | string      | -       | Task/job to invoke                       |
-| `if`          | string/list | -       | Conditional execution (list items ANDed) |
-| `for`         | string/list | -       | Loop iteration                           |
-| `vars`        | map         | `{}`    | Step-level variables                     |
-| `env`         | object      | -       | Step environment                         |
-| `include`     | string/list | -       | Include external files                   |
-| `dir`         | string      | -       | Working directory                        |
-| `deferred`    | bool        | `false` | Run on cleanup (like Go defer)           |
-| `defer`       | string/obj  | -       | Deferred step (shorthand or object)      |
-| `detach`      | bool        | `false` | Run in background                        |
-| `tty`         | bool        | `false` | Attach a PTY (enables colors)            |
-| `interactive` | bool        | `false` | Stream output live, connect stdin        |
-| `verbose`     | bool        | `false` | Show output                              |
-| `summarize`   | bool        | `false` | Summarize output                         |
-| `quiet`       | bool        | `false` | Suppress output                          |
-| `passthru`    | bool        | `false` | Print output with tree indentation       |
+| Field         | Type        | Default | Description                                                    |
+|---------------|-------------|---------|----------------------------------------------------------------|
+| `name`        | string      | -       | Step name for display                                          |
+| `desc`        | string      | -       | Step description (shown in output)                             |
+| `run`         | string      | -       | Command to execute                                             |
+| `cmd`         | string      | -       | Alias for `run`                                                |
+| `cmds`        | list        | -       | Commands to run in sequence                                    |
+| `task`        | string      | -       | Task/job to invoke                                             |
+| `if`          | string/list | -       | Conditional execution (list items ANDed)                       |
+| `for`         | string/list | -       | Loop iteration                                                 |
+| `vars`        | map         | `{}`    | Step-level variables                                           |
+| `env`         | object      | -       | Step environment                                               |
+| `include`     | string/list | -       | Include external files                                         |
+| `dir`         | string      | -       | Working directory                                              |
+| `deferred`    | bool        | `false` | Run on cleanup (like Go defer)                                 |
+| `defer`       | string/obj  | -       | Deferred step (shorthand or object)                            |
+| `detach`      | bool        | `false` | Run in background                                              |
+| `tty`         | bool        | `false` | Attach a PTY (enables colors)                                  |
+| `interactive` | bool        | `false` | Stream output live, connect stdin                              |
+| `verbose`     | bool        | `false` | Show output                                                    |
+| `summarize`   | bool        | `false` | Summarize output                                               |
+| `quiet`       | bool        | `false` | Suppress output                                                |
+| `passthru`    | bool        | `false` | Print output with tree indentation; `true` for an `exec:` step |
 
 ## Basic Steps
 
