@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -83,4 +85,38 @@ func TestWriteHelp(t *testing.T) {
 	// A document written to a buffer is plain markdown with no escape codes.
 	assert.NotContains(t, doc, "\x1b[")
 	assert.True(t, strings.HasPrefix(strings.TrimSpace(doc), "# atkins"))
+}
+
+// TestWriteHelpParentSkills checks the skill listing carries the skills
+// of a parent folder, as a run from the same folder loads them.
+func TestWriteHelpParentSkills(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	ws := t.TempDir()
+	proj := filepath.Join(ws, "proj")
+	skillsDir := filepath.Join(ws, ".atkins", "skills")
+	assert.NoError(t, os.MkdirAll(skillsDir, 0o755))
+	assert.NoError(t, os.MkdirAll(proj, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(skillsDir, "wsonly.yml"), []byte("name: Workspace only\njobs:\n  default: pwd\n"), 0o644))
+	assert.NoError(t, os.WriteFile(filepath.Join(proj, "atkins.yml"), []byte("jobs:\n  default: true\n"), 0o644))
+
+	originalDir, err := os.Getwd()
+	assert.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, os.Chdir(originalDir))
+	})
+	assert.NoError(t, os.Chdir(proj))
+
+	skills, dirs := scanSkills()
+	assert.Contains(t, dirs, skillsDir)
+
+	var ids []string
+	for _, skill := range skills {
+		ids = append(ids, skill.ID())
+	}
+	assert.Contains(t, ids, "wsonly")
+
+	var out bytes.Buffer
+	assert.NoError(t, WriteHelp(&out))
+	assert.Contains(t, out.String(), "wsonly")
 }

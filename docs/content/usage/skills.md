@@ -11,7 +11,10 @@ Skills are modular pipeline files that automatically activate based on project c
 Skills are YAML pipeline files stored in special directories:
 
 - `.atkins/skills/` - Project-local skills
+- `.atkins/skills/` in a parent folder - Workspace skills (shared across the projects cloned inside it)
 - `$HOME/.atkins/skills/` - Global skills (shared across all projects)
+
+The nearest folder wins: a project skill shadows a workspace skill with the same name, and both shadow a global one.
 
 Each skill file becomes a namespace. For example, `go.yml` creates jobs like `go:build`, `go:test`.
 
@@ -38,6 +41,21 @@ $HOME/
 ```
 
 Project skills take precedence over global skills with the same name.
+
+### Skills from Parent Folders
+
+A workspace checkout can hold tooling for every project cloned inside it:
+
+```text
+~/ws/
+├── .atkins/
+│   └── skills/
+│       └── release.yml   (release:*, available in every project below)
+└── dockerfiles/
+    └── atkins.yml
+```
+
+Running atkins in `~/ws/dockerfiles` loads the project's own `.atkins/skills/`, then the `.atkins/skills/` of every parent folder, nearest first. Under `$HOME` the search stops below `$HOME`, because the global skills load on their own. Outside `$HOME` it goes on to the filesystem root. `atkins --help` and `atkins -l` list the parent folders' skills too.
 
 ## Creating a Skill
 
@@ -287,7 +305,7 @@ A workspace skill in `[project]/.atkins/skills/` applies to the entire project.
 
 **With `when:`** - the working directory is the folder containing the matched file.
 
-**Without `when:`** - the working directory is the folder containing `.atkins/`. This allows the skill to run project-level commands from the workspace root.
+**Without `when:`** - the working directory is the folder containing `.atkins/`. This allows the skill to run project-level commands from the workspace root. A skill from a parent folder runs in that parent folder: `release.yml` from `~/ws/.atkins/skills/` runs in `~/ws`, also when invoked from `~/ws/dockerfiles`.
 
 ### Global Skill Behavior
 
@@ -311,7 +329,7 @@ The main pipeline and `.atkins/` folder define workspace boundaries:
 
 From `/project/app/sub/`, atkins searches upward to find configuration and skills. A compose skill with `when: files: [compose.yml]` would match `/project/app/compose.yml` and run from `/project/app/`.
 
-Nested `.atkins/` folders or pipelines create separate workspaces with their own scope.
+A nested `.atkins/` folder or pipeline starts its own workspace. It still sees the skills of the workspaces above it, and its own skills shadow theirs.
 
 ## Jail Mode
 
@@ -321,7 +339,7 @@ To disable global skills:
 atkins --jail
 ```
 
-This only loads skills from `.atkins/skills/`, ignoring `$HOME/.atkins/skills/`.
+This only loads skills from the project's `.atkins/skills/`, ignoring the parent folders and `$HOME/.atkins/skills/`.
 
 Useful for:
 - Reproducible CI builds

@@ -54,7 +54,7 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.StringVar(&o.LogFile, "log", "", "Log file path for command execution")
 	fs.BoolVar(&o.FinalOnly, "final", false, "Only render final output without redrawing (no interactive tree)")
 	fs.StringVarP(&o.WorkingDirectory, "working-directory", "w", "", "Change to this directory before running")
-	fs.BoolVar(&o.Jail, "jail", false, "Restrict to project scope, skip global resources from $HOME")
+	fs.BoolVar(&o.Jail, "jail", false, "Restrict to project scope, skip skills from parent folders and global resources from $HOME")
 	fs.BoolVarP(&o.JSON, "json", "j", false, "Output in JSON format")
 	fs.BoolVarP(&o.YAML, "yaml", "y", false, "Output in YAML format")
 	fs.BoolVarP(&o.Version, "version", "v", false, "Print version and build information")

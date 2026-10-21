@@ -35,6 +35,9 @@ func (m *Model) changeDir(dir string) error {
 
 	// Reload pipelines for new directory
 	loader := runner.NewSkillsLoader(target, target)
+	if !m.agent.options.Jail {
+		loader.AddParentWorkspaces()
+	}
 	pipelines, err := loader.Load()
 	if err != nil {
 		pipelines = []*model.Pipeline{}

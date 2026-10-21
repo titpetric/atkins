@@ -109,31 +109,31 @@ func isTerminal(w io.Writer) bool {
 }
 
 // scanSkills returns every skill file installed for this directory, the
-// repository's own first, and the directories it read them from.
+// repository's own first, then the parent folders', then $HOME's, and
+// the directories it read them from.
 func scanSkills() ([]*runner.Skill, []string) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, nil
 	}
 
-	var dirs []string
-	if _, configDir, err := runner.DiscoverConfig(cwd); err == nil && configDir != "" {
-		dirs = append(dirs, filepath.Join(configDir, ".atkins", "skills"))
-	}
-	if home, err := os.UserHomeDir(); err == nil {
-		dirs = append(dirs, filepath.Join(home, ".atkins", "skills"))
-	}
-
 	loader := &runner.SkillsLoader{
-		SkillsDirs:   dirs,
 		StartDir:     cwd,
 		WorkspaceDir: cwd,
+	}
+	if _, configDir, err := runner.DiscoverConfig(cwd); err == nil && configDir != "" {
+		loader.WorkspaceDir = configDir
+		loader.AddWorkspace(configDir)
+		loader.AddParentWorkspaces()
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		loader.AddSkillsDir(filepath.Join(home, ".atkins", "skills"))
 	}
 
 	skills, err := loader.Scan()
 	if err != nil {
-		return nil, dirs
+		return nil, loader.SkillsDirs
 	}
 
-	return skills, dirs
+	return skills, loader.SkillsDirs
 }

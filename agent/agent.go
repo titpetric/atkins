@@ -28,8 +28,11 @@ func New(workDir string, opts *Options) (*Agent, error) {
 		opts = &Options{}
 	}
 
-	// Load skill pipelines from local .atkins/skills/
+	// Load skill pipelines from local .atkins/skills/, then the parent folders unless jailed
 	loader := runner.NewSkillsLoader(workDir, workDir)
+	if !opts.Jail {
+		loader.AddParentWorkspaces()
+	}
 	pipelines, err := loader.Load()
 	if err != nil {
 		// Not fatal - may have no skills

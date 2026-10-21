@@ -143,3 +143,73 @@ jobs:
 	assert.Len(t, pipelines, 1)
 	assert.Equal(t, "Global", pipelines[0].Name)
 }
+
+// TestParentWorkspaces checks the walk lists the folders above a project
+// holding .atkins/skills, nearest first, and stops below home.
+func TestParentWorkspaces(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	ws := filepath.Join(home, "ws")
+	group := filepath.Join(ws, "group")
+	proj := filepath.Join(group, "proj")
+
+	writeSkill(t, filepath.Join(root, ".atkins", "skills"), "above", "jobs:\n  a: true\n", "")
+	writeSkill(t, filepath.Join(home, ".atkins", "skills"), "global", "jobs:\n  a: true\n", "")
+	writeSkill(t, filepath.Join(ws, ".atkins", "skills"), "ws", "jobs:\n  a: true\n", "")
+	writeSkill(t, filepath.Join(group, ".atkins", "skills"), "group", "jobs:\n  a: true\n", "")
+	assert.NoError(t, os.MkdirAll(proj, 0o755))
+
+	assert.Equal(t, []string{group, ws}, runner.ParentWorkspaces(proj, home))
+	assert.Empty(t, runner.ParentWorkspaces(home, home))
+
+	// Outside home the walk reaches the filesystem root.
+	assert.Equal(t, []string{group, ws, home, root}, runner.ParentWorkspaces(proj, filepath.Join(root, "elsewhere"))[:4])
+}
+
+// TestSkillsLoader_ParentWorkspace checks a project inside a workspace
+// checkout loads the workspace's skills, runs one without when: in the
+// workspace, and lets its own skill of the same ID win.
+func TestSkillsLoader_ParentWorkspace(t *testing.T) {
+	ws := t.TempDir()
+	proj := filepath.Join(ws, "proj")
+
+	writeSkill(t, filepath.Join(ws, ".atkins", "skills"), "a", "name: Workspace a\njobs:\n  default: pwd\n", "")
+	writeSkill(t, filepath.Join(ws, ".atkins", "skills"), "shared", "name: Workspace shared\njobs:\n  default: pwd\n", "")
+	writeSkill(t, filepath.Join(proj, ".atkins", "skills"), "shared", "name: Project shared\njobs:\n  default: pwd\n", "")
+	assert.NoError(t, os.WriteFile(filepath.Join(proj, "atkins.yml"), []byte("jobs:\n  default: true\n"), 0o644))
+
+	loader := runner.NewSkillsLoader(proj, proj)
+	loader.AddParentWorkspaces()
+
+	pipelines, err := loader.Load()
+	assert.NoError(t, err)
+
+	byID := map[string]string{}
+	dirs := map[string]string{}
+	for _, p := range pipelines {
+		byID[p.ID] = p.Name
+		dirs[p.ID] = p.Dir
+	}
+
+	assert.Equal(t, "Workspace a", byID["a"])
+	assert.Equal(t, ws, dirs["a"])
+	assert.Equal(t, "Project shared", byID["shared"])
+	assert.Equal(t, proj, dirs["shared"])
+}
+
+// TestSkillsLoader_AddWorkspace checks a skill without when: from an
+// added workspace runs in that workspace, not in WorkspaceDir.
+func TestSkillsLoader_AddWorkspace(t *testing.T) {
+	root := t.TempDir()
+	other := filepath.Join(root, "other")
+
+	writeSkill(t, filepath.Join(other, ".atkins", "skills"), "lint", "jobs:\n  default: true\n", "")
+
+	loader := runner.NewSkillsLoader(root, root)
+	loader.AddWorkspace(other)
+
+	pipelines, err := loader.Load()
+	assert.NoError(t, err)
+	assert.Len(t, pipelines, 1)
+	assert.Equal(t, other, pipelines[0].Dir)
+}

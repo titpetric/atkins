@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -133,4 +134,92 @@ func TestMultipleJobsArguments(t *testing.T) {
 
 		assert.Equal(t, []string{"lint", "test", "build"}, opts.Jobs)
 	})
+}
+
+// writeWorkspace lays out a workspace checkout holding skill a, with a
+// project cloned inside it that carries its own atkins.yml, and returns
+// both folders. Skill a records the folder it runs in.
+func writeWorkspace(t *testing.T) (ws, proj string) {
+	t.Helper()
+
+	ws = t.TempDir()
+	proj = filepath.Join(ws, "proj")
+
+	skillsDir := filepath.Join(ws, ".atkins", "skills")
+	assert.NoError(t, os.MkdirAll(skillsDir, 0o755))
+	assert.NoError(t, os.MkdirAll(proj, 0o755))
+
+	skill := "name: a\njobs:\n  default:\n    steps:\n      - pwd > a.out\n"
+	assert.NoError(t, os.WriteFile(filepath.Join(skillsDir, "a.yml"), []byte(skill), 0o644))
+	assert.NoError(t, os.WriteFile(filepath.Join(proj, "atkins.yml"), []byte("name: proj\njobs:\n  default:\n    steps:\n      - true\n"), 0o644))
+
+	return ws, proj
+}
+
+// runIn runs the pipeline command from dir with the given arguments.
+func runIn(t *testing.T, dir string, args ...string) error {
+	t.Helper()
+
+	originalDir, err := os.Getwd()
+	assert.NoError(t, err)
+	t.Cleanup(func() {
+		assert.NoError(t, os.Chdir(originalDir))
+	})
+	assert.NoError(t, os.Chdir(dir))
+
+	cmd := Pipeline()
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	cmd.Bind(fs)
+
+	var jobs []string
+	var flags []string
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			flags = append(flags, arg)
+			continue
+		}
+		jobs = append(jobs, arg)
+	}
+	assert.NoError(t, fs.Parse(flags))
+
+	return cmd.Run(t.Context(), jobs)
+}
+
+// TestSkillFromParentFolder checks a project cloned inside a workspace
+// runs the workspace's skill, in the workspace folder.
+func TestSkillFromParentFolder(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	ws, proj := writeWorkspace(t)
+
+	assert.NoError(t, runIn(t, proj, "--final", "a"))
+
+	out, err := os.ReadFile(filepath.Join(ws, "a.out"))
+	assert.NoError(t, err)
+
+	got, err := filepath.EvalSymlinks(strings.TrimSpace(string(out)))
+	assert.NoError(t, err)
+	want, err := filepath.EvalSymlinks(ws)
+	assert.NoError(t, err)
+	assert.Equal(t, want, got)
+}
+
+// TestSkillFromParentFolderJailed checks --jail keeps the parent
+// folders' skills out.
+func TestSkillFromParentFolderJailed(t *testing.T) {
+	_, proj := writeWorkspace(t)
+
+	ids := func(opts *Options) []string {
+		pipelines, err := loadSkillPipelines(proj, proj, opts)
+		assert.NoError(t, err)
+
+		var ids []string
+		for _, p := range pipelines {
+			ids = append(ids, p.ID)
+		}
+		return ids
+	}
+
+	assert.Contains(t, ids(&Options{}), "a")
+	assert.NotContains(t, ids(&Options{Jail: true}), "a")
 }

@@ -20,13 +20,13 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 
 ### Choosing what runs
 
-| Flag                  | Short | Description                                                 |
-|-----------------------|-------|-------------------------------------------------------------|
-| `--file`              | `-f`  | Pipeline file to use, instead of the discovered one         |
-| `--working-directory` | `-w`  | Change to this directory before running                     |
-| `--jail`              |       | Load skills from the project only, ignoring `$HOME/.atkins` |
-| `--list`              | `-l`  | List the jobs and dependencies instead of running them      |
-| `--lint`              |       | Check the pipeline for errors and exit                      |
+| Flag                  | Short | Description                                                                    |
+|-----------------------|-------|--------------------------------------------------------------------------------|
+| `--file`              | `-f`  | Pipeline file to use, instead of the discovered one                            |
+| `--working-directory` | `-w`  | Change to this directory before running                                        |
+| `--jail`              |       | Load skills from the project only, ignoring parent folders and `$HOME/.atkins` |
+| `--list`              | `-l`  | List the jobs and dependencies instead of running them                         |
+| `--lint`              |       | Check the pipeline for errors and exit                                         |
 
 ### Output
 
@@ -227,11 +227,12 @@ atkins --jail
 
 Without `--jail`:
 - Loads skills from `.atkins/skills/`
+- Also loads from `.atkins/skills/` in the parent folders
 - Also loads from `$HOME/.atkins/skills/`
 
 With `--jail`:
-- Only loads from `.atkins/skills/`
-- Ignores global skills
+- Only loads from the project's `.atkins/skills/`
+- Ignores parent folders and global skills
 
 ## Vendoring Skills
 

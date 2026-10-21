@@ -23,6 +23,11 @@ type SkillsLoader struct {
 
 	// WorkspaceDir is the folder containing .atkins/ (used for skills without when:).
 	WorkspaceDir string
+
+	// Owners maps a skills directory to the folder holding its .atkins/,
+	// where a skill without when: from that directory runs. A directory
+	// missing from the map runs its skills in WorkspaceDir.
+	Owners map[string]string
 }
 
 // NewSkillsLoader creates a loader for the given workspace.
@@ -40,6 +45,58 @@ func NewSkillsLoader(workspaceDir, startDir string) *SkillsLoader {
 // Directories added later have lower precedence.
 func (l *SkillsLoader) AddSkillsDir(dir string) {
 	l.SkillsDirs = append(l.SkillsDirs, dir)
+}
+
+// AddWorkspace adds dir/.atkins/skills to search, at lower precedence,
+// and runs its skills without when: in dir.
+func (l *SkillsLoader) AddWorkspace(dir string) {
+	skillsDir := filepath.Join(dir, ".atkins", "skills")
+	if l.Owners == nil {
+		l.Owners = make(map[string]string)
+	}
+	l.Owners[skillsDir] = dir
+	l.AddSkillsDir(skillsDir)
+}
+
+// AddParentWorkspaces adds the .atkins/skills of every folder above
+// WorkspaceDir, nearest first, so a project cloned inside a workspace
+// checkout sees the workspace's skills. See ParentWorkspaces for where
+// the walk stops.
+func (l *SkillsLoader) AddParentWorkspaces() {
+	home, _ := os.UserHomeDir()
+	for _, dir := range ParentWorkspaces(l.WorkspaceDir, home) {
+		l.AddWorkspace(dir)
+	}
+}
+
+// ParentWorkspaces returns the folders above dir holding .atkins/skills,
+// nearest first.
+//
+// Inside home the walk stops below home: $HOME/.atkins/skills loads on
+// its own as the global skills, and the folders above home are not the
+// user's to configure. Outside home the walk goes on to the filesystem
+// root, the same as DiscoverConfig.
+func ParentWorkspaces(dir, home string) []string {
+	dir = filepath.Clean(dir)
+	if home != "" {
+		home = filepath.Clean(home)
+	}
+
+	var dirs []string
+	for current := dir; ; {
+		parent := filepath.Dir(current)
+		if parent == current || current == home {
+			return dirs
+		}
+		current = parent
+
+		if current == home {
+			continue
+		}
+		if info, err := os.Stat(filepath.Join(current, ".atkins", "skills")); err == nil && info.IsDir() {
+			dirs = append(dirs, current)
+		}
+	}
 }
 
 // Load discovers and returns all enabled skill pipelines.
@@ -98,7 +155,7 @@ func (l *SkillsLoader) Scan() ([]*Skill, error) {
 				return nil, fmt.Errorf("failed to load skill %s: %w", skillPath, err)
 			}
 
-			skill.Dir, skill.Active = l.evaluateWhen(skill.Pipeline)
+			skill.Dir, skill.Active = l.evaluateWhen(skill.Pipeline, l.owner(skillsDir))
 
 			// Set Dir only if not already explicitly set in the skill file
 			if skill.Active && skill.Pipeline.Dir == "" {
@@ -151,11 +208,19 @@ func (l *SkillsLoader) loadSkillFile(path string) (*model.Pipeline, error) {
 	return pipeline, nil
 }
 
+// owner returns the folder a skill without when: from skillsDir runs in.
+func (l *SkillsLoader) owner(skillsDir string) string {
+	if dir, ok := l.Owners[skillsDir]; ok {
+		return dir
+	}
+	return l.WorkspaceDir
+}
+
 // evaluateWhen checks if a skill's when: condition matches.
-func (l *SkillsLoader) evaluateWhen(pipeline *model.Pipeline) (workDir string, enabled bool) {
+func (l *SkillsLoader) evaluateWhen(pipeline *model.Pipeline, workspaceDir string) (workDir string, enabled bool) {
 	// No when: condition means always enabled, use workspace dir
 	if pipeline.When == nil || len(pipeline.When.Files) == 0 {
-		return l.WorkspaceDir, true
+		return workspaceDir, true
 	}
 
 	// Find the first matching file from any pattern

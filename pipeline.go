@@ -20,11 +20,15 @@ import (
 	"github.com/titpetric/atkins/version"
 )
 
-// loadSkillPipelines loads skill pipelines from the project-local .atkins/skills/ directory.
+// loadSkillPipelines loads skill pipelines from the project-local .atkins/skills/ directory,
+// then from the .atkins/skills/ of every parent folder unless jailed.
 // workspaceDir is the folder containing .atkins/ (used as Dir for skills without when:).
 // startDir is where to start searching for when: files (typically user's cwd).
 func loadSkillPipelines(workspaceDir string, startDir string, opts *Options) ([]*model.Pipeline, error) {
 	loader := runner.NewSkillsLoader(workspaceDir, startDir)
+	if !opts.Jail {
+		loader.AddParentWorkspaces()
+	}
 	return loader.Load()
 }
 

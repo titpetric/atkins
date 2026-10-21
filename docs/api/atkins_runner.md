@@ -392,6 +392,11 @@ type SkillsLoader struct {
 
 	// WorkspaceDir is the folder containing .atkins/ (used for skills without when:).
 	WorkspaceDir string
+
+	// Owners maps a skills directory to the folder holding its .atkins/,
+	// where a skill without when: from that directory runs. A directory
+	// missing from the map runs its skills in WorkspaceDir.
+	Owners map[string]string
 }
 ```
 
@@ -622,6 +627,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func NewSkillsLoader (workspaceDir,startDir string) *SkillsLoader`
 - `func NewTaskResolver (pipelines []*model.Pipeline) *TaskResolver`
 - `func NewVendorer (sourceDir,root string) *Vendorer`
+- `func ParentWorkspaces (dir,home string) []string`
 - `func ProcessDecl (ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)`
 - `func ResolveJobDependencies (jobs map[string]*model.Job, startingJob string) ([]string, error)`
 - `func RunPipeline (ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error`
@@ -653,7 +659,9 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*LineCapturingWriter) Write (p []byte) (int, error)`
 - `func (*Linter) Lint () []LintError`
 - `func (*Skill) ID () string`
+- `func (*SkillsLoader) AddParentWorkspaces ()`
 - `func (*SkillsLoader) AddSkillsDir (dir string)`
+- `func (*SkillsLoader) AddWorkspace (dir string)`
 - `func (*SkillsLoader) FindFile (patterns []string, startDir string) (string, bool)`
 - `func (*SkillsLoader) FindFolder (name,startDir string) (string, bool)`
 - `func (*SkillsLoader) Load () ([]*model.Pipeline, error)`
@@ -998,6 +1006,20 @@ func NewTaskResolver(pipelines []*model.Pipeline) *TaskResolver
 func NewVendorer(sourceDir, root string) *Vendorer
 ```
 
+### `ParentWorkspaces`
+
+`ParentWorkspaces` returns the folders above dir holding .atkins/skills,
+nearest first.
+
+Inside home the walk stops below home: $HOME/.atkins/skills loads on
+its own as the global skills, and the folders above home are not the
+user's to configure. Outside home the walk goes on to the filesystem
+root, the same as DiscoverConfig.
+
+```go
+func ParentWorkspaces(dir, home string) []string
+```
+
 ### `ProcessDecl`
 
 `ProcessDecl` processes a Decl and returns a map of variables.
@@ -1263,6 +1285,17 @@ func (*Linter) Lint() []LintError
 func (*Skill) ID() string
 ```
 
+### `AddParentWorkspaces`
+
+`AddParentWorkspaces` adds the .atkins/skills of every folder above
+WorkspaceDir, nearest first, so a project cloned inside a workspace
+checkout sees the workspace's skills. See ParentWorkspaces for where
+the walk stops.
+
+```go
+func (*SkillsLoader) AddParentWorkspaces()
+```
+
 ### `AddSkillsDir`
 
 `AddSkillsDir` adds another skills directory to search.
@@ -1270,6 +1303,15 @@ Directories added later have lower precedence.
 
 ```go
 func (*SkillsLoader) AddSkillsDir(dir string)
+```
+
+### `AddWorkspace`
+
+`AddWorkspace` adds dir/.atkins/skills to search, at lower precedence,
+and runs its skills without when: in dir.
+
+```go
+func (*SkillsLoader) AddWorkspace(dir string)
 ```
 
 ### `FindFile`
