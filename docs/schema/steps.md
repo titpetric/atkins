@@ -20,24 +20,24 @@ jobs:
 
 ## Fields
 
-| Field         | Type        | Description                                |
-|---------------|-------------|--------------------------------------------|
-| `name`        | string      | Display name for the step                  |
-| `run`         | string      | Shell command to execute                   |
-| `cmd`         | string      | Alternative to `run`                       |
-| `cmds`        | list        | A list of commands in one step             |
-| `task`        | string      | Invoke another job/task                    |
-| `dir`         | string      | Working directory                          |
-| `if`          | string/list | Condition for execution (list items ANDed) |
-| `for`         | string      | Loop expression                            |
-| `vars`        | map         | Step-scoped variables                      |
-| `env`         | object      | Step-scoped environment                    |
-| `detach`      | bool        | Run in background                          |
-| `deferred`    | bool        | Run at end (cleanup)                       |
-| `passthru`    | bool        | Show output with tree indentation          |
-| `tty`         | bool        | Attach a PTY (enables colors)              |
-| `interactive` | bool        | Enable stdin                               |
-| `summarize`   | bool        | Collapse output after completion           |
+| Field         | Type        | Description                                          |
+|---------------|-------------|------------------------------------------------------|
+| `name`        | string      | Display name for the step                            |
+| `run`         | string      | Shell command to execute                             |
+| `cmd`         | string      | Alternative to `run`                                 |
+| `cmds`        | list        | A list of commands in one step                       |
+| `task`        | string      | Invoke another job/task                              |
+| `dir`         | string      | Working directory                                    |
+| `if`          | string/list | Condition for execution (list items ANDed)           |
+| `for`         | string      | Loop expression                                      |
+| `vars`        | map         | Step-scoped variables                                |
+| `env`         | object      | Step-scoped environment                              |
+| `detach`      | bool        | Run in background                                    |
+| `deferred`    | bool        | Run at end (cleanup)                                 |
+| `passthru`    | bool        | Show output with tree indentation, PTY on a terminal |
+| `tty`         | bool        | Attach a PTY even when stdout is not a terminal      |
+| `interactive` | bool        | Enable stdin                                         |
+| `summarize`   | bool        | Collapse output after completion                     |
 
 ## Command Formats
 
@@ -276,7 +276,7 @@ steps:
 
 ### TTY Mode
 
-Enable color output for commands that detect terminals:
+A passthru step already gets a PTY when stdout is a terminal. `tty` is the override: it allocates one even when stdout is a pipe or a file, for a command whose escape sequences a later consumer wants:
 
 ```yaml
 steps:
@@ -337,7 +337,6 @@ jobs:
       - name: Run tests
         run: go test -v ./...
         passthru: true
-        tty: true
 
       - name: Build
         if: status == "success"

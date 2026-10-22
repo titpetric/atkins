@@ -127,10 +127,12 @@ func trimWithANSI(s string, targetLen int) string {
 	var result strings.Builder
 	visualCount := 0
 	inEscape := false
+	sawEscape := false
 
 	for _, r := range s {
 		if r == '\x1b' {
 			inEscape = true
+			sawEscape = true
 			result.WriteRune(r)
 			continue
 		}
@@ -153,7 +155,9 @@ func trimWithANSI(s string, targetLen int) string {
 	}
 
 	// Append a reset code in case the label ends inside colored text
-	result.WriteString("\033[0m")
+	if sawEscape {
+		result.WriteString("\033[0m")
+	}
 
 	return result.String()
 }

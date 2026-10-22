@@ -20,26 +20,26 @@ jobs:
 
 ## Fields
 
-| Field         | Type        | Description                                |
-|---------------|-------------|--------------------------------------------|
-| `desc`        | string      | Description shown in listings              |
-| `steps`       | list        | Steps to execute (GHA-style)               |
-| `cmds`        | list        | Commands to execute (Taskfile-style)       |
-| `cmd`         | string      | Single command shorthand                   |
-| `run`         | string      | Single run command shorthand               |
-| `dir`         | string      | Working directory for the job              |
-| `if`          | string/list | Condition for execution (list items ANDed) |
-| `depends_on`  | string/list | Jobs that must complete first              |
-| `aliases`     | list        | Alternative names for this job             |
-| `requires`    | list        | Required variables (for loop invocation)   |
-| `detach`      | bool        | Run in background                          |
-| `timeout`     | string      | Execution time limit                       |
-| `passthru`    | bool        | Show output with tree indentation          |
-| `tty`         | bool        | Attach a PTY (enables colors)              |
-| `interactive` | bool        | Enable stdin for keyboard input            |
-| `summarize`   | bool        | Collapse output after completion           |
-| `vars`        | map         | Job-scoped variables                       |
-| `env`         | object      | Job-scoped environment                     |
+| Field         | Type        | Description                                          |
+|---------------|-------------|------------------------------------------------------|
+| `desc`        | string      | Description shown in listings                        |
+| `steps`       | list        | Steps to execute (GHA-style)                         |
+| `cmds`        | list        | Commands to execute (Taskfile-style)                 |
+| `cmd`         | string      | Single command shorthand                             |
+| `run`         | string      | Single run command shorthand                         |
+| `dir`         | string      | Working directory for the job                        |
+| `if`          | string/list | Condition for execution (list items ANDed)           |
+| `depends_on`  | string/list | Jobs that must complete first                        |
+| `aliases`     | list        | Alternative names for this job                       |
+| `requires`    | list        | Required variables (for loop invocation)             |
+| `detach`      | bool        | Run in background                                    |
+| `timeout`     | string      | Execution time limit                                 |
+| `passthru`    | bool        | Show output with tree indentation, PTY on a terminal |
+| `tty`         | bool        | Attach a PTY even when stdout is not a terminal      |
+| `interactive` | bool        | Enable stdin for keyboard input                      |
+| `summarize`   | bool        | Collapse output after completion                     |
+| `vars`        | map         | Job-scoped variables                                 |
+| `env`         | object      | Job-scoped environment                               |
 
 ## Shorthand Syntax
 
@@ -235,8 +235,7 @@ jobs:
 ```yaml
 jobs:
   test:
-    passthru: true    # Show output indented in tree
-    tty: true         # Enable color output
+    passthru: true    # Show output indented in tree, colors when stdout is a terminal
     steps:
       - run: go test -v ./...
 ```

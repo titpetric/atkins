@@ -59,7 +59,6 @@ jobs:
   lint:
     desc: "Lint the code"
     passthru: true
-    tty: true
     steps:
       - splint ./... || true
 
@@ -70,7 +69,6 @@ jobs:
   generate:
     desc: "Run go generate/fix"
     passthru: true
-    tty: true
     steps:
       - go generate ./...
       - go fix ./...
@@ -78,7 +76,6 @@ jobs:
   test:
     desc: "Run tests"
     passthru: true
-    tty: true
     steps:
       # Package list last: gotestsum hands everything after -- to go test, and
       # -coverprofile writes nothing without a word of complaint when the list

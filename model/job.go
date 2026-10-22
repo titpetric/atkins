@@ -26,8 +26,8 @@ type Job struct {
 	Timeout     string       `yaml:"timeout,omitempty"`  // e.g., "10m", "300s"
 	Summarize   bool         `yaml:"summarize,omitempty"`
 	Quiet       bool         `yaml:"quiet,omitempty"`
-	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation
-	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for all steps (enables color output)
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation; gets a PTY when stdout is a terminal
+	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for all steps even when stdout is not a terminal
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 
 	// Args lets the command line pass arguments to the job: everything

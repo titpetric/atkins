@@ -54,7 +54,7 @@ Four more shorthands, in the same spirit:
 | `detach`        | bool         | false          | start in the background, join before deferred steps |
 | `show`          | bool         | root jobs      | show the job in the tree                            |
 | `passthru`      | bool         | false          | print command output under the tree                 |
-| `tty`           | bool         | false          | open a PTY for every step, which keeps colour       |
+| `tty`           | bool         | false          | open a PTY for every step, terminal or not          |
 | `interactive`   | bool         | false          | stream output live and connect stdin                |
 | `summarize`     | bool         | false          | collapse output to the last lines                   |
 | `quiet`         | bool         | false          | drop the output                                     |
@@ -78,12 +78,14 @@ Four more shorthands, in the same spirit:
 | `detach`            | bool         | false       | start in the background              |
 | `verbose`           | bool         | false       | print the output                     |
 | `passthru`          | bool         | false       | print the output under the tree      |
-| `tty`               | bool         | false       | open a PTY, which keeps colour       |
+| `tty`               | bool         | false       | open a PTY, terminal or not          |
 | `interactive`       | bool         | false       | stream output live and connect stdin |
 | `summarize`         | bool         | false       | collapse output to the last lines    |
 | `quiet`             | bool         | false       | drop the output                      |
 
 A step names a command or a job, not both: `run`, `cmd`, `cmds` and `task` are alternatives, read in the order `task`, `run`, `cmd`, `cmds`.
+
+A passthru step or job gets a PTY when stdout is a terminal, so colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences. `tty` is the override and opens one whatever stdout is.
 
 Declare a deferred step where it reads best, often first; it runs last. Every plain step of the job runs, then the job joins the detached ones, then the deferred ones run in declaration order. A job that fails still runs them.
 

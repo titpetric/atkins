@@ -8,28 +8,28 @@ A job groups related steps and controls how they execute. A pipeline declares jo
 
 ## Job Fields
 
-| Field               | Description                                                  |
-|---------------------|--------------------------------------------------------------|
-| `desc:`             | Description shown in job listings                            |
-| `steps:`            | List of steps to execute                                     |
-| `cmds:`             | Alias for `steps:` (Taskfile-style)                          |
-| `cmd:`              | Single command shorthand                                     |
-| `run:`              | Alias for `cmd:`                                             |
-| `depends_on:`       | Job dependencies (string or list of job names)               |
-| `detach: true`      | Run the job in background (parallel)                         |
-| `aliases:`          | Alternative names for invoking the job                       |
-| `requires:`         | Required variables when invoked via a for loop               |
-| `if:`               | Conditional execution (string or list; all items must pass)  |
-| `dir:`              | Working directory for all steps                              |
-| `timeout:`          | Execution time limit (e.g. `"10m"`, `"300s"`)                |
-| `passthru: true`    | Output printed with tree indentation                         |
-| `tty: true`         | Attach a PTY for color output                                |
-| `interactive: true` | Stream output live and connect stdin                         |
-| `quiet: true`       | Suppress output                                              |
-| `summarize: true`   | Summarize output                                             |
-| `show:`             | Control visibility in tree (`true`/`false`/omit)             |
-| `vars:`             | Job-level variables                                          |
-| `env:`              | Job-level environment variables                              |
+| Field               | Description                                                 |
+|---------------------|-------------------------------------------------------------|
+| `desc:`             | Description shown in job listings                           |
+| `steps:`            | List of steps to execute                                    |
+| `cmds:`             | Alias for `steps:` (Taskfile-style)                         |
+| `cmd:`              | Single command shorthand                                    |
+| `run:`              | Alias for `cmd:`                                            |
+| `depends_on:`       | Job dependencies (string or list of job names)              |
+| `detach: true`      | Run the job in background (parallel)                        |
+| `aliases:`          | Alternative names for invoking the job                      |
+| `requires:`         | Required variables when invoked via a for loop              |
+| `if:`               | Conditional execution (string or list; all items must pass) |
+| `dir:`              | Working directory for all steps                             |
+| `timeout:`          | Execution time limit (e.g. `"10m"`, `"300s"`)               |
+| `passthru: true`    | Output printed with tree indentation, PTY on a terminal     |
+| `tty: true`         | Attach a PTY even when stdout is not a terminal             |
+| `interactive: true` | Stream output live and connect stdin                        |
+| `quiet: true`       | Suppress output                                             |
+| `summarize: true`   | Summarize output                                            |
+| `show:`             | Control visibility in tree (`true`/`false`/omit)            |
+| `vars:`             | Job-level variables                                         |
+| `env:`              | Job-level environment variables                             |
 
 ## Examples
 

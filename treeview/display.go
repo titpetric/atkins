@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"golang.org/x/term"
+
+	"github.com/titpetric/atkins/colors"
 )
 
 // Display manages in-place tree rendering with ANSI cursor control.
@@ -20,10 +22,9 @@ type Display struct {
 
 // NewDisplay creates a new display manager.
 func NewDisplay() *Display {
-	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 	return &Display{
 		lastLineCount: 0,
-		isTerminal:    isTerminal,
+		isTerminal:    colors.StdoutIsTerminal(),
 		renderer:      NewRenderer(),
 		finalOnly:     false,
 	}
@@ -31,10 +32,9 @@ func NewDisplay() *Display {
 
 // NewDisplayWithFinal creates a new display manager with final-only mode.
 func NewDisplayWithFinal(finalOnly bool) *Display {
-	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 	return &Display{
 		lastLineCount: 0,
-		isTerminal:    isTerminal && !finalOnly,
+		isTerminal:    colors.StdoutIsTerminal() && !finalOnly,
 		renderer:      NewRenderer(),
 		finalOnly:     finalOnly,
 	}
@@ -109,7 +109,7 @@ func (d *Display) RenderStatic(root *Node) {
 	defer d.mu.Unlock()
 
 	output := d.renderer.RenderStatic(root)
-	fmt.Print(output)
+	fmt.Print(plainWithoutTerminal(output))
 }
 
 // RenderFinal clears the live-updating tree and prints the full tree statically.
@@ -126,7 +126,17 @@ func (d *Display) RenderFinal(root *Node) {
 
 	// Print the full tree
 	output := d.renderer.Render(root)
-	fmt.Print(output)
+	fmt.Print(plainWithoutTerminal(output))
+}
+
+// plainWithoutTerminal strips ANSI escape sequences when stdout is a
+// pipe or a file, so colour follows terminal detection and a captured
+// log keeps its escape sequences out.
+func plainWithoutTerminal(output string) string {
+	if colors.StdoutIsTerminal() {
+		return output
+	}
+	return colors.StripANSI(output)
 }
 
 // Cleanup is a no-op kept for API compatibility.

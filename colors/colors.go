@@ -2,8 +2,23 @@ package colors
 
 import (
 	"fmt"
+	"os"
 	"regexp"
+	"sync"
+
+	"golang.org/x/term"
 )
+
+// stdoutIsTerminal caches the stdout terminal check for the process.
+var stdoutIsTerminal = sync.OnceValue(func() bool {
+	return term.IsTerminal(int(os.Stdout.Fd()))
+})
+
+// StdoutIsTerminal reports whether the process stdout is attached to a
+// terminal. The check runs once; every later call returns the cached answer.
+func StdoutIsTerminal() bool {
+	return stdoutIsTerminal()
+}
 
 // csiPattern matches ANSI CSI escape sequences.
 var csiPattern = regexp.MustCompile(`\x1b\[[?>]?[0-9;]*[A-Za-z]`)
@@ -42,67 +57,67 @@ func colorize(color, text string) string {
 
 // BrightGreen returns text in bright green color.
 func BrightGreen(text string) string {
-	return colorBright + colorGreen + text + colorReset
+	return colorize(colorBright+colorGreen, text)
 }
 
 // Green returns text in green color.
 func Green(text string) string {
-	return colorGreen + text + colorReset
+	return colorize(colorGreen, text)
 }
 
 // BrightYellow returns text in bright yellow color.
 func BrightYellow(text string) string {
-	return colorBright + colorYellow + text + colorReset
+	return colorize(colorBright+colorYellow, text)
 }
 
 // BrightOrange returns text in bright orange color.
 func BrightOrange(text string) string {
-	return colorOrange + text + colorReset
+	return colorize(colorOrange, text)
 }
 
 // BrightCyan returns text in bright cyan color.
 func BrightCyan(text string) string {
-	return colorBright + colorCyan + text + colorReset
+	return colorize(colorBright+colorCyan, text)
 }
 
 // Cyan returns text in cyan color.
 func Cyan(text string) string {
-	return colorCyan + text + colorReset
+	return colorize(colorCyan, text)
 }
 
 // BrightMagenta returns text in bright magenta color.
 func BrightMagenta(text string) string {
-	return colorBright + colorMagenta + text + colorReset
+	return colorize(colorBright+colorMagenta, text)
 }
 
 // BrightRed returns text in bright red color.
 func BrightRed(text string) string {
-	return colorBright + colorRed + text + colorReset
+	return colorize(colorBright+colorRed, text)
 }
 
 // Dim returns text in dim color.
 func Dim(text string) string {
-	return colorDim + text + colorReset
+	return colorize(colorDim, text)
 }
 
 // BrightWhite returns text in bright white color.
 func BrightWhite(text string) string {
-	return colorBright + colorWhite + text + colorReset
+	return colorize(colorBright+colorWhite, text)
 }
 
 // White returns text in white color.
 func White(text string) string {
-	return colorWhite + text + colorReset
+	return colorize(colorWhite, text)
 }
 
 // Gray returns text in gray color.
 func Gray(text string) string {
-	return colorGray + text + colorReset
+	return colorize(colorGray, text)
 }
 
 // MediumGray returns text in medium gray (50%) color.
 func MediumGray(text string) string {
-	return colorMediumGray + text + colorReset
+	return colorize(colorMediumGray, text)
 }
 
 // PrintHeader prints a header with bright cyan color.

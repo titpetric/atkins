@@ -86,8 +86,7 @@ jobs:
       # Packages go after the `--`. Before it, gotestsum drops every
       # go-test flag that follows them, and -coverprofile writes
       # nothing without a word of complaint.
-      - tty: true
-        cmd: gotestsum --hide-summary=skipped -- -count 1 -coverpkg=github.com/titpetric/atkins/... -coverprofile=coverage.out ./...
+      - gotestsum --hide-summary=skipped -- -count 1 -coverpkg=github.com/titpetric/atkins/... -coverprofile=coverage.out ./...
 
   test:cover:
     desc: "Run tests and report coverage"
