@@ -2,22 +2,11 @@ package chart_test
 
 import (
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/titpetric/atkins/chart"
 	"github.com/titpetric/atkins/internal/assert"
 )
-
-// lines splits a chart into its rows, dropping the trailing empty one.
-func lines(rendered string) []string {
-	return strings.Split(strings.TrimRight(rendered, "\n"), "\n")
-}
-
-// count returns how many times a rune appears.
-func count(text string, r rune) int {
-	return strings.Count(text, string(r))
-}
 
 func TestVertical(t *testing.T) {
 	rendered := chart.Vertical(chart.VerticalOptions{
@@ -51,8 +40,8 @@ func TestVertical(t *testing.T) {
 	assert.Contains(t, rows[5], "Wed")
 }
 
-// A bar is measured from zero, so an empty day is empty and a day with
-// anything in it is drawn: a blank column would say nothing ran.
+// A bar measures from zero, so an empty day stays empty and a day with
+// anything in it shows: a blank column would say nothing ran.
 func TestVerticalDrawsTheSmallestValue(t *testing.T) {
 	rendered := chart.Vertical(chart.VerticalOptions{
 		Bars:   []chart.Bar{{Value: 1}, {Value: 0}, {Value: 10_000}},
@@ -68,8 +57,8 @@ func TestVerticalDrawsTheSmallestValue(t *testing.T) {
 func TestVerticalWithNothingToDraw(t *testing.T) {
 	assert.Equal(t, "", chart.Vertical(chart.VerticalOptions{}))
 
-	// Every bar at zero draws a floor and no bars, rather than
-	// dividing by a peak of nothing.
+	// Every bar at zero draws a floor and no bars, and never divides by
+	// a peak of nothing.
 	rendered := chart.Vertical(chart.VerticalOptions{Bars: []chart.Bar{{Value: 0}, {Value: 0}}})
 	assert.NotContains(t, rendered, "█")
 	assert.Contains(t, rendered, "└")

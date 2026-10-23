@@ -1,8 +1,10 @@
 package markdown
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/internal/assert"
 )
 
@@ -33,4 +35,17 @@ func TestParseTable(t *testing.T) {
 func TestParseTableRejectsProse(t *testing.T) {
 	_, ok := ParseTable("| not a table |\njust a second line")
 	assert.False(t, ok)
+}
+
+func TestTable(t *testing.T) {
+	t.Parallel()
+
+	table := &Table{Headers: []string{"Job", "Runs"}, Rows: [][]string{{"build", "3"}}}
+	lines := strings.Split(colors.StripANSI(table.render()), "\n")
+
+	// A border above, the header, a rule, one row and a border below,
+	// with every column as wide as its widest cell.
+	assert.Equal(t, 5, len(lines))
+	assert.Equal(t, "┌───────┬──────┐", lines[0])
+	assert.Equal(t, "│ build │ 3    │", lines[3])
 }
