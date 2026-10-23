@@ -290,3 +290,90 @@ func TestLinterWithPipelines_InvalidCrossPipelineRef(t *testing.T) {
 	assert.Equal(t, "missing task reference", errors[0].Issue)
 	assert.Contains(t, errors[0].Detail, ":nonexistent")
 }
+
+func TestValidateJobRequirements(t *testing.T) {
+	tests := []struct {
+		name      string
+		job       *model.Job
+		variables map[string]any
+		expectErr bool
+		errMsg    string
+	}{
+		{
+			name: "no requirements",
+			job: &model.Job{
+				Name:     "test_job",
+				Requires: []string{},
+			},
+			variables: map[string]any{},
+			expectErr: false,
+		},
+		{
+			name: "requirements satisfied",
+			job: &model.Job{
+				Name:     "build_component",
+				Requires: []string{"component"},
+			},
+			variables: map[string]any{
+				"component": "src/main",
+			},
+			expectErr: false,
+		},
+		{
+			name: "single requirement missing",
+			job: &model.Job{
+				Name:     "build_component",
+				Requires: []string{"component"},
+			},
+			variables: map[string]any{},
+			expectErr: true,
+			errMsg:    "requires variables [component] but missing: [component]",
+		},
+		{
+			name: "multiple requirements, some missing",
+			job: &model.Job{
+				Name:     "deploy_service",
+				Requires: []string{"service", "version", "env"},
+			},
+			variables: map[string]any{
+				"service": "api",
+				"version": "1.0.0",
+			},
+			expectErr: true,
+			errMsg:    "requires variables [service version env] but missing: [env]",
+		},
+		{
+			name: "all requirements present",
+			job: &model.Job{
+				Name:     "deploy_service",
+				Requires: []string{"service", "version", "env"},
+			},
+			variables: map[string]any{
+				"service": "api",
+				"version": "1.0.0",
+				"env":     "prod",
+			},
+			expectErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &ExecutionContext{
+				Variables: NewContextVariables(tt.variables),
+			}
+			// Ensure job name is present (the test case sets it)
+
+			err := ValidateJobRequirements(ctx, tt.job)
+
+			if tt.expectErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

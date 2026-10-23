@@ -342,3 +342,54 @@ func evaluateExpr(exprStr string, ctx *runner.ExecutionContext) (any, error) {
 	}
 	return expr.Run(program, env)
 }
+
+func TestInterpolationInForLoop(t *testing.T) {
+	tests := []struct {
+		name        string
+		cmd         string
+		variables   map[string]any
+		expected    string
+		expectError bool
+	}{
+		{
+			name:        "simple variable interpolation",
+			cmd:         "echo Fruit: ${{ item }}",
+			variables:   map[string]any{"item": "apple"},
+			expected:    "echo Fruit: apple",
+			expectError: false,
+		},
+		{
+			name:        "multiple variable interpolation",
+			cmd:         "echo ${{ key }} = ${{ value }}",
+			variables:   map[string]any{"key": "name", "value": "Alice"},
+			expected:    "echo name = Alice",
+			expectError: false,
+		},
+		{
+			name:        "bash command execution",
+			cmd:         "echo $(echo 'hello')",
+			variables:   map[string]any{},
+			expected:    "echo hello",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &runner.ExecutionContext{
+				Variables: runner.NewContextVariables(tt.variables),
+				Env:       make(map[string]string),
+			}
+
+			result, err := runner.InterpolateCommand(tt.cmd, ctx)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
