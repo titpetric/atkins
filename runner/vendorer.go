@@ -23,8 +23,13 @@ var vendorSkipDirs = []string{
 }
 
 // Vendorer copies the skills a repository uses out of a shared skills
-// directory and into the repository itself, so a clone or a CI agent
-// gets the same jobs without a personal $HOME/.atkins/skills.
+// directory and into the repository, so a clone or a CI agent gets the same
+// jobs without a personal $HOME/.atkins/skills.
+//
+// A repository uses a skill whose when: block matches a path in it, a skill
+// without a when: block, and a skill whose jobs its pipelines or its other
+// skills reference. Plan reports that selection; Run also installs it, over
+// a vendored copy that differs, which git tracks like any other file.
 type Vendorer struct {
 	// SourceDir is the skills directory to vendor from, typically
 	// $HOME/.atkins/skills.
@@ -65,13 +70,7 @@ func (v *Vendorer) Run() (*VendorResult, error) {
 	return result, nil
 }
 
-// Plan reads the source skills and decides which of them this
-// repository uses, without writing anything.
-//
-// The repository uses a skill when its when: block matches a path anywhere
-// in the repository, when it has no when: block at all (it's active
-// everywhere), or when a pipeline in the repository - or another
-// selected skill - references one of its jobs.
+// Plan returns the skills the repository uses, or the error that stops it reading them.
 func (v *Vendorer) Plan() (*VendorResult, error) {
 	if v.SourceDir == v.TargetDir {
 		return nil, fmt.Errorf("source and target are the same directory: %s", v.SourceDir)
@@ -190,10 +189,8 @@ func (v *Vendorer) compare(skill *VendorSkill) {
 	}
 }
 
-// Install copies the selected skills into TargetDir, creating it when it
-// doesn't exist, and overwrites a vendored copy that has drifted from
-// its source. Git tracks vendored skills like any other file, so
-// reverting an unwanted change is the user's call, not this command's.
+// Install copies the pending skills into TargetDir, creating it when it
+// doesn't exist, and returns the first error that stops a copy.
 func (v *Vendorer) Install(result *VendorResult) error {
 	if len(result.Pending()) == 0 {
 		return nil

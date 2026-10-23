@@ -23,9 +23,7 @@ func (l *SkillsLoader) evaluateWhen(pipeline *model.Pipeline, workspaceDir strin
 	return match.Dir, match.File, true
 }
 
-// FindFolder searches for a directory with the given name starting from startDir
-// and traversing parent directories. Returns (found, containingDir) where
-// containingDir is the parent directory that contains the named folder.
+// FindFolder returns the nearest folder from startDir up that holds a folder named name.
 func (l *SkillsLoader) FindFolder(name, startDir string) (containingDir string, found bool) {
 	current := startDir
 	for {
@@ -43,12 +41,8 @@ func (l *SkillsLoader) FindFolder(name, startDir string) (containingDir string, 
 	}
 }
 
-// FindFile searches for files matching any of the given patterns starting from
-// startDir and traversing parent directories. Returns (found, matchDir) where
-// matchDir is the directory containing the first matched file.
-//
-// For each directory (starting with startDir, going up), it checks all patterns.
-// This means closer matches win over pattern order.
+// FindFile returns the nearest folder from startDir up where any pattern matches,
+// so a closer match wins over pattern order.
 func (l *SkillsLoader) FindFile(patterns []string, startDir string) (matchDir string, found bool) {
 	// First, check absolute paths (no traversal needed)
 	for _, pattern := range patterns {
@@ -81,13 +75,8 @@ func (l *SkillsLoader) FindFile(patterns []string, startDir string) (matchDir st
 	}
 }
 
-// MatchWhenPattern reports whether a `when: files:` pattern resolves to
-// something inside dir, and what it resolved to.
-//
-// MatchWhenPattern expands a pattern carrying a glob meta character, so a
-// skill can activate on the contents of a folder and not only its name:
-// `schema/*.up.sql` matches a folder of migrations, while `schema/`
-// matches any folder of that name.
+// MatchWhenPattern returns what a `when: files:` pattern resolves to inside dir.
+// A glob pattern such as `schema/*.up.sql` matches a folder's contents, `schema/` the folder.
 func MatchWhenPattern(dir, pattern string) (match string, found bool) {
 	candidate := filepath.Join(dir, pattern)
 

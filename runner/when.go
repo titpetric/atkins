@@ -15,6 +15,14 @@ import (
 const whenContainsLimit = 1 << 20
 
 // WhenMatch is the outcome of evaluating a when: block.
+//
+// An absolute pattern resolves on its own. A relative pattern resolves in
+// the starting folder and then in every parent folder, nearest first, unless
+// the block sets here: true, which keeps the search to the starting folder.
+// In each folder the search tries every pattern, so a closer match wins over
+// pattern order. With contains: set, only a regular file whose contents match the
+// regular expression counts. An invalid contains: expression never matches;
+// the linter reports it.
 type WhenMatch struct {
 	// Dir is the folder holding the matched file, where a skill runs.
 	Dir string
@@ -23,15 +31,8 @@ type WhenMatch struct {
 	File string
 }
 
-// MatchWhen evaluates a when: block from startDir.
-//
-// An absolute pattern resolves on its own. A relative pattern resolves
-// in startDir and then in every parent folder, nearest first, unless
-// the block sets here: true, which keeps the search to startDir. In each
-// folder MatchWhen tries every pattern, so a closer match wins over
-// pattern order. With contains: set, only a regular file whose contents match the
-// regular expression counts. An invalid contains: expression never
-// matches; the linter reports it.
+// MatchWhen reports false for an empty block or an invalid contains: expression,
+// and otherwise the first match from startDir, absolute patterns first.
 func MatchWhen(when *model.PipelineWhen, startDir string) (WhenMatch, bool) {
 	if when.IsEmpty() {
 		return WhenMatch{}, false
@@ -131,9 +132,7 @@ func fileContains(path string, re *regexp.Regexp) bool {
 	return re.Match(data)
 }
 
-// ApplyJobWhen evaluates the when: block of every job in pipelines from
-// startDir. It marks a job Inactive where its block does not match: the
-// listing leaves it out and a run refuses it.
+// ApplyJobWhen marks Inactive each job whose when: block does not match from startDir.
 func ApplyJobWhen(pipelines []*model.Pipeline, startDir string) {
 	for _, pipeline := range pipelines {
 		for _, job := range pipeline.GetJobs() {

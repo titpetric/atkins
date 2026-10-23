@@ -8,7 +8,13 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// TaskResolver resolves task references, handling cross-pipeline : prefix syntax.
+// TaskResolver resolves a task reference to a pipeline and a job.
+//
+// A name resolves by exact name first, a qualified one such as go:build
+// included, then by a job alias, then by a unique suffix match. A leading
+// colon makes the reference strict: exact names only, and in a skill, the
+// global pipelines only. A suffix that matches more than one job is a
+// FuzzyMatchError.
 type TaskResolver struct {
 	pipelines []*model.Pipeline
 }
@@ -37,9 +43,8 @@ func (r *TaskResolver) Resolve(taskName string) (*model.ResolvedTask, error) {
 	return r.ResolveName(taskName, strict)
 }
 
-// ResolveWithFallback tries resolving with r first, then falls back to the
-// fallback resolver. If the task has a ":" prefix, it uses only the fallback
-// (global) resolver.
+// ResolveWithFallback resolves a ":" name with fallback alone,
+// any other name with r first and then with fallback.
 func (r *TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver) (*model.ResolvedTask, error) {
 	if strings.HasPrefix(taskName, ":") {
 		return fallback.Resolve(taskName)
@@ -51,9 +56,7 @@ func (r *TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolv
 	return resolved, err
 }
 
-// ResolveName resolves a name to the pipeline and job.
-// It tries explicit matching, then checks aliases, then fuzzy matches jobs.
-// If no job matches, it returns an error.
+// ResolveName returns an exact match, else an alias, else a fuzzy match; strict stops after the exact one.
 func (r *TaskResolver) ResolveName(name string, strict bool) (*model.ResolvedTask, error) {
 	if target, found := r.resolveExplicitTarget(name); found {
 		return target, nil

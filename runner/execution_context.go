@@ -32,7 +32,14 @@ func (jt *jobTracker) IsCompleted(jobName string) bool {
 	return jt.done[jobName]
 }
 
-// ExecutionContext holds runtime state during pipeline Exec.
+// ExecutionContext holds the state of a run as a job and its steps see it.
+//
+// A job, a step and a loop iteration each run in a copy of their parent's
+// context. Copy clones the variables and the environment, so a step's vars
+// stay in the step, and shares the job tracker and the substitution memo,
+// so every copy agrees on which jobs finished and on what a `$(...)`
+// produced. A task name resolves in the skill's own pipeline first, then in
+// every loaded pipeline; a leading colon skips the skill.
 type ExecutionContext struct {
 	Context context.Context
 
@@ -95,14 +102,12 @@ func (e *ExecutionContext) SkillResolver() *TaskResolver {
 	return NewSkillResolver(e.Pipeline)
 }
 
-// Resolve resolves a task name using skill-local scope first, then global.
-// If the task has a ":" prefix, it resolves in global scope only (strict).
+// Resolve returns the task a name resolves to, in the skill first, then globally.
 func (e *ExecutionContext) Resolve(taskName string) (*model.ResolvedTask, error) {
 	return e.SkillResolver().ResolveWithFallback(taskName, e.Resolver())
 }
 
-// Copy copies everything except Context. It clones Variables.
-// The copy shares jobTracker (no copy) to keep dependency tracking consistent.
+// Copy returns a copy one level deeper, without Context.
 func (e *ExecutionContext) Copy() *ExecutionContext {
 	var vars model.VariableStorage
 	if e.Variables != nil {
@@ -167,8 +172,7 @@ func (e *ExecutionContext) EmitProgress(ev JobProgressEvent) {
 	}
 }
 
-// NextStepIndex returns the next sequential step index for this job execution.
-// This ensures each step/iteration gets a unique number.
+// NextStepIndex returns the next step index of the job, unique to each step and iteration.
 func (e *ExecutionContext) NextStepIndex() int {
 	e.stepSeqMu.Lock()
 	defer e.stepSeqMu.Unlock()

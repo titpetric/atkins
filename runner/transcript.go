@@ -23,12 +23,12 @@ func (p *Pipeline) writeTranscript(root *treeview.Node) {
 	_, _ = fmt.Fprint(p.opts.Transcript, treeview.NewRenderer().Render(root))
 }
 
-// finishEventLog closes the run's log: it writes the file --log asked
-// for and hands the same document to the recorder.
+// finishEventLog closes the run's log: it writes the --log file and
+// passes the same document to the recorder.
 //
 // Neither failure reaches the caller. The run has already happened and
-// its exit code is already decided; a log that could not be written is
-// not a reason to report a passing pipeline as failed.
+// its exit code is already decided; a log write that fails is no reason
+// to report a passing pipeline as failed.
 func (p *Pipeline) finishEventLog(ctx context.Context, logger *eventlog.Logger, root *treeview.Node, runErr error) {
 	if logger == nil {
 		return

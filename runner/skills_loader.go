@@ -9,9 +9,16 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// SkillsLoader discovers and loads skill pipelines from .atkins/skills/ directories.
-// It checks `when:` conditions to determine which skills apply and sets
-// the appropriate working directory for each skill based on the rules.
+// SkillsLoader loads the skill pipelines of .atkins/skills/ directories,
+// in priority order: a skill shadows one of the same ID from a later
+// directory, so a project skill wins over a global one. A skill runs in the
+// folder of the file its when: block matched, or without one, in the folder
+// holding its .atkins/. A skill whose when: block does not match is inactive
+// and shadows nothing.
+//
+// Load returns the active skills, the ones a run uses. Scan returns every
+// skill for `atkins --help`, and LoadAll adds the inactive skills of an ID
+// no active skill carries, for `atkins -l --json --all`.
 type SkillsLoader struct {
 	// SkillsDirs are the directories to search for skill files, in priority order.
 	// First directory takes precedence for skills with the same ID.
@@ -30,9 +37,7 @@ type SkillsLoader struct {
 	Owners map[string]string
 }
 
-// NewSkillsLoader creates a loader for the given workspace.
-// workspaceDir is the folder containing .atkins/ (used as Dir for skills without when:).
-// startDir is where to start searching for when: files (typically user's cwd).
+// NewSkillsLoader returns a loader for workspaceDir/.atkins/skills, matching when: blocks from startDir.
 func NewSkillsLoader(workspaceDir, startDir string) *SkillsLoader {
 	return &SkillsLoader{
 		SkillsDirs:   []string{filepath.Join(workspaceDir, ".atkins", "skills")},
@@ -41,14 +46,12 @@ func NewSkillsLoader(workspaceDir, startDir string) *SkillsLoader {
 	}
 }
 
-// AddSkillsDir adds another skills directory to search.
-// Directories added later have lower precedence.
+// AddSkillsDir adds a skills directory below the ones already there.
 func (l *SkillsLoader) AddSkillsDir(dir string) {
 	l.SkillsDirs = append(l.SkillsDirs, dir)
 }
 
-// AddWorkspace adds dir/.atkins/skills to search, at lower precedence,
-// and runs its skills without when: in dir.
+// AddWorkspace adds dir/.atkins/skills, whose skills without when: run in dir.
 func (l *SkillsLoader) AddWorkspace(dir string) {
 	skillsDir := filepath.Join(dir, ".atkins", "skills")
 	if l.Owners == nil {
@@ -58,10 +61,7 @@ func (l *SkillsLoader) AddWorkspace(dir string) {
 	l.AddSkillsDir(skillsDir)
 }
 
-// AddParentWorkspaces adds the .atkins/skills of every folder above
-// WorkspaceDir, nearest first, so a project cloned inside a workspace
-// checkout sees the workspace's skills. See ParentWorkspaces for where
-// the walk stops.
+// AddParentWorkspaces adds the workspaces ParentWorkspaces finds above WorkspaceDir.
 func (l *SkillsLoader) AddParentWorkspaces() {
 	home, _ := os.UserHomeDir()
 	for _, dir := range ParentWorkspaces(l.WorkspaceDir, home) {
@@ -69,13 +69,8 @@ func (l *SkillsLoader) AddParentWorkspaces() {
 	}
 }
 
-// ParentWorkspaces returns the folders above dir holding .atkins/skills,
-// nearest first.
-//
-// Inside home the walk stops below home: $HOME/.atkins/skills loads on
-// its own as the global skills, and the folders above home are not the
-// user's to configure. Outside home the walk goes on to the filesystem
-// root, the same as DiscoverConfig.
+// ParentWorkspaces returns the folders above dir holding .atkins/skills, nearest first,
+// stopping below home when dir is inside it.
 func ParentWorkspaces(dir, home string) []string {
 	dir = filepath.Clean(dir)
 	if home != "" {
@@ -99,12 +94,8 @@ func ParentWorkspaces(dir, home string) []string {
 	}
 }
 
-// Load discovers and returns all enabled skill pipelines.
-//
-// A skill from an earlier directory shadows one of the same ID found
-// later, so a project skill wins over the global one it shares a name
-// with. A skill whose when: block does not match contributes nothing and
-// does not shadow anything.
+// Load returns the error of a skill that does not load,
+// or the pipelines of the active skills, one per ID.
 func (l *SkillsLoader) Load() ([]*model.Pipeline, error) {
 	skills, err := l.Scan()
 	if err != nil {
@@ -130,13 +121,8 @@ func activePipelines(skills []*Skill) []*model.Pipeline {
 	return pipelines
 }
 
-// LoadAll returns the skill pipelines Load returns, followed by the
-// skills whose when: block does not match, marked Inactive.
-//
-// An inactive skill shadows nothing: it appears only for an ID no
-// active skill carries, once, from the highest-priority directory.
-// `atkins -l --json --all` lists them so a caller sees every skill
-// installed for a folder; a run never uses LoadAll.
+// LoadAll returns the error of a skill that does not load,
+// or the pipelines Load returns followed by the inactive skills, marked Inactive.
 func (l *SkillsLoader) LoadAll() ([]*model.Pipeline, error) {
 	skills, err := l.Scan()
 	if err != nil {
@@ -159,10 +145,7 @@ func inactivePipelines(skills []*Skill) []*model.Pipeline {
 	return pipelines
 }
 
-// MergeSkills appends the skill pipelines in more to pipelines, skipping
-// an ID pipelines already carries. An active pipeline from more takes
-// the place of an inactive one with the same ID, so a skill that applies
-// wins over one that does not, whatever directory each comes from.
+// MergeSkills returns pipelines with the new IDs of more appended, an active one replacing an inactive one.
 func MergeSkills(pipelines, more []*model.Pipeline) []*model.Pipeline {
 	index := make(map[string]int)
 	for i, p := range pipelines {
@@ -186,13 +169,9 @@ func MergeSkills(pipelines, more []*model.Pipeline) []*model.Pipeline {
 	return pipelines
 }
 
-// Scan returns every skill file in the loader's directories, in
-// directory order, whether its when: block matches or not.
-//
-// Load drops the skills that do not apply here; Scan keeps them so
-// `atkins --help` can list every installed skill, beyond the ones the
-// current directory activates. Two directories carrying the same skill
-// ID both appear, the higher-priority one first.
+// Scan returns every skill in directory order, active or not, a shadowed one included,
+// or the error of a directory that does not read
+// or a skill that does not load.
 func (l *SkillsLoader) Scan() ([]*Skill, error) {
 	var skills []*Skill
 

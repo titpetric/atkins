@@ -65,9 +65,9 @@ type OutputItem struct {
 	// Env are the dotenv files the job reads on top of the pipeline's.
 	Env []string `json:"env,omitempty" yaml:"env,omitempty"`
 
-	// Hidden reports a job with show: false, which the file asks not to
-	// be offered. It is listed so a caller knows the job exists and
-	// what it is; whether to offer it is the caller's.
+	// Hidden reports a job with show: false, a job the file keeps out of
+	// menus. The listing carries it, so a caller knows the job exists and
+	// what it does, and decides for itself whether to show it.
 	Hidden bool `json:"hidden,omitempty" yaml:"hidden,omitempty"`
 
 	// Active is false for a job of an inactive skill, which only a
@@ -103,7 +103,7 @@ type OutputSection struct {
 
 	Desc string `json:"desc" yaml:"desc"`
 
-	// Help is what the pipeline says it is for, its help: block.
+	// Help is the pipeline's help: block, the purpose it states.
 	Help string `json:"help,omitempty" yaml:"help,omitempty"`
 
 	// Include are the files the pipeline reads into its variables, and
@@ -192,9 +192,7 @@ func ListPipelinesYAML(pipelines []*model.Pipeline, opts ...OutputOptions) error
 	return PrintYAML(buildListOutput(pipelines, opts...))
 }
 
-// ActivePipelines returns the pipelines a run sees. It drops the
-// inactive skills, and returns a copy without the inactive jobs of a
-// pipeline that has some.
+// ActivePipelines returns the pipelines a run sees: no inactive skills, no inactive jobs.
 func ActivePipelines(pipelines []*model.Pipeline) []*model.Pipeline {
 	result := make([]*model.Pipeline, 0, len(pipelines))
 	for _, p := range pipelines {

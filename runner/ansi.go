@@ -13,15 +13,12 @@ var csiPattern = regexp.MustCompile(`\x1b\[[?>]?[0-9;]*[A-Za-z]`)
 // treeview/display uses this sequence to redraw the tree.
 var cursorUpClearPattern = regexp.MustCompile(`\x1b\[(\d+)A\x1b\[J`)
 
-// Sanitize processes raw terminal output and returns clean lines.
-// It handles:
-// - Cursor up + clear sequences (\033[nA\033[J) used by treeview
-// - Carriage returns (\r) by taking content after the last \r
-// - CRLF normalization
-// - Preserves ANSI color sequences in output
-//
-// Returns sanitized lines with colors preserved.
+// Sanitize returns nil for empty input.
+// Otherwise it returns the lines a terminal shows, ANSI colours kept.
 func Sanitize(in string) ([]string, error) {
+	// The input is raw terminal output: CRLF line ends, a carriage return
+	// that overwrites its line, and the cursor up + clear sequences
+	// (\033[nA\033[J) treeview redraws with.
 	if in == "" {
 		return nil, nil
 	}

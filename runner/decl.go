@@ -9,11 +9,9 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// ProcessDecl processes a Decl and returns a map of variables.
-// It handles:
-// - Manual vars with interpolation ($(...), ${{ ... }})
-// - Include files (.yml format)
-// Vars take precedence over included files.
+// ProcessDecl returns an error for an include file that does not load,
+// an error for a var that does not interpolate,
+// and otherwise the include files' values with the interpolated vars over them.
 func ProcessDecl(ctx *ExecutionContext, decl *model.Decl) (map[string]any, error) {
 	result := make(map[string]any)
 

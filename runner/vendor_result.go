@@ -19,8 +19,7 @@ type VendorResult struct {
 	Installed []string
 }
 
-// Pending returns the IDs a write would create or overwrite, leaving
-// out the skills already vendored unchanged.
+// Pending returns the IDs a write would create or overwrite.
 func (r *VendorResult) Pending() []string {
 	var pending []string
 	for _, skill := range r.Used {

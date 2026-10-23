@@ -16,8 +16,7 @@ import (
 // Matches ${{ variable_name }}
 var interpolationRegex = regexp.MustCompile(`\$\{\{\s*([^}]+?)\s*\}\}`)
 
-// InterpolateString replaces ${{ expression }} with values from context.
-// Supports variable interpolation, dot notation, and expr expressions with ?? and || operators.
+// InterpolateString returns s with each ${{ expression }} replaced: a variable, a dotted path, or an expr expression with ?? and ||.
 func InterpolateString(s string, ctx *ExecutionContext) (string, error) {
 	return interpolateString(s, ctx, false)
 }
@@ -76,10 +75,9 @@ func interpolateString(s string, ctx *ExecutionContext, commandStatusAsCondition
 
 // runSubstitution executes one `$(...)` and records it in the event log.
 //
-// It is called once per substitution per step, from the pass that gets
-// there first; the memo in the context answers the rest. The event log
-// therefore holds a row per command that ran, which is what the
-// statistics count.
+// The first pass over a step to reach a substitution runs it; the memo in
+// the context answers the rest. The event log holds one row per command
+// that ran, and the statistics count those rows.
 func runSubstitution(ctx *ExecutionContext, command string) substitutionResult {
 	startTime := time.Now()
 	var startOffset float64
@@ -159,9 +157,9 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 				interpolatedCmd = cmd
 			}
 
-			// A step is interpolated several times before it runs, and
-			// every pass reads this same text. The memo is what keeps the
-			// shell command inside it to one execution: a hit logs no
+			// The runner interpolates a step more than once before it
+			// runs, and every pass reads this same text. The memo is what
+			// keeps the shell command inside it to one execution: a hit logs no
 			// second event, because nothing ran to log.
 			key := substitutionKey(ctx.Dir, interpolatedCmd)
 			outcome, cached := ctx.substitutions.lookup(key)

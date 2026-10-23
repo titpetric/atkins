@@ -17,8 +17,8 @@ import (
 // prepareIterationContext creates a new execution context for a loop iteration, overlaying iteration variables
 func (e *Executor) prepareIterationContext(parentCtx *ExecutionContext, iteration model.VariableStorage) *ExecutionContext {
 	iterCtx := parentCtx.Copy()
-	// An iteration is a step execution of its own, so it asks its own
-	// substitutions rather than reading the previous iteration's.
+	// An iteration is a step execution of its own, with a memo of its own
+	// substitutions: the previous iteration's results don't carry over.
 	iterCtx.substitutions = newSubstitutionCache()
 	iteration.Walk(func(k string, v any) {
 		iterCtx.Variables.Set(k, v)
@@ -89,7 +89,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 
 	stepNode.SetSummarize(step.Summarize)
 
-	// An iteration is interpolated twice: once below to name its node
+	// The runner interpolates an iteration twice: once below to name its node
 	// before anything runs, and once again when it runs. One memo per
 	// iteration, held here, is what keeps a `$(...)` in the command to
 	// one execution across both.

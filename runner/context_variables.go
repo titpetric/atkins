@@ -59,8 +59,7 @@ func NewContextVariables(values map[string]any) *ContextVariables {
 	return cv
 }
 
-// NewContextVariablesWithResolver creates a ContextVariables with pending values
-// that resolve lazily on first access via Get().
+// NewContextVariablesWithResolver returns variables that resolve on their first Get.
 func NewContextVariablesWithResolver(pending map[string]any, resolver func(string) (string, error)) *ContextVariables {
 	cv := &ContextVariables{
 		promises: make(map[string]*VarPromise),
@@ -74,8 +73,7 @@ func NewContextVariablesWithResolver(pending map[string]any, resolver func(strin
 	return cv
 }
 
-// SetResolver updates the resolver function. Used when the resolver
-// needs a reference to the ContextVariables itself (circular setup).
+// SetResolver sets the resolver, for one that reads these same variables.
 func (v *ContextVariables) SetResolver(resolver func(string) (string, error)) {
 	v.mu.Lock()
 	defer v.mu.Unlock()

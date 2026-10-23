@@ -9,15 +9,17 @@ import (
 	"github.com/titpetric/atkins/model"
 )
 
-// Env is a map of environment variables.
+// Env is the environment a command runs with, read by NewEnv from the
+// KEY=VALUE strings os.Environ and exec.Cmd use. A later entry wins, as exec
+// treats a duplicate name, and an entry without a name drops out.
+//
+// Sanitized drops atkins' own ATKINS_ and PLATFORM_ settings, for an agent
+// that runs a job's command with the machine's environment and sets that
+// command's variables by name. Dropping whole prefixes keeps a setting added
+// later with the process that owns it.
 type Env map[string]string
 
-// NewEnv builds an Env from KEY=VALUE strings, the form os.Environ and
-// exec.Cmd use. The caller supplies the slice, so a process
-// environment, a captured one or a literal all read the same way.
-//
-// A later entry wins, matching what exec does with a duplicate name.
-// NewEnv skips entries without a name.
+// NewEnv returns the Env the KEY=VALUE entries describe.
 func NewEnv(environ []string) Env {
 	env := make(Env, len(environ))
 	for _, entry := range environ {
@@ -49,14 +51,8 @@ func (e Env) Environ() []string {
 // passwords.
 var sanitizedPrefixes = []string{"ATKINS_", "PLATFORM_"}
 
-// Sanitized returns a copy of the environment with atkins' own settings
-// removed.
-//
-// An agent passes this copy to a command that arrived with a job: the
-// command keeps PATH and the rest of the machine's environment, and the
-// agent sets the variables for it by name afterwards. Removing the
-// prefixes wholesale keeps a setting added later with the process that
-// owns it.
+// Sanitized returns nil for a nil Env,
+// otherwise a copy without atkins' own settings.
 func (e Env) Sanitized() Env {
 	if e == nil {
 		return nil

@@ -108,11 +108,10 @@ func evaluateIfExpression(ifExpr string, ctx *ExecutionContext) (bool, error) {
 	}
 }
 
-// ExpandFor expands a for loop into one context per iteration.
-// Supports patterns: "item in items" (items is a variable name),
-// "(index, item) in items", "(key, value) in items",
-// or any of the above with bash expansion: "item in $(ls ./bin/*.test)".
-// With more than one iterator, it computes the cartesian product.
+// ExpandFor returns one context per iteration of the step's for: loop,
+// nil for a step without one, and the error of an iterator that does not expand.
+// More than one iterator returns their cartesian product; see IterationContext
+// for the patterns an iterator takes.
 func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error) {
 	s := ctx.Step
 	if s.For.IsEmpty() {
