@@ -1,12 +1,14 @@
 package runner_test
 
 import (
+	"bytes"
 	"embed"
 	"errors"
 	"strings"
 	"testing"
 
 	"github.com/titpetric/atkins/internal/assert"
+	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
 )
 
@@ -257,4 +259,40 @@ func TestErrorHandling(t *testing.T) {
 			tt.checkErr(t, err)
 		})
 	}
+}
+
+func TestNewPipeline(t *testing.T) {
+	t.Parallel()
+
+	pipeline := &model.Pipeline{Name: "new", Dir: t.TempDir(), Jobs: map[string]*model.Job{
+		"greet": {Name: "greet", Steps: []*model.Step{{Run: "echo hello"}}},
+	}}
+
+	var transcript bytes.Buffer
+	var p *runner.Pipeline = runner.NewPipeline(pipeline, runner.PipelineOptions{
+		Jobs:         []string{"greet"},
+		Silent:       true,
+		AllPipelines: []*model.Pipeline{pipeline},
+		Transcript:   &transcript,
+	})
+	assert.NoError(t, p.Run(t.Context()))
+	assert.Contains(t, transcript.String(), "greet")
+}
+
+func TestPipeline_Run(t *testing.T) {
+	t.Parallel()
+
+	pipeline := &model.Pipeline{Name: "run", Dir: t.TempDir(), Jobs: map[string]*model.Job{
+		"fail": {Name: "fail", Steps: []*model.Step{{Run: "exit 3"}}},
+	}}
+
+	err := runner.NewPipeline(pipeline, runner.PipelineOptions{
+		Jobs:         []string{"fail"},
+		Silent:       true,
+		AllPipelines: []*model.Pipeline{pipeline},
+	}).Run(t.Context())
+
+	var execErr runner.ExecError
+	assert.True(t, errors.As(err, &execErr), "a failing step fails the run")
+	assert.Equal(t, 3, execErr.LastExitCode)
 }

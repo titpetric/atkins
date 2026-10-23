@@ -1,6 +1,8 @@
 package runner_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/titpetric/atkins/internal/assert"
@@ -49,4 +51,30 @@ func TestMergeSkillVariables_NilDecl(t *testing.T) {
 	err := runner.MergeSkillVariables(ctx, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "value", ctx.Variables.Get("existing"))
+}
+
+func TestProcessDecl(t *testing.T) {
+	t.Parallel()
+
+	include := filepath.Join(t.TempDir(), "vars.yml")
+	assert.NoError(t, os.WriteFile(include, []byte("name: included\nregion: eu\n"), 0o644))
+
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(map[string]any{"env": "prod"}),
+		Env:       runner.Env{},
+	}
+	vars, err := runner.ProcessDecl(ctx, &model.Decl{
+		Include: &model.IncludeDecl{Files: []string{include}},
+		Vars:    map[string]any{"name": "${{ env }}-app"},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "prod-app", vars["name"], "vars override included values")
+	assert.Equal(t, "eu", vars["region"])
+
+	_, err = runner.ProcessDecl(ctx, &model.Decl{Include: &model.IncludeDecl{Files: []string{include + ".missing"}}})
+	assert.ErrorContains(t, err, "failed to load vars file")
+
+	vars, err = runner.ProcessDecl(ctx, nil)
+	assert.NoError(t, err)
+	assert.Empty(t, vars)
 }

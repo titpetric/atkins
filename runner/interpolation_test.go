@@ -393,3 +393,40 @@ func TestInterpolationInForLoop(t *testing.T) {
 		})
 	}
 }
+
+func TestInterpolateString(t *testing.T) {
+	t.Parallel()
+
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(map[string]any{
+			"name": "atkins",
+			"app":  map[string]any{"port": 8080},
+		}),
+		Env: make(map[string]string),
+	}
+
+	got, err := runner.InterpolateString("${{ name }} on ${{ app.port }}, ${{ missing ?? 'none' }}", ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, "atkins on 8080, none", got)
+}
+
+func TestInterpolateMap(t *testing.T) {
+	t.Parallel()
+
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(map[string]any{"name": "atkins"}),
+		Env:       make(map[string]string),
+	}
+	values := map[string]any{
+		"title":  "${{ name }}",
+		"nested": map[string]any{"path": "/opt/${{ name }}"},
+		"list":   []any{"${{ name }}-a", 2},
+		"count":  3,
+	}
+
+	assert.NoError(t, runner.InterpolateMap(ctx, values))
+	assert.Equal(t, "atkins", values["title"])
+	assert.Equal(t, "/opt/atkins", values["nested"].(map[string]any)["path"])
+	assert.Equal(t, []any{"atkins-a", 2}, values["list"])
+	assert.Equal(t, 3, values["count"])
+}

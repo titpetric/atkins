@@ -377,3 +377,14 @@ func TestValidateJobRequirements(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDependencies(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, []string{}, GetDependencies(nil))
+	assert.Equal(t, []string{"build"}, GetDependencies("build"))
+	assert.Equal(t, []string{"build", "test"}, GetDependencies([]any{"build", 1, "test"}), "a non-string entry drops out")
+	assert.Equal(t, []string{"lint"}, GetDependencies([]string{"lint"}))
+	assert.Equal(t, []string{"fmt"}, GetDependencies(model.Dependencies{"fmt"}))
+	assert.Equal(t, []string{}, GetDependencies(42))
+}

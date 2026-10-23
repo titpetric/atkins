@@ -103,3 +103,18 @@ func TestApplyJobWhen(t *testing.T) {
 	assert.Equal(t, filepath.Join(root, "compose.yml"), up.Matched)
 	assert.False(t, down.Inactive)
 }
+
+func TestWhenMatch(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	file := writeWhenFile(t, root, "go.mod", "module example\n")
+	nested := filepath.Join(root, "cmd", "app")
+	assert.NoError(t, os.MkdirAll(nested, 0o755))
+
+	var match runner.WhenMatch
+	match, ok := runner.MatchWhen(&model.PipelineWhen{Files: []string{"go.mod"}}, nested)
+	assert.True(t, ok)
+	assert.Equal(t, root, match.Dir, "Dir is the folder holding the match")
+	assert.Equal(t, file, match.File)
+}

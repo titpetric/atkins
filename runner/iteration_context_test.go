@@ -376,3 +376,21 @@ func BenchmarkExpandForLoop(b *testing.B) {
 		}
 	}
 }
+
+func TestIterationContext(t *testing.T) {
+	t.Parallel()
+
+	ctx := &runner.ExecutionContext{
+		Variables: runner.NewContextVariables(map[string]any{"fruits": []any{"apple", "pear"}}),
+		Step:      &model.Step{For: model.Iterators{model.Iterator("fruit in fruits")}},
+		Env:       make(map[string]string),
+	}
+
+	var iterations []runner.IterationContext
+	iterations, err := runner.ExpandFor(ctx, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(iterations))
+	assert.Equal(t, "apple", iterations[0].Variables.Get("fruit"))
+	assert.Equal(t, "pear", iterations[1].Variables.Get("fruit"))
+	assert.Equal(t, nil, ctx.Variables.Get("fruit"), "each iteration holds its own variables")
+}

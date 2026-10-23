@@ -121,3 +121,32 @@ func TestDiscoverEnvironment_Root(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, tmpDir, env.Root)
 }
+
+func TestEnvironment(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	nested := filepath.Join(tmpDir, "cmd", "app")
+	assert.NoError(t, os.MkdirAll(nested, 0o755))
+	assert.NoError(t, os.WriteFile(filepath.Join(nested, "go.mod"), []byte("module app\n"), 0o644))
+	assert.NoError(t, os.WriteFile(filepath.Join(tmpDir, "compose.yml"), []byte("services: {}\n"), 0o644))
+
+	var env *runner.Environment
+	env, err := runner.DiscoverEnvironment(nested)
+	assert.NoError(t, err)
+	assert.Equal(t, tmpDir, env.Root, "the highest folder with a marker is the root")
+}
+
+// TestDiscoverEnvironmentFromCwd checks the wrapper finds what
+// DiscoverEnvironment finds from the working directory.
+func TestDiscoverEnvironmentFromCwd(t *testing.T) {
+	t.Parallel()
+
+	cwd, err := os.Getwd()
+	assert.NoError(t, err)
+	want, wantErr := runner.DiscoverEnvironment(cwd)
+
+	got, err := runner.DiscoverEnvironmentFromCwd()
+	assert.Equal(t, wantErr, err)
+	assert.Equal(t, want, got)
+}

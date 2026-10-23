@@ -293,3 +293,36 @@ func TestContextVariables_LoopPattern(t *testing.T) {
 		assert.Equal(t, "parent-value", parent.Get("item"))
 	})
 }
+
+// TestVarPromise covers the lazy value behind each pending variable: the
+// resolver runs on first access, once.
+func TestVarPromise(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+	vars := runner.NewContextVariablesWithResolver(map[string]any{"version": "$(git describe)"}, func(cmd string) (string, error) {
+		calls++
+		return "v1.0.0", nil
+	})
+
+	assert.False(t, vars.IsResolved("version"))
+	assert.Equal(t, "v1.0.0", vars.Get("version"))
+	assert.Equal(t, "v1.0.0", vars.Get("version"))
+	assert.Equal(t, 1, calls)
+}
+
+func TestContextVariables_IsResolved(t *testing.T) {
+	t.Parallel()
+
+	vars := runner.NewContextVariablesWithResolver(map[string]any{"lazy": "$(date)"}, func(string) (string, error) {
+		return "today", nil
+	})
+	vars.Set("set", "now")
+
+	assert.True(t, vars.IsResolved("set"), "a set value is resolved")
+	assert.False(t, vars.IsResolved("lazy"), "a pending value resolves on first access")
+	assert.False(t, vars.IsResolved("missing"))
+
+	vars.Get("lazy")
+	assert.True(t, vars.IsResolved("lazy"))
+}

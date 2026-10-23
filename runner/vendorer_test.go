@@ -397,3 +397,20 @@ func TestVendorerRunCompanion(t *testing.T) {
 		assert.Empty(t, result.Pending())
 	})
 }
+
+func TestVendorer_Install(t *testing.T) {
+	t.Parallel()
+
+	root, source := vendorFixture(t)
+	writeFile(t, filepath.Join(source, "go.yml"), goSkill)
+	writeFile(t, filepath.Join(root, "go.mod"), "module example\n")
+
+	vendorer := runner.NewVendorer(source, root)
+	result, err := vendorer.Plan()
+	assert.NoError(t, err)
+	assert.NoDirExists(t, vendorer.TargetDir, "Plan writes nothing")
+
+	assert.NoError(t, vendorer.Install(result))
+	assert.Equal(t, []string{"go"}, result.Installed)
+	assert.FileExists(t, filepath.Join(vendorer.TargetDir, "go.yml"))
+}

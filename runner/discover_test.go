@@ -156,3 +156,18 @@ func TestDiscoverConfig_DeepNesting(t *testing.T) {
 	assert.Equal(t, configPath, foundPath)
 	assert.Equal(t, tmpDir, foundDir)
 }
+
+// TestDiscoverConfigFromCwd checks the wrapper finds what DiscoverConfig
+// finds from the working directory; this checkout has an atkins.yml.
+func TestDiscoverConfigFromCwd(t *testing.T) {
+	t.Parallel()
+
+	cwd, err := os.Getwd()
+	assert.NoError(t, err)
+	wantPath, wantDir, wantErr := runner.DiscoverConfig(cwd)
+
+	path, dir, err := runner.DiscoverConfigFromCwd()
+	assert.Equal(t, wantErr, err)
+	assert.Equal(t, wantPath, path)
+	assert.Equal(t, wantDir, dir)
+}
