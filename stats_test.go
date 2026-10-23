@@ -2,86 +2,133 @@ package main
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/titpetric/atkins/internal/assert"
-	"github.com/titpetric/atkins/storage"
 )
 
-func TestWriteStatsTable(t *testing.T) {
+// sample is a report of two tools over three days, enough for every
+// part of the rendering to have something to draw.
+func sample() *StatsReport {
 	at := time.Now().Add(-3 * time.Hour)
-	stats := []storage.CommandStat{
-		{Normalized: "go test -cover", Tool: "go", Runs: 42, TotalMs: 184_000, AvgMs: 4_380, MaxMs: 9_100, Failures: 3, LastAt: &at},
-		{Normalized: "npm run build", Tool: "npm", Runs: 2, TotalMs: 900, AvgMs: 450, MaxMs: 500},
+	return &StatsReport{
+		Database: "/w/.atkins/atkins.db",
+		Days:     31,
+		From:     "2026-10-21",
+		To:       "2026-10-23",
+		Runs:     44,
+		TotalMs:  184_900,
+		Commands: []CommandReport{
+			{Command: "go test -cover", Tool: "go", Runs: 42, TotalMs: 184_000, AverageMs: 4_380, MaxMs: 9_100, Failures: 3, LastRunAt: &at},
+			{Command: "npm run build", Tool: "npm", Runs: 2, TotalMs: 900, AverageMs: 450, MaxMs: 500},
+		},
+		Tools: []ToolReport{
+			{Tool: "go", Commands: 1, Runs: 42, TotalMs: 184_000, Failures: 3},
+			{Tool: "npm", Commands: 1, Runs: 2, TotalMs: 900},
+		},
+		Usage: []UsageReport{
+			{Date: "2026-10-21", Tool: "go", Runs: 20, TotalMs: 90_000},
+			{Date: "2026-10-23", Tool: "go", Runs: 22, TotalMs: 94_000},
+			{Date: "2026-10-23", Tool: "npm", Runs: 2, TotalMs: 900},
+		},
 	}
+}
 
+func TestWriteStatsPlain(t *testing.T) {
 	var out bytes.Buffer
-	writeStats(&out, "/w/.atkins/atkins.db", stats, false)
-	table := out.String()
+	writeStats(&out, sample(), false)
+	text := out.String()
 
 	// Not a terminal, so plain markdown and no escape codes: the same
 	// command serves a terminal and a document.
-	assert.NotContains(t, table, "\x1b[")
-	assert.Contains(t, table, "| Command | Runs |")
-	assert.Contains(t, table, "go test -cover")
-	assert.Contains(t, table, "3m04s")
-	assert.Contains(t, table, "4.4s")
-	assert.Contains(t, table, "9.1s")
-	assert.Contains(t, table, "3h ago")
-	// A command that has never failed still shows a count, so the column
-	// never reads as missing data.
-	assert.Contains(t, table, "900ms")
-	assert.Contains(t, table, "| - |")
+	assert.NotContains(t, text, "\x1b[")
+	assert.Contains(t, text, "/w/.atkins/atkins.db")
+	assert.Contains(t, text, "31 days, 2026-10-21 to 2026-10-23, 3m04s across 44 runs")
+
+	// The chart of the days, the ranking of the tools, then the table.
+	assert.Contains(t, text, "█")
+	assert.Contains(t, text, "2026-10-21")
+	assert.Contains(t, text, "| Command | Runs |")
+	assert.Contains(t, text, "go test -cover")
+	assert.Contains(t, text, "3h ago")
+	assert.Contains(t, text, "| - |")
+
+	// The tool ranking carries the run counts beside the bars.
+	assert.Contains(t, text, "42 runs")
+	assert.Contains(t, text, "2 runs")
 }
 
 func TestWriteStatsOnATerminal(t *testing.T) {
-	at := time.Now().Add(-3 * time.Hour)
-	stats := []storage.CommandStat{
-		{Normalized: "go test -cover", Tool: "go", Runs: 42, TotalMs: 184_000, AvgMs: 4_380, MaxMs: 9_100, Failures: 3, LastAt: &at},
-	}
-
 	var out bytes.Buffer
-	writeStats(&out, "/w/.atkins/atkins.db", stats, true)
-	table := out.String()
+	writeStats(&out, sample(), true)
+	text := out.String()
 
 	// A terminal gets the bordered, coloured grid the help document
 	// draws its tables with.
-	assert.Contains(t, table, "\x1b[")
-	assert.Contains(t, table, "┌")
-	assert.Contains(t, table, "go test -cover")
-	assert.NotContains(t, table, "| Command | Runs |")
+	assert.Contains(t, text, "\x1b[")
+	assert.Contains(t, text, "┌")
+	assert.Contains(t, text, "go test -cover")
+	assert.NotContains(t, text, "| Command | Runs |")
 }
 
 func TestWriteStatsAsJSONAndYAML(t *testing.T) {
-	at := time.Date(2026, 10, 23, 9, 0, 0, 0, time.UTC)
-	stats := []storage.CommandStat{
-		{Normalized: "go test -cover", Tool: "go", Runs: 42, TotalMs: 184_000, AvgMs: 4_380, MaxMs: 9_100, Failures: 3, LastAt: &at},
-	}
+	report := sample()
 
-	// The machine-readable output carries milliseconds, not words: a
-	// reader charting them wants a number.
+	// The machine-readable output carries milliseconds, not words, and
+	// the per-day series a chart of tool use over time is drawn from.
 	var asJSON bytes.Buffer
-	assert.NoError(t, writeJSON(&asJSON, stats))
+	assert.NoError(t, writeJSON(&asJSON, report))
 	assert.Contains(t, asJSON.String(), `"command": "go test -cover"`)
 	assert.Contains(t, asJSON.String(), `"total_ms": 184000`)
-	assert.Contains(t, asJSON.String(), `"last_run_at": "2026-10-23T09:00:00Z"`)
+	assert.Contains(t, asJSON.String(), `"days": 31`)
+	assert.Contains(t, asJSON.String(), `"date": "2026-10-23"`)
+	assert.Contains(t, asJSON.String(), `"tool": "npm"`)
 	assert.NotContains(t, asJSON.String(), "3m04s")
 
 	var asYAML bytes.Buffer
-	assert.NoError(t, writeYAML(&asYAML, stats))
+	assert.NoError(t, writeYAML(&asYAML, report))
 	assert.Contains(t, asYAML.String(), "command: go test -cover")
 	assert.Contains(t, asYAML.String(), "total_ms: 184000")
+	assert.Contains(t, asYAML.String(), "date: \"2026-10-21\"")
 }
 
 func TestWriteStatsOnNothingRecorded(t *testing.T) {
 	var out bytes.Buffer
-	writeStats(&out, "/w/.atkins/atkins.db", nil, true)
+	writeStats(&out, &StatsReport{Database: "/w/.atkins/atkins.db"}, true)
 
 	// The path is in the message: the usual cause of an empty report is
 	// a database somewhere other than where the reader expected.
 	assert.Contains(t, out.String(), "/w/.atkins/atkins.db")
 	assert.Contains(t, out.String(), "nothing recorded")
+}
+
+// A day nothing ran is a bar of zero and not a missing bar, so a run of
+// days reads as time.
+func TestDailyBarsCoverEveryDay(t *testing.T) {
+	bars := dailyBars(sample())
+
+	assert.Len(t, bars, 3)
+	assert.Equal(t, "2026-10-21", bars[0].Label)
+	assert.Equal(t, int64(90_000), bars[0].Value)
+	assert.Equal(t, "2026-10-22", bars[1].Label)
+	assert.Equal(t, int64(0), bars[1].Value)
+	// Both tools of a day fold into its one bar.
+	assert.Equal(t, int64(94_900), bars[2].Value)
+}
+
+func TestDailyBarsWithoutADate(t *testing.T) {
+	assert.Nil(t, dailyBars(&StatsReport{From: "not-a-date", To: "2026-10-23"}))
+	assert.Nil(t, dailyBars(&StatsReport{From: "2026-10-21", To: "not-a-date"}))
+}
+
+// One tool is a ranking of one, which says nothing a table does not.
+func TestToolChartNeedsTwo(t *testing.T) {
+	report := sample()
+	report.Tools = report.Tools[:1]
+
+	assert.Equal(t, "", toolChart(report, false))
 }
 
 func TestDuration(t *testing.T) {
@@ -116,5 +163,16 @@ func TestAgo(t *testing.T) {
 	} {
 		at := time.Now().Add(-since)
 		assert.Equal(t, want, ago(&at))
+	}
+}
+
+// The plain report is a document: every line of it is readable text
+// with no control characters in it.
+func TestPlainReportIsPlain(t *testing.T) {
+	var out bytes.Buffer
+	writeStats(&out, sample(), false)
+
+	for _, line := range strings.Split(out.String(), "\n") {
+		assert.NotContains(t, line, "\x1b")
 	}
 }
