@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"math"
 	"strings"
 	"time"
 
@@ -255,9 +256,13 @@ func seconds(value float64) time.Duration {
 
 // milliseconds turns a duration in float seconds into whole
 // milliseconds, which is the resolution the columns keep.
+//
+// Rounded, not truncated: truncating loses half a millisecond on every
+// row, and a report that sums thousands of them is then short by
+// seconds it cannot account for.
 func milliseconds(value float64) int64 {
 	if value <= 0 {
 		return 0
 	}
-	return int64(value * 1000)
+	return int64(math.Round(value * 1000))
 }

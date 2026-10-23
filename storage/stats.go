@@ -77,7 +77,10 @@ func (s *Storage) Stats(ctx context.Context, req StatsRequest) ([]CommandStat, e
 			tool,
 			COUNT(*) AS runs,
 			SUM(duration_ms) AS total_ms,
-			CAST(AVG(duration_ms) AS INTEGER) AS avg_ms,
+			-- Rounded, not truncated: a command averaging under a
+			-- millisecond has still taken time, and a column of zeroes
+			-- reads as a measurement that failed.
+			CAST(AVG(duration_ms) + 0.5 AS INTEGER) AS avg_ms,
 			MAX(duration_ms) AS max_ms,
 			SUM(CASE WHEN exit_code != 0 THEN 1 ELSE 0 END) AS failures,
 			MAX(started_at) AS last_at
@@ -123,6 +126,54 @@ func parseStamp(value string) *time.Time {
 	}
 
 	return nil
+}
+
+// ToolStat is one tool and what it has cost, across every form of it.
+//
+// It answers the question a per-command report cannot: `go` is one tool
+// whether it builds, tests or vets, and the share of a week it takes is
+// the share of a week spent on Go.
+type ToolStat struct {
+	// Tool is the first word of the normalized command.
+	Tool string `db:"tool"`
+
+	// Commands is how many distinct normalized forms of it ran.
+	Commands int64 `db:"commands"`
+
+	// Runs is how many times any of them ran.
+	Runs int64 `db:"runs"`
+
+	// TotalMs is the time they have taken altogether.
+	TotalMs int64 `db:"total_ms"`
+
+	// Failures is how many of the runs exited non-zero.
+	Failures int64 `db:"failures"`
+}
+
+// Tools reports the tools by the time they have taken altogether, the
+// most expensive first.
+func (s *Storage) Tools(ctx context.Context, req StatsRequest) ([]ToolStat, error) {
+	where, args := commandWhere(req.Since, req.Until, req.Tool, req.Dir)
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	query := `SELECT
+			tool,
+			COUNT(DISTINCT normalized) AS commands,
+			COUNT(*) AS runs,
+			SUM(duration_ms) AS total_ms,
+			SUM(CASE WHEN exit_code != 0 THEN 1 ELSE 0 END) AS failures
+		FROM command` + where + `
+		GROUP BY tool
+		ORDER BY total_ms DESC, runs DESC
+		LIMIT ?`
+
+	client := s.client()
+	defer client.Close()
+
+	return client.Select[ToolStat](ctx, query, append(args, limit)...)
 }
 
 // Bucket is how wide a usage bucket is.

@@ -80,6 +80,22 @@ func TestStatsRanksByTotalTime(t *testing.T) {
 	assert.NotNil(t, stats[1].LastAt)
 	assert.Equal(t, "go", stats[1].Tool)
 
+	// Durations round rather than truncate, at both ends. 0.6ms and
+	// 1.4ms each store as 1ms, 0.4ms as none, and the three average to
+	// 1ms rather than to a column of zeroes.
+	_, err = store.Record(ctx, storage.RecordRequest{Log: commandRun(base, []commandFixture{
+		{command: "true", seconds: 0.0006},
+		{command: "true", seconds: 0.0014},
+		{command: "true", seconds: 0.0004},
+	})})
+	assert.NoError(t, err)
+
+	quick, err := store.Stats(ctx, storage.StatsRequest{Tool: "true"})
+	assert.NoError(t, err)
+	assert.Equal(t, int64(3), quick[0].Runs)
+	assert.Equal(t, int64(2), quick[0].TotalMs)
+	assert.Equal(t, int64(1), quick[0].AvgMs)
+
 	// `go test -v` is its own row: a different flag set is a different
 	// thing to measure.
 	assert.Equal(t, "go test -v", stats[2].Normalized)
@@ -121,6 +137,45 @@ func TestStatsNarrows(t *testing.T) {
 	window, err := store.Stats(ctx, storage.StatsRequest{Since: base.Add(-time.Hour), Until: base.Add(time.Hour)})
 	assert.NoError(t, err)
 	assert.Len(t, window, 3)
+}
+
+func TestToolsRollUpTheirCommands(t *testing.T) {
+	ctx := context.Background()
+	store := newStorage(t)
+
+	// `go` is one tool whether it builds, tests or vets, and the share
+	// of a week it takes is what a per-command table cannot show.
+	_, err := store.Record(ctx, storage.RecordRequest{Log: commandRun(base, []commandFixture{
+		{command: "go test ./...", seconds: 4},
+		{command: "go test -v ./...", seconds: 4, exit: 1},
+		{command: "go build -o bin/x .", seconds: 9},
+		{command: "npm run build", seconds: 7},
+	})})
+	assert.NoError(t, err)
+
+	tools, err := store.Tools(ctx, storage.StatsRequest{})
+	assert.NoError(t, err)
+	assert.Len(t, tools, 2)
+
+	assert.Equal(t, "go", tools[0].Tool)
+	assert.Equal(t, int64(3), tools[0].Commands)
+	assert.Equal(t, int64(3), tools[0].Runs)
+	assert.Equal(t, int64(17000), tools[0].TotalMs)
+	assert.Equal(t, int64(1), tools[0].Failures)
+
+	assert.Equal(t, "npm", tools[1].Tool)
+	assert.Equal(t, int64(1), tools[1].Commands)
+	assert.Equal(t, int64(7000), tools[1].TotalMs)
+
+	byLimit, err := store.Tools(ctx, storage.StatsRequest{Limit: 1})
+	assert.NoError(t, err)
+	assert.Len(t, byLimit, 1)
+}
+
+func TestToolsOnAnEmptyDatabase(t *testing.T) {
+	tools, err := newStorage(t).Tools(context.Background(), storage.StatsRequest{})
+	assert.NoError(t, err)
+	assert.Len(t, tools, 0)
 }
 
 func TestStatsOnAnEmptyDatabase(t *testing.T) {
