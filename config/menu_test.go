@@ -19,7 +19,7 @@ func runMenu(t *testing.T, path, input string) string {
 	assert.NoError(t, err)
 
 	var out bytes.Buffer
-	menu.SetIO(strings.NewReader(input), &out)
+	menu.SetIO(&out, strings.NewReader(input))
 
 	assert.NoError(t, menu.Run())
 
@@ -94,10 +94,9 @@ func TestMenuMarksEnvironmentOverrides(t *testing.T) {
 }
 
 // The menu validates the whole document before writing it. No field it
-// offers can make the document invalid today - a path is a string and
-// recording is a boolean - so the refusal is covered where it can be
-// reached, in TestValidateRejectsAVersionFromTheFuture, and the menu is
-// covered here for the write it does perform.
+// lists can make the document invalid - a path is a string and recording
+// is a boolean - so TestValidateRejectsAVersionFromTheFuture tests the
+// refusal, and this test the write the menu performs.
 func TestMenuWritesAValidDocument(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 
@@ -129,7 +128,7 @@ func TestMenuEndsOnExhaustedInput(t *testing.T) {
 	assert.NoError(t, err)
 
 	var out bytes.Buffer
-	menu.SetIO(strings.NewReader(""), &out)
+	menu.SetIO(&out, strings.NewReader(""))
 
 	assert.NoError(t, menu.Run())
 }

@@ -41,11 +41,10 @@ func NewMenu(path string) (*Menu, error) {
 	}, nil
 }
 
-// SetIO redirects the menu, so something other than a terminal can
-// drive it.
-func (m *Menu) SetIO(in io.Reader, out io.Writer) {
-	m.in = bufio.NewReader(in)
-	m.out = out
+// SetIO points the menu at w and r in place of the terminal.
+func (m *Menu) SetIO(w io.Writer, r io.Reader) {
+	m.in = bufio.NewReader(r)
+	m.out = w
 }
 
 // Run drives the menu until the user quits.

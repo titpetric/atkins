@@ -7,37 +7,7 @@ import (
 	"time"
 )
 
-// ApplyEnvironment overlays ATKINS_* variables onto the configuration.
-//
-// `env` struct tags drive the overlay, so adding a field to the
-// document adds an override for free. The overlay applies only variables
-// that hold a non-empty value: an empty variable means "not configured
-// here", so a container can set one field without wiping the rest of
-// the document.
-//
-// The overlay skips a value that doesn't parse, and that is never fatal.
-// The alternative is a container that fails to start because of a typo in
-// an optional tuning knob, and the validation pass still catches anything
-// that would leave the configuration unusable.
-func (c *Config) ApplyEnvironment(environ []string) {
-	values := make(map[string]string, len(environ))
-	for _, entry := range environ {
-		name, value, found := strings.Cut(entry, "=")
-		if found && value != "" {
-			values[name] = value
-		}
-	}
-
-	if len(values) == 0 {
-		return
-	}
-
-	applyEnvironment(reflect.ValueOf(c).Elem(), values)
-}
-
-// EnvironmentNames returns the variables that can override a field,
-// keyed by the field path they apply to. The configuration menu uses it
-// to warn that an edit will be overridden at runtime.
+// EnvironmentNames returns the override variable of each field, keyed by field path.
 func EnvironmentNames() map[string]string {
 	names := map[string]string{}
 	collectEnvironment(reflect.TypeOf(Config{}), "", names)

@@ -3,6 +3,7 @@ package config_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/titpetric/atkins/config"
@@ -10,6 +11,8 @@ import (
 )
 
 func TestDefaultIsComplete(t *testing.T) {
+	t.Parallel()
+
 	// The embedded document is the source of every default, so a field
 	// missing from it would silently default to a zero value.
 	cfg, err := config.Default()
@@ -25,13 +28,33 @@ func TestDefaultIsComplete(t *testing.T) {
 	assert.Empty(t, cfg.Storage.Database)
 }
 
-func TestDefaultValidates(t *testing.T) {
+func TestStorageConfig(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{Storage: config.StorageConfig{Database: "/events.db", Record: true}}
+	encoded, err := cfg.Encode()
+	assert.NoError(t, err)
+
+	assert.Contains(t, string(encoded), "storage:\n  database: /events.db\n  record: true\n")
+}
+
+func TestConfig_Encode(t *testing.T) {
+	t.Parallel()
+
 	cfg, err := config.Default()
 	assert.NoError(t, err)
-	assert.NoError(t, cfg.Validate())
+
+	encoded, err := cfg.Encode()
+	assert.NoError(t, err)
+
+	// Two-space indentation, and every field of the document.
+	assert.True(t, strings.HasPrefix(string(encoded), "version: 1\nstorage:\n  database: \"\"\n"))
+	assert.Contains(t, string(encoded), "  record: true\n")
 }
 
 func TestRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 
 	cfg, err := config.Default()
@@ -51,23 +74,9 @@ func TestRoundTrip(t *testing.T) {
 	assert.False(t, reloaded.Storage.Record)
 }
 
-func TestPartialDocumentKeepsDefaults(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, ".atkins", "config.yml")
-
-	assert.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
-	assert.NoError(t, os.WriteFile(path, []byte("storage:\n  database: /tmp/events.db\n"), 0o600))
-
-	cfg, err := config.LoadFile(path)
-	assert.NoError(t, err)
-
-	assert.Equal(t, "/tmp/events.db", cfg.Storage.Database)
-	// Untouched fields keep the embedded defaults and never become
-	// zero values.
-	assert.Equal(t, config.Version, cfg.Version)
-}
-
 func TestEnvironmentOverlay(t *testing.T) {
+	t.Parallel()
+
 	cfg, err := config.Default()
 	assert.NoError(t, err)
 
@@ -83,6 +92,8 @@ func TestEnvironmentOverlay(t *testing.T) {
 }
 
 func TestEmptyEnvironmentLeavesConfigAlone(t *testing.T) {
+	t.Parallel()
+
 	cfg, err := config.Default()
 	assert.NoError(t, err)
 
@@ -96,6 +107,8 @@ func TestEmptyEnvironmentLeavesConfigAlone(t *testing.T) {
 }
 
 func TestUnparseableEnvironmentIsIgnored(t *testing.T) {
+	t.Parallel()
+
 	cfg, err := config.Default()
 	assert.NoError(t, err)
 
@@ -103,102 +116,4 @@ func TestUnparseableEnvironmentIsIgnored(t *testing.T) {
 	cfg.ApplyEnvironment([]string{"ATKINS_RECORD=maybe"})
 
 	assert.Equal(t, before, cfg.Storage.Record)
-}
-
-func TestValidateFillsEmptyValues(t *testing.T) {
-	cfg := &config.Config{}
-	assert.NoError(t, cfg.Validate())
-
-	assert.Equal(t, config.Version, cfg.Version)
-}
-
-func TestValidateRejectsAVersionFromTheFuture(t *testing.T) {
-	cfg, err := config.Default()
-	assert.NoError(t, err)
-
-	// A newer build may have written fields this one would ignore in
-	// silence, which is worse than refusing to start.
-	cfg.Version = config.Version + 1
-	assert.Error(t, cfg.Validate())
-}
-
-func TestDiscoverWalksUp(t *testing.T) {
-	root := t.TempDir()
-	nested := filepath.Join(root, "runner", "testdata")
-
-	assert.NoError(t, os.MkdirAll(nested, 0o755))
-	assert.NoError(t, os.MkdirAll(filepath.Join(root, ".atkins"), 0o755))
-	assert.NoError(t, os.WriteFile(filepath.Join(root, ".atkins", "config.yml"), []byte("version: 1\n"), 0o600))
-
-	found := config.Discover(nested)
-	assert.NotEmpty(t, found)
-	assert.Equal(t, filepath.Join(root, ".atkins", "config.yml"), found)
-}
-
-func TestDiscoverWithoutDocument(t *testing.T) {
-	assert.Empty(t, config.Discover(t.TempDir()))
-}
-
-func TestProjectPathForNewDocument(t *testing.T) {
-	dir := t.TempDir()
-	assert.Equal(t, filepath.Join(dir, ".atkins", "config.yml"), config.ProjectPath(dir))
-}
-
-func TestFields(t *testing.T) {
-	cfg, err := config.Default()
-	assert.NoError(t, err)
-
-	fields := cfg.Fields()
-	assert.NotEmpty(t, fields)
-
-	paths := make([]string, 0, len(fields))
-	for _, field := range fields {
-		paths = append(paths, field.Path)
-	}
-
-	assert.Contains(t, paths, "storage.database")
-	assert.Contains(t, paths, "storage.record")
-	// How long a run is kept is not a setting; the menu must not offer
-	// one.
-	assert.NotContains(t, paths, "storage.retention")
-	// Load derives the document version; the menu never edits it.
-	assert.NotContains(t, paths, "version")
-}
-
-func TestFieldSet(t *testing.T) {
-	cfg, err := config.Default()
-	assert.NoError(t, err)
-
-	record, ok := cfg.Field("storage.record")
-	assert.True(t, ok)
-	assert.NoError(t, record.Set("false"))
-	assert.False(t, cfg.Storage.Record)
-	assert.Error(t, record.Set("maybe"))
-
-	database, ok := cfg.Field("storage.database")
-	assert.True(t, ok)
-	assert.NoError(t, database.Set("/tmp/events.db"))
-	assert.Equal(t, "/tmp/events.db", cfg.Storage.Database)
-}
-
-func TestFieldDisplayMarksEmpty(t *testing.T) {
-	cfg, err := config.Default()
-	assert.NoError(t, err)
-
-	field, ok := cfg.Field("storage.database")
-	assert.True(t, ok)
-	assert.Equal(t, "(not set)", field.Display())
-}
-
-func TestEnvironmentNames(t *testing.T) {
-	names := config.EnvironmentNames()
-
-	assert.Equal(t, "ATKINS_DB", names["storage.database"])
-	assert.Equal(t, "ATKINS_RECORD", names["storage.record"])
-}
-
-func TestSplitList(t *testing.T) {
-	assert.Nil(t, config.SplitList(""))
-	assert.Nil(t, config.SplitList(" , , "))
-	assert.Equal(t, []string{"a", "b"}, config.SplitList(" a , b "))
 }

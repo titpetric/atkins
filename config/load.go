@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -16,24 +15,8 @@ const FileName = "config.yml"
 // Dir is the directory holding project and user configuration.
 const Dir = ".atkins"
 
-// Default returns the embedded configuration.
-//
-// Every other layer applies on top of this base, and it supplies the
-// value for any field left empty.
-func Default() (*Config, error) {
-	config := &Config{}
-	if err := yaml.Unmarshal(RuntimeDefaultConfig, config); err != nil {
-		return nil, fmt.Errorf("parse embedded config: %w", err)
-	}
-	return config, nil
-}
-
-// Load reads the effective configuration for a directory.
-//
-// The layers, each overriding the last: the embedded default, the user
-// document at $HOME/.atkins/config.yml, the project document found by
-// walking up from dir, and finally the environment overlay. Validation
-// of the result fills anything still empty.
+// Load returns the merged and validated configuration for a directory,
+// or the error of the default, a document or validation.
 func Load(dir string) (*Config, error) {
 	config, err := Default()
 	if err != nil {
@@ -55,8 +38,7 @@ func Load(dir string) (*Config, error) {
 	return config, nil
 }
 
-// Paths returns the configuration documents that apply to dir, in the
-// order Load merges them.
+// Paths returns the documents that apply to dir, in the order Load merges them.
 func Paths(dir string) []string {
 	var paths []string
 
@@ -150,41 +132,4 @@ func LoadFile(path string) (*Config, error) {
 		return nil, err
 	}
 	return config, nil
-}
-
-// Save writes the configuration, creating the .atkins directory.
-func (c *Config) Save(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
-	}
-
-	encoded, err := c.Encode()
-	if err != nil {
-		return err
-	}
-
-	// The document can carry a signing key and an agent token, so Save
-	// writes it for its owner only.
-	if err := os.WriteFile(path, encoded, 0o600); err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-
-	return nil
-}
-
-// Encode renders the configuration as YAML.
-func (c *Config) Encode() ([]byte, error) {
-	var buffer bytes.Buffer
-
-	encoder := yaml.NewEncoder(&buffer)
-	encoder.SetIndent(2)
-
-	if err := encoder.Encode(c); err != nil {
-		return nil, fmt.Errorf("encode config: %w", err)
-	}
-	if err := encoder.Close(); err != nil {
-		return nil, fmt.Errorf("encode config: %w", err)
-	}
-
-	return buffer.Bytes(), nil
 }
