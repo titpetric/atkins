@@ -274,6 +274,25 @@ type OutputItem struct {
 	// follow, for a caller to show before it runs the job.
 	Exec []string `json:"exec,omitempty" yaml:"exec,omitempty"`
 
+	// Aliases are the other names the job answers to.
+	Aliases []string `json:"aliases,omitempty" yaml:"aliases,omitempty"`
+
+	// DependsOn names the jobs that run before this one.
+	DependsOn []string `json:"depends_on,omitempty" yaml:"depends_on,omitempty"`
+
+	// Steps are the step labels, the lines `atkins -l` prints under the
+	// job, so a caller can show what a job does without reading the
+	// file itself.
+	Steps []string `json:"steps,omitempty" yaml:"steps,omitempty"`
+
+	// Env are the dotenv files the job reads on top of the pipeline's.
+	Env []string `json:"env,omitempty" yaml:"env,omitempty"`
+
+	// Hidden reports a job with show: false, which the file asks not to
+	// be offered. It is listed so a caller knows the job exists and
+	// what it is; whether to offer it is the caller's.
+	Hidden bool `json:"hidden,omitempty" yaml:"hidden,omitempty"`
+
 	// Active is false for a job of an inactive skill, which only a
 	// listing with --all includes. A job whose own when: block does not
 	// match never lists.
@@ -346,7 +365,16 @@ type OutputSection struct {
 
 	When *OutputWhen `json:"when,omitempty" yaml:"when,omitempty"`
 
-	Desc string       `json:"desc" yaml:"desc"`
+	Desc string `json:"desc" yaml:"desc"`
+
+	// Help is what the pipeline says it is for, its help: block.
+	Help string `json:"help,omitempty" yaml:"help,omitempty"`
+
+	// Include are the files the pipeline reads into its variables, and
+	// Env the dotenv files it reads into the environment.
+	Include []string `json:"include,omitempty" yaml:"include,omitempty"`
+	Env     []string `json:"env,omitempty" yaml:"env,omitempty"`
+
 	Cmds []OutputItem `json:"cmds" yaml:"cmds"`
 }
 ```

@@ -51,6 +51,25 @@ type OutputItem struct {
 	// follow, for a caller to show before it runs the job.
 	Exec []string `json:"exec,omitempty" yaml:"exec,omitempty"`
 
+	// Aliases are the other names the job answers to.
+	Aliases []string `json:"aliases,omitempty" yaml:"aliases,omitempty"`
+
+	// DependsOn names the jobs that run before this one.
+	DependsOn []string `json:"depends_on,omitempty" yaml:"depends_on,omitempty"`
+
+	// Steps are the step labels, the lines `atkins -l` prints under the
+	// job, so a caller can show what a job does without reading the
+	// file itself.
+	Steps []string `json:"steps,omitempty" yaml:"steps,omitempty"`
+
+	// Env are the dotenv files the job reads on top of the pipeline's.
+	Env []string `json:"env,omitempty" yaml:"env,omitempty"`
+
+	// Hidden reports a job with show: false, which the file asks not to
+	// be offered. It is listed so a caller knows the job exists and
+	// what it is; whether to offer it is the caller's.
+	Hidden bool `json:"hidden,omitempty" yaml:"hidden,omitempty"`
+
 	// Active is false for a job of an inactive skill, which only a
 	// listing with --all includes. A job whose own when: block does not
 	// match never lists.
@@ -82,7 +101,16 @@ type OutputSection struct {
 
 	When *OutputWhen `json:"when,omitempty" yaml:"when,omitempty"`
 
-	Desc string       `json:"desc" yaml:"desc"`
+	Desc string `json:"desc" yaml:"desc"`
+
+	// Help is what the pipeline says it is for, its help: block.
+	Help string `json:"help,omitempty" yaml:"help,omitempty"`
+
+	// Include are the files the pipeline reads into its variables, and
+	// Env the dotenv files it reads into the environment.
+	Include []string `json:"include,omitempty" yaml:"include,omitempty"`
+	Env     []string `json:"env,omitempty" yaml:"env,omitempty"`
+
 	Cmds []OutputItem `json:"cmds" yaml:"cmds"`
 }
 
@@ -342,15 +370,53 @@ func buildPipelineSection(p *model.Pipeline, prefix string) OutputSection {
 			Interactive: job.Interactive,
 			Args:        job.Args,
 			Exec:        argsExec(job),
+			Aliases:     job.Aliases,
+			DependsOn:   GetDependencies(job.DependsOn),
+			Steps:       stepLabels(job),
+			Env:         envFiles(job.Decl),
+			Hidden:      job.Show != nil && !*job.Show,
 			Active:      !p.Inactive,
 			When:        outputWhen(job.When, job.Matched),
 		})
 	}
 
 	return OutputSection{
-		Desc: p.Name,
-		Cmds: cmds,
+		Desc:    p.Name,
+		Help:    p.Help,
+		Include: includeFiles(p.Decl),
+		Env:     envFiles(p.Decl),
+		Cmds:    cmds,
 	}
+}
+
+// stepLabels returns the labels of a job's steps, the lines a listing
+// prints under it.
+func stepLabels(job *model.Job) []string {
+	var labels []string
+	for _, step := range job.Children() {
+		if label := step.DisplayLabel(); label != "" {
+			labels = append(labels, label)
+		}
+	}
+	return labels
+}
+
+// includeFiles returns the files a declaration reads into its
+// variables.
+func includeFiles(decl *model.Decl) []string {
+	if decl == nil || decl.Include == nil {
+		return nil
+	}
+	return decl.Include.Files
+}
+
+// envFiles returns the dotenv files a declaration reads into the
+// environment.
+func envFiles(decl *model.Decl) []string {
+	if decl == nil || decl.Env == nil || decl.Env.Include == nil {
+		return nil
+	}
+	return decl.Env.Include.Files
 }
 
 // buildAliasesSection builds the aliases section.

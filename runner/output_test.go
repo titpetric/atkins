@@ -374,3 +374,91 @@ func TestPrintJSON(t *testing.T) {
 	assert.Equal(t, "{\n  \"error\": \"e\",\n  \"lint\": []\n}\n", capture(func() error { return PrintJSON(value) }))
 	assert.Equal(t, "error: e\nlint: []\n", capture(func() error { return PrintYAML(value) }))
 }
+
+// TestStepLabels covers the labels a listing prints under a job, which
+// a caller shows instead of reading the pipeline file itself.
+func TestStepLabels(t *testing.T) {
+	job := &model.Job{
+		Steps: []*model.Step{
+			{Task: "build"},
+			{Run: "go test ./..."},
+			{Desc: "Say hello", Run: "echo hello"},
+			{Exec: []string{"go", "build", "./..."}},
+			{},
+		},
+	}
+
+	assert.Equal(t, []string{
+		"task: build",
+		"run: go test ./...",
+		"Say hello",
+		"exec: go build ./...",
+	}, stepLabels(job))
+
+	assert.Nil(t, stepLabels(&model.Job{}))
+}
+
+// TestIncludeFiles covers the files a declaration reads into its
+// variables.
+func TestIncludeFiles(t *testing.T) {
+	assert.Nil(t, includeFiles(nil))
+	assert.Nil(t, includeFiles(&model.Decl{}))
+	assert.Equal(t, []string{"vars.yml"},
+		includeFiles(&model.Decl{Include: &model.IncludeDecl{Files: []string{"vars.yml"}}}))
+}
+
+// TestEnvFiles covers the dotenv files a declaration reads into the
+// environment.
+func TestEnvFiles(t *testing.T) {
+	assert.Nil(t, envFiles(nil))
+	assert.Nil(t, envFiles(&model.Decl{}))
+	assert.Nil(t, envFiles(&model.Decl{Env: &model.EnvDecl{}}))
+	assert.Equal(t, []string{".env"},
+		envFiles(&model.Decl{Env: &model.EnvDecl{Include: &model.IncludeDecl{Files: []string{".env"}}}}))
+}
+
+// TestBuildPipelineSectionCarriesTheWholeJob checks the fields a reader
+// needs to list a folder's jobs without parsing the pipeline file: what
+// the job is called, what it does, what it needs and what it hides.
+func TestBuildPipelineSectionCarriesTheWholeJob(t *testing.T) {
+	hidden := false
+	p := &model.Pipeline{
+		Name: "Probe",
+		Help: "What this pipeline is for.",
+		Decl: &model.Decl{
+			Include: &model.IncludeDecl{Files: []string{"vars/common.yml"}},
+			Env:     &model.EnvDecl{Include: &model.IncludeDecl{Files: []string{".env.shared"}}},
+		},
+		Jobs: map[string]*model.Job{
+			"default": {
+				Desc:      "Run everything",
+				Aliases:   []string{"all"},
+				DependsOn: model.Dependencies{"build"},
+				Steps:     []*model.Step{{Run: "echo done"}},
+				Decl:      &model.Decl{Env: &model.EnvDecl{Include: &model.IncludeDecl{Files: []string{".env.job"}}}},
+			},
+			"hide": {Desc: "Hidden", Show: &hidden, Steps: []*model.Step{{Run: "echo hidden"}}},
+		},
+	}
+
+	section := buildPipelineSection(p, "")
+	assert.Equal(t, "Probe", section.Desc)
+	assert.Equal(t, "What this pipeline is for.", section.Help)
+	assert.Equal(t, []string{"vars/common.yml"}, section.Include)
+	assert.Equal(t, []string{".env.shared"}, section.Env)
+
+	byName := map[string]OutputItem{}
+	for _, cmd := range section.Cmds {
+		byName[cmd.Name] = cmd
+	}
+
+	assert.Equal(t, []string{"all"}, byName["default"].Aliases)
+	assert.Equal(t, []string{"build"}, byName["default"].DependsOn)
+	assert.Equal(t, []string{"run: echo done"}, byName["default"].Steps)
+	assert.Equal(t, []string{".env.job"}, byName["default"].Env)
+	assert.False(t, byName["default"].Hidden)
+
+	// A job the file asks not to offer is listed and marked, so a
+	// caller knows it exists and decides for itself.
+	assert.True(t, byName["hide"].Hidden)
+}
