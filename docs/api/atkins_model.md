@@ -6,6 +6,17 @@ import (
 )
 ```
 
+Package `model` holds the types a pipeline file decodes into: Pipeline, Job,
+Step and the declarations they share (Decl: vars, env and include). The
+types accept both the GitHub Actions and the Taskfile spellings of a field,
+and their UnmarshalYAML methods take the shorthand forms, such as a job or
+a step written as one command string.
+
+The package describes a pipeline and runs nothing. Walk and Dispatch visit
+jobs and steps in a fixed order for the runner and the linter, which
+decide what a visit does. types.mig.go holds the models of the event
+database, which mig generates from schema/*.up.sql.
+
 ## Types
 
 <details>
@@ -225,7 +236,9 @@ type JobWalkFunc func(index int, step *Step) error
 <summary><code>type Label</code></summary>
 
 ```go
-// Label represents a display label for a step or command.
+// Label is the display label of a step or command. NewLabel starts one and
+// the With* builders customize it. String is the plain name used for node
+// names and comparisons; ForDisplay adds the colour and status for rendering.
 type Label struct {
 	Text       string              // The display text (e.g., "docker compose up" or "run: splint fix ./...")
 	Type       string              // The operation kind: "task", "run", "cmd", "cmds"
@@ -454,7 +467,11 @@ type Run struct {
 <summary><code>type Step</code></summary>
 
 ```go
-// Step represents a step within a job.
+// Step is one step of a job: a task: step runs other jobs, any other step
+// runs commands (run:, cmd:, cmds: or exec:). A task: value may name more
+// than one job, separated by whitespace (`task: lint test build`), which run
+// in sequence and match one task: step per job. An exec: argv runs without a shell; its
+// display string quotes an argument holding a space or a shell character.
 type Step struct {
 	*Decl
 
@@ -758,8 +775,7 @@ var RunPrimaryFields = []string{"id"}
 
 ### `NewLabel`
 
-`NewLabel` creates a new label with the given text and type.
-Use builder methods like WithPrefix(), WithStatus(), and WithColor() to customize.
+`NewLabel` returns a label with the given text and type.
 
 ```go
 func NewLabel(text, labelType string) *Label
@@ -1148,8 +1164,7 @@ func (*Job) Walk(fn JobWalkFunc) error
 
 ### `ForDisplay`
 
-`ForDisplay` returns the formatted label with color and status for rendering.
-This includes ANSI color codes and status indicators.
+`ForDisplay` returns String with the colour applied and the status appended.
 
 ```go
 func (*Label) ForDisplay() string
@@ -1157,8 +1172,7 @@ func (*Label) ForDisplay() string
 
 ### `String`
 
-`String` returns the formatted label as a clean string (no ANSI codes or status).
-Use this for node names and comparisons.
+`String` returns the label text, with the type in front when ShowPrefix holds.
 
 ```go
 func (*Label) String() string
@@ -1286,8 +1300,7 @@ func (*Migrations) Update(opts ...QueryOption) string
 
 ### `GetAliases`
 
-`GetAliases` returns a key => value mapping for commands in a pipeline.
-Explicit job aliases take precedence over auto-generated aliases (like skill ID -> default).
+`GetAliases` returns alias => job name, explicit job aliases ahead of the generated ones.
 
 ```go
 func (*Pipeline) GetAliases() map[string]string
@@ -1295,7 +1308,7 @@ func (*Pipeline) GetAliases() map[string]string
 
 ### `GetJobs`
 
-`GetJobs` will returned the defined jobs in the pipeline.
+`GetJobs` returns Jobs, or Tasks when Jobs is empty.
 
 ```go
 func (*Pipeline) GetJobs() map[string]*Job
@@ -1303,9 +1316,7 @@ func (*Pipeline) GetJobs() map[string]*Job
 
 ### `GetKeys`
 
-`GetKeys` will return the available targets in the pipeline. It uses the
-pipeline ID to optionally prefix job/tasks map keys. The default
-job comes first in the result.
+`GetKeys` returns the sorted job names, "default" first, prefixed with "ID:" for a pipeline with an ID.
 
 ```go
 func (*Pipeline) GetKeys() []string
@@ -1337,9 +1348,8 @@ func (*Pipeline) UnmarshalYAML(node *yaml.Node) error
 
 ### `Walk`
 
-`Walk` iterates over all jobs in the pipeline in deterministic order.
-Walk visits the "default" job first, followed by remaining jobs in
-sorted order.
+`Walk` returns the first error fn returns, visiting "default" and then the rest sorted.
+Walk returns nil once fn has visited every job.
 
 ```go
 func (*Pipeline) Walk(fn PipelineWalkFunc) error
@@ -1347,8 +1357,7 @@ func (*Pipeline) Walk(fn PipelineWalkFunc) error
 
 ### `IsEmpty`
 
-`IsEmpty` reports whether the block lists no files, which leaves the
-pipeline or job active everywhere.
+`IsEmpty` reports whether the block lists no files, leaving the pipeline or job active everywhere.
 
 ```go
 func (*PipelineWhen) IsEmpty() bool
@@ -1760,9 +1769,9 @@ func (*Step) Commands() []string
 
 ### `Dispatch`
 
-`Dispatch` routes the step to the appropriate StepDispatcher method
-based on the step type. Task steps call d.Task, command steps call
-d.Command for each command.
+`Dispatch` returns d.Task for a task: step.
+Dispatch returns the first error of d.Command, called once per command.
+Dispatch returns nil once every command has run.
 
 ```go
 func (*Step) Dispatch(d StepDispatcher) error
@@ -1779,8 +1788,7 @@ func (*Step) DisplayLabel() string
 
 ### `ExecString`
 
-`ExecString` renders the exec: argv for display, quoting an argument
-that holds a space or a quote. No shell ever parses it.
+`ExecString` returns the exec: argv as one display string.
 
 ```go
 func (*Step) ExecString() string
@@ -1814,10 +1822,7 @@ func (*Step) String() string
 
 ### `Tasks`
 
-`Tasks` returns the job names referenced by the step's task: field.
-A single task: value may name more than one job, separated by whitespace
-(`task: lint test build`), which run in sequence and match
-one task: step per job. Returns an empty slice for command steps.
+`Tasks` returns the job names of the task: field, none for a command step.
 
 ```go
 func (*Step) Tasks() []string

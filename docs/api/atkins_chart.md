@@ -8,15 +8,32 @@ import (
 
 Package `chart` draws small bar charts for a terminal.
 
-It exists for `atkins --stats`, which has two shapes to show: a
-measure over a run of days, and a handful of named totals against each
-other. Both are drawn with block characters, so they need no terminal
-capability beyond the ones a box-drawing table already assumes, and
+`atkins --stats` shows two shapes: a measure over a run of days, and a
+handful of named totals against each other. Vertical draws the first
+and Horizontal the second. Both use block characters, so they need no
+terminal capability beyond the ones a box-drawing table relies on, and
 they read the same in a pipe as on a screen.
 
-Nothing here knows what it is drawing. The caller supplies values and
-the function that renders one, so the same chart serves milliseconds,
-counts and bytes.
+The package draws values and leaves their meaning to the caller. The
+caller supplies the values and the Format that renders one, so the same
+chart serves milliseconds, counts and bytes.
+
+Every bar measures from zero against the largest, so a chart never
+exaggerates a difference by cutting its axis. A value above zero fills
+at least one eighth of a cell: a day holding one short command is a
+day something happened, and a blank column would say it did not. A bar
+taller than a row fills whole cells and ends in the eighth nearest its
+leftover, so a six-row chart has the resolution of forty-eight.
+
+A vertical chart labels its peak at the top of the axis and nothing
+else, because a reader of a month of days reads the shape and the
+ceiling, and a number on every column hides both. The first and last
+labels sit under the ends of the floor, the place for a date range.
+
+A horizontal chart carries a label and a value on every row, because a
+reader of a ranking reads the names: the bars show how far ahead the
+first one is, the thing a column of numbers hides. The caller sorts the
+rows; the chart draws them in the order given.
 
 ## Types
 
@@ -56,8 +73,7 @@ type Format func(int64) string
 // HorizontalOptions is a chart of named totals against each other, one
 // row each.
 type HorizontalOptions struct {
-	// Bars are the rows, in the order they are drawn. The caller sorts
-	// them: a ranking is the caller's question, not the chart's.
+	// Bars are the rows, drawn in the order given.
 	Bars []Bar
 
 	// Width is how many cells the longest bar fills. Twenty-four unless
@@ -87,16 +103,15 @@ type HorizontalOptions struct {
 // VerticalOptions is a chart of a measure over a run of bars, one
 // column each, drawn bottom up.
 type VerticalOptions struct {
-	// Bars are the columns, in the order they are drawn. A day with
-	// nothing in it is a bar of zero, not a missing bar: the gaps are
-	// what makes a run of days read as time.
+	// Bars are the columns, drawn in the order given. An empty day is a bar
+	// of zero: the gaps make a run of days read as time.
 	Bars []Bar
 
 	// Height is how many rows tall the chart is. Six unless set.
 	Height int
 
-	// Format renders the peak, which is the only value labelled. A nil
-	// Format labels nothing.
+	// Format renders the peak, the one value with a label. A nil Format
+	// labels nothing.
 	Format Format
 
 	// Color draws the bars and the axis in colour.
@@ -113,12 +128,7 @@ type VerticalOptions struct {
 
 ### `Horizontal`
 
-`Horizontal` draws a row per bar, measured from zero against the
-largest.
-
-Every row carries its label and its value, because a reader of a
-ranking is reading the names: the bars are there to show how far
-ahead the first one is, which is the thing a column of numbers hides.
+`Horizontal` returns a row per bar, or an empty string for no bars.
 
 ```go
 func Horizontal(opts HorizontalOptions) string
@@ -126,12 +136,7 @@ func Horizontal(opts HorizontalOptions) string
 
 ### `Vertical`
 
-`Vertical` draws a column per bar, bottom up, measured from zero.
-
-The peak sits at the top of the axis and nothing else is labelled: a
-reader of a month of days wants the shape and the ceiling, and a
-number on every column hides both. The first and last labels sit
-under the ends, which is where a date range belongs.
+`Vertical` returns a column per bar, bottom up, or an empty string for no bars.
 
 ```go
 func Vertical(opts VerticalOptions) string

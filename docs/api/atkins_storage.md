@@ -10,20 +10,105 @@ Package `storage` owns the atkins event database.
 
 Every run leaves two kinds of row behind: a `run` row per node of the
 tree atkins walked, carrying the time that node took with everything
-under it, and a `command` row per command a step actually executed.
-The first answers "how long does the release job take", the second
-"how much of my day is go test".
+under it, and a `command` row per command a step executed. The first
+answers "how long does the release job take", the second "how much of
+my day goes to go test".
 
-The file is atkins.db in the nearest .atkins folder, and
-$HOME/.atkins/atkins.db when a directory belongs to no project. One
-type, Storage, owns all of it: every method takes a context and one
-request value and returns one result and an error, so a reader - the
---stats report today, task-ui later - has one surface to learn.
+# Files
 
+A run records to two databases, and Discover names them. The
+project's, atkins.db in the nearest .atkins folder, says what this
+checkout costs. The workspace's, $HOME/.atkins/atkins.db, says what
+every checkout on the machine costs between them, a question no single
+project can answer. A directory with no .atkins folder of its own, or
+one whose nearest folder belongs to the workspace, records to the
+workspace's alone, once.
+
+Both files hold the same rows, so a report of the workspace answers
+the questions of a project report: which command, how often, how
+long. A database that opens stays in use when the other fails: half a
+history beats none, and the report names the file each half comes
+from. A failed write to one database leaves the other one's row in
+place, and the caller sees the first error.
+
+# One surface
+
+One type, Storage, owns a database. Every method takes a context and
+one request value and returns one result and an error, so a reader,
+the --stats report today and task-ui later, has one surface to learn.
 Queries go through github.com/titpetric/pdo, whose generic methods
-scan straight into the mig generated types in ../model. A *pdo.PDO is
-request scoped and not safe for concurrent use, so every method
-allocates one over the shared pool.
+scan straight into the mig generated types in ../model. A *pdo.PDO
+serves one request and does not support concurrent use, so every
+method allocates one over the shared pool.
+
+A file opens with a busy timeout and the write-ahead log: two atkins
+runs in one checkout write at the same moment, and the second waits
+for the first to finish. The driver writes a time in a layout strftime
+reads, so the usage buckets group by it; time.Time's own String form
+leaves every bucket empty.
+
+# Recording
+
+Record writes the rows of one run in one transaction. A report reads
+a run as a whole, the job's time against its steps', and a half
+written run would pass for a complete one.
+
+A job row takes the canonical name out of the node id, so `jobs.release`
+groups as release from one month to the next while the author edits
+its description. A step row keeps the command it ran, the name a reader
+of one run looks for. Durations round to the millisecond: truncation
+drops half a millisecond per row, and a report summing thousands of
+rows comes up seconds short.
+
+# Retention
+
+Retention, thirty-one days, bounds the history. A month of work fits
+in it, this week compares against the last, and a checkout nobody
+prunes stops growing. Nobody configures it, so it holds on every
+machine. The Recorder purges after each write: the command that
+records has the database open anyway, and atkins stays a command with
+no service beside it. Purge deletes in bounded batches and leaves the
+rest for the next pass, because one DELETE over a year of commands
+holds the write lock while every other atkins run on the machine
+waits on it.
+
+# Command keys
+
+Normalize reduces a command to the form a row stores: the tool and its
+subcommands, then the flags with their values removed, sorted, and
+nothing else.
+
+```go
+go test -v ./...                      go test -v
+go test ./... -v                      go test -v
+go test -cover -coverprofile=c.out    go test -cover -coverprofile
+go test --cpuprofile cpu.out          go test --cpuprofile
+CGO_ENABLED=0 go build -o bin/x .     go build -o
+sleep 1                               sleep
+head -20 file.txt                     head
+git rev-parse HEAD | cut -c1-8        git rev-parse HEAD
+```
+
+Sorting makes `go test -v -cover` and `go test -cover -v` one row.
+Operands drop out, and a flag's argument drops with them with no table
+of the flags that take one: `--cpuprofile cpu.out` keeps the flag and
+the file reads as an operand. A flag made of digits goes too, so
+`head -20` and `head -50` count together.
+
+Key is the name the reports group by: the words of a command up to the
+first flag, at most three, none a path or a value. A word holding `/`,
+`.`, `=`, `$`, a quote or a number ends it.
+
+```go
+go test -v ./...        go test
+docker compose up -d    docker compose up
+git clone --depth 1 x   git clone
+```
+
+A normalized command keys the same as the command it came from, so the
+reports group rows by key with no migration of the stored form. A shell
+builtin, `set -eu` at the top of a script among them, never reaches a
+row or a report.
 
 ## Types
 
@@ -68,7 +153,8 @@ type CommandFilter struct {
 <summary><code>type CommandStat</code></summary>
 
 ```go
-// CommandStat is one command key and what it has cost.
+// CommandStat is one command key and what it has cost, a row of the
+// command report.
 type CommandStat struct {
 	// Command is the key the rows group by, as Key names it: `go test`
 	// counts every test run whatever its flags and packages.
@@ -80,9 +166,9 @@ type CommandStat struct {
 	// Runs is how many times it ran.
 	Runs int64
 
-	// TotalMs is the time it has taken altogether, which is what the
-	// report sorts by: a command that takes a second and runs four
-	// hundred times costs more than a build that takes a minute.
+	// TotalMs is the time it has taken altogether, the order of the
+	// report: a command that takes a second and runs four hundred times
+	// costs more than a build that takes a minute.
 	TotalMs int64
 
 	// AvgMs and MaxMs are the average and the worst single run.
@@ -126,12 +212,8 @@ type CommandUsage struct {
 <summary><code>type Paths</code></summary>
 
 ```go
-// Paths are the event databases a run records to.
-// A run records to both, because the two answer different questions.
-// The project's says what this checkout costs, which is the question
-// standing in it; the workspace's says what every checkout on the
-// machine costs between them, which is the one a week of work asks and
-// no single project can answer.
+// Paths are the event databases a run records to, the project's and the
+// workspace's. The package documentation says why a run writes both.
 type Paths struct {
 	// Project is the atkins.db of the nearest .atkins folder, empty
 	// when the directory belongs to no project, and empty when the
@@ -156,9 +238,9 @@ type PurgeRequest struct {
 	Before time.Time
 
 	// Batch bounds one DELETE and Batches how many it runs, so a first
-	// pass over a year of history does not hold the write lock for
-	// minutes. Zero means 500 rows and 20 batches, and what is left
-	// over goes on the next pass.
+	// pass over a year of history holds the write lock for a moment.
+	// Zero means 500 rows and 20 batches, and the next pass takes the
+	// rows beyond them.
 	Batch   int
 	Batches int
 }
@@ -170,7 +252,7 @@ type PurgeRequest struct {
 <summary><code>type PurgeResult</code></summary>
 
 ```go
-// PurgeResult says how many rows of each kind went.
+// PurgeResult counts the rows of each kind a Purge removed.
 type PurgeResult struct {
 	Runs     int64
 	Commands int64
@@ -185,7 +267,7 @@ type PurgeResult struct {
 ```go
 // RecordRequest is a finished run to store.
 type RecordRequest struct {
-	// Log is the event log document the run ended with: its metadata,
+	// Log is the event log document of the finished run: its metadata,
 	// the tree it walked, every event it collected and the summary.
 	Log *eventlog.Log
 
@@ -200,13 +282,13 @@ type RecordRequest struct {
 <summary><code>type RecordResult</code></summary>
 
 ```go
-// RecordResult says what one Record wrote.
+// RecordResult counts what one Record wrote.
 type RecordResult struct {
 	// InvocationID is the run row of the pipeline node, the value every
 	// row of this invocation carries.
 	InvocationID string
 
-	// Runs and Commands are how many rows of each kind were written.
+	// Runs and Commands count the rows of each kind.
 	Runs     int
 	Commands int
 }
@@ -218,9 +300,10 @@ type RecordResult struct {
 <summary><code>type Recorder</code></summary>
 
 ```go
-// Recorder stores finished runs. It satisfies runner.Recorder, which is
-// the only thing the runner knows about this package: the runner hands
-// over an event log document and never names a table or a column.
+// Recorder stores finished runs into one Storage and purges what falls
+// outside Retention. It implements runner.Recorder, the one view the
+// runner has of this package: it passes an event log document and never
+// names a table or a column. A nil Recorder records nothing.
 type Recorder struct {
 	storage *Storage
 	dir     string
@@ -233,13 +316,9 @@ type Recorder struct {
 <summary><code>type Recorders</code></summary>
 
 ```go
-// Recorders writes a run to each of them: the project's database and
-// the workspace's.
-//
-// The write is the same rows twice rather than a summary in one and the
-// detail in the other, because a report of the workspace asks the same
-// questions of it that a report of a project asks: which command, how
-// often, how long.
+// Recorders writes a run to each database, the project's and the
+// workspace's, the same rows in both. A failed write leaves the others
+// to go ahead.
 type Recorders []*Recorder
 ```
 
@@ -360,7 +439,11 @@ type StatsRequest struct {
 <summary><code>type Storage</code></summary>
 
 ```go
-// Storage is the atkins event database.
+// Storage is one atkins event database: it applies the migrations on
+// open, writes the rows of finished runs and answers the reports. Every
+// method takes a context and one request value. A nil Storage records
+// nothing and closes nothing, so a caller that failed to open one has no
+// branch to write.
 type Storage struct {
 	db   *sqlx.DB
 	path string
@@ -373,10 +456,9 @@ type Storage struct {
 <summary><code>type ToolStat</code></summary>
 
 ```go
-// ToolStat is one tool and what it has cost, across every form of it.
-// It answers the question a per-command report cannot: `go` is one tool
-// whether it builds, tests or vets, and the share of a week it takes is
-// the share of a week spent on Go.
+// ToolStat is one tool and what it has cost across every form of it, a
+// row of the tool report. `go` is one tool whether it builds, tests or
+// vets, and its share of a week is the week's share of Go.
 type ToolStat struct {
 	// Tool is the first word of the command key.
 	Tool string
@@ -401,7 +483,7 @@ type ToolStat struct {
 <summary><code>type UsageEntry</code></summary>
 
 ```go
-// UsageEntry is one tool in one bucket of time: the point a chart draws.
+// UsageEntry is one tool in one bucket of time, a point of a usage chart.
 type UsageEntry struct {
 	// Bucket is the start of the window, as the database spells a time.
 	Bucket string `db:"bucket"`
@@ -422,7 +504,7 @@ type UsageEntry struct {
 <summary><code>type UsageRequest</code></summary>
 
 ```go
-// UsageRequest asks for usage over time, a series per tool.
+// UsageRequest selects usage over time, a series per tool.
 type UsageRequest struct {
 	// Since and Until bound when a command started.
 	Since time.Time
@@ -469,14 +551,8 @@ const Project = "atkins"
 <summary><code>const Retention</code></summary>
 
 ```go
-// Retention is how long a recorded run is kept, measured from when it
-// started.
-//
-// Thirty-one days, fixed. It is long enough to hold a month of work and
-// compare this week against the last, and short enough that a checkout
-// nobody prunes does not grow without bound. A window nobody has to
-// choose is a window that is right on every machine, including the ones
-// where the configuration was never opened.
+// Retention is how long the database holds a run, from its start:
+// thirty-one days, fixed. The package documentation says why.
 const Retention = 31 * 24 * time.Hour
 ```
 
@@ -486,7 +562,7 @@ const Retention = 31 * 24 * time.Hour
 <summary><code>const BucketHour, BucketDay, BucketWeek</code></summary>
 
 ```go
-// The buckets a usage report can ask for.
+// The bucket widths of a usage report.
 const (
 	BucketHour Bucket = "hour"
 	BucketDay  Bucket = "day"
@@ -538,16 +614,9 @@ var ErrNotFound = errors.New("not found")
 
 ### `Discover`
 
-`Discover` returns the event databases for a directory.
-
-It walks up from dir looking for a .atkins folder and takes the
-atkins.db inside the first one it finds as the project's, so every
-run in a checkout records to the same file. $HOME/.atkins/atkins.db
-is the workspace's, and Discover creates the folder.
-
-A directory inside $HOME with no .atkins folder of its own finds the
-workspace's, which is then the only database: a run records to it
-once rather than twice.
+`Discover` returns the databases for dir and creates $HOME/.atkins. The
+project's is the atkins.db of the nearest .atkins folder above dir,
+and empty when that folder is the workspace's own or there is none.
 
 ```go
 func Discover(dir string) (Paths, error)
@@ -564,17 +633,8 @@ func IsBuiltin(tool string) bool
 
 ### `Key`
 
-`Key` is the name the reports group a command by: its words up to the
-first argument that starts with `-`, at most three, none a path or a
-value (a word with `/`, `.`, `=`, `$`, a quote or a number ends it):
-
-```go
-go test -v ./...        go test
-docker compose up -d    docker compose up
-git clone --depth 1 x   git clone
-```
-
-A normalized command keys the same as the command it came from.
+`Key` returns the report key of a command and its tool, or two empty
+strings for a builtin or a command with no tool.
 
 ```go
 func Key(command string) string
@@ -582,8 +642,7 @@ func Key(command string) string
 
 ### `NewRecorders`
 
-`NewRecorders` returns a recorder per storage, for a run to record to
-each.
+`NewRecorders` returns a recorder per storage.
 
 ```go
 func NewRecorders(stores []*Storage) Recorders
@@ -591,16 +650,8 @@ func NewRecorders(stores []*Storage) Recorders
 
 ### `NewStorage`
 
-`NewStorage` opens the event databases for the working directory,
-applies the migrations and returns them, the project's first.
-
-The paths come from Discover. Opening is the only thing that can fail
-here, and a caller that cannot record is expected to carry on without
-recording, so the error says which file it was.
-
-A database that opens is kept even when the other does not: half a
-history is worth more than none, and the report says which file each
-half came from.
+`NewStorage` returns the databases Discover names for the working
+directory, as OpenAll opens them.
 
 ```go
 func NewStorage() ([]*Storage, error)
@@ -608,9 +659,7 @@ func NewStorage() ([]*Storage, error)
 
 ### `NewStorageAt`
 
-`NewStorageAt` opens the event database at a path, applies the
-migrations and returns it. Memory opens a private database held on one
-connection.
+`NewStorageAt` returns the migrated database at path, Memory for a private one.
 
 ```go
 func NewStorageAt(ctx context.Context, path string) (*Storage, error)
@@ -618,28 +667,8 @@ func NewStorageAt(ctx context.Context, path string) (*Storage, error)
 
 ### `Normalize`
 
-`Normalize` reduces a command to the form the statistics group by, and
-returns it with the tool that leads it.
-
-The form keeps the tool and its subcommands, keeps the flags with
-their values removed, sorts the flags, and drops everything else:
-
-```go
-go test -v ./...                      go test -v
-go test ./... -v                      go test -v
-go test -cover -coverprofile=c.out    go test -cover -coverprofile
-go test --cpuprofile cpu.out          go test --cpuprofile
-CGO_ENABLED=0 go build -o bin/x .     go build -o
-sleep 1                               sleep
-head -20 file.txt                     head
-git rev-parse HEAD | cut -c1-8        git rev-parse HEAD
-```
-
-Sorting is what makes `go test -v -cover` and `go test -cover -v` one
-row. Dropping operands is what makes a flag's argument disappear with
-no table of which flags take one: `--cpuprofile cpu.out` leaves the
-flag and the file is an operand like any other. A flag that is only
-digits goes with them, so `head -20` and `head -50` count together.
+`Normalize` returns two empty strings for a command with no tool, else
+its stored form and tool, as the package documentation lists them.
 
 ```go
 func Normalize(command string) string
@@ -647,9 +676,7 @@ func Normalize(command string) string
 
 ### `OpenAll`
 
-`OpenAll` opens each path and applies the migrations, in order. It
-returns what opened and the first error, so a caller may use the one
-that worked and report the one that did not.
+`OpenAll` returns the databases that opened, in order, and the first error.
 
 ```go
 func OpenAll(ctx context.Context, paths ...string) ([]*Storage, error)
@@ -657,13 +684,8 @@ func OpenAll(ctx context.Context, paths ...string) ([]*Storage, error)
 
 ### `Record`
 
-`Record` stores a finished run, then drops whatever has fallen outside
-the retention window.
-
-Cleaning up on the run and not on a timer is what keeps atkins a
-command and not a service: a run that records is a run that has the
-database open, and a bounded delete against an index costs a
-millisecond when there is nothing to remove.
+`Record` returns nil on a nil Recorder, the write error, or the error
+of purging the history older than Retention.
 
 ```go
 func (*Recorder) Record(ctx context.Context, log *eventlog.Log) error
@@ -671,8 +693,7 @@ func (*Recorder) Record(ctx context.Context, log *eventlog.Log) error
 
 ### `Close`
 
-`Close` releases the connection pool. A nil Storage closes nothing, so
-a caller that failed to open one has no branch to write.
+`Close` releases the connection pool; a nil Storage returns nil.
 
 ```go
 func (*Storage) Close() error
@@ -705,11 +726,9 @@ func (*Storage) Path() string
 
 ### `Purge`
 
-`Purge` removes the history that started before a time.
-
-It deletes in bounded batches and leaves the rest for the next pass. A
-single DELETE over a year of commands holds the write lock long enough
-that every atkins run on the machine waits on it.
+`Purge` returns an empty result for a zero time, an error from a DELETE,
+or the rows it removed, in bounded batches, of the history started
+before req.Before.
 
 ```go
 func (*Storage) Purge(ctx context.Context, req PurgeRequest) (*PurgeResult, error)
@@ -717,7 +736,8 @@ func (*Storage) Purge(ctx context.Context, req PurgeRequest) (*PurgeResult, erro
 
 ### `RawStartedAt`
 
-`RawStartedAt` is a probe used while settling the stored time format.
+`RawStartedAt` returns the started_at of a command row as the database
+holds the text, or the error of an empty table.
 
 ```go
 func (*Storage) RawStartedAt(ctx context.Context) (string, error)
@@ -725,12 +745,9 @@ func (*Storage) RawStartedAt(ctx context.Context) (string, error)
 
 ### `Record`
 
-`Record` stores a finished run: a run row per node of the tree and a
-command row per command the run executed.
-
-The rows go in one transaction. A run is read as a whole - the job's
-time against its steps' - and half of one recorded is worse than none,
-because a report would quietly treat it as complete.
+`Record` returns an empty result for nothing to record, the error that
+rolls the transaction back, the commit error, or what it wrote: a run
+row per node of the tree and a command row per command the run executed.
 
 ```go
 func (*Storage) Record(ctx context.Context, req RecordRequest) (*RecordResult, error)
@@ -738,10 +755,8 @@ func (*Storage) Record(ctx context.Context, req RecordRequest) (*RecordResult, e
 
 ### `Recorder`
 
-`Recorder` returns the storage as a recorder for the runner, recording
-the directory it is called from. A nil Storage returns nil, and a nil
-Recorder records nothing, so a caller that could not open the database
-has no branch to write.
+`Recorder` returns nil for a nil Storage, else a recorder of the working
+directory.
 
 ```go
 func (*Storage) Recorder() *Recorder
@@ -765,13 +780,8 @@ func (*Storage) Runs(ctx context.Context, filter RunFilter) ([]model.Run, error)
 
 ### `Samples`
 
-`Samples` returns the commands of the request one by one, oldest first.
-
-The filter runs on the command table alone, in a subquery, because
-the run rows it joins share its column names.
-
-A command's job is the job node above its step, or the node it names
-itself when a $() substitution ran outside any step.
+`Samples` returns the query error, or the commands of the request one by
+one, oldest first, each with the job above its step.
 
 ```go
 func (*Storage) Samples(ctx context.Context, req SampleRequest) ([]Sample, error)
@@ -779,12 +789,8 @@ func (*Storage) Samples(ctx context.Context, req SampleRequest) ([]Sample, error
 
 ### `Stats`
 
-`Stats` reports the command keys by the time they have taken
-altogether, the most expensive first.
-
-The database groups by the normalized form and the report folds the
-forms into their keys, so a row recorded before the key existed
-counts under it without a migration.
+`Stats` returns the query error, or the command keys by the time they
+have taken altogether, the most expensive first.
 
 ```go
 func (*Storage) Stats(ctx context.Context, req StatsRequest) ([]CommandStat, error)
@@ -792,9 +798,8 @@ func (*Storage) Stats(ctx context.Context, req StatsRequest) ([]CommandStat, err
 
 ### `Tools`
 
-`Tools` reports the tools by the time they have taken altogether, the
-most expensive first. They roll up the command keys, so a tool counts
-the same commands the command report does.
+`Tools` returns the query error, or the command keys rolled up per tool,
+the most expensive first.
 
 ```go
 func (*Storage) Tools(ctx context.Context, req StatsRequest) ([]ToolStat, error)
@@ -802,8 +807,8 @@ func (*Storage) Tools(ctx context.Context, req StatsRequest) ([]ToolStat, error)
 
 ### `Usage`
 
-`Usage` reports runs and time per tool per bucket, oldest first, which
-is the series a usage chart draws.
+`Usage` returns the error of an unknown bucket, or the runs and time per
+tool per bucket, oldest first: the series of a usage chart.
 
 ```go
 func (*Storage) Usage(ctx context.Context, req UsageRequest) ([]UsageEntry, error)
@@ -811,8 +816,7 @@ func (*Storage) Usage(ctx context.Context, req UsageRequest) ([]UsageEntry, erro
 
 ### `List`
 
-`List` returns the databases to open, the project's first. A run
-records to each, and a report reads each.
+`List` returns the workspace alone without a project, else both, the project's first.
 
 ```go
 func (Paths) List() []string
@@ -820,11 +824,7 @@ func (Paths) List() []string
 
 ### `Record`
 
-`Record` stores a finished run in each database.
-
-Every one is written even when an earlier fails, and the first error
-is the one reported: a database that is locked does not cost the run
-its row in the other.
+`Record` returns the first error after writing to every database.
 
 ```go
 func (Recorders) Record(ctx context.Context, log *eventlog.Log) error

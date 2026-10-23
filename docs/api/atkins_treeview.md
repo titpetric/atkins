@@ -6,6 +6,13 @@ import (
 )
 ```
 
+Package `treeview` draws a pipeline run as a tree of jobs, steps and commands
+on the terminal. Builder and ExecutionTree build the nodes from a pipeline,
+Node holds the state the runner updates while the run goes on, Renderer
+writes a tree as text and Trimmer fits the labels to the terminal width.
+Display redraws the tree in place on a terminal and prints it once,
+statically, on a pipe or a file.
+
 ## Types
 
 <details>
@@ -24,7 +31,12 @@ type Builder struct {
 <summary><code>type Display</code></summary>
 
 ```go
-// Display manages in-place tree rendering with ANSI cursor control.
+// Display renders the tree in place with ANSI cursor control. On a terminal
+// each Render rolls back the lines of the previous one; Invalidate forgets
+// them when output from outside the tree, such as an interactive command,
+// lands between two renders. RenderFinal prints the whole tree once execution ends, so
+// the output stays scrollable. A silent display, for JSON and YAML output,
+// prints nothing live.
 type Display struct {
 	lastLineCount int
 	mu            sync.Mutex
@@ -52,7 +64,10 @@ type ExecutionTree struct {
 <summary><code>type Node</code></summary>
 
 ```go
-// Node represents a node in the tree (job, step, or iteration).
+// Node is a job, step or iteration in the tree. Its accessors lock the node,
+// so the renderer reads it while the runner updates it, and its setters are
+// no-ops on a nil node. A multi-line name keeps its first line with a
+// summary of the rest, as TrimMultilineLabel writes it.
 type Node struct {
 	mu sync.Mutex
 
@@ -313,8 +328,7 @@ func NewJobNode(name string, nested bool) *Node
 
 ### `NewNode`
 
-`NewNode` creates a new tree node.
-It trims a multi-line name to the first line with a summary suffix.
+`NewNode` returns a pending node with the trimmed name.
 
 ```go
 func NewNode(name string) *Node
@@ -338,8 +352,7 @@ func NewRenderer() *Renderer
 
 ### `NewSilentDisplay`
 
-`NewSilentDisplay` creates a display that produces no output.
-Used for JSON/YAML output mode.
+`NewSilentDisplay` returns a display that renders nothing live.
 
 ```go
 func NewSilentDisplay() *Display
@@ -371,8 +384,7 @@ func NewTrimmer() *Trimmer
 
 ### `SortByOrder`
 
-`SortByOrder` returns the job names from the set in the order specified by orderList.
-Jobs in the set that orderList does not list go at the end.
+`SortByOrder` returns the set in orderList order, unlisted jobs last.
 
 ```go
 func SortByOrder(jobSet map[string]bool, orderList []string) []string
@@ -380,8 +392,7 @@ func SortByOrder(jobSet map[string]bool, orderList []string) []string
 
 ### `SortJobsByDepth`
 
-`SortJobsByDepth` sorts job names by ':' depth, then alphabetically.
-Depth is the count of ':' separators in the job name.
+`SortJobsByDepth` returns the job names sorted by their count of ':', then by name.
 
 ```go
 func SortJobsByDepth(jobNames []string) []string
@@ -438,9 +449,7 @@ func (*Display) Cleanup()
 
 ### `Invalidate`
 
-`Invalidate` resets the line counter so the next Render does not
-roll back over output from outside the tree (for example from
-an interactive command).
+`Invalidate` resets the line counter, so the next Render rolls nothing back.
 
 ```go
 func (*Display) Invalidate()
@@ -464,8 +473,7 @@ func (*Display) Render(root *Node)
 
 ### `RenderFinal`
 
-`RenderFinal` clears the live-updating tree and prints the full tree statically.
-Call it when execution completes so the output is scrollable.
+`RenderFinal` clears the live tree and prints the full tree statically.
 
 ```go
 func (*Display) RenderFinal(root *Node)
@@ -641,8 +649,8 @@ func (*Node) SetIf(condition string)
 
 ### `SetName`
 
-`SetName` sets the display name of a node. Nil-safe: no-op on nil receiver.
-It trims a multi-line name to the first line with a summary suffix.
+`SetName` returns early on a nil node.
+SetName sets the trimmed display name.
 
 ```go
 func (*Node) SetName(name string)
@@ -787,9 +795,7 @@ func (*Trimmer) SetViewportWidth(width int)
 
 ### `TrimLabel`
 
-`TrimLabel` applies both compaction and viewport trimming to a label.
-- maxArgLen: length limit for argument values before compaction
-- prefixLen: visual length of the prefix (indentation, branch chars).
+`TrimLabel` returns the label with values over maxArgLen compacted, fitted to the viewport after prefixLen.
 
 ```go
 func (*Trimmer) TrimLabel(label string, maxArgLen, prefixLen int) string

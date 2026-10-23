@@ -6,6 +6,25 @@ import (
 )
 ```
 
+Command atkins runs the jobs of a pipeline file and records each run.
+
+atkins finds `.atkins.yml`, a Taskfile, or the file of `-f`, from the
+working directory up, loads the skills that apply there and
+runs the jobs of the arguments, or `default`, as a tree it redraws
+on a terminal. `--lint` checks a pipeline, `-l` lists what it declares,
+`--help` prints the flags, the skills and the schema in one document.
+
+Every run records its commands into two sqlite databases, the project's
+and the workspace's under `$HOME/.atkins`; `--local` records nowhere.
+`--stats` reads them back and reports where the time goes: which command
+costs the most once its frequency counts, by day, by tool and by command
+key, as tables on a terminal, as markdown in a pipe, or as JSON and YAML
+for a program.
+
+`--vendor` lists the skills from `$HOME/.atkins/skills` the repository
+uses, and `--vendor --write` copies them into `.atkins/skills`.
+A menu edits `.atkins/config.yml`, and the help document lists its flag.
+
 ## Types
 
 <details>
@@ -150,10 +169,10 @@ type StatsReport struct {
 // StatsScope is one database's history, and everything a reader of
 // `--stats --json` needs to draw it again elsewhere.
 //
-// Durations are milliseconds throughout, as the database keeps them,
-// because a reader charting them wants a number and not a word.
+// Durations are milliseconds throughout, as the database keeps them: a
+// chart takes a number and not a word.
 type StatsScope struct {
-	// Name is what the scope is called, project or workspace.
+	// Name names the scope, project or workspace.
 	Name string `json:"name" yaml:"name"`
 
 	// Repository is the checkout the rows came from, as its remote
@@ -183,7 +202,7 @@ type StatsScope struct {
 	Tools []ToolReport `json:"tools" yaml:"tools"`
 
 	// Usage is a row per day per tool, oldest first: the series a chart
-	// of tool use over time is drawn from. A day a tool did not run has
+	// of tool use over time draws. A day a tool did not run has
 	// no row.
 	Usage []UsageReport `json:"usage" yaml:"usage"`
 

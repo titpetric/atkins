@@ -6,6 +6,10 @@ import (
 )
 ```
 
+Package `version` reports what build of atkins is running: the values
+the release build injects with -ldflags, and the module and settings
+the Go toolchain embeds in the binary.
+
 ## Types
 
 <details>
@@ -23,35 +27,14 @@ type Info struct {
 
 </details>
 
-## Consts
-
-<details>
-<summary><code>const Name</code></summary>
-
-```go
-// Name is the command title.
-const Name = "Show version/build information"
-```
-
-</details>
-
 ## Function symbols
 
-- `func NewCommand (info Info) *cli.Command`
-- `func Run (info Info) error`
-
-### `NewCommand`
-
-`NewCommand` creates a new version command with build information.
-
-```go
-func NewCommand(info Info) *cli.Command
-```
+- `func Run (w io.Writer, info Info) error`
 
 ### `Run`
 
-`Run` will print version information for the build.
+`Run` writes the injected build values and those of the running binary to w.
 
 ```go
-func Run(info Info) error
+func Run(w io.Writer, info Info) error
 ```

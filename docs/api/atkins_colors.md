@@ -6,6 +6,10 @@ import (
 )
 ```
 
+Package `colors` wraps text in ANSI colour escapes and measures text that
+carries them. It leaves the choice to colour to the caller, with
+StdoutIsTerminal as the usual input to it.
+
 ## Function symbols
 
 - `func BrightCyan (text string) string`
@@ -20,14 +24,6 @@ import (
 - `func Gray (text string) string`
 - `func Green (text string) string`
 - `func MediumGray (text string) string`
-- `func PrintFail (name,errMsg string)`
-- `func PrintHeader (title string)`
-- `func PrintInfo (key,value string)`
-- `func PrintPass (name string)`
-- `func PrintSectionEnd (section string, success bool)`
-- `func PrintSectionStart (section string)`
-- `func PrintSuccess (text string)`
-- `func PrintWarning (text string)`
 - `func StdoutIsTerminal () bool`
 - `func StripANSI (in string) string`
 - `func VisualLength (s string) int`
@@ -129,74 +125,9 @@ func Green(text string) string
 func MediumGray(text string) string
 ```
 
-### `PrintFail`
-
-`PrintFail` prints a failed item with error message.
-
-```go
-func PrintFail(name, errMsg string)
-```
-
-### `PrintHeader`
-
-`PrintHeader` prints a header with bright cyan color.
-
-```go
-func PrintHeader(title string)
-```
-
-### `PrintInfo`
-
-`PrintInfo` prints an information line.
-
-```go
-func PrintInfo(key, value string)
-```
-
-### `PrintPass`
-
-`PrintPass` prints a passing item.
-
-```go
-func PrintPass(name string)
-```
-
-### `PrintSectionEnd`
-
-`PrintSectionEnd` prints a section end marker.
-
-```go
-func PrintSectionEnd(section string, success bool)
-```
-
-### `PrintSectionStart`
-
-`PrintSectionStart` prints a section start marker.
-
-```go
-func PrintSectionStart(section string)
-```
-
-### `PrintSuccess`
-
-`PrintSuccess` prints a success message.
-
-```go
-func PrintSuccess(text string)
-```
-
-### `PrintWarning`
-
-`PrintWarning` prints a warning message.
-
-```go
-func PrintWarning(text string)
-```
-
 ### `StdoutIsTerminal`
 
-`StdoutIsTerminal` reports whether the process stdout is attached to a
-terminal. The check runs once; every later call returns the cached answer.
+`StdoutIsTerminal` reports whether stdout is a terminal, checked once per process.
 
 ```go
 func StdoutIsTerminal() bool

@@ -6,17 +6,36 @@ import (
 )
 ```
 
-Package `config` owns the atkins configuration document.
+Package `config` owns the atkins configuration document, .atkins/config.yml.
 
-Configuration has two layers. The document (.atkins/config.yml,
-falling back to the embedded RuntimeDefaultConfig) is the source of
-truth. Environment variables are an overlay on top of it, for
-containers and CI, and only where they are actually set: an unset or
-empty ATKINS_* variable leaves the configured value alone.
+Configuration comes in layers, each overriding the last: the embedded
+default (RuntimeDefaultConfig), the user document at
+$HOME/.atkins/config.yml, the project document found by walking up from
+the working directory, and the ATKINS_* environment overlay. Load
+assembles them; LoadFile reads one document over the default, without
+the user layer or the environment, for the configuration menu to edit.
 
-Load checks every field, and an empty one takes the default from the
-embedded document. A half-written configuration fails at start-up
-with a message naming the field, long before the first request.
+The embedded default holds a complete and valid set of values, so an
+unconfigured install carries no scatter of zero values. Every field a
+document leaves empty keeps the default, because a document unmarshals
+over the struct holding the layers below it. The menu writes the
+embedded document, comments and all, when a project has none yet, so
+the file a user first opens explains itself.
+
+The environment overlay serves containers and CI. `env` struct tags
+drive it, so a field added to the document gains an override with no
+further code. It applies a variable only when the variable holds a
+value: an empty ATKINS_* variable means "not configured here", so a
+container can set one field without wiping the rest of the document. It
+skips a value that does not parse and carries on, so a typo in an
+optional setting never stops a container from starting.
+
+Validation fills what remains empty and checks the version. The
+document is two fields wide and neither can be wrong in a way worth
+refusing to start over: the run that opens the database reports a path
+that does not open, and recording is a boolean. A document from a newer
+build may hold fields this one would ignore in silence, so a newer
+version fails.
 
 ## Types
 
@@ -24,7 +43,9 @@ with a message naming the field, long before the first request.
 <summary><code>type Config</code></summary>
 
 ```go
-// Config is the .atkins/config.yml document.
+// Config is the .atkins/config.yml document. A value holds the layers
+// merged so far; Load and LoadFile return one that validates, and Save
+// writes it back.
 type Config struct {
 	// Version identifies the document format.
 	Version int `yaml:"version" json:"version"`
@@ -80,7 +101,7 @@ type Menu struct {
 
 ```go
 // StorageConfig is the event database: the file every run appends a row
-// per job and per command to, and what is kept in it.
+// per job and per command to, and what it holds.
 type StorageConfig struct {
 	// Database is the file to record into. Empty discovers it: the
 	// atkins.db of the nearest .atkins folder, and
@@ -92,8 +113,8 @@ type StorageConfig struct {
 	// records nothing, the same as `--local`, and leaves the database
 	// alone.
 	//
-	// How long a run is kept is not a setting: storage.Retention is 31
-	// days on every machine, applied by the run that records.
+	// Retention is no setting: storage.Retention is 31 days on every
+	// machine, applied by the run that records.
 	Record bool `yaml:"record" json:"record" env:"ATKINS_RECORD"`
 }
 ```
@@ -138,13 +159,8 @@ const Version = 1
 <summary><code>var RuntimeDefaultConfig</code></summary>
 
 ```go
-// RuntimeDefaultConfig is the default configuration document, embedded
-// so an unconfigured install still has a complete and valid set of
-// values and no scatter of zero values.
-//
-// The configuration menu also writes it when a project has no
-// .atkins/config.yml yet, comments and all, so the file a user first
-// opens explains itself.
+// RuntimeDefaultConfig is the default configuration document, the base
+// layer under every other.
 //
 //go:embed config.yml
 var RuntimeDefaultConfig []byte
@@ -170,7 +186,7 @@ var RuntimeDefaultConfig []byte
 - `func (*Config) Save (path string) error`
 - `func (*Config) Validate () error`
 - `func (*Menu) Run () error`
-- `func (*Menu) SetIO (in io.Reader, out io.Writer)`
+- `func (*Menu) SetIO (w io.Writer, r io.Reader)`
 - `func (Field) Display () string`
 - `func (Field) Kind () string`
 - `func (Field) Set (raw string) error`
@@ -178,10 +194,7 @@ var RuntimeDefaultConfig []byte
 
 ### `Default`
 
-`Default` returns the embedded configuration.
-
-Every other layer applies on top of this base, and it supplies the
-value for any field left empty.
+`Default` returns the embedded configuration, or the error parsing it.
 
 ```go
 func Default() (*Config, error)
@@ -199,9 +212,7 @@ func Discover(dir string) string
 
 ### `EnvironmentNames`
 
-`EnvironmentNames` returns the variables that can override a field,
-keyed by the field path they apply to. The configuration menu uses it
-to warn that an edit will be overridden at runtime.
+`EnvironmentNames` returns the override variable of each field, keyed by field path.
 
 ```go
 func EnvironmentNames() map[string]string
@@ -209,12 +220,8 @@ func EnvironmentNames() map[string]string
 
 ### `Load`
 
-`Load` reads the effective configuration for a directory.
-
-The layers, each overriding the last: the embedded default, the user
-document at $HOME/.atkins/config.yml, the project document found by
-walking up from dir, and finally the environment overlay. Validation
-of the result fills anything still empty.
+`Load` returns the merged and validated configuration for a directory,
+or the error of the default, a document or validation.
 
 ```go
 func Load(dir string) (*Config, error)
@@ -241,8 +248,7 @@ func NewMenu(path string) (*Menu, error)
 
 ### `Paths`
 
-`Paths` returns the configuration documents that apply to dir, in the
-order Load merges them.
+`Paths` returns the documents that apply to dir, in the order Load merges them.
 
 ```go
 func Paths(dir string) []string
@@ -268,18 +274,7 @@ func SplitList(value string) []string
 
 ### `ApplyEnvironment`
 
-`ApplyEnvironment` overlays ATKINS_* variables onto the configuration.
-
-`env` struct tags drive the overlay, so adding a field to the
-document adds an override for free. The overlay applies only variables
-that hold a non-empty value: an empty variable means "not configured
-here", so a container can set one field without wiping the rest of
-the document.
-
-The overlay skips a value that doesn't parse, and that is never fatal.
-The alternative is a container that fails to start because of a typo in
-an optional tuning knob, and the validation pass still catches anything
-that would leave the configuration unusable.
+`ApplyEnvironment` overlays the non-empty ATKINS_* variables of environ.
 
 ```go
 func (*Config) ApplyEnvironment(environ []string)
@@ -287,7 +282,7 @@ func (*Config) ApplyEnvironment(environ []string)
 
 ### `Encode`
 
-`Encode` renders the configuration as YAML.
+`Encode` renders the configuration as YAML indented by two spaces.
 
 ```go
 func (*Config) Encode() ([]byte, error)
@@ -311,7 +306,7 @@ func (*Config) Fields() []Field
 
 ### `Save`
 
-`Save` writes the configuration, creating the .atkins directory.
+`Save` writes the configuration to path, owner-only, creating its directory.
 
 ```go
 func (*Config) Save(path string) error
@@ -319,14 +314,8 @@ func (*Config) Save(path string) error
 
 ### `Validate`
 
-`Validate` fills empty fields from the embedded defaults and checks what
-remains.
-
-The document is two fields wide, and neither can be wrong in a way
-worth refusing to start over: a database path that does not open is
-reported by the run that tried, and recording is a boolean. What is
-left to check is the version, because a document from a newer build
-may hold fields this one would silently ignore.
+`Validate` fills empty fields from the embedded defaults, and returns an
+error for a version newer than this build.
 
 ```go
 func (*Config) Validate() error
@@ -342,11 +331,10 @@ func (*Menu) Run() error
 
 ### `SetIO`
 
-`SetIO` redirects the menu, so something other than a terminal can
-drive it.
+`SetIO` points the menu at w and r in place of the terminal.
 
 ```go
-func (*Menu) SetIO(in io.Reader, out io.Writer)
+func (*Menu) SetIO(w io.Writer, r io.Reader)
 ```
 
 ### `Display`

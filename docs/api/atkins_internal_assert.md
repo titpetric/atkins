@@ -82,8 +82,7 @@ var AnError = errors.New("assert.AnError general error for testing")
 
 ### `Assert`
 
-`Assert` matches True() under a different name and earlier
-fortio/stats test implementation.
+`Assert` is True with a printf message, for earlier fortio/stats tests.
 
 ```go
 func Assert(t testing.TB, cond bool, msg string, rest ...any)
@@ -91,8 +90,7 @@ func Assert(t testing.TB, cond bool, msg string, rest ...any)
 
 ### `CheckEquals`
 
-`CheckEquals` checks if actual == expect and fails the test and logs
-failure (including filename:linenum if they are not equal).
+`CheckEquals` fails the test, logging file:line, when actual != expected.
 
 ```go
 func CheckEquals(t testing.TB, actual, expected any, msg ...any)
@@ -116,8 +114,7 @@ func DirExists(t testing.TB, path string, msg ...any)
 
 ### `ElementsMatch`
 
-`ElementsMatch` checks that two arrays or slices hold the same elements
-with the same multiplicity, in any order.
+`ElementsMatch` checks that two lists hold the same elements, counted, in any order.
 
 ```go
 func ElementsMatch(t testing.TB, listA, listB any, msg ...any)
@@ -157,8 +154,7 @@ func Error(t testing.TB, err error, msg ...any)
 
 ### `ErrorAs`
 
-`ErrorAs` checks that err, or an error it wraps, is assignable to
-target, which must be a non-nil pointer.
+`ErrorAs` checks that err, or an error it wraps, is assignable to the pointer target.
 
 ```go
 func ErrorAs(t testing.TB, err error, target any, msg ...any)
@@ -288,8 +284,7 @@ func Nil(t testing.TB, value any, msg ...any)
 
 ### `NoDirExists`
 
-`NoDirExists` checks that path is not a directory. A regular file at
-path passes, matching testify.
+`NoDirExists` checks that path is not a directory; a regular file passes.
 
 ```go
 func NoDirExists(t testing.TB, path string, msg ...any)
@@ -305,8 +300,7 @@ func NoError(t testing.TB, err error, msg ...any)
 
 ### `NoFileExists`
 
-`NoFileExists` checks that path is not a regular file. A directory at
-path passes, matching testify.
+`NoFileExists` checks that path is not a regular file; a directory passes.
 
 ```go
 func NoFileExists(t testing.TB, path string, msg ...any)
@@ -370,8 +364,7 @@ func Positive(t testing.TB, value any, msg ...any)
 
 ### `Run`
 
-`Run` runs the test suite with SetupTest first and TearDownTest after.
-Replaces https://pkg.go.dev/github.com/stretchr/testify/suite#Run.
+`Run` runs each Test method of suite with SetupTest first and TearDownTest after.
 
 ```go
 func Run(t *testing.T, suite hasT)

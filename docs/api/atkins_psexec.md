@@ -100,7 +100,8 @@ type Options struct {
 <summary><code>type Process</code></summary>
 
 ```go
-// Process represents a running process with PTY support.
+// Process is a running process with a PTY. Pipe copies both ways between
+// the PTY and a transport such as a websocket.
 type Process struct {
 	cmd       *exec.Cmd
 	ptmx      *os.File
@@ -273,8 +274,7 @@ func (*Process) PTY() *os.File
 
 ### `Pipe`
 
-`Pipe` sets up bidirectional I/O between the process and the provided
-reader/writer. This is the primary method for websocket integration.
+`Pipe` copies stdin to the PTY and the PTY to stdout until the process ends.
 
 ```go
 func (*Process) Pipe(stdout io.Writer, stdin io.Reader) error

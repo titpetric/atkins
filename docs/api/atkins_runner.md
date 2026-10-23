@@ -6,6 +6,37 @@ import (
 )
 ```
 
+Package `runner` loads atkins pipelines and runs their jobs.
+
+A run starts from a pipeline file: DiscoverConfig finds it by walking up
+from the working directory, LoadPipeline parses it, and a SkillsLoader
+adds the skill pipelines from the .atkins/skills folders that apply. A
+skill applies when its when: block matches a file near the working
+directory, or when it has no when: block.
+
+RunPipeline runs the requested jobs. Before any job starts, the pipeline
+resolves the jobs and their dependencies into a run order and builds a
+tree node for every job a step can invoke, so the first render of the
+tree shows the whole run. An Executor then runs each job's steps, with
+their for: loops, task: references and conditions, and the tree and the
+event log record what each step did.
+
+Values reach a command through interpolation: `${{ expression }}` reads
+variables and expressions, and `$(command)` substitutes the output of a
+shell command. ContextVariables holds the variables of a run and can
+resolve a pending one on its first read.
+
+A project cloned inside a workspace checkout sees the workspace's skills
+through SkillsLoader.AddParentWorkspaces. Inside home that walk stops
+below home: $HOME/.atkins/skills loads on its own as the global skills,
+and the folders above home are not the user's to configure. Outside home
+the walk goes on to the filesystem root, the same as DiscoverConfig.
+
+A task reference resolves through a TaskResolver: a skill's own jobs
+first, then every loaded pipeline, with a leading colon skipping the
+skill. The Vendorer copies the skills a repository uses into the
+repository's own .atkins/skills.
+
 ## Types
 
 <details>
@@ -27,7 +58,14 @@ type ContextVariables struct {
 <summary><code>type Env</code></summary>
 
 ```go
-// Env is a map of environment variables.
+// Env is the environment a command runs with, read by NewEnv from the
+// KEY=VALUE strings os.Environ and exec.Cmd use. A later entry wins, as exec
+// treats a duplicate name, and an entry without a name drops out.
+//
+// Sanitized drops atkins' own ATKINS_ and PLATFORM_ settings, for an agent
+// that runs a job's command with the machine's environment and sets that
+// command's variables by name. Dropping whole prefixes keeps a setting added
+// later with the process that owns it.
 type Env map[string]string
 ```
 
@@ -63,7 +101,13 @@ type ExecError struct {
 <summary><code>type ExecutionContext</code></summary>
 
 ```go
-// ExecutionContext holds runtime state during pipeline Exec.
+// ExecutionContext holds the state of a run as a job and its steps see it.
+// A job, a step and a loop iteration each run in a copy of their parent's
+// context. Copy clones the variables and the environment, so a step's vars
+// stay in the step, and shares the job tracker and the substitution memo,
+// so every copy agrees on which jobs finished and on what a `$(...)`
+// produced. A task name resolves in the skill's own pipeline first, then in
+// every loaded pipeline; a leading colon skips the skill.
 type ExecutionContext struct {
 	Context context.Context
 
@@ -148,6 +192,10 @@ type FuzzyMatchError struct {
 
 ```go
 // IterationContext holds the variables for a single iteration of a for loop.
+// ExpandFor returns one per iteration. An iterator reads "item in items",
+// where items names a variable, "(index, item) in items" or
+// "(key, value) in items", and any of them can take its items from a shell
+// command: "item in $(ls ./bin/*.test)".
 type IterationContext struct {
 	Variables model.VariableStorage
 }
@@ -288,9 +336,9 @@ type OutputItem struct {
 	// Env are the dotenv files the job reads on top of the pipeline's.
 	Env []string `json:"env,omitempty" yaml:"env,omitempty"`
 
-	// Hidden reports a job with show: false, which the file asks not to
-	// be offered. It is listed so a caller knows the job exists and
-	// what it is; whether to offer it is the caller's.
+	// Hidden reports a job with show: false, a job the file keeps out of
+	// menus. The listing carries it, so a caller knows the job exists and
+	// what it does, and decides for itself whether to show it.
 	Hidden bool `json:"hidden,omitempty" yaml:"hidden,omitempty"`
 
 	// Active is false for a job of an inactive skill, which only a
@@ -367,7 +415,7 @@ type OutputSection struct {
 
 	Desc string `json:"desc" yaml:"desc"`
 
-	// Help is what the pipeline says it is for, its help: block.
+	// Help is the pipeline's help: block, the purpose it states.
 	Help string `json:"help,omitempty" yaml:"help,omitempty"`
 
 	// Include are the files the pipeline reads into its variables, and
@@ -477,7 +525,7 @@ type ProgressObserverFunc func(JobProgressEvent)
 // the whole of it: the metadata, the tree, every event and the summary.
 //
 // The interface keeps the runner free of a database: a sqlite file, a
-// socket or a test double all satisfy it, and a recorder that fails
+// socket or a test double can each stand behind it, and a recorder that fails
 // never fails the run that produced it.
 type Recorder interface {
 	Record(ctx context.Context, log *eventlog.Log) error
@@ -554,9 +602,16 @@ type Skill struct {
 <summary><code>type SkillsLoader</code></summary>
 
 ```go
-// SkillsLoader discovers and loads skill pipelines from .atkins/skills/ directories.
-// It checks `when:` conditions to determine which skills apply and sets
-// the appropriate working directory for each skill based on the rules.
+// SkillsLoader loads the skill pipelines of .atkins/skills/ directories,
+// in priority order: a skill shadows one of the same ID from a later
+// directory, so a project skill wins over a global one. A skill runs in the
+// folder of the file its when: block matched, or without one, in the folder
+// holding its .atkins/. A skill whose when: block does not match is inactive
+// and shadows nothing.
+//
+// Load returns the active skills, the ones a run uses. Scan returns every
+// skill for `atkins --help`, and LoadAll adds the inactive skills of an ID
+// no active skill carries, for `atkins -l --json --all`.
 type SkillsLoader struct {
 	// SkillsDirs are the directories to search for skill files, in priority order.
 	// First directory takes precedence for skills with the same ID.
@@ -582,7 +637,12 @@ type SkillsLoader struct {
 <summary><code>type TaskResolver</code></summary>
 
 ```go
-// TaskResolver resolves task references, handling cross-pipeline : prefix syntax.
+// TaskResolver resolves a task reference to a pipeline and a job.
+// A name resolves by exact name first, a qualified one such as go:build
+// included, then by a job alias, then by a unique suffix match. A leading
+// colon makes the reference strict: exact names only, and in a skill, the
+// global pipelines only. A suffix that matches more than one job is a
+// FuzzyMatchError.
 type TaskResolver struct {
 	pipelines []*model.Pipeline
 }
@@ -687,8 +747,13 @@ type VendorStatus string
 
 ```go
 // Vendorer copies the skills a repository uses out of a shared skills
-// directory and into the repository itself, so a clone or a CI agent
-// gets the same jobs without a personal $HOME/.atkins/skills.
+// directory and into the repository, so a clone or a CI agent gets the same
+// jobs without a personal $HOME/.atkins/skills.
+//
+// A repository uses a skill whose when: block matches a path in it, a skill
+// without a when: block, and a skill whose jobs its pipelines or its other
+// skills reference. Plan reports that selection; Run also installs it, over
+// a vendored copy that differs, which git tracks like any other file.
 type Vendorer struct {
 	// SourceDir is the skills directory to vendor from, typically
 	// $HOME/.atkins/skills.
@@ -712,6 +777,13 @@ type Vendorer struct {
 
 ```go
 // WhenMatch is the outcome of evaluating a when: block.
+// An absolute pattern resolves on its own. A relative pattern resolves in
+// the starting folder and then in every parent folder, nearest first, unless
+// the block sets here: true, which keeps the search to the starting folder.
+// In each folder the search tries every pattern, so a closer match wins over
+// pattern order. With contains: set, only a regular file whose contents match the
+// regular expression counts. An invalid contains: expression never matches;
+// the linter reports it.
 type WhenMatch struct {
 	// Dir is the folder holding the matched file, where a skill runs.
 	Dir string
@@ -758,6 +830,7 @@ const (
 <summary><code>const VendorNew, VendorCurrent, VendorChanged</code></summary>
 
 ```go
+// The states Plan sets on a used skill.
 const (
 	// VendorNew means the repository doesn't carry the skill yet.
 	VendorNew VendorStatus = "new"
@@ -872,6 +945,7 @@ var ErrJobSkipped = errors.New("job skipped")
 - `func (*LineCapturingWriter) String () string`
 - `func (*LineCapturingWriter) Write (p []byte) (int, error)`
 - `func (*Linter) Lint () []LintError`
+- `func (*Pipeline) Run (ctx context.Context) error`
 - `func (*Skill) ID () string`
 - `func (*SkillsLoader) AddParentWorkspaces ()`
 - `func (*SkillsLoader) AddSkillsDir (dir string)`
@@ -896,9 +970,7 @@ var ErrJobSkipped = errors.New("job skipped")
 
 ### `ActivePipelines`
 
-`ActivePipelines` returns the pipelines a run sees. It drops the
-inactive skills, and returns a copy without the inactive jobs of a
-pipeline that has some.
+`ActivePipelines` returns the pipelines a run sees: no inactive skills, no inactive jobs.
 
 ```go
 func ActivePipelines(pipelines []*model.Pipeline) []*model.Pipeline
@@ -906,9 +978,7 @@ func ActivePipelines(pipelines []*model.Pipeline) []*model.Pipeline
 
 ### `ApplyJobWhen`
 
-`ApplyJobWhen` evaluates the when: block of every job in pipelines from
-startDir. It marks a job Inactive where its block does not match: the
-listing leaves it out and a run refuses it.
+`ApplyJobWhen` marks Inactive each job whose when: block does not match from startDir.
 
 ```go
 func ApplyJobWhen(pipelines []*model.Pipeline, startDir string)
@@ -982,11 +1052,10 @@ func EvaluateJobIf(ctx *ExecutionContext) (bool, error)
 
 ### `ExpandFor`
 
-`ExpandFor` expands a for loop into one context per iteration.
-Supports patterns: "item in items" (items is a variable name),
-"(index, item) in items", "(key, value) in items",
-or any of the above with bash expansion: "item in $(ls ./bin/*.test)".
-With more than one iterator, it computes the cartesian product.
+`ExpandFor` returns one context per iteration of the step's for: loop,
+nil for a step without one, and the error of an iterator that does not expand.
+More than one iterator returns their cartesian product; see IterationContext
+for the patterns an iterator takes.
 
 ```go
 func ExpandFor(ctx *ExecutionContext, executeCommand func(string) (string, error)) ([]IterationContext, error)
@@ -1027,8 +1096,7 @@ func InterpolateMap(ctx *ExecutionContext, m map[string]any) error
 
 ### `InterpolateString`
 
-`InterpolateString` replaces ${{ expression }} with values from context.
-Supports variable interpolation, dot notation, and expr expressions with ?? and || operators.
+`InterpolateString` returns s with each ${{ expression }} replaced: a variable, a dotted path, or an expr expression with ?? and ||.
 
 ```go
 func InterpolateString(s string, ctx *ExecutionContext) (string, error)
@@ -1087,15 +1155,8 @@ func LoadPipelineFromReader(r io.Reader) ([]*model.Pipeline, error)
 
 ### `MatchWhen`
 
-`MatchWhen` evaluates a when: block from startDir.
-
-An absolute pattern resolves on its own. A relative pattern resolves
-in startDir and then in every parent folder, nearest first, unless
-the block sets here: true, which keeps the search to startDir. In each
-folder MatchWhen tries every pattern, so a closer match wins over
-pattern order. With contains: set, only a regular file whose contents match the
-regular expression counts. An invalid contains: expression never
-matches; the linter reports it.
+`MatchWhen` reports false for an empty block or an invalid contains: expression,
+and otherwise the first match from startDir, absolute patterns first.
 
 ```go
 func MatchWhen(when *model.PipelineWhen, startDir string) (WhenMatch, bool)
@@ -1103,13 +1164,8 @@ func MatchWhen(when *model.PipelineWhen, startDir string) (WhenMatch, bool)
 
 ### `MatchWhenPattern`
 
-`MatchWhenPattern` reports whether a `when: files:` pattern resolves to
-something inside dir, and what it resolved to.
-
-MatchWhenPattern expands a pattern carrying a glob meta character, so a
-skill can activate on the contents of a folder and not only its name:
-`schema/*.up.sql` matches a folder of migrations, while `schema/`
-matches any folder of that name.
+`MatchWhenPattern` returns what a `when: files:` pattern resolves to inside dir.
+A glob pattern such as `schema/*.up.sql` matches a folder's contents, `schema/` the folder.
 
 ```go
 func MatchWhenPattern(dir, pattern string) (string, bool)
@@ -1128,10 +1184,7 @@ func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error
 
 ### `MergeSkills`
 
-`MergeSkills` appends the skill pipelines in more to pipelines, skipping
-an ID pipelines already carries. An active pipeline from more takes
-the place of an inactive one with the same ID, so a skill that applies
-wins over one that does not, whatever directory each comes from.
+`MergeSkills` returns pipelines with the new IDs of more appended, an active one replacing an inactive one.
 
 ```go
 func MergeSkills(pipelines, more []*model.Pipeline) []*model.Pipeline
@@ -1158,8 +1211,7 @@ func NewContextVariables(values map[string]any) *ContextVariables
 
 ### `NewContextVariablesWithResolver`
 
-`NewContextVariablesWithResolver` creates a ContextVariables with pending values
-that resolve lazily on first access via Get().
+`NewContextVariablesWithResolver` returns variables that resolve on their first Get.
 
 ```go
 func NewContextVariablesWithResolver(pending map[string]any, resolver func(string) (string, error)) *ContextVariables
@@ -1167,12 +1219,7 @@ func NewContextVariablesWithResolver(pending map[string]any, resolver func(strin
 
 ### `NewEnv`
 
-`NewEnv` builds an Env from KEY=VALUE strings, the form os.Environ and
-exec.Cmd use. The caller supplies the slice, so a process
-environment, a captured one or a literal all read the same way.
-
-A later entry wins, matching what exec does with a duplicate name.
-NewEnv skips entries without a name.
+`NewEnv` returns the Env the KEY=VALUE entries describe.
 
 ```go
 func NewEnv(environ []string) Env
@@ -1252,9 +1299,7 @@ func NewSkillResolver(pipeline *model.Pipeline) *TaskResolver
 
 ### `NewSkillsLoader`
 
-`NewSkillsLoader` creates a loader for the given workspace.
-workspaceDir is the folder containing .atkins/ (used as Dir for skills without when:).
-startDir is where to start searching for when: files (typically user's cwd).
+`NewSkillsLoader` returns a loader for workspaceDir/.atkins/skills, matching when: blocks from startDir.
 
 ```go
 func NewSkillsLoader(workspaceDir, startDir string) *SkillsLoader
@@ -1278,13 +1323,8 @@ func NewVendorer(sourceDir, root string) *Vendorer
 
 ### `ParentWorkspaces`
 
-`ParentWorkspaces` returns the folders above dir holding .atkins/skills,
-nearest first.
-
-Inside home the walk stops below home: $HOME/.atkins/skills loads on
-its own as the global skills, and the folders above home are not the
-user's to configure. Outside home the walk goes on to the filesystem
-root, the same as DiscoverConfig.
+`ParentWorkspaces` returns the folders above dir holding .atkins/skills, nearest first,
+stopping below home when dir is inside it.
 
 ```go
 func ParentWorkspaces(dir, home string) []string
@@ -1308,11 +1348,9 @@ func PrintYAML(v any) error
 
 ### `ProcessDecl`
 
-`ProcessDecl` processes a Decl and returns a map of variables.
-It handles:
-- Manual vars with interpolation ($(...), ${{ ... }})
-- Include files (.yml format)
-  Vars take precedence over included files.
+`ProcessDecl` returns an error for an include file that does not load,
+an error for a var that does not interpolate,
+and otherwise the include files' values with the interpolated vars over them.
 
 ```go
 func ProcessDecl(ctx *ExecutionContext, decl *model.Decl) (map[string]any, error)
@@ -1337,14 +1375,8 @@ func RunPipeline(ctx context.Context, pipeline *model.Pipeline, opts PipelineOpt
 
 ### `Sanitize`
 
-`Sanitize` processes raw terminal output and returns clean lines.
-It handles:
-- Cursor up + clear sequences (\033[nA\033[J) used by treeview
-- Carriage returns (\r) by taking content after the last \r
-- CRLF normalization
-- Preserves ANSI color sequences in output
-
-Returns sanitized lines with colors preserved.
+`Sanitize` returns nil for empty input.
+Otherwise it returns the lines a terminal shows, ANSI colours kept.
 
 ```go
 func Sanitize(in string) ([]string, error)
@@ -1434,8 +1466,7 @@ func (*ContextVariables) Set(key string, value any)
 
 ### `SetResolver`
 
-`SetResolver` updates the resolver function. Used when the resolver
-needs a reference to the ContextVariables itself (circular setup).
+`SetResolver` sets the resolver, for one that reads these same variables.
 
 ```go
 func (*ContextVariables) SetResolver(resolver func(string) (string, error))
@@ -1451,8 +1482,7 @@ func (*ContextVariables) Walk(fn func(key string, value any))
 
 ### `Copy`
 
-`Copy` copies everything except Context. It clones Variables.
-The copy shares jobTracker (no copy) to keep dependency tracking consistent.
+`Copy` returns a copy one level deeper, without Context.
 
 ```go
 func (*ExecutionContext) Copy() *ExecutionContext
@@ -1484,8 +1514,7 @@ func (*ExecutionContext) MarkJobCompleted(jobName string)
 
 ### `NextStepIndex`
 
-`NextStepIndex` returns the next sequential step index for this job execution.
-This ensures each step/iteration gets a unique number.
+`NextStepIndex` returns the next step index of the job, unique to each step and iteration.
 
 ```go
 func (*ExecutionContext) NextStepIndex() int
@@ -1501,8 +1530,7 @@ func (*ExecutionContext) Render()
 
 ### `Resolve`
 
-`Resolve` resolves a task name using skill-local scope first, then global.
-If the task has a ":" prefix, it resolves in global scope only (strict).
+`Resolve` returns the task a name resolves to, in the skill first, then globally.
 
 ```go
 func (*ExecutionContext) Resolve(taskName string) (*model.ResolvedTask, error)
@@ -1572,6 +1600,14 @@ func (*LineCapturingWriter) Write(p []byte) (int, error)
 func (*Linter) Lint() []LintError
 ```
 
+### `Run`
+
+`Run` returns the error of the first job that fails, nil when every job passes.
+
+```go
+func (*Pipeline) Run(ctx context.Context) error
+```
+
 ### `ID`
 
 `ID` returns the skill namespace, the file name without its extension.
@@ -1582,10 +1618,7 @@ func (*Skill) ID() string
 
 ### `AddParentWorkspaces`
 
-`AddParentWorkspaces` adds the .atkins/skills of every folder above
-WorkspaceDir, nearest first, so a project cloned inside a workspace
-checkout sees the workspace's skills. See ParentWorkspaces for where
-the walk stops.
+`AddParentWorkspaces` adds the workspaces ParentWorkspaces finds above WorkspaceDir.
 
 ```go
 func (*SkillsLoader) AddParentWorkspaces()
@@ -1593,8 +1626,7 @@ func (*SkillsLoader) AddParentWorkspaces()
 
 ### `AddSkillsDir`
 
-`AddSkillsDir` adds another skills directory to search.
-Directories added later have lower precedence.
+`AddSkillsDir` adds a skills directory below the ones already there.
 
 ```go
 func (*SkillsLoader) AddSkillsDir(dir string)
@@ -1602,8 +1634,7 @@ func (*SkillsLoader) AddSkillsDir(dir string)
 
 ### `AddWorkspace`
 
-`AddWorkspace` adds dir/.atkins/skills to search, at lower precedence,
-and runs its skills without when: in dir.
+`AddWorkspace` adds dir/.atkins/skills, whose skills without when: run in dir.
 
 ```go
 func (*SkillsLoader) AddWorkspace(dir string)
@@ -1611,12 +1642,8 @@ func (*SkillsLoader) AddWorkspace(dir string)
 
 ### `FindFile`
 
-`FindFile` searches for files matching any of the given patterns starting from
-startDir and traversing parent directories. Returns (found, matchDir) where
-matchDir is the directory containing the first matched file.
-
-For each directory (starting with startDir, going up), it checks all patterns.
-This means closer matches win over pattern order.
+`FindFile` returns the nearest folder from startDir up where any pattern matches,
+so a closer match wins over pattern order.
 
 ```go
 func (*SkillsLoader) FindFile(patterns []string, startDir string) (string, bool)
@@ -1624,9 +1651,7 @@ func (*SkillsLoader) FindFile(patterns []string, startDir string) (string, bool)
 
 ### `FindFolder`
 
-`FindFolder` searches for a directory with the given name starting from startDir
-and traversing parent directories. Returns (found, containingDir) where
-containingDir is the parent directory that contains the named folder.
+`FindFolder` returns the nearest folder from startDir up that holds a folder named name.
 
 ```go
 func (*SkillsLoader) FindFolder(name, startDir string) (string, bool)
@@ -1634,12 +1659,8 @@ func (*SkillsLoader) FindFolder(name, startDir string) (string, bool)
 
 ### `Load`
 
-`Load` discovers and returns all enabled skill pipelines.
-
-A skill from an earlier directory shadows one of the same ID found
-later, so a project skill wins over the global one it shares a name
-with. A skill whose when: block does not match contributes nothing and
-does not shadow anything.
+`Load` returns the error of a skill that does not load,
+or the pipelines of the active skills, one per ID.
 
 ```go
 func (*SkillsLoader) Load() ([]*model.Pipeline, error)
@@ -1647,13 +1668,8 @@ func (*SkillsLoader) Load() ([]*model.Pipeline, error)
 
 ### `LoadAll`
 
-`LoadAll` returns the skill pipelines Load returns, followed by the
-skills whose when: block does not match, marked Inactive.
-
-An inactive skill shadows nothing: it appears only for an ID no
-active skill carries, once, from the highest-priority directory.
-`atkins -l --json --all` lists them so a caller sees every skill
-installed for a folder; a run never uses LoadAll.
+`LoadAll` returns the error of a skill that does not load,
+or the pipelines Load returns followed by the inactive skills, marked Inactive.
 
 ```go
 func (*SkillsLoader) LoadAll() ([]*model.Pipeline, error)
@@ -1661,13 +1677,9 @@ func (*SkillsLoader) LoadAll() ([]*model.Pipeline, error)
 
 ### `Scan`
 
-`Scan` returns every skill file in the loader's directories, in
-directory order, whether its when: block matches or not.
-
-Load drops the skills that do not apply here; Scan keeps them so
-`atkins --help` can list every installed skill, beyond the ones the
-current directory activates. Two directories carrying the same skill
-ID both appear, the higher-priority one first.
+`Scan` returns every skill in directory order, active or not, a shadowed one included,
+or the error of a directory that does not read
+or a skill that does not load.
 
 ```go
 func (*SkillsLoader) Scan() ([]*Skill, error)
@@ -1683,9 +1695,7 @@ func (*TaskResolver) Resolve(taskName string) (*model.ResolvedTask, error)
 
 ### `ResolveName`
 
-`ResolveName` resolves a name to the pipeline and job.
-It tries explicit matching, then checks aliases, then fuzzy matches jobs.
-If no job matches, it returns an error.
+`ResolveName` returns an exact match, else an alias, else a fuzzy match; strict stops after the exact one.
 
 ```go
 func (*TaskResolver) ResolveName(name string, strict bool) (*model.ResolvedTask, error)
@@ -1693,9 +1703,8 @@ func (*TaskResolver) ResolveName(name string, strict bool) (*model.ResolvedTask,
 
 ### `ResolveWithFallback`
 
-`ResolveWithFallback` tries resolving with r first, then falls back to the
-fallback resolver. If the task has a ":" prefix, it uses only the fallback
-(global) resolver.
+`ResolveWithFallback` resolves a ":" name with fallback alone,
+any other name with r first and then with fallback.
 
 ```go
 func (*TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver) (*model.ResolvedTask, error)
@@ -1703,8 +1712,7 @@ func (*TaskResolver) ResolveWithFallback(taskName string, fallback *TaskResolver
 
 ### `Pending`
 
-`Pending` returns the IDs a write would create or overwrite, leaving
-out the skills already vendored unchanged.
+`Pending` returns the IDs a write would create or overwrite.
 
 ```go
 func (*VendorResult) Pending() []string
@@ -1712,10 +1720,8 @@ func (*VendorResult) Pending() []string
 
 ### `Install`
 
-`Install` copies the selected skills into TargetDir, creating it when it
-doesn't exist, and overwrites a vendored copy that has drifted from
-its source. Git tracks vendored skills like any other file, so
-reverting an unwanted change is the user's call, not this command's.
+`Install` copies the pending skills into TargetDir, creating it when it
+doesn't exist, and returns the first error that stops a copy.
 
 ```go
 func (*Vendorer) Install(result *VendorResult) error
@@ -1723,13 +1729,7 @@ func (*Vendorer) Install(result *VendorResult) error
 
 ### `Plan`
 
-`Plan` reads the source skills and decides which of them this
-repository uses, without writing anything.
-
-The repository uses a skill when its when: block matches a path anywhere
-in the repository, when it has no when: block at all (it's active
-everywhere), or when a pipeline in the repository - or another
-selected skill - references one of its jobs.
+`Plan` returns the skills the repository uses, or the error that stops it reading them.
 
 ```go
 func (*Vendorer) Plan() (*VendorResult, error)
@@ -1756,14 +1756,8 @@ func (Env) Environ() []string
 
 ### `Sanitized`
 
-`Sanitized` returns a copy of the environment with atkins' own settings
-removed.
-
-An agent passes this copy to a command that arrived with a job: the
-command keeps PATH and the rest of the machine's environment, and the
-agent sets the variables for it by name afterwards. Removing the
-prefixes wholesale keeps a setting added later with the process that
-owns it.
+`Sanitized` returns nil for a nil Env,
+otherwise a copy without atkins' own settings.
 
 ```go
 func (Env) Sanitized() Env

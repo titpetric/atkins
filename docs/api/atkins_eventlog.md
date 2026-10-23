@@ -6,6 +6,19 @@ import (
 )
 ```
 
+Package `eventlog` records what one atkins run does: an event per step,
+per $() substitution and per interpolated command, the state tree the
+run ends with, and a summary of the totals.
+
+A Logger collects the events of one run. It collects with or without a
+file: the storage recorder reads the events and the summary counts
+them, and a collected event costs one slice append. The file path
+decides whether Write writes the YAML document of --log.
+
+Document assembles the finished Log. Write marshals it and the storage
+recorder stores it, so the file and the event database read the same
+document.
+
 ## Types
 
 <details>
@@ -104,7 +117,9 @@ type LogEntry struct {
 <summary><code>type Logger</code></summary>
 
 ```go
-// Logger collects events during execution and writes the final log.
+// Logger collects the events of one run and assembles the finished Log
+// from them. A nil Logger records nothing. The package documentation
+// says why it collects without a file.
 type Logger struct {
 	mu        sync.Mutex
 	filePath  string
@@ -288,12 +303,7 @@ func CountSteps(node *StateNode) int
 
 ### `NewLogger`
 
-`NewLogger` creates a new event logger.
-
-The logger always collects, because the events are what a recorder
-stores and what the summary counts, and collecting them costs a slice
-append per command. An empty filePath writes no file: that is the only
-thing the path decides.
+`NewLogger` returns a logger of the run, which writes no file for an empty filePath.
 
 ```go
 func NewLogger(filePath, pipelineName, pipelineFile string, debug bool) *Logger
@@ -317,11 +327,8 @@ func TreeNodeToStateNode(node *treeview.TreeNode) *StateNode
 
 ### `Document`
 
-`Document` returns the finished log: the run's metadata, the state tree
-it ended with, every event it collected and the summary.
-
-Write marshals it and a recorder stores it, so both read the same
-document and neither assembles one of its own.
+`Document` returns nil on a nil Logger, else the finished log: the
+metadata, the state tree, every event and the summary.
 
 ```go
 func (*Logger) Document(state *StateNode, summary *RunSummary) *Log
