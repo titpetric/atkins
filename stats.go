@@ -40,13 +40,17 @@ const chartHeight = 6
 // slowest, but which one costs the most once its frequency is counted,
 // and whether that has been true all month or only since Tuesday.
 func runStats(ctx context.Context, settings *config.Config, opts *Options) error {
-	store, err := openStorage(settings)
-	if err != nil {
+	stores, err := openStorage(settings)
+	if err != nil && len(stores) == 0 {
 		return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 	}
-	defer store.Close()
+	defer func() {
+		for _, store := range stores {
+			_ = store.Close()
+		}
+	}()
 
-	report, err := collectStats(ctx, store)
+	report, err := collectStats(ctx, stores)
 	if err != nil {
 		return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 	}
@@ -62,12 +66,49 @@ func runStats(ctx context.Context, settings *config.Config, opts *Options) error
 	return nil
 }
 
-// StatsReport is everything `atkins --stats` has to say, and everything
-// a reader of `--stats --json` needs to draw it again elsewhere.
+// StatsReport is everything `atkins --stats` has to say: what this
+// checkout has been running, and what every checkout on the machine has
+// been running between them.
+//
+// A run records to both databases, so the two answer different
+// questions of the same rows. The project's says what standing here
+// costs; the workspace's says where a week went across every project
+// atkins ran in.
+type StatsReport struct {
+	// Project is the checkout's own history, absent for a directory
+	// that belongs to no project and for one whose database is the
+	// workspace's.
+	Project *StatsScope `json:"project,omitempty" yaml:"project,omitempty"`
+
+	// Workspace is every project's history together.
+	Workspace *StatsScope `json:"workspace,omitempty" yaml:"workspace,omitempty"`
+}
+
+// Scopes returns the scopes to report, the project first.
+func (r *StatsReport) Scopes() []*StatsScope {
+	var scopes []*StatsScope
+	for _, scope := range []*StatsScope{r.Project, r.Workspace} {
+		if scope != nil {
+			scopes = append(scopes, scope)
+		}
+	}
+	return scopes
+}
+
+// StatsScope is one database's history, and everything a reader of
+// `--stats --json` needs to draw it again elsewhere.
 //
 // Durations are milliseconds throughout, as the database keeps them,
 // because a reader charting them wants a number and not a word.
-type StatsReport struct {
+type StatsScope struct {
+	// Name is what the scope is called, project or workspace.
+	Name string `json:"name" yaml:"name"`
+
+	// Repository is the checkout the rows came from, as its remote
+	// names it; empty for the workspace, which holds many, and for a
+	// project with no remote.
+	Repository string `json:"repository,omitempty" yaml:"repository,omitempty"`
+
 	// Database is the file the rows came from, and Days the window
 	// they cover, which is the retention window.
 	Database string `json:"database" yaml:"database"`
@@ -124,9 +165,44 @@ type UsageReport struct {
 	TotalMs int64  `json:"total_ms" yaml:"total_ms"`
 }
 
-// collectStats asks the storage its three questions over the retention
-// window and assembles the report.
-func collectStats(ctx context.Context, store *storage.Storage) (*StatsReport, error) {
+// collectStats reports each database the run would record to, the
+// project's as the project and the workspace's as the workspace.
+//
+// Which is which is the order Discover returns them in, and a single
+// database is the workspace's: a directory that belongs to no project
+// records to $HOME/.atkins and has no project to report.
+func collectStats(ctx context.Context, stores []*storage.Storage) (*StatsReport, error) {
+	report := &StatsReport{}
+
+	for index, store := range stores {
+		name := workspaceScope
+		if len(stores) > 1 && index == 0 {
+			name = projectScope
+		}
+
+		scope, err := collectScope(ctx, store, name)
+		if err != nil {
+			return nil, err
+		}
+		if name == projectScope {
+			report.Project = scope
+			continue
+		}
+		report.Workspace = scope
+	}
+
+	return report, nil
+}
+
+// The names a scope goes by.
+const (
+	projectScope   = "project"
+	workspaceScope = "workspace"
+)
+
+// collectScope asks one database its four questions over the retention
+// window.
+func collectScope(ctx context.Context, store *storage.Storage, name string) (*StatsScope, error) {
 	now := time.Now()
 	since := now.Add(-storage.Retention)
 
@@ -145,11 +221,18 @@ func collectStats(ctx context.Context, store *storage.Storage) (*StatsReport, er
 		return nil, err
 	}
 
-	report := &StatsReport{
+	report := &StatsScope{
+		Name:     name,
 		Database: store.Path(),
 		Days:     int(storage.Retention / (24 * time.Hour)),
 		From:     since.Format(time.DateOnly),
 		To:       now.Format(time.DateOnly),
+	}
+
+	// A project is one checkout, so the repository its runs name is the
+	// repository. A workspace holds many and names none.
+	if name == projectScope {
+		report.Repository = repositoryOf(ctx, store, since)
 	}
 
 	for _, command := range commands {
@@ -185,6 +268,16 @@ func collectStats(ctx context.Context, store *storage.Storage) (*StatsReport, er
 	return report, nil
 }
 
+// repositoryOf returns the repository the project's runs name, empty
+// when its checkout has no remote or nothing has run in it yet.
+func repositoryOf(ctx context.Context, store *storage.Storage, since time.Time) string {
+	runs, err := store.Runs(ctx, storage.RunFilter{Kind: "pipeline", Since: since, Limit: 1})
+	if err != nil || len(runs) == 0 {
+		return ""
+	}
+	return runs[0].Repository
+}
+
 // writeJSON emits the report as JSON, for a program reading it.
 func writeJSON(w io.Writer, report *StatsReport) error {
 	data, err := json.MarshalIndent(report, "", "  ")
@@ -213,29 +306,51 @@ func writeYAML(w io.Writer, report *StatsReport) error {
 // is plain markdown, so the same command serves a terminal and a
 // document without a flag to say which.
 func writeStats(w io.Writer, report *StatsReport, color bool) {
-	if len(report.Commands) == 0 {
-		fmt.Fprintf(w, "%s nothing recorded yet in %s\n", colors.BrightYellow("INFO:"), report.Database)
+	scopes := report.Scopes()
+	if len(scopes) == 0 {
+		fmt.Fprintf(w, "%s nothing recorded yet\n", colors.BrightYellow("INFO:"))
 		return
 	}
 
-	fmt.Fprintf(w, "%s\n", heading(report.Database, color))
+	for index, scope := range scopes {
+		if index > 0 {
+			fmt.Fprintln(w)
+		}
+		writeScope(w, scope, color)
+	}
+}
+
+// writeScope renders one database: what it is, what it holds, the days,
+// the tools and the commands.
+func writeScope(w io.Writer, scope *StatsScope, color bool) {
+	title := scope.Name
+	if scope.Repository != "" {
+		title += " · " + scope.Repository
+	}
+	fmt.Fprintf(w, "%s  %s\n", heading(title, color), dim(scope.Database, color))
+
+	if len(scope.Commands) == 0 {
+		fmt.Fprintf(w, "%s\n", dim("nothing recorded yet", color))
+		return
+	}
+
 	fmt.Fprintf(w, "%s\n\n",
 		dim(fmt.Sprintf("%d days, %s to %s, %s across %d runs",
-			report.Days, report.From, report.To, duration(report.TotalMs), report.Runs), color))
+			scope.Days, scope.From, scope.To, duration(scope.TotalMs), scope.Runs), color))
 
-	if days := dailyChart(report, color); days != "" {
+	if days := dailyChart(scope, color); days != "" {
 		fmt.Fprintf(w, "%s\n", days)
 	}
-	if tools := toolChart(report, color); tools != "" {
+	if tools := toolChart(scope, color); tools != "" {
 		fmt.Fprintf(w, "%s\n", tools)
 	}
 
-	fmt.Fprint(w, commandTable(report, color))
+	fmt.Fprint(w, commandTable(scope, color))
 }
 
 // dailyChart draws a column per day of the window, so a reader sees
 // whether the month was steady or was one Tuesday.
-func dailyChart(report *StatsReport, color bool) string {
+func dailyChart(report *StatsScope, color bool) string {
 	bars := dailyBars(report)
 	if len(bars) == 0 {
 		return ""
@@ -252,7 +367,7 @@ func dailyChart(report *StatsReport, color bool) string {
 // dailyBars folds the per-tool usage rows into one bar per day of the
 // window, including the days nothing ran: a run of days reads as time
 // only when the empty ones are drawn.
-func dailyBars(report *StatsReport) []chart.Bar {
+func dailyBars(report *StatsScope) []chart.Bar {
 	from, err := time.Parse(time.DateOnly, report.From)
 	if err != nil {
 		return nil
@@ -277,7 +392,7 @@ func dailyBars(report *StatsReport) []chart.Bar {
 }
 
 // toolChart ranks the tools by the time they have taken.
-func toolChart(report *StatsReport, color bool) string {
+func toolChart(report *StatsScope, color bool) string {
 	if len(report.Tools) < 2 {
 		return ""
 	}
@@ -293,14 +408,14 @@ func toolChart(report *StatsReport, color bool) string {
 		Bars:   bars,
 		Format: duration,
 		Note: func(bar chart.Bar) string {
-			return fmt.Sprintf("%d runs", runs[bar.Label])
+			return plural(runs[bar.Label], "run")
 		},
 		Color: color,
 	})
 }
 
 // commandTable renders the commands by total time.
-func commandTable(report *StatsReport, color bool) string {
+func commandTable(report *StatsScope, color bool) string {
 	rows := []string{
 		"| Command | Runs | Total | Avg | Max | Failed | Last |",
 		"| --- | --- | --- | --- | --- | --- | --- |",
@@ -338,6 +453,14 @@ func dim(text string, color bool) string {
 		return text
 	}
 	return colors.Dim(text)
+}
+
+// plural renders a count with its noun.
+func plural(n int64, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return strconv.FormatInt(n, 10) + " " + noun + "s"
 }
 
 // duration renders milliseconds the way a person reads a duration.

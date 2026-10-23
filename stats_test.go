@@ -12,8 +12,14 @@ import (
 // sample is a report of two tools over three days, enough for every
 // part of the rendering to have something to draw.
 func sample() *StatsReport {
+	return &StatsReport{Workspace: sampleScope()}
+}
+
+// sampleScope is one database of two tools over three days.
+func sampleScope() *StatsScope {
 	at := time.Now().Add(-3 * time.Hour)
-	return &StatsReport{
+	return &StatsScope{
+		Name:     "workspace",
 		Database: "/w/.atkins/atkins.db",
 		Days:     31,
 		From:     "2026-10-21",
@@ -46,6 +52,9 @@ func TestWriteStatsPlain(t *testing.T) {
 	assert.NotContains(t, text, "\x1b[")
 	assert.Contains(t, text, "/w/.atkins/atkins.db")
 	assert.Contains(t, text, "31 days, 2026-10-21 to 2026-10-23, 3m04s across 44 runs")
+
+	// The scope names itself and the file its rows came from.
+	assert.Contains(t, text, "workspace")
 
 	// The chart of the days, the ranking of the tools, then the table.
 	assert.Contains(t, text, "█")
@@ -96,18 +105,15 @@ func TestWriteStatsAsJSONAndYAML(t *testing.T) {
 
 func TestWriteStatsOnNothingRecorded(t *testing.T) {
 	var out bytes.Buffer
-	writeStats(&out, &StatsReport{Database: "/w/.atkins/atkins.db"}, true)
+	writeStats(&out, &StatsReport{}, true)
 
-	// The path is in the message: the usual cause of an empty report is
-	// a database somewhere other than where the reader expected.
-	assert.Contains(t, out.String(), "/w/.atkins/atkins.db")
 	assert.Contains(t, out.String(), "nothing recorded")
 }
 
 // A day nothing ran is a bar of zero and not a missing bar, so a run of
 // days reads as time.
 func TestDailyBarsCoverEveryDay(t *testing.T) {
-	bars := dailyBars(sample())
+	bars := dailyBars(sampleScope())
 
 	assert.Len(t, bars, 3)
 	assert.Equal(t, "2026-10-21", bars[0].Label)
@@ -119,16 +125,16 @@ func TestDailyBarsCoverEveryDay(t *testing.T) {
 }
 
 func TestDailyBarsWithoutADate(t *testing.T) {
-	assert.Nil(t, dailyBars(&StatsReport{From: "not-a-date", To: "2026-10-23"}))
-	assert.Nil(t, dailyBars(&StatsReport{From: "2026-10-21", To: "not-a-date"}))
+	assert.Nil(t, dailyBars(&StatsScope{From: "not-a-date", To: "2026-10-23"}))
+	assert.Nil(t, dailyBars(&StatsScope{From: "2026-10-21", To: "not-a-date"}))
 }
 
 // One tool is a ranking of one, which says nothing a table does not.
 func TestToolChartNeedsTwo(t *testing.T) {
-	report := sample()
-	report.Tools = report.Tools[:1]
+	scope := sampleScope()
+	scope.Tools = scope.Tools[:1]
 
-	assert.Equal(t, "", toolChart(report, false))
+	assert.Equal(t, "", toolChart(scope, false))
 }
 
 func TestDuration(t *testing.T) {
@@ -175,4 +181,79 @@ func TestPlainReportIsPlain(t *testing.T) {
 	for _, line := range strings.Split(out.String(), "\n") {
 		assert.NotContains(t, line, "\x1b")
 	}
+}
+
+// TestStatsReport_Scopes covers the order the report hands its scopes
+// over: the project first, because standing in one is the context the
+// reader is in.
+func TestStatsReport_Scopes(t *testing.T) {
+	project := sampleScope()
+	project.Name = "project"
+	workspace := sampleScope()
+
+	assert.Len(t, (&StatsReport{}).Scopes(), 0)
+
+	only := (&StatsReport{Workspace: workspace}).Scopes()
+	assert.Len(t, only, 1)
+	assert.Equal(t, "workspace", only[0].Name)
+
+	both := (&StatsReport{Project: project, Workspace: workspace}).Scopes()
+	assert.Len(t, both, 2)
+	assert.Equal(t, "project", both[0].Name)
+	assert.Equal(t, "workspace", both[1].Name)
+}
+
+// Both scopes render, each with its own heading, chart, ranking and
+// table.
+func TestWriteStatsBothScopes(t *testing.T) {
+	project := sampleScope()
+	project.Name = "project"
+	project.Repository = "titpetric/atkins"
+	project.Database = "/w/atkins/.atkins/atkins.db"
+
+	var out bytes.Buffer
+	writeStats(&out, &StatsReport{Project: project, Workspace: sampleScope()}, false)
+	text := out.String()
+
+	assert.Contains(t, text, "project · titpetric/atkins")
+	assert.Contains(t, text, "/w/atkins/.atkins/atkins.db")
+	assert.Contains(t, text, "workspace")
+	assert.Contains(t, text, "/w/.atkins/atkins.db")
+
+	// One of everything per scope.
+	assert.Equal(t, 2, strings.Count(text, "| Command | Runs |"))
+	assert.Equal(t, 2, strings.Count(text, "31 days, 2026-10-21 to 2026-10-23"))
+}
+
+// A scope whose database holds nothing says so under its own heading,
+// rather than taking the other's place.
+func TestWriteStatsOneEmptyScope(t *testing.T) {
+	project := &StatsScope{Name: "project", Database: "/w/atkins/.atkins/atkins.db"}
+
+	var out bytes.Buffer
+	writeStats(&out, &StatsReport{Project: project, Workspace: sampleScope()}, false)
+	text := out.String()
+
+	assert.Contains(t, text, "/w/atkins/.atkins/atkins.db")
+	assert.Contains(t, text, "nothing recorded yet")
+	assert.Equal(t, 1, strings.Count(text, "| Command | Runs |"))
+}
+
+// The JSON carries the two scopes under their own keys, and leaves out
+// the project a directory outside one has none of.
+func TestWriteStatsJSONScopes(t *testing.T) {
+	project := sampleScope()
+	project.Name = "project"
+	project.Repository = "titpetric/atkins"
+
+	var both bytes.Buffer
+	assert.NoError(t, writeJSON(&both, &StatsReport{Project: project, Workspace: sampleScope()}))
+	assert.Contains(t, both.String(), `"project": {`)
+	assert.Contains(t, both.String(), `"workspace": {`)
+	assert.Contains(t, both.String(), `"repository": "titpetric/atkins"`)
+
+	var alone bytes.Buffer
+	assert.NoError(t, writeJSON(&alone, &StatsReport{Workspace: sampleScope()}))
+	assert.NotContains(t, alone.String(), `"project"`)
+	assert.Contains(t, alone.String(), `"workspace": {`)
 }

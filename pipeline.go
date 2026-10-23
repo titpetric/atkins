@@ -449,44 +449,58 @@ func runPipelines(
 	return exitCode, runErr
 }
 
-// recording is the event database for one invocation, and the recorder
-// over it. Both are nil when nothing is recording, and Close tolerates
-// that, so the caller has one branch and not three.
+// recording is the event databases for one invocation, and the recorder
+// over them. Both are empty when nothing is recording, and Close
+// tolerates that, so the caller has one branch and not three.
 type recording struct {
-	storage  *storage.Storage
+	stores   []*storage.Storage
 	recorder runner.Recorder
 }
 
-// Close releases the database.
+// Close releases the databases.
 func (r recording) Close() {
-	_ = r.storage.Close()
+	for _, store := range r.stores {
+		_ = store.Close()
+	}
 }
 
-// openRecorder opens the event database for this run.
+// openRecorder opens the event databases for this run.
 //
-// A failure here is reported and nothing more: the point of the run is
-// the pipeline, and a machine whose database is locked, full or
-// read-only still has work to do. `--local` and `record: false` turn
-// recording off on purpose, and neither prints anything.
+// A failure is reported and nothing more: the point of the run is the
+// pipeline, and a machine whose database is locked, full or read-only
+// still has work to do. One of the two opening is enough to record;
+// `--local` and `record: false` turn recording off on purpose, and
+// neither prints anything.
 func openRecorder(settings *config.Config, opts *Options) recording {
 	if opts.Local || !settings.Storage.Record {
 		return recording{}
 	}
 
-	store, err := openStorage(settings)
+	stores, err := openStorage(settings)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s not recording this run: %v\n", colors.BrightYellow("INFO:"), err)
+		what := "not recording this run"
+		if len(stores) > 0 {
+			what = "recording this run to " + stores[0].Path() + " alone"
+		}
+		fmt.Fprintf(os.Stderr, "%s %s: %v\n", colors.BrightYellow("INFO:"), what, err)
+	}
+	if len(stores) == 0 {
 		return recording{}
 	}
 
-	return recording{storage: store, recorder: store.Recorder()}
+	return recording{stores: stores, recorder: storage.NewRecorders(stores)}
 }
 
 // openStorage opens the event database the configuration names, or the
-// one Discover finds for the working directory.
-func openStorage(settings *config.Config) (*storage.Storage, error) {
+// project's and the workspace's that Discover finds for the working
+// directory.
+//
+// A configured path is the one database: naming a file says where the
+// history goes, and a second copy somewhere else would make that less
+// true, not more.
+func openStorage(settings *config.Config) ([]*storage.Storage, error) {
 	if path := settings.Storage.Database; path != "" {
-		return storage.NewStorageAt(context.Background(), path)
+		return storage.OpenAll(context.Background(), path)
 	}
 	return storage.NewStorage()
 }
