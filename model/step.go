@@ -8,7 +8,11 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// Step represents a step within a job.
+// Step is one step of a job: a task: step runs other jobs, any other step
+// runs commands (run:, cmd:, cmds: or exec:). A task: value may name more
+// than one job, separated by whitespace (`task: lint test build`), which run
+// in sequence and match one task: step per job. An exec: argv runs without a shell; its
+// display string quotes an argument holding a space or a shell character.
 type Step struct {
 	*Decl
 
@@ -126,10 +130,7 @@ func (s *Step) Label(showPrefix bool) *Label {
 	}
 }
 
-// Tasks returns the job names referenced by the step's task: field.
-// A single task: value may name more than one job, separated by whitespace
-// (`task: lint test build`), which run in sequence and match
-// one task: step per job. Returns an empty slice for command steps.
+// Tasks returns the job names of the task: field, none for a command step.
 func (s *Step) Tasks() []string {
 	return strings.Fields(s.Task)
 }
@@ -155,8 +156,7 @@ func (s *Step) Commands() []string {
 	return []string{}
 }
 
-// ExecString renders the exec: argv for display, quoting an argument
-// that holds a space or a quote. No shell ever parses it.
+// ExecString returns the exec: argv as one display string.
 func (s *Step) ExecString() string {
 	parts := make([]string, 0, len(s.Exec))
 	for _, arg := range s.Exec {
@@ -236,4 +236,19 @@ func hasKey(node *yaml.Node, key string) bool {
 		}
 	}
 	return false
+}
+
+// Dispatch returns d.Task for a task: step.
+// Dispatch returns the first error of d.Command, called once per command.
+// Dispatch returns nil once every command has run.
+func (s *Step) Dispatch(d StepDispatcher) error {
+	if s.Task != "" {
+		return d.Task(s)
+	}
+	for i, cmd := range s.Commands() {
+		if err := d.Command(s, i, cmd); err != nil {
+			return err
+		}
+	}
+	return nil
 }

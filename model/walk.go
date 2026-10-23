@@ -17,9 +17,8 @@ type StepDispatcher interface {
 // PipelineWalkFunc runs for each job in a pipeline during Walk.
 type PipelineWalkFunc func(name string, job *Job) error
 
-// Walk iterates over all jobs in the pipeline in deterministic order.
-// Walk visits the "default" job first, followed by remaining jobs in
-// sorted order.
+// Walk returns the first error fn returns, visiting "default" and then the rest sorted.
+// Walk returns nil once fn has visited every job.
 func (p *Pipeline) Walk(fn PipelineWalkFunc) error {
 	jobs := p.GetJobs()
 	keys := make([]string, 0, len(jobs))
@@ -53,21 +52,6 @@ type JobWalkFunc func(index int, step *Step) error
 func (j *Job) Walk(fn JobWalkFunc) error {
 	for i, step := range j.Children() {
 		if err := fn(i, step); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Dispatch routes the step to the appropriate StepDispatcher method
-// based on the step type. Task steps call d.Task, command steps call
-// d.Command for each command.
-func (s *Step) Dispatch(d StepDispatcher) error {
-	if s.Task != "" {
-		return d.Task(s)
-	}
-	for i, cmd := range s.Commands() {
-		if err := d.Command(s, i, cmd); err != nil {
 			return err
 		}
 	}
