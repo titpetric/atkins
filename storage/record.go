@@ -170,6 +170,11 @@ func commandRows(req RecordRequest, invocation string, ids map[string]string) []
 		}
 
 		normalized, tool := Normalize(command)
+		// A builtin is the shell setting itself up, and `set -eu` costs
+		// nothing worth a row.
+		if IsBuiltin(tool) {
+			continue
+		}
 		parent := event.ParentID
 		if parent == "" {
 			parent = event.ID

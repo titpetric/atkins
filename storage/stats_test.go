@@ -62,44 +62,50 @@ func TestStatsRanksByTotalTime(t *testing.T) {
 
 	stats, err := store.Stats(ctx, storage.StatsRequest{})
 	assert.NoError(t, err)
-	assert.Len(t, stats, 3)
+	assert.Len(t, stats, 2)
 
-	// The build is one run of nine seconds, the two plain test runs are
-	// eight between them, and the report ranks on that total and not on
-	// the single slowest command.
-	assert.Equal(t, "go build -o", stats[0].Normalized)
-	assert.Equal(t, int64(9000), stats[0].TotalMs)
-	assert.Equal(t, int64(1), stats[0].Runs)
+	// The three test runs are twelve seconds between them, whatever
+	// their flags, and outrank the nine second build: the report ranks
+	// on the total and not on the single slowest command.
+	assert.Equal(t, "go test", stats[0].Command)
+	assert.Equal(t, int64(3), stats[0].Runs)
+	assert.Equal(t, int64(12000), stats[0].TotalMs)
+	assert.Equal(t, int64(4000), stats[0].AvgMs)
+	assert.Equal(t, int64(4000), stats[0].MaxMs)
+	assert.Equal(t, int64(1), stats[0].Failures)
+	assert.NotNil(t, stats[0].LastAt)
+	assert.Equal(t, "go", stats[0].Tool)
 
-	assert.Equal(t, "go test", stats[1].Normalized)
-	assert.Equal(t, int64(2), stats[1].Runs)
-	assert.Equal(t, int64(8000), stats[1].TotalMs)
-	assert.Equal(t, int64(4000), stats[1].AvgMs)
-	assert.Equal(t, int64(4000), stats[1].MaxMs)
-	assert.Equal(t, int64(1), stats[1].Failures)
-	assert.NotNil(t, stats[1].LastAt)
-	assert.Equal(t, "go", stats[1].Tool)
+	assert.Equal(t, "go build", stats[1].Command)
+	assert.Equal(t, int64(9000), stats[1].TotalMs)
+	assert.Equal(t, int64(1), stats[1].Runs)
 
 	// Durations round rather than truncate, at both ends. 0.6ms and
 	// 1.4ms each store as 1ms, 0.4ms as none, and the three average to
 	// 1ms rather than to a column of zeroes.
 	_, err = store.Record(ctx, storage.RecordRequest{Log: commandRun(base, []commandFixture{
-		{command: "true", seconds: 0.0006},
-		{command: "true", seconds: 0.0014},
-		{command: "true", seconds: 0.0004},
+		{command: "pwd", seconds: 0.0006},
+		{command: "pwd", seconds: 0.0014},
+		{command: "pwd", seconds: 0.0004},
 	})})
 	assert.NoError(t, err)
 
-	quick, err := store.Stats(ctx, storage.StatsRequest{Tool: "true"})
+	quick, err := store.Stats(ctx, storage.StatsRequest{Tool: "pwd"})
 	assert.NoError(t, err)
 	assert.Equal(t, int64(3), quick[0].Runs)
 	assert.Equal(t, int64(2), quick[0].TotalMs)
 	assert.Equal(t, int64(1), quick[0].AvgMs)
 
-	// `go test -v` is its own row: a different flag set is a different
-	// thing to measure.
-	assert.Equal(t, "go test -v", stats[2].Normalized)
-	assert.Equal(t, int64(1), stats[2].Runs)
+	// A builtin is neither recorded nor reported.
+	_, err = store.Record(ctx, storage.RecordRequest{Log: commandRun(base, []commandFixture{
+		{command: "set -eu", seconds: 1},
+		{command: "cd /src", seconds: 1},
+	})})
+	assert.NoError(t, err)
+
+	all, err := store.Stats(ctx, storage.StatsRequest{})
+	assert.NoError(t, err)
+	assert.Len(t, all, 3)
 }
 
 func TestStatsNarrows(t *testing.T) {
@@ -116,7 +122,7 @@ func TestStatsNarrows(t *testing.T) {
 	byTool, err := store.Stats(ctx, storage.StatsRequest{Tool: "npm"})
 	assert.NoError(t, err)
 	assert.Len(t, byTool, 1)
-	assert.Equal(t, "npm run build", byTool[0].Normalized)
+	assert.Equal(t, "npm run build", byTool[0].Command)
 
 	// A directory keeps what ran below it too, so a workspace reports
 	// its projects.
@@ -127,7 +133,7 @@ func TestStatsNarrows(t *testing.T) {
 	byLimit, err := store.Stats(ctx, storage.StatsRequest{Limit: 1})
 	assert.NoError(t, err)
 	assert.Len(t, byLimit, 1)
-	assert.Equal(t, "npm run build", byLimit[0].Normalized)
+	assert.Equal(t, "npm run build", byLimit[0].Command)
 
 	// A window that ended before the run began holds nothing.
 	empty, err := store.Stats(ctx, storage.StatsRequest{Until: base.Add(-time.Hour)})
@@ -158,7 +164,7 @@ func TestToolsRollUpTheirCommands(t *testing.T) {
 	assert.Len(t, tools, 2)
 
 	assert.Equal(t, "go", tools[0].Tool)
-	assert.Equal(t, int64(3), tools[0].Commands)
+	assert.Equal(t, int64(2), tools[0].Commands)
 	assert.Equal(t, int64(3), tools[0].Runs)
 	assert.Equal(t, int64(17000), tools[0].TotalMs)
 	assert.Equal(t, int64(1), tools[0].Failures)

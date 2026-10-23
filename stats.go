@@ -123,7 +123,7 @@ type StatsScope struct {
 	Runs    int64 `json:"runs" yaml:"runs"`
 	TotalMs int64 `json:"total_ms" yaml:"total_ms"`
 
-	// Commands are the normalized commands by total time.
+	// Commands are the command keys by total time.
 	Commands []CommandReport `json:"commands" yaml:"commands"`
 
 	// Tools are the tools by total time, each a roll-up of its
@@ -134,9 +134,15 @@ type StatsScope struct {
 	// of tool use over time is drawn from. A day a tool did not run has
 	// no row.
 	Usage []UsageReport `json:"usage" yaml:"usage"`
+
+	// CommandUsage is a row per day per command key, oldest first: the
+	// series a chart stacks by command.
+	CommandUsage []CommandUsageReport `json:"command_usage" yaml:"command_usage"`
 }
 
-// CommandReport is one normalized command and what it has cost.
+// CommandReport is one command key and what it has cost. The key is
+// the command's words up to its first flag, at most three and no path
+// or value, as storage.Key names it: `docker compose up`, `go test`.
 type CommandReport struct {
 	Command   string     `json:"command" yaml:"command"`
 	Tool      string     `json:"tool" yaml:"tool"`
@@ -160,6 +166,15 @@ type ToolReport struct {
 // UsageReport is one tool on one day.
 type UsageReport struct {
 	Date    string `json:"date" yaml:"date"`
+	Tool    string `json:"tool" yaml:"tool"`
+	Runs    int64  `json:"runs" yaml:"runs"`
+	TotalMs int64  `json:"total_ms" yaml:"total_ms"`
+}
+
+// CommandUsageReport is one command key on one day.
+type CommandUsageReport struct {
+	Date    string `json:"date" yaml:"date"`
+	Command string `json:"command" yaml:"command"`
 	Tool    string `json:"tool" yaml:"tool"`
 	Runs    int64  `json:"runs" yaml:"runs"`
 	TotalMs int64  `json:"total_ms" yaml:"total_ms"`
@@ -200,7 +215,7 @@ const (
 	workspaceScope = "workspace"
 )
 
-// collectScope asks one database its four questions over the retention
+// collectScope asks one database its five questions over the retention
 // window.
 func collectScope(ctx context.Context, store *storage.Storage, name string) (*StatsScope, error) {
 	now := time.Now()
@@ -221,6 +236,11 @@ func collectScope(ctx context.Context, store *storage.Storage, name string) (*St
 		return nil, err
 	}
 
+	commandUsage, err := store.CommandUsage(ctx, storage.UsageRequest{Since: since, Bucket: storage.BucketDay})
+	if err != nil {
+		return nil, err
+	}
+
 	report := &StatsScope{
 		Name:     name,
 		Database: store.Path(),
@@ -237,7 +257,7 @@ func collectScope(ctx context.Context, store *storage.Storage, name string) (*St
 
 	for _, command := range commands {
 		report.Commands = append(report.Commands, CommandReport{
-			Command:   command.Normalized,
+			Command:   command.Command,
 			Tool:      command.Tool,
 			Runs:      command.Runs,
 			TotalMs:   command.TotalMs,
@@ -259,6 +279,16 @@ func collectScope(ctx context.Context, store *storage.Storage, name string) (*St
 	for _, entry := range usage {
 		report.Usage = append(report.Usage, UsageReport{
 			Date:    entry.Bucket,
+			Tool:    entry.Tool,
+			Runs:    entry.Runs,
+			TotalMs: entry.TotalMs,
+		})
+	}
+
+	for _, entry := range commandUsage {
+		report.CommandUsage = append(report.CommandUsage, CommandUsageReport{
+			Date:    entry.Bucket,
+			Command: entry.Command,
 			Tool:    entry.Tool,
 			Runs:    entry.Runs,
 			TotalMs: entry.TotalMs,

@@ -29,7 +29,6 @@ sleep  ████████████████████████ 
 go     ▇                          1.1s  208 runs
 git    ▂                         318ms  130 runs
 head   ▂                         306ms  78 runs
-echo   ▁                         113ms  130 runs
 
 | Command | Runs | Total | Avg | Max | Failed | Last |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -50,7 +49,7 @@ On a terminal all three are drawn in colour, and the table gets the borders `atk
 
 ## Reading it from a program
 
-`--json` and `--yaml` emit the whole report, with the durations in milliseconds rather than words, and a row per tool per day as the series a chart of tool use over time is drawn from.
+`--json` and `--yaml` emit the whole report, with the durations in milliseconds rather than words: a row per tool per day in `usage` and a row per command key per day in `command_usage`, the series a chart of tool or command use over time is drawn from.
 
 ```bash
 atkins --stats --json
@@ -87,6 +86,10 @@ A scope per database, keyed by what it is. The `project` key is absent for a dir
     "usage": [
       { "date": "2026-09-25", "tool": "sleep", "runs": 3, "total_ms": 1104 },
       { "date": "2026-09-25", "tool": "go", "runs": 10, "total_ms": 52 }
+    ],
+    "command_usage": [
+      { "date": "2026-09-25", "command": "sleep", "tool": "sleep", "runs": 3, "total_ms": 1104 },
+      { "date": "2026-09-25", "command": "go version", "tool": "go", "runs": 6, "total_ms": 31 }
     ]
   },
   "workspace": {
@@ -99,14 +102,15 @@ A scope per database, keyed by what it is. The `project` key is absent for a dir
     "total_ms": 252018,
     "commands": [],
     "tools": [],
-    "usage": []
+    "usage": [],
+    "command_usage": []
   }
 }
 ```
 
 The two scopes carry the same fields, so a reader draws either with one piece of code. `repository` is on the project alone: a workspace holds many and names none.
 
-A day a tool did not run has no row in `usage`, so a reader drawing a series fills the gaps with zero.
+A day a tool or a command did not run has no row in `usage` or `command_usage`, so a reader drawing a series fills the gaps with zero.
 
 ## Two databases
 
@@ -137,25 +141,26 @@ The `command` table holds one row per command a step executed, with the command 
 
 Both tables carry the `invocation_id` of the pipeline row, so the rows of one `atkins` process are one group. The pipeline row also carries the file, the module, the repository, the branch and the commit, so a history can be read per branch.
 
-## The normalised command
+## The command key
 
-A command is also stored in a normalised form, which is what the statistics group by. The form keeps the tool and its subcommands, keeps the flags with their values removed, sorts the flags, and drops everything else:
+The report groups commands by their key: the words up to the first argument that starts with `-`, at most three of them, and none that is a path or a value. A word holding `/`, `.`, `=`, `$`, a quote or another shell character ends the key, and so does a number. The key leaves out an environment assignment ahead of the tool, and a pipeline or a list keys by its first command.
 
-| Command                             | Normalised              |
-|-------------------------------------|-------------------------|
-| `go test ./...`                     | `go test`               |
-| `go test -v ./...`                  | `go test -v`            |
-| `go test -cover -v ./...`           | `go test -cover -v`     |
-| `go test -v -cover ./...`           | `go test -cover -v`     |
-| `go test -coverprofile=c.out ./...` | `go test -coverprofile` |
-| `go test --cpuprofile cpu.out`      | `go test --cpuprofile`  |
-| `CGO_ENABLED=0 go build -o bin/x .` | `go build -o`           |
-| `sleep 1`                           | `sleep`                 |
-| `head -20 README.md`                | `head`                  |
+| Command                                 | Key                  |
+|-----------------------------------------|----------------------|
+| `go test ./...`                         | `go test`            |
+| `go test -v -cover ./...`               | `go test`            |
+| `docker build -q -t app .`              | `docker build`       |
+| `docker compose up -d`                  | `docker compose up`  |
+| `git clone --depth 1 <url>`             | `git clone`          |
+| `git rev-parse HEAD \| cut -c1-8`       | `git rev-parse HEAD` |
+| `kubectl get pods web-1 -o yaml`        | `kubectl get pods`   |
+| `npm run build`                         | `npm run build`      |
+| `cat README.md`                         | `cat`                |
+| `CGO_ENABLED=0 go build -o bin/x .`     | `go build`           |
 
-Sorting the flags is what makes `go test -v -cover` and `go test -cover -v` one row rather than two. Dropping the operands is what makes a flag's argument disappear without a table of which flags take one: in `--cpuprofile cpu.out` the flag stays and the file is an operand like any other. A flag that is only digits goes with them, so `head -20` and `head -50` count together.
+Shell builtins a step runs to set itself up, `set`, `cd`, `export`, `echo`, `test`, `[`, `true`, `false` and `:`, are neither recorded nor reported. `set -eu` at the top of a script is not a tool.
 
-A different flag set is a different row, on purpose: `go test` and `go test -race` are not the same thing to measure.
+The database also stores each command in a normalised form, the tool and its subcommands with the flags sorted and their values removed, such as `go test -cover -v`. The report folds those forms into their keys as it reads them, so the rows a run recorded before the key existed count under it too.
 
 ## Not recording
 

@@ -177,3 +177,56 @@ func isPathWord(word string) bool {
 	}
 	return strings.Trim(word, "0123456789.,:") != ""
 }
+
+// keyWords caps a command key: the tool and two subcommands, which is
+// `docker compose up` and `git rev-parse HEAD` and never a list of
+// operands.
+const keyWords = 3
+
+// builtins are the shell's own words a step runs to set itself up. They
+// cost nothing worth a row, and `set -eu` at the top of a
+// script is not a tool.
+var builtins = []string{"set", "cd", "export", "echo", "test", "[", "true", "false", ":"}
+
+// IsBuiltin reports whether a tool is a shell builtin, which the
+// statistics neither record nor report.
+func IsBuiltin(tool string) bool {
+	for _, builtin := range builtins {
+		if tool == builtin {
+			return true
+		}
+	}
+	return false
+}
+
+// Key is the name the reports group a command by: its words up to the
+// first argument that starts with `-`, at most three, none a path or a
+// value (a word with `/`, `.`, `=`, `$`, a quote or a number ends it):
+//
+//	go test -v ./...        go test
+//	docker compose up -d    docker compose up
+//	git clone --depth 1 x   git clone
+//
+// A normalized command keys the same as the command it came from.
+func Key(command string) (key, tool string) {
+	var words []string
+
+	for _, word := range split(command) {
+		if isOperator(word) || strings.HasPrefix(word, "-") || len(words) == keyWords {
+			break
+		}
+		if len(words) == 0 && isAssignment(word) {
+			continue
+		}
+		if !isPathWord(word) || strings.Contains(word, ".") {
+			break
+		}
+		words = append(words, word)
+	}
+
+	if len(words) == 0 || IsBuiltin(words[0]) {
+		return "", ""
+	}
+
+	return strings.Join(words, " "), words[0]
+}

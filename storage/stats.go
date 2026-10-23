@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -25,86 +26,143 @@ type StatsRequest struct {
 	Limit int
 }
 
-// CommandStat is one normalized command and what it has cost.
+// CommandStat is one command key and what it has cost.
 type CommandStat struct {
-	// Normalized is the command with its operands dropped and its flags
-	// sorted, the form the rows group by.
-	Normalized string `db:"normalized"`
+	// Command is the key the rows group by, as Key names it: `go test`
+	// counts every test run whatever its flags and packages.
+	Command string
 
 	// Tool is the first word of it.
-	Tool string `db:"tool"`
+	Tool string
 
 	// Runs is how many times it ran.
-	Runs int64 `db:"runs"`
+	Runs int64
 
 	// TotalMs is the time it has taken altogether, which is what the
 	// report sorts by: a command that takes a second and runs four
 	// hundred times costs more than a build that takes a minute.
-	TotalMs int64 `db:"total_ms"`
+	TotalMs int64
 
 	// AvgMs and MaxMs are the average and the worst single run.
-	AvgMs int64 `db:"avg_ms"`
-	MaxMs int64 `db:"max_ms"`
+	AvgMs int64
+	MaxMs int64
 
 	// Failures is how many of the runs exited non-zero.
-	Failures int64 `db:"failures"`
+	Failures int64
 
 	// LastAt is when it last ran.
 	LastAt *time.Time
 }
 
-// statRow is CommandStat as the query returns it.
+// statRow is one normalized form as the query returns it, which the
+// report folds into its key.
 //
 // MAX(started_at) is an expression, and an expression has no declared
 // column type for the driver to convert by, so the newest time arrives
 // as the text the database holds and is parsed here.
 type statRow struct {
-	CommandStat
-	LastAt string `db:"last_at"`
+	Normalized string `db:"normalized"`
+	Runs       int64  `db:"runs"`
+	TotalMs    int64  `db:"total_ms"`
+	MaxMs      int64  `db:"max_ms"`
+	Failures   int64  `db:"failures"`
+	LastAt     string `db:"last_at"`
 }
 
-// Stats reports the normalized commands by the time they have taken
+// Stats reports the command keys by the time they have taken
 // altogether, the most expensive first.
+//
+// The database groups by the normalized form and the report folds the
+// forms into their keys, so a row recorded before the key existed
+// counts under it without a migration.
 func (s *Storage) Stats(ctx context.Context, req StatsRequest) ([]CommandStat, error) {
-	where, args := commandWhere(req.Since, req.Until, req.Tool, req.Dir)
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 20
-	}
-
-	query := `SELECT
-			normalized,
-			tool,
-			COUNT(*) AS runs,
-			SUM(duration_ms) AS total_ms,
-			-- Rounded, not truncated: a command averaging under a
-			-- millisecond has still taken time, and a column of zeroes
-			-- reads as a measurement that failed.
-			CAST(AVG(duration_ms) + 0.5 AS INTEGER) AS avg_ms,
-			MAX(duration_ms) AS max_ms,
-			SUM(CASE WHEN exit_code != 0 THEN 1 ELSE 0 END) AS failures,
-			MAX(started_at) AS last_at
-		FROM command` + where + `
-		GROUP BY normalized
-		ORDER BY total_ms DESC, runs DESC
-		LIMIT ?`
-
-	client := s.client()
-	defer client.Close()
-
-	rows, err := client.Select[statRow](ctx, query, append(args, limit)...)
+	stats, err := s.keyed(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	stats := make([]CommandStat, 0, len(rows))
+	sort.SliceStable(stats, func(i, j int) bool {
+		if stats[i].TotalMs != stats[j].TotalMs {
+			return stats[i].TotalMs > stats[j].TotalMs
+		}
+		if stats[i].Runs != stats[j].Runs {
+			return stats[i].Runs > stats[j].Runs
+		}
+		return stats[i].Command < stats[j].Command
+	})
+
+	return stats[:min(len(stats), limitOf(req.Limit))], nil
+}
+
+// keyed returns every command key of the request, unsorted.
+func (s *Storage) keyed(ctx context.Context, req StatsRequest) ([]CommandStat, error) {
+	where, args := commandWhere(req.Since, req.Until, req.Tool, req.Dir)
+
+	query := `SELECT
+			normalized,
+			COUNT(*) AS runs,
+			SUM(duration_ms) AS total_ms,
+			MAX(duration_ms) AS max_ms,
+			SUM(CASE WHEN exit_code != 0 THEN 1 ELSE 0 END) AS failures,
+			MAX(started_at) AS last_at
+		FROM command` + where + `
+		GROUP BY normalized`
+
+	client := s.client()
+	defer client.Close()
+
+	rows, err := client.Select[statRow](ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		order []string
+		byKey = map[string]*CommandStat{}
+		last  = map[string]string{}
+	)
 	for _, row := range rows {
-		stat := row.CommandStat
-		stat.LastAt = parseStamp(row.LastAt)
-		stats = append(stats, stat)
+		key, tool := Key(row.Normalized)
+		if key == "" {
+			continue
+		}
+		stat, ok := byKey[key]
+		if !ok {
+			stat = &CommandStat{Command: key, Tool: tool}
+			byKey[key] = stat
+			order = append(order, key)
+		}
+		stat.Runs += row.Runs
+		stat.TotalMs += row.TotalMs
+		stat.MaxMs = max(stat.MaxMs, row.MaxMs)
+		stat.Failures += row.Failures
+		if row.LastAt > last[key] {
+			last[key] = row.LastAt
+		}
+	}
+
+	stats := make([]CommandStat, 0, len(order))
+	for _, key := range order {
+		stat := byKey[key]
+		// Rounded, not truncated: a command averaging under a
+		// millisecond has still taken time, and a column of zeroes
+		// reads as a measurement that failed.
+		if stat.Runs > 0 {
+			stat.AvgMs = (2*stat.TotalMs + stat.Runs) / (2 * stat.Runs)
+		}
+		stat.LastAt = parseStamp(last[key])
+		stats = append(stats, *stat)
 	}
 
 	return stats, nil
+}
+
+// limitOf is a request's row cap. Zero means twenty, which is a screen.
+func limitOf(limit int) int {
+	if limit <= 0 {
+		return 20
+	}
+	return limit
 }
 
 // parseStamp reads a time back out of the text the database holds. An
@@ -134,46 +192,63 @@ func parseStamp(value string) *time.Time {
 // whether it builds, tests or vets, and the share of a week it takes is
 // the share of a week spent on Go.
 type ToolStat struct {
-	// Tool is the first word of the normalized command.
-	Tool string `db:"tool"`
+	// Tool is the first word of the command key.
+	Tool string
 
-	// Commands is how many distinct normalized forms of it ran.
-	Commands int64 `db:"commands"`
+	// Commands is how many distinct command keys of it ran.
+	Commands int64
 
 	// Runs is how many times any of them ran.
-	Runs int64 `db:"runs"`
+	Runs int64
 
 	// TotalMs is the time they have taken altogether.
-	TotalMs int64 `db:"total_ms"`
+	TotalMs int64
 
 	// Failures is how many of the runs exited non-zero.
-	Failures int64 `db:"failures"`
+	Failures int64
 }
 
 // Tools reports the tools by the time they have taken altogether, the
-// most expensive first.
+// most expensive first. They roll up the command keys, so a tool counts
+// the same commands the command report does.
 func (s *Storage) Tools(ctx context.Context, req StatsRequest) ([]ToolStat, error) {
-	where, args := commandWhere(req.Since, req.Until, req.Tool, req.Dir)
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 20
+	stats, err := s.keyed(ctx, req)
+	if err != nil {
+		return nil, err
 	}
 
-	query := `SELECT
-			tool,
-			COUNT(DISTINCT normalized) AS commands,
-			COUNT(*) AS runs,
-			SUM(duration_ms) AS total_ms,
-			SUM(CASE WHEN exit_code != 0 THEN 1 ELSE 0 END) AS failures
-		FROM command` + where + `
-		GROUP BY tool
-		ORDER BY total_ms DESC, runs DESC
-		LIMIT ?`
+	var (
+		order  []string
+		byTool = map[string]*ToolStat{}
+	)
+	for _, stat := range stats {
+		tool, ok := byTool[stat.Tool]
+		if !ok {
+			tool = &ToolStat{Tool: stat.Tool}
+			byTool[stat.Tool] = tool
+			order = append(order, stat.Tool)
+		}
+		tool.Commands++
+		tool.Runs += stat.Runs
+		tool.TotalMs += stat.TotalMs
+		tool.Failures += stat.Failures
+	}
 
-	client := s.client()
-	defer client.Close()
+	tools := make([]ToolStat, 0, len(order))
+	for _, name := range order {
+		tools = append(tools, *byTool[name])
+	}
+	sort.SliceStable(tools, func(i, j int) bool {
+		if tools[i].TotalMs != tools[j].TotalMs {
+			return tools[i].TotalMs > tools[j].TotalMs
+		}
+		if tools[i].Runs != tools[j].Runs {
+			return tools[i].Runs > tools[j].Runs
+		}
+		return tools[i].Tool < tools[j].Tool
+	})
 
-	return client.Select[ToolStat](ctx, query, append(args, limit)...)
+	return tools[:min(len(tools), limitOf(req.Limit))], nil
 }
 
 // Bucket is how wide a usage bucket is.
@@ -272,6 +347,15 @@ func commandWhere(since, until time.Time, tool, dir string) (string, []any) {
 	// A command with no normalized form ran nothing a report can name:
 	// an empty command line, or one that was only a shell operator.
 	clauses = append(clauses, "normalized != ''")
+
+	// A builtin is the shell setting itself up. The
+	// clause also leaves out the builtin rows of older databases.
+	marks := make([]string, 0, len(builtins))
+	for _, builtin := range builtins {
+		marks = append(marks, "?")
+		args = append(args, builtin)
+	}
+	clauses = append(clauses, "tool NOT IN ("+strings.Join(marks, ", ")+")")
 
 	if at := stamp(since); at != nil {
 		clauses = append(clauses, "started_at >= ?")
