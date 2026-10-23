@@ -1,0 +1,231 @@
+- name: command
+  comment: Command
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: invocation_id
+      type: text
+      key: MUL
+      comment: Invocation ID
+      datatype: char(26)
+    - name: parent_id
+      type: text
+      key: MUL
+      comment: Parent ID
+      datatype: char(26)
+    - name: kind
+      type: TEXT
+      comment: Kind
+      datatype: varchar
+      values:
+        - interpolation
+        - step
+        - substitution
+    - name: command
+      type: text
+      comment: Command
+      datatype: varchar
+    - name: normalized
+      type: text
+      key: MUL
+      comment: Normalized
+      datatype: varchar
+    - name: tool
+      type: text
+      key: MUL
+      comment: Tool
+      datatype: varchar
+    - name: dir
+      type: text
+      comment: Dir
+      datatype: varchar
+    - name: exit_code
+      type: integer
+      comment: Exit Code
+      datatype: bigint
+      size: 8
+    - name: error
+      type: text
+      comment: Error
+      datatype: varchar
+    - name: duration_ms
+      type: integer
+      comment: Duration Ms
+      datatype: bigint
+      size: 8
+    - name: started_at
+      type: timestamp
+      key: MUL
+      comment: Started At
+      datatype: datetime
+    - name: created_at
+      type: timestamp
+      comment: Created At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_command_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_command_invocation_id
+      columns:
+        - invocation_id
+    - name: idx_command_normalized
+      columns:
+        - normalized
+    - name: idx_command_parent_id
+      columns:
+        - parent_id
+    - name: idx_command_started_at
+      columns:
+        - started_at
+    - name: idx_command_tool
+      columns:
+        - tool
+- name: migrations
+  comment: Migrations
+  columns:
+    - name: project
+      type: text
+      key: PRI
+      comment: Project
+      datatype: varchar
+    - name: filename
+      type: text
+      key: PRI
+      comment: Filename
+      datatype: varchar
+    - name: statement_index
+      type: integer
+      comment: Statement Index
+      datatype: bigint
+      size: 8
+    - name: status
+      type: text
+      comment: Status
+      datatype: varchar
+  indexes:
+    - name: sqlite_autoindex_migrations_1
+      columns:
+        - project
+        - filename
+      primary: true
+      unique: true
+- name: run
+  comment: Run
+  columns:
+    - name: id
+      type: text
+      key: PRI
+      comment: ID
+      datatype: char(26)
+    - name: invocation_id
+      type: text
+      key: MUL
+      comment: Invocation ID
+      datatype: char(26)
+    - name: parent_id
+      type: text
+      key: MUL
+      comment: Parent ID
+      datatype: char(26)
+    - name: kind
+      type: TEXT
+      key: MUL
+      comment: Kind
+      datatype: varchar
+      values:
+        - job
+        - pipeline
+        - step
+    - name: name
+      type: text
+      key: MUL
+      comment: Name
+      datatype: varchar
+    - name: pipeline
+      type: text
+      comment: Pipeline
+      datatype: varchar
+    - name: file
+      type: text
+      comment: File
+      datatype: varchar
+    - name: dir
+      type: text
+      comment: Dir
+      datatype: varchar
+    - name: module
+      type: text
+      comment: Module
+      datatype: varchar
+    - name: repository
+      type: text
+      comment: Repository
+      datatype: varchar
+    - name: branch
+      type: text
+      comment: Branch
+      datatype: varchar
+    - name: commit_sha
+      type: text
+      comment: Commit Sha
+      datatype: varchar
+    - name: result
+      type: TEXT
+      comment: Result
+      datatype: varchar
+      values:
+        - fail
+        - pass
+        - skipped
+    - name: error
+      type: text
+      comment: Error
+      datatype: varchar
+    - name: steps
+      type: integer
+      comment: Steps
+      datatype: bigint
+      size: 8
+    - name: duration_ms
+      type: integer
+      comment: Duration Ms
+      datatype: bigint
+      size: 8
+    - name: started_at
+      type: timestamp
+      key: MUL
+      comment: Started At
+      datatype: datetime
+    - name: finished_at
+      type: timestamp
+      comment: Finished At
+      datatype: datetime
+    - name: created_at
+      type: timestamp
+      comment: Created At
+      datatype: datetime
+  indexes:
+    - name: sqlite_autoindex_run_1
+      columns:
+        - id
+      primary: true
+      unique: true
+    - name: idx_run_invocation_id
+      columns:
+        - invocation_id
+    - name: idx_run_kind_name
+      columns:
+        - kind
+        - name
+    - name: idx_run_parent_id
+      columns:
+        - parent_id
+    - name: idx_run_started_at
+      columns:
+        - started_at

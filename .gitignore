@@ -1,6 +1,5 @@
 /coverage
 /bin
-/artefacts
 atkins.log
 atkins
 /*.test
@@ -10,9 +9,9 @@ atkins
 *.log
 *.out
 
-# templ's literal side-files. The generated *_templ.go are committed, as
-# the mig-generated model is; these are a build artefact of them.
-*_templ.txt
+# The event database every run records into. It is a developer's own
+# history of what they ran, and the migrations rebuild it on first use.
+*.db
 
 # splint writes its document beside the tree it describes, and a job that
 # fails leaves it behind.
