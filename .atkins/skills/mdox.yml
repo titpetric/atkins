@@ -1,12 +1,11 @@
 name: Markdown formatting and linting
 help: >-
   Formats and checks the markdown under docs/ and README.md with mdox, and
-  runs vale when .vale.ini is present. mdox:fmt rewrites the files in place;
-  mdox:lint only reports.
+  lints the prose of the markdown and the Go doc comments with vale.
+  mdox:fmt rewrites the files in place; mdox:lint only reports.
 
 when:
   files:
-    - .vale.ini
     - docs/
     - README.md
 
@@ -35,8 +34,9 @@ tasks:
     cmds:
       - if: $(test -d docs)
         cmd: mdox fmt --check --soft-wraps ${{ files }}
-      - if: $(test -f .vale.ini)
-        cmd: docker run --rm -v $PWD/docs:/docs -w /docs jdkato/vale .
+      # The image carries the style and its configuration, so the repository
+      # holds no vale config and every finding fails the job.
+      - docker run --rm -v $PWD:/src registry.cdn.si/vale --output=line .
 
   setup:
     desc: "Install bwplotka/mdox"

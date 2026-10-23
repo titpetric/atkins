@@ -88,7 +88,7 @@ Atkins strips the shebang line before parsing, so the file remains valid YAML fo
 
 ## What a run records
 
-Atkins records a row per job and per command of every run in `.atkins/atkins.db`, creating the file on the first run. Nothing has to be installed for it: the database is a pure Go SQLite and the binary is still one static file.
+Atkins records a row per job and per command of every run in `.atkins/atkins.db`, creating the file on the first run. It needs nothing more on the machine: the database is a pure Go SQLite and the binary is still one static file.
 
 ```bash
 atkins --stats

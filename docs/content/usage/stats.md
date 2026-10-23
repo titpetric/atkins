@@ -4,7 +4,7 @@ subtitle: The event database and what it answers
 layout: page
 ---
 
-Every run records what it did in a SQLite file, and `atkins --stats` reports the commands by the time they have taken altogether. The question it answers is where a repository's day goes: not which command is slowest, but which one costs the most once its frequency is counted.
+Every run records what it did in a SQLite file, and `atkins --stats` reports the commands by the time they have taken altogether. It shows where a repository's day goes: the command that costs the most once its frequency counts.
 
 ```bash
 atkins --stats
@@ -41,21 +41,21 @@ workspace  /home/you/.atkins/atkins.db
 ...
 ```
 
-The daily chart answers whether a month was steady or was one Tuesday. Each column is a day, every bar is measured from zero, and the only value labelled is the busiest day: a number on every column would hide the shape. A day nothing ran is an empty column rather than a missing one.
+The daily chart shows whether the month runs steady or spikes on one Tuesday. Each column is a day, every bar starts from zero, and the busiest day carries the one label: a number on every column would hide the shape. A day nothing ran shows as an empty column.
 
-The tool ranking rolls up every form of a tool, so `go build`, `go test` and `go vet` count as go. It is what the command table cannot show: a tool that runs two hundred times for a second in total against one that runs twice for half a minute.
+The tool ranking rolls up every form of a tool, so `go build`, `go test` and `go vet` count as go. The command table cannot show this: a tool that runs two hundred times for a second in total against one that runs twice for half a minute.
 
-On a terminal all three are drawn in colour, and the table gets the borders `atkins --help` draws its tables with. Redirected to a file or a pipe the output is plain, so the same command serves a terminal and a document with no flag to say which.
+On a terminal all three render in colour, and the table gets the borders of the `atkins --help` tables. Redirected to a file or a pipe the output is plain, so the same command serves a terminal and a document with no flag to say which.
 
 ## Reading it from a program
 
-`--json` and `--yaml` emit the whole report, with the durations in milliseconds rather than words: a row per tool per day in `usage` and a row per command key per day in `command_usage`, the series a chart of tool or command use over time is drawn from.
+`--json` and `--yaml` emit the whole report, with the durations in milliseconds: a row per tool per day in `usage` and a row per command key per day in `command_usage`, the series a chart of tool or command use over time draws.
 
 ```bash
 atkins --stats --json
 ```
 
-A scope per database, keyed by what it is. The `project` key is absent for a directory with no project of its own.
+A scope per database, keyed by its kind. The `project` key is absent for a directory with no project of its own.
 
 ```json
 {
@@ -164,7 +164,7 @@ A run records twice, because the two answer different questions.
 
 The **project's** is the `atkins.db` of the nearest `.atkins` folder, found by walking up from the directory atkins runs in. Every run in a checkout counts towards the same history, whichever subdirectory it started in, and it says what standing in that checkout costs.
 
-The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across all of them. A command run in a directory that belongs to no project lands here alone, so a stray `sleep` in `/tmp` is counted too.
+The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across them. A command run in a directory that belongs to no project lands here alone, so a stray `sleep` in `/tmp` counts too.
 
 A directory inside `$HOME` whose nearest `.atkins` folder is the workspace's own has no project of its own. There is one database, and the run records to it once.
 
@@ -185,7 +185,7 @@ The `run` table holds one row per node of the tree atkins walked: the pipeline, 
 
 The `command` table holds one row per command a step executed, with the command as the shell received it, its exit code, its directory and how long it took. A `$(...)` substitution is a command too, and records as one.
 
-Both tables carry the `invocation_id` of the pipeline row, so the rows of one `atkins` process are one group. The pipeline row also carries the file, the module, the repository, the branch and the commit, so a history can be read per branch.
+Both tables carry the `invocation_id` of the pipeline row, so the rows of one `atkins` process are one group. The pipeline row also carries the file, the module, the repository, the branch and the commit, so a reader can split a history by branch.
 
 ## The command key
 
@@ -216,13 +216,13 @@ atkins --local build
 
 `--local` runs without touching the database. `storage.record: false` in the configuration turns recording off for every run in the project, and `ATKINS_RECORD=false` for one shell.
 
-A database that cannot be opened is not a reason to refuse to run. Atkins says so once and runs the pipeline unrecorded.
+When a database does not open, atkins says so once and runs the pipeline unrecorded.
 
 ## Retention
 
-A recorded run is kept for 31 days, measured from when it started, on every machine. It is not a setting: 31 days is long enough to hold a month of work and compare this week against the last, and short enough that a checkout nobody prunes does not grow without bound.
+Atkins keeps a recorded run for 31 days from its start, on every machine. No setting changes it: 31 days is long enough to hold a month of work and compare this week against the last, and short enough that a checkout nobody prunes does not grow without bound.
 
-The run that records is the run that prunes, in both databases. Each write drops whatever has fallen outside the window, in bounded batches, so the window holds with no daemon to hold it and no job to remember to run. The workspace database takes every project's rows, and 31 days is what keeps it a month of history rather than a year of it.
+The run that records is the run that prunes, in both databases. Each write drops whatever has fallen outside the window, in bounded batches, so the window holds with no daemon to hold it and no job to remember to run. The workspace database takes every project's rows, and 31 days keep it a month of history.
 
 ## Other readers
 

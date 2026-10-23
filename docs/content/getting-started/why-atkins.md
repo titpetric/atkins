@@ -17,7 +17,7 @@ Atkins suits projects where:
 - Local and CI runs should behave identically. Write a pipeline once and run it the same way everywhere.
 - Jobs run in parallel with visible progress. Use `detach: true` to run jobs concurrently; the tree view shows what's happening.
 - Pipelines stay modular and reusable. Skills let you compose and conditionally activate groups of jobs across projects.
-- The cost of the tooling should be measurable. Every run records a row per job and per command in `.atkins/atkins.db`, and `atkins --stats` ranks the commands by the time they have taken altogether.
+- The cost of the tooling is measurable. Every run records a row per job and per command in `.atkins/atkins.db`, and `atkins --stats` ranks the commands by the time they have taken altogether.
 
 ## Examples
 

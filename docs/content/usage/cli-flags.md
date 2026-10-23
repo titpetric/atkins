@@ -285,7 +285,7 @@ atkins --vendor --write
 atkins --config
 ```
 
-Opens a menu over `.atkins/config.yml`, creating it from the built-in defaults if it doesn't exist. The document says where a run records and what is kept; `ATKINS_*` variables overlay individual fields on top of it.
+Opens a menu over `.atkins/config.yml`, creating it from the built-in defaults if it doesn't exist. The document says where a run records and what it keeps; `ATKINS_*` variables overlay individual fields on top of it.
 
 ## Statistics
 

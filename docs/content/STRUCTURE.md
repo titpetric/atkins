@@ -160,7 +160,7 @@ Machine-readable output for tooling integration. Covers list and execution outpu
 
 ### Statistics
 
-The event database and what it answers. Covers where the file is and how it is discovered, the `run` and `command` tables and the question each answers, the normalised command the statistics group by and the rules that produce it, the three parts of the `atkins --stats` report, the JSON and YAML a program reads it from, turning recording off with `--local` and `storage.record`, the 31 day window, and reading the file from another program.
+The event database and what it answers. Covers where the file lives and how atkins finds it, the `run` and `command` tables and the question each answers, the normalised command the statistics group by and the rules that produce it, the three parts of the `atkins --stats` report, the JSON and YAML a program reads it from, turning recording off with `--local` and `storage.record`, the 31 day window, and reading the file from another program.
 
 ## Migrating
 
