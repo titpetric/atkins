@@ -34,8 +34,8 @@ func ranCount(t *testing.T, path string) int {
 // TestSubstitutionRunsOncePerStep covers the contract that a $(...)
 // substitution executes once for the step that holds it.
 //
-// A step is rendered in the tree with its label interpolated, and then
-// run with its command interpolated. Both read the same text, so without
+// The tree renders a step with its label interpolated, and the step then
+// runs with its command interpolated. Both read the same text, so without
 // a memo the shell command inside it runs twice: once for a label nobody
 // asked to have side effects, and once for the step itself.
 func TestSubstitutionRunsOncePerStep(t *testing.T) {
@@ -83,8 +83,8 @@ func TestSubstitutionRunsOncePerStep(t *testing.T) {
 			AllPipelines: []*model.Pipeline{pipeline},
 		}))
 
-		// The memo is for one step. A later step asking the same
-		// question asks it again, because the answer may have changed.
+		// The memo is for one step. A later step with the same command
+		// runs it again, because its output may have changed.
 		assert.Equal(t, 2, ranCount(t, path))
 	})
 

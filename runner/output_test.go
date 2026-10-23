@@ -376,7 +376,7 @@ func TestPrintJSON(t *testing.T) {
 }
 
 // TestStepLabels covers the labels a listing prints under a job, which
-// a caller shows instead of reading the pipeline file itself.
+// a caller shows without reading the pipeline file itself.
 func TestStepLabels(t *testing.T) {
 	job := &model.Job{
 		Steps: []*model.Step{
@@ -418,8 +418,8 @@ func TestEnvFiles(t *testing.T) {
 }
 
 // TestBuildPipelineSectionCarriesTheWholeJob checks the fields a reader
-// needs to list a folder's jobs without parsing the pipeline file: what
-// the job is called, what it does, what it needs and what it hides.
+// needs to list a folder's jobs without parsing the pipeline file: the
+// job's name, what it does, what it needs and what it hides.
 func TestBuildPipelineSectionCarriesTheWholeJob(t *testing.T) {
 	hidden := false
 	p := &model.Pipeline{
@@ -458,7 +458,7 @@ func TestBuildPipelineSectionCarriesTheWholeJob(t *testing.T) {
 	assert.Equal(t, []string{".env.job"}, byName["default"].Env)
 	assert.False(t, byName["default"].Hidden)
 
-	// A job the file asks not to offer is listed and marked, so a
-	// caller knows it exists and decides for itself.
+	// A job the file keeps out of menus stays in the listing, marked, so
+	// a caller knows it exists and decides for itself.
 	assert.True(t, byName["hide"].Hidden)
 }

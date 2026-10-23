@@ -11,8 +11,8 @@ import (
 	"github.com/titpetric/atkins/runner"
 )
 
-// fakeRecorder is a runner.Recorder that keeps what it was handed, and
-// optionally fails, so a test can check both that the document arrives
+// fakeRecorder is a runner.Recorder that keeps the documents it receives,
+// and optionally fails, so a test can check both that the document arrives
 // and that a failure to store it never reaches the caller.
 type fakeRecorder struct {
 	log  *eventlog.Log
@@ -110,7 +110,7 @@ func TestRecorder(t *testing.T) {
 		recorder := &fakeRecorder{fail: errors.New("database is locked")}
 
 		// The pipeline has already happened and its exit code is already
-		// decided; a row that could not be written does not change it.
+		// decided; a row the recorder fails to write does not change it.
 		assert.NoError(t, runner.RunPipeline(t.Context(), pipeline, runner.PipelineOptions{
 			Jobs:         []string{"work"},
 			Silent:       true,
