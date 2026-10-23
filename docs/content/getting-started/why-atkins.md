@@ -4,7 +4,7 @@ subtitle: When and why to choose Atkins
 layout: page
 ---
 
-Atkins is a command runner that works the same way on your laptop and in CI. It emphasizes simplicity and YAML-friendly syntax. Atkins runs tasks locally and in automation, and can attach to its own [CI/CD server](../usage/ci-cd) to distribute those runs across agents. Atkins is no hosted CI platform: there are no managed runners, no marketplace and no secrets vault.
+Atkins is a command runner that works the same way on your laptop and in CI. It emphasizes simplicity and YAML-friendly syntax. Atkins is no hosted CI platform: there are no managed runners, no marketplace and no secrets vault. It runs the jobs a source tree declares, shows what they are doing, and records what they cost.
 
 ## When to Choose Atkins
 
@@ -17,7 +17,7 @@ Atkins suits projects where:
 - Local and CI runs should behave identically. Write a pipeline once and run it the same way everywhere.
 - Jobs run in parallel with visible progress. Use `detach: true` to run jobs concurrently; the tree view shows what's happening.
 - Pipelines stay modular and reusable. Skills let you compose and conditionally activate groups of jobs across projects.
-- Work should spread across your own machines. `atkins --login` attaches a machine to a CI/CD server; the server records runs as jobs and agents claim them from a shared queue.
+- The cost of the tooling should be measurable. Every run records a row per job and per command in `.atkins/atkins.db`, and `atkins --stats` ranks the commands by the time they have taken altogether.
 
 ## Examples
 
@@ -50,25 +50,25 @@ Run jobs concurrently with `detach: true` and see progress in the tree view:
 
 ## Comparison Table
 
-| Feature                  | Atkins                      | GitHub Actions                   | Taskfile                       | Lefthook                   |
-|--------------------------|-----------------------------|----------------------------------|--------------------------------|----------------------------|
-| Primary use case         | Local dev + CI runner       | CI/CD platform                   | Task runner                    | Git hooks                  |
-| Distributed execution    | Yes (self-hosted) [^1]      | Yes [^2]                         | No [^3]                        | No [^4]                    |
-| Variable interpolation   | `${{ var }}` [^5]           | `${{ env.VAR }}` [^6]            | `{{.Var}}` (Go templates) [^7] | N/A [^8]                   |
-| Shell exec interpolation | `$(cmd)` [^9]               | N/A [^10]                        | `sh: cmd` [^11]                | N/A [^12]                  |
-| Secrets management       | No                          | Yes (encrypted) [^13]            | No [^14]                       | No                         |
-| Environment inheritance  | Full [^15]                  | Explicit [^16]                   | Partial [^17]                  | Full                       |
-| Parallel execution       | Yes (`detach: true`) [^18]  | Yes (jobs) [^19]                 | Yes (`--parallel`) [^20]       | Yes (parallel hooks) [^21] |
-| Conditional execution    | `if:` (expr-lang) [^22]     | `if:` (expressions) [^23]        | `preconditions:` [^24]         | `skip` patterns [^25]      |
+| Feature                  | Atkins                             | GitHub Actions                   | Taskfile                       | Lefthook                   |
+|--------------------------|------------------------------------|----------------------------------|--------------------------------|----------------------------|
+| Primary use case         | Local dev + CI runner              | CI/CD platform                   | Task runner                    | Git hooks                  |
+| Distributed execution    | No [^1]                            | Yes [^2]                         | No [^3]                        | No [^4]                    |
+| Variable interpolation   | `${{ var }}` [^5]                  | `${{ env.VAR }}` [^6]            | `{{.Var}}` (Go templates) [^7] | N/A [^8]                   |
+| Shell exec interpolation | `$(cmd)` [^9]                      | N/A [^10]                        | `sh: cmd` [^11]                | N/A [^12]                  |
+| Secrets management       | No                                 | Yes (encrypted) [^13]            | No [^14]                       | No                         |
+| Environment inheritance  | Full [^15]                         | Explicit [^16]                   | Partial [^17]                  | Full                       |
+| Parallel execution       | Yes (`detach: true`) [^18]         | Yes (jobs) [^19]                 | Yes (`--parallel`) [^20]       | Yes (parallel hooks) [^21] |
+| Conditional execution    | `if:` (expr-lang) [^22]            | `if:` (expressions) [^23]        | `preconditions:` [^24]         | `skip` patterns [^25]      |
 | File discovery           | Auto-discovers configuration [^26] | Fixed `.github/workflows/` [^27] | `Taskfile.yml` [^28]           | `.lefthook.yml` [^29]      |
-| Dependencies             | `depends_on:`               | `needs:`                         | `deps:`                        | N/A                        |
-| Plugin/extension system  | Skills [^30]                | Actions marketplace [^31]        | Includes [^32]                 | N/A                        |
-| Output formats           | Tree, JSON, YAML            | Logs                             | Text                           | Text                       |
-| Binary size              | ~10MB                       | N/A (cloud)                      | ~15MB                          | ~5MB                       |
-| Shebang support          | Yes                         | No                               | No                             | No                         |
-| Stdin pipeline           | Yes                         | No                               | Yes                            | No                         |
+| Dependencies             | `depends_on:`                      | `needs:`                         | `deps:`                        | N/A                        |
+| Plugin/extension system  | Skills [^30]                       | Actions marketplace [^31]        | Includes [^32]                 | N/A                        |
+| Output formats           | Tree, JSON, YAML                   | Logs                             | Text                           | Text                       |
+| Binary size              | ~10MB                              | N/A (cloud)                      | ~15MB                          | ~5MB                       |
+| Shebang support          | Yes                                | No                               | No                             | No                         |
+| Stdin pipeline           | Yes                                | No                               | Yes                            | No                         |
 
-[^1]: Runs locally by default; `atkins server` queues jobs for agents you host
+[^1]: Runs here, always. A dashboard such as [task-ui](https://github.com/titpetric/task-ui) invokes it per checkout
 [^2]: [Using jobs in a workflow](https://docs.github.com/en/actions/using-jobs/using-jobs-in-a-workflow)
 [^3]: [Taskfile](https://taskfile.dev/)
 [^4]: [Lefthook](https://github.com/evilmartians/lefthook)

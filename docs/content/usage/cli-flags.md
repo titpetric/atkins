@@ -10,11 +10,9 @@ Atkins command-line flags select the pipeline file, the jobs to run, and the out
 
 ```bash
 atkins [flags] [job-names...] [-- job-args...]
-atkins server [flags]
-atkins worker [flags]
 ```
 
-Running jobs is the default, so `atkins build` and `atkins run build` are the same command. `server` runs the CI/CD server and `worker` runs an agent that claims its jobs; see [CI/CD Server](./ci-cd).
+Running jobs is the default, so `atkins build` and `atkins run build` are the same command.
 
 ## Flag Reference
 
@@ -41,15 +39,12 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 | `--version` | `-v`  | Print the version and build information           |
 | `--help`    | `-h`  | Print the reference document and exit             |
 
-### CI/CD server
+### Statistics
 
-| Flag         | Description                                                     |
-|--------------|-----------------------------------------------------------------|
-| `--login`    | Log in to a server, e.g. `--login https://ci.example.com`       |
-| `--register` | Create an account on a server and log in                        |
-| `--logout`   | Detach this machine from the server it last logged in to        |
-| `--dispatch` | Hand this run to an agent; refuses a dirty or unpushed checkout |
-| `--local`    | Run here without recording the run on the server                |
+| Flag      | Description                                                               |
+|-----------|---------------------------------------------------------------------------|
+| `--stats` | Report the recorded commands by the time they have taken, and run nothing |
+| `--local` | Run without recording anything in the event database                      |
 
 ### Project setup
 
@@ -58,13 +53,6 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 | `--config` | Open the configuration menu over `.atkins/config.yml`              |
 | `--vendor` | Report the skills this repository uses from `$HOME/.atkins/skills` |
 | `--write`  | With `--vendor`, write them into `.atkins/skills`                  |
-
-### Agent
-
-| Flag      | Short | Description                               |
-|-----------|-------|-------------------------------------------|
-| `--agent` |       | Start the interactive agent REPL          |
-| `--exec`  | `-x`  | Run one prompt through the agent and exit |
 
 ## File Discovery
 
@@ -289,53 +277,24 @@ atkins --vendor --write
 
 `--debug` adds the reason behind each skill selection and the diff behind the line counts. The copies are ordinary repository content, so a clone or a CI agent gets the same jobs without a personal skills directory. `--vendor` and `--jail` do not combine: jail mode excludes the directory vendoring reads from. See [Skills](./skills#vendoring) for the selection rules.
 
-## Agent REPL
-
-```bash
-atkins --agent                    # interactive
-atkins -x "run the tests"         # one prompt, then exit
-```
-
-The agent reads the pipelines and skills this project resolves to and drives them for you. The flags above use the same job resolution; nothing is available to it that `atkins -l` doesn't show.
-
 ## Configuration
 
 ```bash
 atkins --config
 ```
 
-Opens a menu over `.atkins/config.yml`, creating it from the built-in defaults if it doesn't exist. The document is the source of truth for how this machine talks to a CI/CD server and how `atkins server` and `atkins worker` run; `ATKINS_*` variables overlay individual fields on top of it.
+Opens a menu over `.atkins/config.yml`, creating it from the built-in defaults if it doesn't exist. The document says where a run records and what is kept; `ATKINS_*` variables overlay individual fields on top of it.
 
-## CI/CD Server Login
+## Statistics
 
-These flags attach the machine to an atkins CI/CD server. Each takes over the invocation and exits; no pipeline runs.
-
-```bash
-# Create an account and log in (first account on a server becomes admin)
-atkins --register https://ci.example.com
-
-# Log in on any other machine
-atkins --login https://ci.example.com
-
-# Detach this machine
-atkins --logout
-```
-
-Atkins stores credentials per server in `~/.atkins/credentials.json` (mode `0600`).
-
-Once logged in, `atkins` still runs the pipeline **here** and records the run on the server: the job page shows the transcript, the commit and the exit code an agent would have reported. To dispatch a run to an agent:
+Every run records a row per job and per command in the event database, so the time a repository spends on its own tooling is a query and not a guess.
 
 ```bash
-atkins --dispatch     # prints one job URL and exits
+atkins --stats        # the commands by the time they have taken
+atkins --local build  # run this one without recording it
 ```
 
-`--dispatch` refuses a dirty or unpushed work tree, since an agent builds the pushed commit and never reads your disk. To run here and record nothing:
-
-```bash
-atkins --local        # this run only
-```
-
-See [CI/CD Server](./ci-cd) for the configuration, the API and how agents claim jobs.
+See [Statistics](./stats) for the database, the normalised command and the retention window.
 
 ## Combining Flags
 
@@ -392,4 +351,4 @@ EOF
 - [Job Targeting](./job-targeting) - Running specific jobs
 - [Script Mode](./script-mode) - Executable pipelines
 - [Automation](./automation) - JSON/YAML output details
-- [CI/CD Server](./ci-cd) - `--login`, `--register` and job dispatch
+- [Statistics](./stats) - the event database and `--stats`

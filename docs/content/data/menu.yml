@@ -52,8 +52,8 @@ menu:
         url: /usage/script-mode
       - label: Automation (JSON/YAML)
         url: /usage/automation
-      - label: CI/CD Server
-        url: /usage/ci-cd
+      - label: Statistics
+        url: /usage/stats
 
   - type: group
     label: Migrating

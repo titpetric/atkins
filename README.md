@@ -12,9 +12,9 @@ With atkins you can:
 - define pipelines, jobs and steps and run them
 - add project or system skills in `.atkins/skills`
 - run individual pipelines as executables
-- attach to a CI/CD server with `atkins --login https://domain`, so the server
-  records every local run as a job, and `atkins --dispatch` hands
-  one to an agent instead
+- see where the time goes: every run records a row per job and per command
+  in `.atkins/atkins.db`, and `atkins --stats` reports the commands by the
+  time they have taken altogether
 
 It's driven by yaml syntax, and supports shell interpolation with `$(...)`, and
 yaml friendly variable interpolation: `name: ${{app.name}}`.
@@ -49,7 +49,6 @@ the atkins.yml schema. Redirected to a file, the output is markdown.
   - [Job Targeting](https://atkins.incubator.to/usage/job-targeting)
   - [Script Mode](https://atkins.incubator.to/usage/script-mode)
   - [Automation (JSON/YAML)](https://atkins.incubator.to/usage/automation)
-  - [CI/CD Server](https://atkins.incubator.to/usage/ci-cd)
 - Migrating
   - [Overview](https://atkins.incubator.to/migrating/migrating)
   - [From Taskfile](https://atkins.incubator.to/migrating/migration-from-task)

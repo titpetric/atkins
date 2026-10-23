@@ -4,7 +4,7 @@ subtitle: Using Atkins with GHA-style syntax
 layout: page
 ---
 
-Atkins supports a GitHub Actions-inspired syntax with `jobs:` and `steps:`, familiar for teams that use GHA workflows. Atkins runs similar job definitions locally and in any CI environment, and can distribute them across your own agents via the [CI/CD server](../usage/ci-cd). It does not replace what GitHub hosts for you: triggers, runners, the marketplace and secrets stay where they are.
+Atkins supports a GitHub Actions-inspired syntax with `jobs:` and `steps:`, familiar for teams that use GHA workflows. Atkins runs similar job definitions locally and in any CI environment. It does not replace what GitHub hosts for you: triggers, runners, the marketplace and secrets stay where they are.
 
 ## Full Example
 
@@ -48,21 +48,11 @@ jobs:
 
 ## Key Differences
 
-### No Triggers; Runners Are Labels
+### No Triggers, No Runners
 
-Atkins has no counterpart to `on:`. Nothing watches your repository for pushes, tags or pull requests; a run starts when something invokes `atkins`. Use your existing CI, a cron job, or a webhook receiver to do the invoking.
+Atkins has no counterpart to `on:`. Nothing watches your repository for pushes, tags or pull requests; a run starts when something invokes `atkins`. Use your existing CI, a cron job, a webhook receiver, or a dashboard such as [task-ui](https://github.com/titpetric/task-ui) to do the invoking.
 
-`runs-on:` has a partial counterpart. With the [CI/CD server](../usage/ci-cd), an agent advertises what it can run, and a dispatched job only lands on an agent advertising every label the job lists:
-
-```bash
-# The agent declares what it can run
-atkins worker --labels linux,arm64,docker
-
-# The dispatching machine asks for those labels
-ATKINS_LABELS=linux,arm64,docker atkins --dispatch build
-```
-
-`ATKINS_LABELS` only matters together with `--login` and `--dispatch`; a plain `atkins build` runs on the machine you typed it on regardless of the variable. Unlike GitHub's hosted runners, the machines are yours to run.
+`runs-on:` has no counterpart either. A run happens on the machine that started it. Choosing a machine is the job of whatever invokes atkins.
 
 ### No `uses:` Actions
 
@@ -327,4 +317,4 @@ jobs:
 1. Atkins runs commands; use your CI platform for triggers and secrets
 2. Run the same tasks locally that CI runs
 3. Call `atkins` from your GHA workflow for consistency
-4. To keep the work on your own machines, attach them with [`atkins --login`](../usage/ci-cd) and let agents claim the jobs instead
+4. Read [`atkins --stats`](../usage/stats) to see which of the migrated jobs is costing the most
