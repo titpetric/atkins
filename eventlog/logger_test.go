@@ -10,9 +10,24 @@ import (
 	"github.com/titpetric/atkins/internal/assert"
 )
 
-func TestNewLogger_NilWhenEmpty(t *testing.T) {
+// A logger with no file path still collects: the events are what a
+// recorder stores, and a run with no --log still records to the event
+// database. The path only decides whether a file is written.
+func TestNewLogger_CollectsWithoutAFile(t *testing.T) {
 	logger := NewLogger("", "test-pipeline", "test.yml", false)
-	assert.Nil(t, logger)
+	assert.NotNil(t, logger)
+
+	logger.LogExec(ResultPass, "jobs.test.steps.0", "echo hello", 0, 100, nil)
+	assert.Len(t, logger.GetEvents(), 1)
+
+	// Write is the no-op, and reports no error for the file it did not
+	// have to create.
+	assert.NoError(t, logger.Write(&StateNode{Name: "test"}, &RunSummary{}))
+
+	document := logger.Document(&StateNode{Name: "test"}, &RunSummary{Result: ResultPass})
+	assert.NotNil(t, document)
+	assert.Equal(t, "test-pipeline", document.Metadata.Pipeline)
+	assert.Len(t, document.Events, 1)
 }
 
 func TestNewLogger_CreatesLogger(t *testing.T) {

@@ -31,10 +31,9 @@ func TestMenuListsEverySection(t *testing.T) {
 
 	output := runMenu(t, path, "q\n")
 
-	assert.Contains(t, output, "client")
-	assert.Contains(t, output, "server")
-	assert.Contains(t, output, "agent")
-	assert.Contains(t, output, "signing_key")
+	assert.Contains(t, output, "storage")
+	assert.Contains(t, output, "database")
+	assert.Contains(t, output, "record")
 	// An unset value reads as unset and never as a blank line.
 	assert.Contains(t, output, "(not set)")
 }
@@ -42,15 +41,15 @@ func TestMenuListsEverySection(t *testing.T) {
 func TestMenuEditsAndWrites(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 
-	// Field 1 is client.server.
-	runMenu(t, path, "1\nhttps://ci.example.com\nw\n")
+	// Field 1 is storage.database.
+	runMenu(t, path, "1\n/tmp/events.db\nw\n")
 
 	saved, err := config.LoadFile(path)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://ci.example.com", saved.Client.Server)
+	assert.Equal(t, "/tmp/events.db", saved.Storage.Database)
 
-	// The document can hold a signing key, so Save writes it for its
-	// owner only.
+	// Save writes for its owner only: the document sits in a checkout
+	// other people may have a copy of.
 	info, err := os.Stat(path)
 	assert.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
@@ -61,7 +60,7 @@ func TestMenuQuitDiscardsUnsavedChanges(t *testing.T) {
 	path := filepath.Join(dir, ".atkins", "config.yml")
 
 	// Edit, then quit and confirm the discard.
-	runMenu(t, path, "1\nhttps://ci.example.com\nq\ny\n")
+	runMenu(t, path, "1\n/tmp/events.db\nq\ny\n")
 
 	assert.NoFileExists(t, path)
 }
@@ -69,10 +68,10 @@ func TestMenuQuitDiscardsUnsavedChanges(t *testing.T) {
 func TestMenuRefusesAnInvalidValue(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 
-	// Field 6 is client.timeout, a duration.
-	output := runMenu(t, path, "6\nnot-a-duration\nq\n")
+	// Field 2 is storage.record, a boolean.
+	output := runMenu(t, path, "2\nmaybe\nq\n")
 
-	assert.Contains(t, output, "must be a duration")
+	assert.Contains(t, output, "must be true or false")
 }
 
 func TestMenuRejectsAnOutOfRangeChoice(t *testing.T) {
@@ -84,25 +83,29 @@ func TestMenuRejectsAnOutOfRangeChoice(t *testing.T) {
 }
 
 func TestMenuMarksEnvironmentOverrides(t *testing.T) {
-	t.Setenv("ATKINS_SERVER", "https://from-env.example.com")
+	t.Setenv("ATKINS_DB", "/from-env.db")
 
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 	output := runMenu(t, path, "q\n")
 
 	// Editing a field the environment overrides would look like it did
 	// nothing, so the menu says so.
-	assert.Contains(t, output, "ATKINS_SERVER")
+	assert.Contains(t, output, "ATKINS_DB")
 }
 
-func TestMenuWriteRefusesAnInvalidDocument(t *testing.T) {
+// The menu validates the whole document before writing it. No field it
+// offers can make the document invalid today - a path is a string and
+// recording is a boolean - so the refusal is covered where it can be
+// reached, in TestValidateRejectsAVersionFromTheFuture, and the menu is
+// covered here for the write it does perform.
+func TestMenuWritesAValidDocument(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 
-	// Field 7 is server.addr, which without a port cannot work; writing
-	// must not silently persist it.
-	output := runMenu(t, path, "7\nlocalhost\nw\nq\ny\n")
+	runMenu(t, path, "2\nfalse\nw\n")
 
-	assert.Contains(t, output, "must include a port")
-	assert.NoFileExists(t, path)
+	saved, err := config.LoadFile(path)
+	assert.NoError(t, err)
+	assert.False(t, saved.Storage.Record)
 }
 
 func TestMenuOnAnExistingDocument(t *testing.T) {
@@ -111,11 +114,11 @@ func TestMenuOnAnExistingDocument(t *testing.T) {
 
 	cfg, err := config.Default()
 	assert.NoError(t, err)
-	cfg.Client.Server = "https://existing.example.com"
+	cfg.Storage.Database = "/existing.db"
 	assert.NoError(t, cfg.Save(path))
 
 	output := runMenu(t, path, "q\n")
-	assert.Contains(t, output, "https://existing.example.com")
+	assert.Contains(t, output, "/existing.db")
 }
 
 func TestMenuEndsOnExhaustedInput(t *testing.T) {

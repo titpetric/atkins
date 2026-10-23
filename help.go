@@ -58,14 +58,11 @@ func takesValue(flags *pflag.FlagSet, arg string) bool {
 	return flag != nil && flag.Value.Type() != "bool"
 }
 
-// HelpFlags returns one flag set carrying every flag atkins defines, for
-// the three commands together. Help detection has to tell which of
-// them take a value, and the three sets share no names.
+// HelpFlags returns one flag set carrying every flag atkins defines.
+// Help detection has to tell which of them take a value.
 func HelpFlags() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("atkins", pflag.ContinueOnError)
 	NewOptions().Bind(flags)
-	(&ServerOptions{}).Bind(flags)
-	(&WorkerOptions{}).Bind(flags)
 	return flags
 }
 
@@ -79,12 +76,6 @@ func WriteHelp(w io.Writer) error {
 	pipelineFlags := pflag.NewFlagSet("run", pflag.ContinueOnError)
 	NewOptions().Bind(pipelineFlags)
 
-	serverFlags := pflag.NewFlagSet("server", pflag.ContinueOnError)
-	(&ServerOptions{}).Bind(serverFlags)
-
-	workerFlags := pflag.NewFlagSet("worker", pflag.ContinueOnError)
-	(&WorkerOptions{}).Bind(workerFlags)
-
 	skills, dirs := scanSkills()
 
 	return helpdoc.Write(w, &helpdoc.Options{
@@ -92,8 +83,6 @@ func WriteHelp(w io.Writer) error {
 		Version: "Version " + Version + ", commit " + Commit + ".",
 		Commands: []helpdoc.Command{
 			{Name: "run", Title: "Run jobs from a pipeline file", Default: true, Flags: pipelineFlags},
-			{Name: "server", Title: "Run the CI/CD server", Flags: serverFlags},
-			{Name: "worker", Title: "Run the CI/CD agent, claiming jobs from a server", Flags: workerFlags},
 		},
 		Skills:    skills,
 		SkillDirs: dirs,

@@ -28,6 +28,7 @@ import (
 - `func PrintSectionStart (section string)`
 - `func PrintSuccess (text string)`
 - `func PrintWarning (text string)`
+- `func StdoutIsTerminal () bool`
 - `func StripANSI (in string) string`
 - `func VisualLength (s string) int`
 - `func White (text string) string`
@@ -190,6 +191,15 @@ func PrintSuccess(text string)
 
 ```go
 func PrintWarning(text string)
+```
+
+### `StdoutIsTerminal`
+
+`StdoutIsTerminal` reports whether the process stdout is attached to a
+terminal. The check runs once; every later call returns the cached answer.
+
+```go
+func StdoutIsTerminal() bool
 ```
 
 ### `StripANSI`

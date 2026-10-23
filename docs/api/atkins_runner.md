@@ -99,6 +99,12 @@ type ExecutionContext struct {
 	// Shared across copies so the mutex protects the map consistently.
 	jobTracker *jobTracker
 
+	// substitutions memoises the `$(...)` results of one step execution,
+	// so the passes that interpolate a step - the label, the condition,
+	// the command - run the shell inside it once between them. Shared
+	// across copies, and replaced for each step and each loop iteration.
+	substitutions *substitutionCache
+
 	// Progress receives job lifecycle events (optional).
 	Progress ProgressObserver
 
@@ -403,6 +409,11 @@ type PipelineOptions struct {
 	// the requested jobs. Only the exec: steps of a job with args: true
 	// use them.
 	Args []string
+
+	// Recorder stores the finished run. Nil records nothing, which is
+	// what a test and a linting pass want; the command line hands one
+	// over so every run leaves a row behind.
+	Recorder Recorder
 }
 ```
 
@@ -426,6 +437,23 @@ type ProgressObserver interface {
 ```go
 // ProgressObserverFunc is a function adapter for ProgressObserver.
 type ProgressObserverFunc func(JobProgressEvent)
+```
+
+</details>
+
+<details>
+<summary><code>type Recorder</code></summary>
+
+```go
+// Recorder stores what a finished run did. The event log document is
+// the whole of it: the metadata, the tree, every event and the summary.
+//
+// The interface keeps the runner free of a database: a sqlite file, a
+// socket or a test double all satisfy it, and a recorder that fails
+// never fails the run that produced it.
+type Recorder interface {
+	Record(ctx context.Context, log *eventlog.Log) error
+}
 ```
 
 </details>

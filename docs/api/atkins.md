@@ -28,18 +28,12 @@ type Options struct {
 	JSON             bool
 	YAML             bool
 	Version          bool
-	Agent            bool
-	Exec             string
 
-	// CI/CD client flags. Login and Register take the server URL;
-	// Logout applies to the server last logged in to. Dispatch sends
-	// the run to an agent and runs nothing here, and Local runs
-	// here without recording anything on the server.
-	Login    string
-	Register string
-	Logout   bool
-	Dispatch bool
-	Local    bool
+	// Stats reports the commands recorded in the event database by the
+	// time they have taken, and runs no pipeline. Local records the run
+	// nowhere.
+	Stats bool
+	Local bool
 
 	// Config opens the configuration menu for .atkins/config.yml.
 	Config bool
@@ -50,60 +44,6 @@ type Options struct {
 	Write  bool
 
 	FlagSet *cli.FlagSet
-}
-```
-
-</details>
-
-<details>
-<summary><code>type ServerOptions</code></summary>
-
-```go
-// ServerOptions holds `atkins server` command-line arguments.
-// Every flag overrides the resolved configuration; an empty one leaves
-// the configured value alone.
-type ServerOptions struct {
-	// Addr is the listen address.
-	Addr string
-
-	// Database is the platform DSN, e.g. sqlite://file:atkins.db. The
-	// scheme has to be sqlite: main.go registers that driver and no
-	// other.
-	Database string
-
-	// ArtefactDir is where the server stores the bytes of job artefacts.
-	ArtefactDir string
-
-	// SigningKey signs access tokens. Required.
-	SigningKey string
-
-	// AgentToken is the shared secret agents enrol with.
-	AgentToken string
-
-	// AllowRegistration keeps /api/user/register open after the first
-	// user exists.
-	AllowRegistration bool
-}
-```
-
-</details>
-
-<details>
-<summary><code>type WorkerOptions</code></summary>
-
-```go
-// WorkerOptions holds `atkins worker` command-line arguments.
-// Flags override the resolved configuration, which already carries the
-// document values and the ATKINS_* overlay. An empty flag leaves the
-// configured value alone, so the three layers stack and never fight.
-type WorkerOptions struct {
-	Server   string
-	Token    string
-	Email    string
-	Password string
-	AgentID  string
-	Labels   string
-	DataDir  string
 }
 ```
 
@@ -132,18 +72,13 @@ var (
 - `func HelpRequested (flags *pflag.FlagSet, args []string) bool`
 - `func NewOptions () *Options`
 - `func Pipeline () *cli.Command`
-- `func Server () *cli.Command`
-- `func Worker () *cli.Command`
 - `func WriteHelp (w io.Writer) error`
 - `func (*Options) Bind (fs *cli.FlagSet)`
-- `func (*ServerOptions) Bind (fs *pflag.FlagSet)`
-- `func (*WorkerOptions) Bind (fs *pflag.FlagSet)`
 
 ### `HelpFlags`
 
-`HelpFlags` returns one flag set carrying every flag atkins defines, for
-the three commands together. Help detection has to tell which of
-them take a value, and the three sets share no names.
+`HelpFlags` returns one flag set carrying every flag atkins defines.
+Help detection has to tell which of them take a value.
 
 ```go
 func HelpFlags() *pflag.FlagSet
@@ -171,22 +106,6 @@ func HelpRequested(flags *pflag.FlagSet, args []string) bool
 func Pipeline() *cli.Command
 ```
 
-### `Server`
-
-`Server` returns a cli.Command that runs the atkins CI/CD server.
-
-```go
-func Server() *cli.Command
-```
-
-### `Worker`
-
-`Worker` returns a cli.Command that runs the atkins CI/CD agent.
-
-```go
-func Worker() *cli.Command
-```
-
 ### `WriteHelp`
 
 `WriteHelp` renders `atkins --help` to a writer.
@@ -198,22 +117,6 @@ repository that answers.
 
 ```go
 func WriteHelp(w io.Writer) error
-```
-
-### `Bind`
-
-`Bind` registers the server flags.
-
-```go
-func (*ServerOptions) Bind(fs *pflag.FlagSet)
-```
-
-### `Bind`
-
-`Bind` registers the worker flags.
-
-```go
-func (*WorkerOptions) Bind(fs *pflag.FlagSet)
 ```
 
 ### `NewOptions`

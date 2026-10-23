@@ -45,6 +45,21 @@ type PipelineOptions struct {
 	// the requested jobs. Only the exec: steps of a job with args: true
 	// use them.
 	Args []string
+
+	// Recorder stores the finished run. Nil records nothing, which is
+	// what a test and a linting pass want; the command line hands one
+	// over so every run leaves a row behind.
+	Recorder Recorder
+}
+
+// Recorder stores what a finished run did. The event log document is
+// the whole of it: the metadata, the tree, every event and the summary.
+//
+// The interface keeps the runner free of a database: a sqlite file, a
+// socket or a test double all satisfy it, and a recorder that fails
+// never fails the run that produced it.
+type Recorder interface {
+	Record(ctx context.Context, log *eventlog.Log) error
 }
 
 // Pipeline holds pipeline execution logic.
@@ -79,10 +94,7 @@ func buildAndAddStepsToJob(jobNode *treeview.TreeNode, steps []*model.Step) {
 
 // RunPipeline runs a pipeline with the given options.
 func RunPipeline(ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error {
-	var logger *eventlog.Logger
-	if opts.LogFile != "" || opts.PipelineFile != "" {
-		logger = eventlog.NewLogger(opts.LogFile, pipeline.Name, opts.PipelineFile, opts.Debug)
-	}
+	logger := eventlog.NewLogger(opts.LogFile, pipeline.Name, opts.PipelineFile, opts.Debug)
 
 	service := NewPipeline(pipeline, opts)
 
@@ -325,6 +337,12 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			jobNode := tree.AddJobWithoutSteps(deps, jobLabel, job.Nested)
 			jobNode.SetSummarize(job.Summarize)
 
+			// The label a person reads carries the description, which an
+			// author edits freely. A recorder grouping one job's runs over
+			// months needs a key that survives that, so the node keeps the
+			// job's canonical name in the same scheme its steps use.
+			jobNode.SetID("jobs." + displayName)
+
 			if !isSimpleTask {
 				buildAndAddStepsToJob(jobNode, steps)
 			}
@@ -557,7 +575,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 			p.writeTranscript(root)
 
 			// Write event log on failure
-			writeEventLog(logger, root, err)
+			p.finishEventLog(ctx, logger, root, err)
 
 			return err
 		}
@@ -586,7 +604,7 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 	p.writeTranscript(root)
 
 	// Write event log
-	writeEventLog(logger, root, runErr)
+	p.finishEventLog(ctx, logger, root, runErr)
 
 	// Output JSON/YAML if requested
 	if silentOutput {
@@ -618,8 +636,13 @@ func (p *Pipeline) writeTranscript(root *treeview.Node) {
 	_, _ = fmt.Fprint(p.opts.Transcript, treeview.NewRenderer().Render(root))
 }
 
-// writeEventLog writes the final event log to the file.
-func writeEventLog(logger *eventlog.Logger, root *treeview.Node, runErr error) {
+// finishEventLog closes the run's log: it writes the file --log asked
+// for and hands the same document to the recorder.
+//
+// Neither failure reaches the caller. The run has already happened and
+// its exit code is already decided; a log that could not be written is
+// not a reason to report a passing pipeline as failed.
+func (p *Pipeline) finishEventLog(ctx context.Context, logger *eventlog.Logger, root *treeview.Node, runErr error) {
 	if logger == nil {
 		return
 	}
@@ -651,6 +674,10 @@ func writeEventLog(logger *eventlog.Logger, root *treeview.Node, runErr error) {
 	}
 
 	_ = logger.Write(state, summary)
+
+	if p.opts.Recorder != nil {
+		_ = p.opts.Recorder.Record(ctx, logger.Document(state, summary))
+	}
 }
 
 // buildDepAncestors walks the depends_on graph for each requested job

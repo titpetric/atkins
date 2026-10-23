@@ -23,12 +23,12 @@ type Logger struct {
 }
 
 // NewLogger creates a new event logger.
-// If filePath is empty, returns nil (no logging occurs).
+//
+// The logger always collects, because the events are what a recorder
+// stores and what the summary counts, and collecting them costs a slice
+// append per command. An empty filePath writes no file: that is the only
+// thing the path decides.
 func NewLogger(filePath, pipelineName, pipelineFile string, debug bool) *Logger {
-	if filePath == "" {
-		return nil
-	}
-
 	now := time.Now()
 	runID := ulid.Make().String()
 
@@ -113,22 +113,34 @@ func (l *Logger) elapsed() float64 {
 	return time.Since(l.startTime).Seconds()
 }
 
-// Write writes the final event log to the file.
-func (l *Logger) Write(state *StateNode, summary *RunSummary) error {
+// Document returns the finished log: the run's metadata, the state tree
+// it ended with, every event it collected and the summary.
+//
+// Write marshals it and a recorder stores it, so both read the same
+// document and neither assembles one of its own.
+func (l *Logger) Document(state *StateNode, summary *RunSummary) *Log {
 	if l == nil {
 		return nil
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	log := &Log{
+	return &Log{
 		Metadata: l.metadata,
 		State:    state,
 		Events:   l.events,
 		Summary:  summary,
 	}
+}
 
-	data, err := yaml.Marshal(log)
+// Write writes the final event log to the file. A logger with no file
+// path writes nothing and reports no error.
+func (l *Logger) Write(state *StateNode, summary *RunSummary) error {
+	if l == nil || l.filePath == "" {
+		return nil
+	}
+
+	data, err := yaml.Marshal(l.Document(state, summary))
 	if err != nil {
 		return err
 	}

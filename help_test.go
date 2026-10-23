@@ -23,12 +23,12 @@ func TestHelpRequested(t *testing.T) {
 		{name: "no arguments", args: nil, want: false},
 		{name: "long flag", args: []string{"--help"}, want: true},
 		{name: "short flag", args: []string{"-h"}, want: true},
-		{name: "after a command", args: []string{"server", "--help"}, want: true},
+		{name: "after a command", args: []string{"run", "--help"}, want: true},
 		{name: "after a job name", args: []string{"go:fmt", "--help"}, want: true},
 		{name: "after a boolean flag", args: []string{"--final", "-h"}, want: true},
-		{name: "value of a string flag", args: []string{"-x", "--help"}, want: false},
-		{name: "value of a long string flag", args: []string{"--exec", "--help"}, want: false},
-		{name: "string flag with an inline value", args: []string{"--exec=run", "--help"}, want: true},
+		{name: "value of a short string flag", args: []string{"-w", "--help"}, want: false},
+		{name: "value of a long string flag", args: []string{"--log", "--help"}, want: false},
+		{name: "string flag with an inline value", args: []string{"--log=run.yml", "--help"}, want: true},
 		{name: "after the argument separator", args: []string{"--", "--help"}, want: false},
 		{name: "a job called help", args: []string{"help"}, want: false},
 		{name: "unrelated flags", args: []string{"-l", "--json"}, want: false},
@@ -41,17 +41,17 @@ func TestHelpRequested(t *testing.T) {
 	}
 }
 
-// TestHelpFlags checks the merged set carries a flag from each of the
-// three commands; the merged set tells a value flag from a boolean one.
+// TestHelpFlags checks the set carries the flags help detection has to
+// know about, and tells a value flag from a boolean one.
 func TestHelpFlags(t *testing.T) {
 	flags := HelpFlags()
 
-	assert.NotNil(t, flags.Lookup("exec"), "pipeline flag")
-	assert.NotNil(t, flags.Lookup("signing-key"), "server flag")
-	assert.NotNil(t, flags.Lookup("agent-id"), "worker flag")
+	assert.NotNil(t, flags.Lookup("list"))
+	assert.NotNil(t, flags.Lookup("stats"))
+	assert.NotNil(t, flags.Lookup("local"))
 
 	assert.Equal(t, "bool", flags.Lookup("final").Value.Type())
-	assert.Equal(t, "string", flags.Lookup("exec").Value.Type())
+	assert.Equal(t, "string", flags.Lookup("log").Value.Type())
 }
 
 // TestWriteHelp renders the document the binary prints and checks it
@@ -67,14 +67,9 @@ func TestWriteHelp(t *testing.T) {
 		"Usage: atkins [flags] [job...]",
 		"## Commands",
 		"`run`",
-		"`server`",
-		"`worker`",
 		"## Flags",
 		"`-l, --list`",
-		"## Flags for server",
-		"`--signing-key`",
-		"## Flags for worker",
-		"`--agent-id`",
+		"`--stats`",
 		"## Skills",
 		"## atkins.yml",
 		"### One idea, two spellings",

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,11 +11,11 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/titpetric/cli"
 
-	"github.com/titpetric/atkins/agent"
-	"github.com/titpetric/atkins/client"
 	"github.com/titpetric/atkins/colors"
+	"github.com/titpetric/atkins/config"
 	"github.com/titpetric/atkins/model"
 	"github.com/titpetric/atkins/runner"
+	"github.com/titpetric/atkins/storage"
 	"github.com/titpetric/atkins/version"
 )
 
@@ -105,32 +104,17 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 	if err != nil {
 		return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 	}
-	client.Configure(settings.Client)
 
 	// These flags take over the whole invocation: they open the
-	// configuration menu, vendor skills into the repository, or
-	// authenticate against a server, and exit.
+	// configuration menu, vendor skills into the repository or report
+	// what has been recorded, and exit.
 	switch {
 	case opts.Config:
 		return runConfig(cwd)
 	case opts.Vendor:
 		return runVendor(cwd, opts)
-	case opts.Login != "":
-		return client.RunLogin(ctx, opts.Login)
-	case opts.Register != "":
-		return client.RunRegister(ctx, opts.Register)
-	case opts.Logout:
-		return client.RunLogout(ctx, "")
-	}
-
-	// Handle agent mode
-	if opts.Agent {
-		return runAgent(ctx, opts)
-	}
-
-	// Handle exec mode (-x "prompt")
-	if opts.Exec != "" {
-		return runExec(ctx, opts)
+	case opts.Stats:
+		return runStats(ctx, settings, opts)
 	}
 
 	// Check mutually exclusive flags
@@ -378,45 +362,17 @@ pipelineReady:
 		os.Exit(1)
 	}
 
-	// Dispatching the run to an agent happens only on request:
-	// logging in records what this machine runs, it does not move where
-	// it runs. An agent checks the repository out and runs the command
-	// there, so all that's left here is where to watch it.
-	//
-	// An agent exports ATKINS_NO_DISPATCH for the command it runs, and
-	// that outranks the flag: the server recorded the running job with
-	// the whole command line, `--dispatch` and all, and honouring it
-	// there would send the work straight back to the queue.
-	if (opts.Dispatch || client.Settings().Dispatch) && !client.DispatchDisabled() {
-		dispatched, err := client.Dispatch(ctx, client.DispatchOptions{})
-		if err != nil {
-			return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
-		}
+	// The event database records what ran and how long it took, so
+	// `atkins --stats` and later task-ui can report on it. A database
+	// that will not open is not a reason to refuse to run: the recorder
+	// stays nil and the pipeline runs unrecorded.
+	recorder := openRecorder(settings, opts)
 
-		fmt.Println(dispatched.URL)
-		return nil
-	}
+	exitCode, _ := runPipelines(ctx, opts, pipelineOrder, pipelineJobsMap, allPipelines, recorder.recorder)
 
-	// The run happens here, and the server stores the job an
-	// agent would have produced. atkins prints the link before the run so
-	// the user can share it while the pipeline is still going.
-	var recorder *client.Recorder
-	if !opts.Local {
-		recorder = client.Record(ctx, client.RecordOptions{})
-		if url := recorder.URL(); url != "" {
-			fmt.Printf("%s %s\n", colors.Dim("recording:"), url)
-		}
-	}
-
-	exitCode, runErr := runPipelines(ctx, opts, pipelineOrder, pipelineJobsMap, allPipelines, recorder)
-
-	// A run stopped by hand is not a run that failed, and the record
-	// should not read as one.
-	if ctx.Err() != nil {
-		recorder.Cancelled(ctx)
-	} else {
-		recorder.Finish(ctx, exitCode, runErr)
-	}
+	// Closed here and not deferred: the exit below skips every defer,
+	// and a sqlite file left open keeps its write-ahead log unmerged.
+	recorder.Close()
 
 	if exitCode != 0 {
 		os.Exit(exitCode)
@@ -428,8 +384,8 @@ pipelineReady:
 // runPipelines runs each pipeline with its collected jobs and returns
 // the exit code the shell should see.
 //
-// The caller performs the exit, and this function never does: a
-// recorded run has an outcome to report to the server, and os.Exit from
+// The caller performs the exit, and this function never does: the
+// recorder writes its rows as each pipeline finishes, and os.Exit from
 // here would file none of it.
 func runPipelines(
 	ctx context.Context,
@@ -437,15 +393,8 @@ func runPipelines(
 	pipelineOrder []*model.Pipeline,
 	pipelineJobsMap map[*model.Pipeline]*pipelineJobs,
 	allPipelines []*model.Pipeline,
-	recorder *client.Recorder,
+	recorder runner.Recorder,
 ) (int, error) {
-	// Left nil when nothing is recording, so an unrecorded run doesn't
-	// render a tree into a writer that throws it away.
-	var transcript io.Writer
-	if recorder != nil {
-		transcript = recorder
-	}
-
 	exitCode := 0
 	var runErr error
 
@@ -460,7 +409,7 @@ func runPipelines(
 			JSON:         opts.JSON,
 			YAML:         opts.YAML,
 			AllPipelines: allPipelines,
-			Transcript:   transcript,
+			Recorder:     recorder,
 			Args:         opts.Args,
 		})
 		if err == nil {
@@ -500,44 +449,44 @@ func runPipelines(
 	return exitCode, runErr
 }
 
-// runAgent starts the interactive agent REPL.
-func runAgent(ctx context.Context, opts *Options) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
-
-	agentOpts := &agent.Options{
-		Debug:   opts.Debug,
-		Verbose: false,
-		Jail:    opts.Jail,
-	}
-
-	a, err := agent.New(cwd, agentOpts)
-	if err != nil {
-		return fmt.Errorf("failed to initialize agent: %w", err)
-	}
-
-	return a.Run(ctx, Version)
+// recording is the event database for one invocation, and the recorder
+// over it. Both are nil when nothing is recording, and Close tolerates
+// that, so the caller has one branch and not three.
+type recording struct {
+	storage  *storage.Storage
+	recorder runner.Recorder
 }
 
-// runExec handles non-interactive prompt execution (-x flag).
-func runExec(ctx context.Context, opts *Options) error {
-	cwd, err := os.Getwd()
+// Close releases the database.
+func (r recording) Close() {
+	_ = r.storage.Close()
+}
+
+// openRecorder opens the event database for this run.
+//
+// A failure here is reported and nothing more: the point of the run is
+// the pipeline, and a machine whose database is locked, full or
+// read-only still has work to do. `--local` and `record: false` turn
+// recording off on purpose, and neither prints anything.
+func openRecorder(settings *config.Config, opts *Options) recording {
+	if opts.Local || !settings.Storage.Record {
+		return recording{}
+	}
+
+	store, err := openStorage(settings)
 	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
+		fmt.Fprintf(os.Stderr, "%s not recording this run: %v\n", colors.BrightYellow("INFO:"), err)
+		return recording{}
 	}
 
-	agentOpts := &agent.Options{
-		Debug:   opts.Debug,
-		Verbose: false,
-		Jail:    opts.Jail,
-	}
+	return recording{storage: store, recorder: store.Recorder()}
+}
 
-	a, err := agent.New(cwd, agentOpts)
-	if err != nil {
-		return fmt.Errorf("failed to initialize agent: %w", err)
+// openStorage opens the event database the configuration names, or the
+// one Discover finds for the working directory.
+func openStorage(settings *config.Config) (*storage.Storage, error) {
+	if path := settings.Storage.Database; path != "" {
+		return storage.NewStorageAt(context.Background(), path)
 	}
-
-	return a.Exec(ctx, opts.Exec, Version)
+	return storage.NewStorage()
 }

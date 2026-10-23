@@ -9,6 +9,55 @@ import (
 ## Types
 
 <details>
+<summary><code>type Command</code></summary>
+
+```go
+// Command generated for db table `command`.
+type Command struct {
+	// ID
+	ID string `db:"id" json:"id"`
+
+	// Invocation ID
+	InvocationID string `db:"invocation_id" json:"invocation_id"`
+
+	// Parent ID
+	ParentID string `db:"parent_id" json:"parent_id"`
+
+	// Kind
+	Kind string `db:"kind" json:"kind"`
+
+	// Command
+	Command string `db:"command" json:"command"`
+
+	// Normalized
+	Normalized string `db:"normalized" json:"normalized"`
+
+	// Tool
+	Tool string `db:"tool" json:"tool"`
+
+	// Dir
+	Dir string `db:"dir" json:"dir"`
+
+	// Exit Code
+	ExitCode int64 `db:"exit_code" json:"exit_code"`
+
+	// Error
+	Error string `db:"error" json:"error"`
+
+	// Duration Ms
+	DurationMs int64 `db:"duration_ms" json:"duration_ms"`
+
+	// Started At
+	StartedAt *time.Time `db:"started_at" json:"started_at"`
+
+	// Created At
+	CreatedAt *time.Time `db:"created_at" json:"created_at"`
+}
+```
+
+</details>
+
+<details>
 <summary><code>type Condition</code></summary>
 
 ```go
@@ -136,8 +185,8 @@ type Job struct {
 	Timeout     string       `yaml:"timeout,omitempty"`  // e.g., "10m", "300s"
 	Summarize   bool         `yaml:"summarize,omitempty"`
 	Quiet       bool         `yaml:"quiet,omitempty"`
-	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation
-	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for all steps (enables color output)
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation; gets a PTY when stdout is a terminal
+	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for all steps even when stdout is not a terminal
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 
 	// Args lets the command line pass arguments to the job: everything
@@ -183,6 +232,28 @@ type Label struct {
 	ShowPrefix bool                // Whether to display the type prefix (e.g., "run:")
 	Status     string              // Optional status indicator (e.g., "●", "✓", "✗")
 	Color      func(string) string // Optional color function to apply to the label
+}
+```
+
+</details>
+
+<details>
+<summary><code>type Migrations</code></summary>
+
+```go
+// Migrations generated for db table `migrations`.
+type Migrations struct {
+	// Project
+	Project string `db:"project" json:"project"`
+
+	// Filename
+	Filename string `db:"filename" json:"filename"`
+
+	// Statement Index
+	StatementIndex int64 `db:"statement_index" json:"statement_index"`
+
+	// Status
+	Status string `db:"status" json:"status"`
 }
 ```
 
@@ -264,6 +335,41 @@ type PipelineWhen struct {
 </details>
 
 <details>
+<summary><code>type QueryConfig</code></summary>
+
+```go
+// QueryConfig is a function-chaining SQL statement type.
+type QueryConfig struct {
+	Table       string
+	Columns     []string
+	Where       string
+	OrderBy     string
+	LimitStart  int
+	LimitOffset int
+	Statement   string
+}
+```
+
+</details>
+
+<details>
+<summary><code>type QueryOption</code></summary>
+
+```go
+// QueryOption is implemented by each data model type.
+type QueryOption interface {
+	WithTable(name string) QueryOption
+	WithColumns(cols []string) QueryOption
+	WithWhere(clause string) QueryOption
+	WithOrderBy(clause string) QueryOption
+	WithLimit(start, offset int) QueryOption
+	WithStatement(stmt string) QueryOption
+}
+```
+
+</details>
+
+<details>
 <summary><code>type ResolvedTask</code></summary>
 
 ```go
@@ -272,6 +378,73 @@ type ResolvedTask struct {
 	Name     string    // Canonical name (e.g., "go:build" or "build")
 	Job      *Job      // The resolved job
 	Pipeline *Pipeline // The pipeline containing the task
+}
+```
+
+</details>
+
+<details>
+<summary><code>type Run</code></summary>
+
+```go
+// Run generated for db table `run`.
+type Run struct {
+	// ID
+	ID string `db:"id" json:"id"`
+
+	// Invocation ID
+	InvocationID string `db:"invocation_id" json:"invocation_id"`
+
+	// Parent ID
+	ParentID string `db:"parent_id" json:"parent_id"`
+
+	// Kind
+	Kind string `db:"kind" json:"kind"`
+
+	// Name
+	Name string `db:"name" json:"name"`
+
+	// Pipeline
+	Pipeline string `db:"pipeline" json:"pipeline"`
+
+	// File
+	File string `db:"file" json:"file"`
+
+	// Dir
+	Dir string `db:"dir" json:"dir"`
+
+	// Module
+	Module string `db:"module" json:"module"`
+
+	// Repository
+	Repository string `db:"repository" json:"repository"`
+
+	// Branch
+	Branch string `db:"branch" json:"branch"`
+
+	// Commit Sha
+	CommitSha string `db:"commit_sha" json:"commit_sha"`
+
+	// Result
+	Result string `db:"result" json:"result"`
+
+	// Error
+	Error string `db:"error" json:"error"`
+
+	// Steps
+	Steps int64 `db:"steps" json:"steps"`
+
+	// Duration Ms
+	DurationMs int64 `db:"duration_ms" json:"duration_ms"`
+
+	// Started At
+	StartedAt *time.Time `db:"started_at" json:"started_at"`
+
+	// Finished At
+	FinishedAt *time.Time `db:"finished_at" json:"finished_at"`
+
+	// Created At
+	CreatedAt *time.Time `db:"created_at" json:"created_at"`
 }
 ```
 
@@ -300,8 +473,8 @@ type Step struct {
 	Verbose     bool         `yaml:"verbose,omitempty"`
 	Summarize   bool         `yaml:"summarize,omitempty"`
 	Quiet       bool         `yaml:"quiet,omitempty"`
-	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation
-	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for the command (enables color output)
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation; gets a PTY when stdout is a terminal
+	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for the command even when stdout is not a terminal
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 	HidePrefix  bool         `yaml:"-"`                     // If true, don't show "run:" prefix in display
 }
@@ -352,10 +525,140 @@ type VariableStorage interface {
 
 </details>
 
+## Consts
+
+<details>
+<summary><code>const CommandTable</code></summary>
+
+```go
+// CommandTable is the name of the table in the DB.
+const CommandTable = "`command`"
+```
+
+</details>
+
+<details>
+<summary><code>const MigrationsTable</code></summary>
+
+```go
+// MigrationsTable is the name of the table in the DB.
+const MigrationsTable = "`migrations`"
+```
+
+</details>
+
+<details>
+<summary><code>const RunTable</code></summary>
+
+```go
+// RunTable is the name of the table in the DB.
+const RunTable = "`run`"
+```
+
+</details>
+
+## Vars
+
+<details>
+<summary><code>var CommandFields</code></summary>
+
+```go
+// CommandFields is a list of all columns in the DB table.
+var CommandFields = []string{"id", "invocation_id", "parent_id", "kind", "command", "normalized", "tool", "dir", "exit_code", "error", "duration_ms", "started_at", "created_at"}
+```
+
+</details>
+
+<details>
+<summary><code>var CommandPrimaryFields</code></summary>
+
+```go
+// CommandPrimaryFields are the primary key fields in the DB table.
+var CommandPrimaryFields = []string{"id"}
+```
+
+</details>
+
+<details>
+<summary><code>var MigrationsFields</code></summary>
+
+```go
+// MigrationsFields is a list of all columns in the DB table.
+var MigrationsFields = []string{"project", "filename", "statement_index", "status"}
+```
+
+</details>
+
+<details>
+<summary><code>var MigrationsPrimaryFields</code></summary>
+
+```go
+// MigrationsPrimaryFields are the primary key fields in the DB table.
+var MigrationsPrimaryFields = []string{"project", "filename"}
+```
+
+</details>
+
+<details>
+<summary><code>var RunFields</code></summary>
+
+```go
+// RunFields is a list of all columns in the DB table.
+var RunFields = []string{"id", "invocation_id", "parent_id", "kind", "name", "pipeline", "file", "dir", "module", "repository", "branch", "commit_sha", "result", "error", "steps", "duration_ms", "started_at", "finished_at", "created_at"}
+```
+
+</details>
+
+<details>
+<summary><code>var RunPrimaryFields</code></summary>
+
+```go
+// RunPrimaryFields are the primary key fields in the DB table.
+var RunPrimaryFields = []string{"id"}
+```
+
+</details>
+
 ## Function symbols
 
 - `func NewLabel (text,labelType string) *Label`
 - `func NewResolvedTask (pipeline *Pipeline, job *Job, name string) *ResolvedTask`
+- `func WithColumns (cols []string) QueryOption`
+- `func WithLimit (start,offset int) QueryOption`
+- `func WithOrderBy (clause string) QueryOption`
+- `func WithStatement (stmt string) QueryOption`
+- `func WithTable (name string) QueryOption`
+- `func WithWhere (clause string) QueryOption`
+- `func (*Command) Delete (opts ...QueryOption) string`
+- `func (*Command) GetCommand () string`
+- `func (*Command) GetCreatedAt () *time.Time`
+- `func (*Command) GetDir () string`
+- `func (*Command) GetDurationMs () int64`
+- `func (*Command) GetError () string`
+- `func (*Command) GetExitCode () int64`
+- `func (*Command) GetID () string`
+- `func (*Command) GetInvocationID () string`
+- `func (*Command) GetKind () string`
+- `func (*Command) GetNormalized () string`
+- `func (*Command) GetParentID () string`
+- `func (*Command) GetStartedAt () *time.Time`
+- `func (*Command) GetTool () string`
+- `func (*Command) Insert (opts ...QueryOption) string`
+- `func (*Command) Select (opts ...QueryOption) string`
+- `func (*Command) SetCommand (val string)`
+- `func (*Command) SetCreatedAt (stamp time.Time)`
+- `func (*Command) SetDir (val string)`
+- `func (*Command) SetDurationMs (val int64)`
+- `func (*Command) SetError (val string)`
+- `func (*Command) SetExitCode (val int64)`
+- `func (*Command) SetID (val string)`
+- `func (*Command) SetInvocationID (val string)`
+- `func (*Command) SetKind (val string)`
+- `func (*Command) SetNormalized (val string)`
+- `func (*Command) SetParentID (val string)`
+- `func (*Command) SetStartedAt (stamp time.Time)`
+- `func (*Command) SetTool (val string)`
+- `func (*Command) Update (opts ...QueryOption) string`
 - `func (*Conditionals) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Dependencies) UnmarshalYAML (node *yaml.Node) error`
 - `func (*IncludeDecl) UnmarshalYAML (node *yaml.Node) error`
@@ -371,6 +674,18 @@ type VariableStorage interface {
 - `func (*Label) WithColor (colorFn func(string) string) *Label`
 - `func (*Label) WithPrefix (show bool) *Label`
 - `func (*Label) WithStatus (status string) *Label`
+- `func (*Migrations) Delete (opts ...QueryOption) string`
+- `func (*Migrations) GetFilename () string`
+- `func (*Migrations) GetProject () string`
+- `func (*Migrations) GetStatementIndex () int64`
+- `func (*Migrations) GetStatus () string`
+- `func (*Migrations) Insert (opts ...QueryOption) string`
+- `func (*Migrations) Select (opts ...QueryOption) string`
+- `func (*Migrations) SetFilename (val string)`
+- `func (*Migrations) SetProject (val string)`
+- `func (*Migrations) SetStatementIndex (val int64)`
+- `func (*Migrations) SetStatus (val string)`
+- `func (*Migrations) Update (opts ...QueryOption) string`
 - `func (*Pipeline) GetAliases () map[string]string`
 - `func (*Pipeline) GetJobs () map[string]*Job`
 - `func (*Pipeline) GetKeys () []string`
@@ -379,6 +694,55 @@ type VariableStorage interface {
 - `func (*Pipeline) UnmarshalYAML (node *yaml.Node) error`
 - `func (*Pipeline) Walk (fn PipelineWalkFunc) error`
 - `func (*PipelineWhen) IsEmpty () bool`
+- `func (*QueryConfig) Apply (opts ...QueryOption) *QueryConfig`
+- `func (*QueryConfig) WithColumns (cols []string) QueryOption`
+- `func (*QueryConfig) WithLimit (start,offset int) QueryOption`
+- `func (*QueryConfig) WithOrderBy (clause string) QueryOption`
+- `func (*QueryConfig) WithStatement (stmt string) QueryOption`
+- `func (*QueryConfig) WithTable (name string) QueryOption`
+- `func (*QueryConfig) WithWhere (clause string) QueryOption`
+- `func (*Run) Delete (opts ...QueryOption) string`
+- `func (*Run) GetBranch () string`
+- `func (*Run) GetCommitSha () string`
+- `func (*Run) GetCreatedAt () *time.Time`
+- `func (*Run) GetDir () string`
+- `func (*Run) GetDurationMs () int64`
+- `func (*Run) GetError () string`
+- `func (*Run) GetFile () string`
+- `func (*Run) GetFinishedAt () *time.Time`
+- `func (*Run) GetID () string`
+- `func (*Run) GetInvocationID () string`
+- `func (*Run) GetKind () string`
+- `func (*Run) GetModule () string`
+- `func (*Run) GetName () string`
+- `func (*Run) GetParentID () string`
+- `func (*Run) GetPipeline () string`
+- `func (*Run) GetRepository () string`
+- `func (*Run) GetResult () string`
+- `func (*Run) GetStartedAt () *time.Time`
+- `func (*Run) GetSteps () int64`
+- `func (*Run) Insert (opts ...QueryOption) string`
+- `func (*Run) Select (opts ...QueryOption) string`
+- `func (*Run) SetBranch (val string)`
+- `func (*Run) SetCommitSha (val string)`
+- `func (*Run) SetCreatedAt (stamp time.Time)`
+- `func (*Run) SetDir (val string)`
+- `func (*Run) SetDurationMs (val int64)`
+- `func (*Run) SetError (val string)`
+- `func (*Run) SetFile (val string)`
+- `func (*Run) SetFinishedAt (stamp time.Time)`
+- `func (*Run) SetID (val string)`
+- `func (*Run) SetInvocationID (val string)`
+- `func (*Run) SetKind (val string)`
+- `func (*Run) SetModule (val string)`
+- `func (*Run) SetName (val string)`
+- `func (*Run) SetParentID (val string)`
+- `func (*Run) SetPipeline (val string)`
+- `func (*Run) SetRepository (val string)`
+- `func (*Run) SetResult (val string)`
+- `func (*Run) SetStartedAt (stamp time.Time)`
+- `func (*Run) SetSteps (val int64)`
+- `func (*Run) Update (opts ...QueryOption) string`
 - `func (*Step) Commands () []string`
 - `func (*Step) Dispatch (d StepDispatcher) error`
 - `func (*Step) DisplayLabel () string`
@@ -407,6 +771,294 @@ func NewLabel(text, labelType string) *Label
 
 ```go
 func NewResolvedTask(pipeline *Pipeline, job *Job, name string) *ResolvedTask
+```
+
+### `WithColumns`
+
+`WithColumns` will set the columns to use for the query.
+
+```go
+func WithColumns(cols []string) QueryOption
+```
+
+### `WithLimit`
+
+`WithLimit` will set the limit clause parameters for the query.
+
+```go
+func WithLimit(start, offset int) QueryOption
+```
+
+### `WithOrderBy`
+
+`WithOrderBy` will set the order by clause for the query.
+
+```go
+func WithOrderBy(clause string) QueryOption
+```
+
+### `WithStatement`
+
+`WithStatement` will change the statement for the query.
+
+```go
+func WithStatement(stmt string) QueryOption
+```
+
+### `WithTable`
+
+`WithTable` will set the table name for the query.
+
+```go
+func WithTable(name string) QueryOption
+```
+
+### `WithWhere`
+
+`WithWhere` will set the where condition for the query.
+
+```go
+func WithWhere(clause string) QueryOption
+```
+
+### `Delete`
+
+`Delete` starts building a DELETE query.
+
+```go
+func (*Command) Delete(opts ...QueryOption) string
+```
+
+### `GetCommand`
+
+`GetCommand` will return the value of Command.
+
+```go
+func (*Command) GetCommand() string
+```
+
+### `GetCreatedAt`
+
+`GetCreatedAt` will return the value of CreatedAt.
+
+```go
+func (*Command) GetCreatedAt() *time.Time
+```
+
+### `GetDir`
+
+`GetDir` will return the value of Dir.
+
+```go
+func (*Command) GetDir() string
+```
+
+### `GetDurationMs`
+
+`GetDurationMs` will return the value of DurationMs.
+
+```go
+func (*Command) GetDurationMs() int64
+```
+
+### `GetError`
+
+`GetError` will return the value of Error.
+
+```go
+func (*Command) GetError() string
+```
+
+### `GetExitCode`
+
+`GetExitCode` will return the value of ExitCode.
+
+```go
+func (*Command) GetExitCode() int64
+```
+
+### `GetID`
+
+`GetID` will return the value of ID.
+
+```go
+func (*Command) GetID() string
+```
+
+### `GetInvocationID`
+
+`GetInvocationID` will return the value of InvocationID.
+
+```go
+func (*Command) GetInvocationID() string
+```
+
+### `GetKind`
+
+`GetKind` will return the value of Kind.
+
+```go
+func (*Command) GetKind() string
+```
+
+### `GetNormalized`
+
+`GetNormalized` will return the value of Normalized.
+
+```go
+func (*Command) GetNormalized() string
+```
+
+### `GetParentID`
+
+`GetParentID` will return the value of ParentID.
+
+```go
+func (*Command) GetParentID() string
+```
+
+### `GetStartedAt`
+
+`GetStartedAt` will return the value of StartedAt.
+
+```go
+func (*Command) GetStartedAt() *time.Time
+```
+
+### `GetTool`
+
+`GetTool` will return the value of Tool.
+
+```go
+func (*Command) GetTool() string
+```
+
+### `Insert`
+
+`Insert` starts building an INSERT INTO query.
+
+```go
+func (*Command) Insert(opts ...QueryOption) string
+```
+
+### `Select`
+
+`Select` starts building a SELECT query.
+
+```go
+func (*Command) Select(opts ...QueryOption) string
+```
+
+### `SetCommand`
+
+`SetCommand` sets Command to the provided value.
+
+```go
+func (*Command) SetCommand(val string)
+```
+
+### `SetCreatedAt`
+
+`SetCreatedAt` sets CreatedAt to the provided value.
+
+```go
+func (*Command) SetCreatedAt(stamp time.Time)
+```
+
+### `SetDir`
+
+`SetDir` sets Dir to the provided value.
+
+```go
+func (*Command) SetDir(val string)
+```
+
+### `SetDurationMs`
+
+`SetDurationMs` sets DurationMs to the provided value.
+
+```go
+func (*Command) SetDurationMs(val int64)
+```
+
+### `SetError`
+
+`SetError` sets Error to the provided value.
+
+```go
+func (*Command) SetError(val string)
+```
+
+### `SetExitCode`
+
+`SetExitCode` sets ExitCode to the provided value.
+
+```go
+func (*Command) SetExitCode(val int64)
+```
+
+### `SetID`
+
+`SetID` sets ID to the provided value.
+
+```go
+func (*Command) SetID(val string)
+```
+
+### `SetInvocationID`
+
+`SetInvocationID` sets InvocationID to the provided value.
+
+```go
+func (*Command) SetInvocationID(val string)
+```
+
+### `SetKind`
+
+`SetKind` sets Kind to the provided value.
+
+```go
+func (*Command) SetKind(val string)
+```
+
+### `SetNormalized`
+
+`SetNormalized` sets Normalized to the provided value.
+
+```go
+func (*Command) SetNormalized(val string)
+```
+
+### `SetParentID`
+
+`SetParentID` sets ParentID to the provided value.
+
+```go
+func (*Command) SetParentID(val string)
+```
+
+### `SetStartedAt`
+
+`SetStartedAt` sets StartedAt to the provided value.
+
+```go
+func (*Command) SetStartedAt(stamp time.Time)
+```
+
+### `SetTool`
+
+`SetTool` sets Tool to the provided value.
+
+```go
+func (*Command) SetTool(val string)
+```
+
+### `Update`
+
+`Update` starts building a UPDATE query.
+
+```go
+func (*Command) Update(opts ...QueryOption) string
 ```
 
 ### `UnmarshalYAML`
@@ -536,6 +1188,102 @@ func (*Label) WithPrefix(show bool) *Label
 func (*Label) WithStatus(status string) *Label
 ```
 
+### `Delete`
+
+`Delete` starts building a DELETE query.
+
+```go
+func (*Migrations) Delete(opts ...QueryOption) string
+```
+
+### `GetFilename`
+
+`GetFilename` will return the value of Filename.
+
+```go
+func (*Migrations) GetFilename() string
+```
+
+### `GetProject`
+
+`GetProject` will return the value of Project.
+
+```go
+func (*Migrations) GetProject() string
+```
+
+### `GetStatementIndex`
+
+`GetStatementIndex` will return the value of StatementIndex.
+
+```go
+func (*Migrations) GetStatementIndex() int64
+```
+
+### `GetStatus`
+
+`GetStatus` will return the value of Status.
+
+```go
+func (*Migrations) GetStatus() string
+```
+
+### `Insert`
+
+`Insert` starts building an INSERT INTO query.
+
+```go
+func (*Migrations) Insert(opts ...QueryOption) string
+```
+
+### `Select`
+
+`Select` starts building a SELECT query.
+
+```go
+func (*Migrations) Select(opts ...QueryOption) string
+```
+
+### `SetFilename`
+
+`SetFilename` sets Filename to the provided value.
+
+```go
+func (*Migrations) SetFilename(val string)
+```
+
+### `SetProject`
+
+`SetProject` sets Project to the provided value.
+
+```go
+func (*Migrations) SetProject(val string)
+```
+
+### `SetStatementIndex`
+
+`SetStatementIndex` sets StatementIndex to the provided value.
+
+```go
+func (*Migrations) SetStatementIndex(val int64)
+```
+
+### `SetStatus`
+
+`SetStatus` sets Status to the provided value.
+
+```go
+func (*Migrations) SetStatus(val string)
+```
+
+### `Update`
+
+`Update` starts building a UPDATE query.
+
+```go
+func (*Migrations) Update(opts ...QueryOption) string
+```
+
 ### `GetAliases`
 
 `GetAliases` returns a key => value mapping for commands in a pipeline.
@@ -604,6 +1352,398 @@ pipeline or job active everywhere.
 
 ```go
 func (*PipelineWhen) IsEmpty() bool
+```
+
+### `Apply`
+
+`Apply` will use passed query options to populate the query.
+
+```go
+func (*QueryConfig) Apply(opts ...QueryOption) *QueryConfig
+```
+
+### `WithColumns`
+
+`WithColumns` will set the columns to use for the query.
+
+```go
+func (*QueryConfig) WithColumns(cols []string) QueryOption
+```
+
+### `WithLimit`
+
+`WithLimit` will set the limit clause parameters for the query.
+
+```go
+func (*QueryConfig) WithLimit(start, offset int) QueryOption
+```
+
+### `WithOrderBy`
+
+`WithOrderBy` will set the order by clause for the query.
+
+```go
+func (*QueryConfig) WithOrderBy(clause string) QueryOption
+```
+
+### `WithStatement`
+
+`WithStatement` will change the statement for the query.
+
+```go
+func (*QueryConfig) WithStatement(stmt string) QueryOption
+```
+
+### `WithTable`
+
+`WithTable` will set the table name for the query.
+
+```go
+func (*QueryConfig) WithTable(name string) QueryOption
+```
+
+### `WithWhere`
+
+`WithWhere` will set the where condition for the query.
+
+```go
+func (*QueryConfig) WithWhere(clause string) QueryOption
+```
+
+### `Delete`
+
+`Delete` starts building a DELETE query.
+
+```go
+func (*Run) Delete(opts ...QueryOption) string
+```
+
+### `GetBranch`
+
+`GetBranch` will return the value of Branch.
+
+```go
+func (*Run) GetBranch() string
+```
+
+### `GetCommitSha`
+
+`GetCommitSha` will return the value of CommitSha.
+
+```go
+func (*Run) GetCommitSha() string
+```
+
+### `GetCreatedAt`
+
+`GetCreatedAt` will return the value of CreatedAt.
+
+```go
+func (*Run) GetCreatedAt() *time.Time
+```
+
+### `GetDir`
+
+`GetDir` will return the value of Dir.
+
+```go
+func (*Run) GetDir() string
+```
+
+### `GetDurationMs`
+
+`GetDurationMs` will return the value of DurationMs.
+
+```go
+func (*Run) GetDurationMs() int64
+```
+
+### `GetError`
+
+`GetError` will return the value of Error.
+
+```go
+func (*Run) GetError() string
+```
+
+### `GetFile`
+
+`GetFile` will return the value of File.
+
+```go
+func (*Run) GetFile() string
+```
+
+### `GetFinishedAt`
+
+`GetFinishedAt` will return the value of FinishedAt.
+
+```go
+func (*Run) GetFinishedAt() *time.Time
+```
+
+### `GetID`
+
+`GetID` will return the value of ID.
+
+```go
+func (*Run) GetID() string
+```
+
+### `GetInvocationID`
+
+`GetInvocationID` will return the value of InvocationID.
+
+```go
+func (*Run) GetInvocationID() string
+```
+
+### `GetKind`
+
+`GetKind` will return the value of Kind.
+
+```go
+func (*Run) GetKind() string
+```
+
+### `GetModule`
+
+`GetModule` will return the value of Module.
+
+```go
+func (*Run) GetModule() string
+```
+
+### `GetName`
+
+`GetName` will return the value of Name.
+
+```go
+func (*Run) GetName() string
+```
+
+### `GetParentID`
+
+`GetParentID` will return the value of ParentID.
+
+```go
+func (*Run) GetParentID() string
+```
+
+### `GetPipeline`
+
+`GetPipeline` will return the value of Pipeline.
+
+```go
+func (*Run) GetPipeline() string
+```
+
+### `GetRepository`
+
+`GetRepository` will return the value of Repository.
+
+```go
+func (*Run) GetRepository() string
+```
+
+### `GetResult`
+
+`GetResult` will return the value of Result.
+
+```go
+func (*Run) GetResult() string
+```
+
+### `GetStartedAt`
+
+`GetStartedAt` will return the value of StartedAt.
+
+```go
+func (*Run) GetStartedAt() *time.Time
+```
+
+### `GetSteps`
+
+`GetSteps` will return the value of Steps.
+
+```go
+func (*Run) GetSteps() int64
+```
+
+### `Insert`
+
+`Insert` starts building an INSERT INTO query.
+
+```go
+func (*Run) Insert(opts ...QueryOption) string
+```
+
+### `Select`
+
+`Select` starts building a SELECT query.
+
+```go
+func (*Run) Select(opts ...QueryOption) string
+```
+
+### `SetBranch`
+
+`SetBranch` sets Branch to the provided value.
+
+```go
+func (*Run) SetBranch(val string)
+```
+
+### `SetCommitSha`
+
+`SetCommitSha` sets CommitSha to the provided value.
+
+```go
+func (*Run) SetCommitSha(val string)
+```
+
+### `SetCreatedAt`
+
+`SetCreatedAt` sets CreatedAt to the provided value.
+
+```go
+func (*Run) SetCreatedAt(stamp time.Time)
+```
+
+### `SetDir`
+
+`SetDir` sets Dir to the provided value.
+
+```go
+func (*Run) SetDir(val string)
+```
+
+### `SetDurationMs`
+
+`SetDurationMs` sets DurationMs to the provided value.
+
+```go
+func (*Run) SetDurationMs(val int64)
+```
+
+### `SetError`
+
+`SetError` sets Error to the provided value.
+
+```go
+func (*Run) SetError(val string)
+```
+
+### `SetFile`
+
+`SetFile` sets File to the provided value.
+
+```go
+func (*Run) SetFile(val string)
+```
+
+### `SetFinishedAt`
+
+`SetFinishedAt` sets FinishedAt to the provided value.
+
+```go
+func (*Run) SetFinishedAt(stamp time.Time)
+```
+
+### `SetID`
+
+`SetID` sets ID to the provided value.
+
+```go
+func (*Run) SetID(val string)
+```
+
+### `SetInvocationID`
+
+`SetInvocationID` sets InvocationID to the provided value.
+
+```go
+func (*Run) SetInvocationID(val string)
+```
+
+### `SetKind`
+
+`SetKind` sets Kind to the provided value.
+
+```go
+func (*Run) SetKind(val string)
+```
+
+### `SetModule`
+
+`SetModule` sets Module to the provided value.
+
+```go
+func (*Run) SetModule(val string)
+```
+
+### `SetName`
+
+`SetName` sets Name to the provided value.
+
+```go
+func (*Run) SetName(val string)
+```
+
+### `SetParentID`
+
+`SetParentID` sets ParentID to the provided value.
+
+```go
+func (*Run) SetParentID(val string)
+```
+
+### `SetPipeline`
+
+`SetPipeline` sets Pipeline to the provided value.
+
+```go
+func (*Run) SetPipeline(val string)
+```
+
+### `SetRepository`
+
+`SetRepository` sets Repository to the provided value.
+
+```go
+func (*Run) SetRepository(val string)
+```
+
+### `SetResult`
+
+`SetResult` sets Result to the provided value.
+
+```go
+func (*Run) SetResult(val string)
+```
+
+### `SetStartedAt`
+
+`SetStartedAt` sets StartedAt to the provided value.
+
+```go
+func (*Run) SetStartedAt(stamp time.Time)
+```
+
+### `SetSteps`
+
+`SetSteps` sets Steps to the provided value.
+
+```go
+func (*Run) SetSteps(val int64)
+```
+
+### `Update`
+
+`Update` starts building a UPDATE query.
+
+```go
+func (*Run) Update(opts ...QueryOption) string
 ```
 
 ### `Commands`

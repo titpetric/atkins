@@ -20,18 +20,12 @@ type Options struct {
 	JSON             bool
 	YAML             bool
 	Version          bool
-	Agent            bool
-	Exec             string
 
-	// CI/CD client flags. Login and Register take the server URL;
-	// Logout applies to the server last logged in to. Dispatch sends
-	// the run to an agent and runs nothing here, and Local runs
-	// here without recording anything on the server.
-	Login    string
-	Register string
-	Logout   bool
-	Dispatch bool
-	Local    bool
+	// Stats reports the commands recorded in the event database by the
+	// time they have taken, and runs no pipeline. Local records the run
+	// nowhere.
+	Stats bool
+	Local bool
 
 	// Config opens the configuration menu for .atkins/config.yml.
 	Config bool
@@ -61,13 +55,8 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.BoolVarP(&o.JSON, "json", "j", false, "Output in JSON format")
 	fs.BoolVarP(&o.YAML, "yaml", "y", false, "Output in YAML format")
 	fs.BoolVarP(&o.Version, "version", "v", false, "Print version and build information")
-	fs.BoolVar(&o.Agent, "agent", false, "Start interactive agent REPL")
-	fs.StringVarP(&o.Exec, "exec", "x", "", "Run a prompt non-interactively and exit")
-	fs.StringVar(&o.Login, "login", "", "Log in to an atkins CI/CD server, e.g. --login https://ci.example.com")
-	fs.StringVar(&o.Register, "register", "", "Register an account on an atkins CI/CD server and log in")
-	fs.BoolVar(&o.Logout, "logout", false, "Log out of the atkins CI/CD server")
-	fs.BoolVar(&o.Dispatch, "dispatch", false, "Hand this run to a CI/CD agent instead of running it here")
-	fs.BoolVar(&o.Local, "local", false, "Run here without recording the run on the CI/CD server")
+	fs.BoolVar(&o.Stats, "stats", false, "Report the recorded commands by the time they have taken, and run nothing")
+	fs.BoolVar(&o.Local, "local", false, "Run without recording anything in the event database")
 	fs.BoolVar(&o.Config, "config", false, "Open the configuration menu for .atkins/config.yml")
 	fs.BoolVar(&o.Vendor, "vendor", false, "List the skills this repository uses from $HOME/.atkins/skills")
 	fs.BoolVar(&o.Write, "write", false, "With --vendor, write the skills into .atkins/skills")

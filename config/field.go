@@ -10,14 +10,11 @@ import (
 
 // Field is one editable value in the configuration document.
 type Field struct {
-	// Path is the dotted document path, e.g. "server.lease_ttl".
+	// Path is the dotted document path, e.g. "storage.retention".
 	Path string
 
 	// Env is the variable that overrides it at runtime, if any.
 	Env string
-
-	// Secret marks a value that the menu never echoes back in full.
-	Secret bool
 
 	// value points at the live field so Set writes through.
 	value reflect.Value
@@ -38,14 +35,6 @@ func (c *Config) Field(path string) (Field, bool) {
 		}
 	}
 	return Field{}, false
-}
-
-// secretFields are values worth masking in a listing: they are
-// credentials, and a configuration menu is often on a shared screen.
-var secretFields = map[string]bool{
-	"server.signing_key": true,
-	"server.agent_token": true,
-	"agent.token":        true,
 }
 
 // collectFields walks a struct collecting its leaf values.
@@ -76,10 +65,9 @@ func collectFields(value reflect.Value, prefix string, fields *[]Field) {
 		}
 
 		*fields = append(*fields, Field{
-			Path:   path,
-			Env:    field.Tag.Get("env"),
-			Secret: secretFields[path],
-			value:  value.Field(i),
+			Path:  path,
+			Env:   field.Tag.Get("env"),
+			value: value.Field(i),
 		})
 	}
 }
@@ -100,16 +88,13 @@ func (f Field) String() string {
 	}
 }
 
-// Display renders the value for a listing, masking secrets and marking
-// empties so a blank line is never ambiguous.
+// Display renders the value for a listing, marking empties so a blank
+// line is never ambiguous.
 func (f Field) Display() string {
 	value := f.String()
 
 	if value == "" {
 		return "(not set)"
-	}
-	if f.Secret {
-		return mask(value)
 	}
 	return value
 }
@@ -186,12 +171,4 @@ func (f Field) Set(raw string) error {
 	}
 
 	return fmt.Errorf("%s cannot be edited here", f.Path)
-}
-
-// mask shows enough of a secret to recognize it, and no more.
-func mask(value string) string {
-	if len(value) <= 4 {
-		return strings.Repeat("*", len(value))
-	}
-	return value[:2] + strings.Repeat("*", len(value)-4) + value[len(value)-2:]
 }

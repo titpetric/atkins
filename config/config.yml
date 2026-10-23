@@ -8,111 +8,17 @@
 
 version: 1
 
-# How this machine talks to an atkins CI/CD server.
-client:
-  # Server to dispatch runs to. Empty means the server this machine
-  # last logged in to, from the credentials file.
-  server: ""
+# What a run records, and where.
+storage:
+  # The file to record into. Empty discovers it: the atkins.db of the
+  # nearest .atkins folder, and $HOME/.atkins/atkins.db for a directory
+  # that belongs to no project.
+  database: ""
 
-  # Where login credentials are stored. Empty means
-  # $HOME/.atkins/credentials.json.
-  credentials: ""
-
-  # Labels constraining which agents may run this machine's jobs. An
-  # empty list runs anywhere.
-  labels: []
-
-  # Hand every run to an agent instead of running it here. With this
-  # off, atkins runs the pipeline locally and `--dispatch` hands over a
-  # single run.
-  dispatch: false
-
-  # Log local runs on the server when logged in: the run happens here,
-  # and the job page holds its output and its outcome. With this off a
-  # logged-in machine records nothing, the same as `--local`.
+  # Write a row per job and per command of every run, so `atkins
+  # --stats` has something to report. With this off a run records
+  # nothing, the same as `--local`.
+  #
+  # How long a run is kept is not a setting: it is 31 days on every
+  # machine, and the run that records is the run that prunes.
   record: true
-
-  # How long to wait on an API call before giving up and running
-  # locally.
-  timeout: 10s
-
-# Settings for `atkins server`.
-server:
-  # Listen address.
-  addr: ":8080"
-
-  # Database DSN. The binary registers the sqlite driver only, so the
-  # scheme has to be sqlite.
-  database: "sqlite://file:atkins.db"
-
-  # Named platform connection to prefer, falling back to the default.
-  connection: "atkins"
-
-  # Signs access tokens. There is no default: a server signing with a
-  # known key is one anyone can mint an admin token for.
-  signing_key: ""
-
-  # Shared secret agents present to enrol. Empty means no agent can
-  # join.
-  agent_token: ""
-
-  # Where the bytes of job artefacts are stored. A relative path is
-  # resolved against the server's working directory, beside the
-  # database.
-  artefact_dir: "artefacts"
-
-  # Let anyone register. The first human account on an empty instance
-  # is always allowed regardless.
-  allow_registration: false
-
-  # Access token lifetime. Short, because the client refreshes
-  # silently.
-  token_ttl: 1h
-
-  # How long a login lasts before a re-login.
-  session_ttl: 720h
-
-  # How deep a job may dispatch children.
-  max_job_depth: 3
-
-  # How long an agent may hold a claimed job without a heartbeat.
-  lease_ttl: 15m
-
-  # How often expired leases are swept back out of `running`.
-  reclaim_interval: 1m
-
-  # How often job.retention and job.log_retention are applied. The
-  # windows themselves are settings an admin changes at runtime; this
-  # is only how often the server goes looking.
-  retention_interval: 1h
-
-# Settings for `atkins worker`, the CI/CD agent.
-agent:
-  # Identity in job leases. Empty means the hostname.
-  id: ""
-
-  # Enrolment token, matching the server's agent_token.
-  token: ""
-
-  # Labels this agent advertises. A job requiring labels only lands
-  # here if all of them are advertised.
-  labels: []
-
-  # Repository cache and job work trees live under this directory.
-  data_dir: "/app/data"
-
-  # How long an idle agent waits between claims.
-  poll_interval: 2s
-
-  # Bounds a single job.
-  job_timeout: 30m
-
-  # How often a running job's lease is renewed.
-  heartbeat_interval: 30s
-
-  # Shell that runs job commands.
-  shell: "/bin/sh"
-
-  # Rewrite ssh remotes to https before cloning. Useful in a container
-  # with no key agent.
-  prefer_https: false

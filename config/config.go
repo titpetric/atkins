@@ -11,10 +11,6 @@
 // with a message naming the field, long before the first request.
 package config
 
-import (
-	"time"
-)
-
 // Version is the document version this build understands.
 const Version = 1
 
@@ -23,85 +19,24 @@ type Config struct {
 	// Version identifies the document format.
 	Version int `yaml:"version" json:"version"`
 
-	// Client is how this machine talks to a server.
-	Client ClientConfig `yaml:"client" json:"client"`
-
-	// Server configures `atkins server`.
-	Server ServerConfig `yaml:"server" json:"server"`
-
-	// Agent configures `atkins worker`.
-	Agent AgentConfig `yaml:"agent" json:"agent"`
+	// Storage is what a run records and where.
+	Storage StorageConfig `yaml:"storage" json:"storage"`
 }
 
-// ClientConfig is the dispatching side.
-type ClientConfig struct {
-	// Server is the URL that dispatch sends runs to. Empty falls back to
-	// the server this machine last logged in to.
-	Server string `yaml:"server" json:"server" env:"ATKINS_SERVER"`
+// StorageConfig is the event database: the file every run appends a row
+// per job and per command to, and what is kept in it.
+type StorageConfig struct {
+	// Database is the file to record into. Empty discovers it: the
+	// atkins.db of the nearest .atkins folder, and
+	// $HOME/.atkins/atkins.db for a directory that belongs to no
+	// project.
+	Database string `yaml:"database" json:"database" env:"ATKINS_DB"`
 
-	// Credentials is where the client stores login tokens. Empty means
-	// $HOME/.atkins/credentials.json.
-	Credentials string `yaml:"credentials" json:"credentials" env:"ATKINS_CREDENTIALS"`
-
-	// Labels constrain which agents may run this machine's jobs.
-	Labels []string `yaml:"labels" json:"labels" env:"ATKINS_LABELS"`
-
-	// Dispatch sends every run to an agent and runs nothing here.
-	// Off, the default, is what `--dispatch` turns on for one run.
-	Dispatch bool `yaml:"dispatch" json:"dispatch" env:"ATKINS_DISPATCH"`
-
-	// Record logs local runs on the server when logged in: the run
-	// happens here and the job page holds its output and outcome. Off
-	// means a logged-in machine records nothing, the same as `--local`.
+	// Record writes a row per job and per command of every run. Off
+	// records nothing, the same as `--local`, and leaves the database
+	// alone.
+	//
+	// How long a run is kept is not a setting: storage.Retention is 31
+	// days on every machine, applied by the run that records.
 	Record bool `yaml:"record" json:"record" env:"ATKINS_RECORD"`
-
-	// Timeout bounds an API call before the run falls back to local.
-	Timeout time.Duration `yaml:"timeout" json:"timeout" env:"ATKINS_TIMEOUT"`
-}
-
-// ServerConfig is the CI/CD server.
-type ServerConfig struct {
-	Addr       string `yaml:"addr" json:"addr" env:"PLATFORM_SERVER_ADDR"`
-	Database   string `yaml:"database" json:"database" env:"PLATFORM_DB_DEFAULT"`
-	Connection string `yaml:"connection" json:"connection" env:"ATKINS_DB_CONNECTION"`
-
-	// SigningKey signs access tokens. Required, with no default.
-	SigningKey string `yaml:"signing_key" json:"signing_key" env:"ATKINS_SIGNING_KEY"`
-
-	// AgentToken is the shared secret agents enrol with.
-	AgentToken string `yaml:"agent_token" json:"agent_token" env:"ATKINS_AGENT_TOKEN"`
-
-	// ArtefactDir is the root the server writes the bytes of job
-	// artefacts under. The database records what an artefact is; this is where
-	// the file itself goes.
-	ArtefactDir string `yaml:"artefact_dir" json:"artefact_dir" env:"ATKINS_ARTEFACT_DIR"`
-
-	AllowRegistration bool          `yaml:"allow_registration" json:"allow_registration" env:"ATKINS_ALLOW_REGISTRATION"`
-	TokenTTL          time.Duration `yaml:"token_ttl" json:"token_ttl" env:"ATKINS_TOKEN_TTL"`
-	SessionTTL        time.Duration `yaml:"session_ttl" json:"session_ttl" env:"ATKINS_SESSION_TTL"`
-	MaxJobDepth       int64         `yaml:"max_job_depth" json:"max_job_depth" env:"ATKINS_MAX_JOB_DEPTH"`
-	LeaseTTL          time.Duration `yaml:"lease_ttl" json:"lease_ttl" env:"ATKINS_LEASE_TTL"`
-	ReclaimInterval   time.Duration `yaml:"reclaim_interval" json:"reclaim_interval" env:"ATKINS_RECLAIM_INTERVAL"`
-	RetentionInterval time.Duration `yaml:"retention_interval" json:"retention_interval" env:"ATKINS_RETENTION_INTERVAL"`
-}
-
-// AgentConfig is the worker that runs jobs.
-type AgentConfig struct {
-	// ID is the agent's identity in job leases. Empty means the
-	// hostname.
-	ID string `yaml:"id" json:"id" env:"ATKINS_AGENT_ID"`
-
-	// Token is the enrolment secret, matching the server's
-	// agent_token.
-	Token string `yaml:"token" json:"token" env:"ATKINS_AGENT_TOKEN"`
-
-	// Labels advertise what this agent can run.
-	Labels []string `yaml:"labels" json:"labels" env:"ATKINS_LABELS"`
-
-	DataDir           string        `yaml:"data_dir" json:"data_dir" env:"ATKINS_DATA_DIR"`
-	PollInterval      time.Duration `yaml:"poll_interval" json:"poll_interval" env:"ATKINS_POLL_INTERVAL"`
-	JobTimeout        time.Duration `yaml:"job_timeout" json:"job_timeout" env:"ATKINS_JOB_TIMEOUT"`
-	HeartbeatInterval time.Duration `yaml:"heartbeat_interval" json:"heartbeat_interval" env:"ATKINS_HEARTBEAT_INTERVAL"`
-	Shell             string        `yaml:"shell" json:"shell" env:"ATKINS_SHELL"`
-	PreferHTTPS       bool          `yaml:"prefer_https" json:"prefer_https" env:"ATKINS_GIT_PREFER_HTTPS"`
 }

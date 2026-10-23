@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/titpetric/atkins/config"
 	"github.com/titpetric/atkins/internal/assert"
@@ -17,29 +16,13 @@ func TestDefaultIsComplete(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, config.Version, cfg.Version)
-	// Dispatch is the one default that is off: logging in records what
-	// this machine runs, it does not move where it runs.
-	assert.False(t, cfg.Client.Dispatch)
-	assert.True(t, cfg.Client.Record)
-	assert.Positive(t, cfg.Client.Timeout)
-
-	assert.NotEmpty(t, cfg.Server.Addr)
-	assert.NotEmpty(t, cfg.Server.Database)
-	assert.NotEmpty(t, cfg.Server.Connection)
-	assert.Positive(t, cfg.Server.TokenTTL)
-	assert.Positive(t, cfg.Server.SessionTTL)
-	assert.Positive(t, cfg.Server.MaxJobDepth)
-	assert.Positive(t, cfg.Server.LeaseTTL)
-
-	assert.NotEmpty(t, cfg.Agent.DataDir)
-	assert.NotEmpty(t, cfg.Agent.Shell)
-	assert.Positive(t, cfg.Agent.PollInterval)
-	assert.Positive(t, cfg.Agent.JobTimeout)
-	assert.Positive(t, cfg.Agent.HeartbeatInterval)
-
-	// A signing key must never have a default.
-	assert.Empty(t, cfg.Server.SigningKey)
-	assert.Empty(t, cfg.Server.AgentToken)
+	// Recording is on: the point of the event database is that nobody
+	// has to remember to turn it on before the run worth measuring.
+	assert.True(t, cfg.Storage.Record)
+	// The database has no default path. The run discovers it from the
+	// directory it happens in, and a path here would send every
+	// project's rows to one file.
+	assert.Empty(t, cfg.Storage.Database)
 }
 
 func TestDefaultValidates(t *testing.T) {
@@ -54,19 +37,18 @@ func TestRoundTrip(t *testing.T) {
 	cfg, err := config.Default()
 	assert.NoError(t, err)
 
-	cfg.Client.Server = "https://ci.example.com"
-	cfg.Agent.Labels = []string{"linux", "arm64"}
+	cfg.Storage.Database = "/tmp/events.db"
+	cfg.Storage.Record = false
 	assert.NoError(t, cfg.Save(path))
 
-	// The document holds secrets; it must not be world readable.
 	info, err := os.Stat(path)
 	assert.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 
 	reloaded, err := config.LoadFile(path)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://ci.example.com", reloaded.Client.Server)
-	assert.Equal(t, []string{"linux", "arm64"}, reloaded.Agent.Labels)
+	assert.Equal(t, "/tmp/events.db", reloaded.Storage.Database)
+	assert.False(t, reloaded.Storage.Record)
 }
 
 func TestPartialDocumentKeepsDefaults(t *testing.T) {
@@ -74,62 +56,53 @@ func TestPartialDocumentKeepsDefaults(t *testing.T) {
 	path := filepath.Join(dir, ".atkins", "config.yml")
 
 	assert.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
-	assert.NoError(t, os.WriteFile(path, []byte("client:\n  server: https://ci.example.com\n"), 0o600))
+	assert.NoError(t, os.WriteFile(path, []byte("storage:\n  database: /tmp/events.db\n"), 0o600))
 
 	cfg, err := config.LoadFile(path)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "https://ci.example.com", cfg.Client.Server)
+	assert.Equal(t, "/tmp/events.db", cfg.Storage.Database)
 	// Untouched fields keep the embedded defaults and never become
 	// zero values.
-	assert.Equal(t, "/bin/sh", cfg.Agent.Shell)
-	assert.Equal(t, int64(3), cfg.Server.MaxJobDepth)
+	assert.Equal(t, config.Version, cfg.Version)
 }
 
 func TestEnvironmentOverlay(t *testing.T) {
 	cfg, err := config.Default()
 	assert.NoError(t, err)
 
-	cfg.Client.Server = "https://configured.example.com"
+	cfg.Storage.Database = "/configured.db"
 
 	cfg.ApplyEnvironment([]string{
-		"ATKINS_SERVER=https://from-env.example.com",
-		"ATKINS_LEASE_TTL=42m",
-		"ATKINS_MAX_JOB_DEPTH=7",
-		"ATKINS_ALLOW_REGISTRATION=true",
-		"ATKINS_LABELS=linux, arm64 ,,docker",
+		"ATKINS_DB=/from-env.db",
+		"ATKINS_RECORD=false",
 	})
 
-	assert.Equal(t, "https://from-env.example.com", cfg.Client.Server)
-	assert.Equal(t, 42*time.Minute, cfg.Server.LeaseTTL)
-	assert.Equal(t, int64(7), cfg.Server.MaxJobDepth)
-	assert.True(t, cfg.Server.AllowRegistration)
-	assert.Equal(t, []string{"linux", "arm64", "docker"}, cfg.Client.Labels)
+	assert.Equal(t, "/from-env.db", cfg.Storage.Database)
+	assert.False(t, cfg.Storage.Record)
 }
 
 func TestEmptyEnvironmentLeavesConfigAlone(t *testing.T) {
 	cfg, err := config.Default()
 	assert.NoError(t, err)
 
-	cfg.Client.Server = "https://configured.example.com"
-	cfg.Server.LeaseTTL = 9 * time.Minute
+	cfg.Storage.Database = "/configured.db"
 
 	// An exported-but-empty variable means "not configured here", not
 	// "clear the configured value".
-	cfg.ApplyEnvironment([]string{"ATKINS_SERVER=", "ATKINS_LEASE_TTL="})
+	cfg.ApplyEnvironment([]string{"ATKINS_DB="})
 
-	assert.Equal(t, "https://configured.example.com", cfg.Client.Server)
-	assert.Equal(t, 9*time.Minute, cfg.Server.LeaseTTL)
+	assert.Equal(t, "/configured.db", cfg.Storage.Database)
 }
 
 func TestUnparseableEnvironmentIsIgnored(t *testing.T) {
 	cfg, err := config.Default()
 	assert.NoError(t, err)
 
-	before := cfg.Server.LeaseTTL
-	cfg.ApplyEnvironment([]string{"ATKINS_LEASE_TTL=not-a-duration"})
+	before := cfg.Storage.Record
+	cfg.ApplyEnvironment([]string{"ATKINS_RECORD=maybe"})
 
-	assert.Equal(t, before, cfg.Server.LeaseTTL)
+	assert.Equal(t, before, cfg.Storage.Record)
 }
 
 func TestValidateFillsEmptyValues(t *testing.T) {
@@ -137,49 +110,21 @@ func TestValidateFillsEmptyValues(t *testing.T) {
 	assert.NoError(t, cfg.Validate())
 
 	assert.Equal(t, config.Version, cfg.Version)
-	assert.NotEmpty(t, cfg.Server.Addr)
-	assert.Positive(t, cfg.Agent.PollInterval)
-	assert.Equal(t, "/bin/sh", cfg.Agent.Shell)
 }
 
-func TestValidateRejectsBadValues(t *testing.T) {
-	tests := map[string]func(*config.Config){
-		"server url without a scheme": func(c *config.Config) {
-			c.Client.Server = "ci.example.com"
-		},
-		"addr without a port": func(c *config.Config) {
-			c.Server.Addr = "localhost"
-		},
-		"database without a dsn scheme": func(c *config.Config) {
-			c.Server.Database = "atkins.db"
-		},
-		"session shorter than a token": func(c *config.Config) {
-			c.Server.TokenTTL = 2 * time.Hour
-			c.Server.SessionTTL = time.Hour
-		},
-		"heartbeat longer than the job timeout": func(c *config.Config) {
-			c.Agent.HeartbeatInterval = time.Hour
-			c.Agent.JobTimeout = time.Minute
-		},
-		"version from the future": func(c *config.Config) {
-			c.Version = config.Version + 1
-		},
-	}
+func TestValidateRejectsAVersionFromTheFuture(t *testing.T) {
+	cfg, err := config.Default()
+	assert.NoError(t, err)
 
-	for name, mutate := range tests {
-		t.Run(name, func(t *testing.T) {
-			cfg, err := config.Default()
-			assert.NoError(t, err)
-
-			mutate(cfg)
-			assert.Error(t, cfg.Validate())
-		})
-	}
+	// A newer build may have written fields this one would ignore in
+	// silence, which is worse than refusing to start.
+	cfg.Version = config.Version + 1
+	assert.Error(t, cfg.Validate())
 }
 
 func TestDiscoverWalksUp(t *testing.T) {
 	root := t.TempDir()
-	nested := filepath.Join(root, "server", "api")
+	nested := filepath.Join(root, "runner", "testdata")
 
 	assert.NoError(t, os.MkdirAll(nested, 0o755))
 	assert.NoError(t, os.MkdirAll(filepath.Join(root, ".atkins"), 0o755))
@@ -211,9 +156,11 @@ func TestFields(t *testing.T) {
 		paths = append(paths, field.Path)
 	}
 
-	assert.Contains(t, paths, "client.server")
-	assert.Contains(t, paths, "server.signing_key")
-	assert.Contains(t, paths, "agent.data_dir")
+	assert.Contains(t, paths, "storage.database")
+	assert.Contains(t, paths, "storage.record")
+	// How long a run is kept is not a setting; the menu must not offer
+	// one.
+	assert.NotContains(t, paths, "storage.retention")
 	// Load derives the document version; the menu never edits it.
 	assert.NotContains(t, paths, "version")
 }
@@ -222,51 +169,23 @@ func TestFieldSet(t *testing.T) {
 	cfg, err := config.Default()
 	assert.NoError(t, err)
 
-	lease, ok := cfg.Field("server.lease_ttl")
+	record, ok := cfg.Field("storage.record")
 	assert.True(t, ok)
-	assert.NoError(t, lease.Set("42m"))
-	assert.Equal(t, 42*time.Minute, cfg.Server.LeaseTTL)
-	assert.Error(t, lease.Set("not-a-duration"))
+	assert.NoError(t, record.Set("false"))
+	assert.False(t, cfg.Storage.Record)
+	assert.Error(t, record.Set("maybe"))
 
-	labels, ok := cfg.Field("agent.labels")
+	database, ok := cfg.Field("storage.database")
 	assert.True(t, ok)
-	assert.NoError(t, labels.Set(" linux , arm64 "))
-	assert.Equal(t, []string{"linux", "arm64"}, cfg.Agent.Labels)
-
-	dispatch, ok := cfg.Field("client.dispatch")
-	assert.True(t, ok)
-	assert.NoError(t, dispatch.Set("false"))
-	assert.False(t, cfg.Client.Dispatch)
-	assert.Error(t, dispatch.Set("maybe"))
-
-	depth, ok := cfg.Field("server.max_job_depth")
-	assert.True(t, ok)
-	assert.NoError(t, depth.Set("5"))
-	assert.Equal(t, int64(5), cfg.Server.MaxJobDepth)
-	assert.Error(t, depth.Set("many"))
-}
-
-func TestFieldSecretsAreMasked(t *testing.T) {
-	cfg, err := config.Default()
-	assert.NoError(t, err)
-
-	cfg.Server.SigningKey = "super-secret-value"
-
-	field, ok := cfg.Field("server.signing_key")
-	assert.True(t, ok)
-	assert.True(t, field.Secret)
-
-	display := field.Display()
-	assert.NotContains(t, display, "secret")
-	assert.Contains(t, display, "*")
-	assert.Equal(t, "super-secret-value", field.String())
+	assert.NoError(t, database.Set("/tmp/events.db"))
+	assert.Equal(t, "/tmp/events.db", cfg.Storage.Database)
 }
 
 func TestFieldDisplayMarksEmpty(t *testing.T) {
 	cfg, err := config.Default()
 	assert.NoError(t, err)
 
-	field, ok := cfg.Field("client.server")
+	field, ok := cfg.Field("storage.database")
 	assert.True(t, ok)
 	assert.Equal(t, "(not set)", field.Display())
 }
@@ -274,9 +193,8 @@ func TestFieldDisplayMarksEmpty(t *testing.T) {
 func TestEnvironmentNames(t *testing.T) {
 	names := config.EnvironmentNames()
 
-	assert.Equal(t, "ATKINS_SERVER", names["client.server"])
-	assert.Equal(t, "ATKINS_SIGNING_KEY", names["server.signing_key"])
-	assert.Equal(t, "ATKINS_DATA_DIR", names["agent.data_dir"])
+	assert.Equal(t, "ATKINS_DB", names["storage.database"])
+	assert.Equal(t, "ATKINS_RECORD", names["storage.record"])
 }
 
 func TestSplitList(t *testing.T) {

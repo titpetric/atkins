@@ -238,6 +238,7 @@ const (
 - `func NewLogger (filePath,pipelineName,pipelineFile string, debug bool) *Logger`
 - `func NodeToStateNode (node *treeview.Node) *StateNode`
 - `func TreeNodeToStateNode (node *treeview.TreeNode) *StateNode`
+- `func (*Logger) Document (state *StateNode, summary *RunSummary) *Log`
 - `func (*Logger) GetElapsed () float64`
 - `func (*Logger) GetEvents () []*Event`
 - `func (*Logger) GetStartTime () time.Time`
@@ -288,7 +289,11 @@ func CountSteps(node *StateNode) int
 ### `NewLogger`
 
 `NewLogger` creates a new event logger.
-If filePath is empty, returns nil (no logging occurs).
+
+The logger always collects, because the events are what a recorder
+stores and what the summary counts, and collecting them costs a slice
+append per command. An empty filePath writes no file: that is the only
+thing the path decides.
 
 ```go
 func NewLogger(filePath, pipelineName, pipelineFile string, debug bool) *Logger
@@ -308,6 +313,18 @@ func NodeToStateNode(node *treeview.Node) *StateNode
 
 ```go
 func TreeNodeToStateNode(node *treeview.TreeNode) *StateNode
+```
+
+### `Document`
+
+`Document` returns the finished log: the run's metadata, the state tree
+it ended with, every event it collected and the summary.
+
+Write marshals it and a recorder stores it, so both read the same
+document and neither assembles one of its own.
+
+```go
+func (*Logger) Document(state *StateNode, summary *RunSummary) *Log
 ```
 
 ### `GetElapsed`
@@ -352,7 +369,8 @@ func (*Logger) LogExec(result Result, id, run string, start float64, durationMs 
 
 ### `Write`
 
-`Write` writes the final event log to the file.
+`Write` writes the final event log to the file. A logger with no file
+path writes nothing and reports no error.
 
 ```go
 func (*Logger) Write(state *StateNode, summary *RunSummary) error

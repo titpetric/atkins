@@ -26,7 +26,7 @@ jobs:
   setup:
     desc: "Install dev tools"
     steps:
-      - task: go:setup templ:setup mdox:setup
+      - task: go:setup mdox:setup
 
   install:
     desc: "Install atkins"
@@ -54,26 +54,9 @@ jobs:
         vars:
           source: ./docs
 
-  templ:
-    desc: "Generate templ components"
-    steps:
-      - templ fmt ./server/web
-      - templ generate -path ./server/web
-
-  templ:setup:
-    desc: "Install a-h/templ"
-    interactive: true
-    cmds:
-      - go install github.com/a-h/templ/cmd/templ@latest
-
   fmt:
     desc: "Format the code"
     steps:
-      # Generation comes first so the formatting below normalises its output
-      # too: templ emits two single-line import statements that are merged
-      # into one block, and generating afterwards would leave the committed
-      # files permanently one format behind.
-      - task: templ
       # go:fmt is splint fix and go mod tidy. One pass, so there is no order
       # to get wrong.
       - task: go:fmt
