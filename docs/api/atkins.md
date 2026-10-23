@@ -9,6 +9,25 @@ import (
 ## Types
 
 <details>
+<summary><code>type CommandReport</code></summary>
+
+```go
+// CommandReport is one normalized command and what it has cost.
+type CommandReport struct {
+	Command   string     `json:"command" yaml:"command"`
+	Tool      string     `json:"tool" yaml:"tool"`
+	Runs      int64      `json:"runs" yaml:"runs"`
+	TotalMs   int64      `json:"total_ms" yaml:"total_ms"`
+	AverageMs int64      `json:"average_ms" yaml:"average_ms"`
+	MaxMs     int64      `json:"max_ms" yaml:"max_ms"`
+	Failures  int64      `json:"failures" yaml:"failures"`
+	LastRunAt *time.Time `json:"last_run_at,omitempty" yaml:"last_run_at,omitempty"`
+}
+```
+
+</details>
+
+<details>
 <summary><code>type Options</code></summary>
 
 ```go
@@ -44,6 +63,77 @@ type Options struct {
 	Write  bool
 
 	FlagSet *cli.FlagSet
+}
+```
+
+</details>
+
+<details>
+<summary><code>type StatsReport</code></summary>
+
+```go
+// StatsReport is everything `atkins --stats` has to say, and everything
+// a reader of `--stats --json` needs to draw it again elsewhere.
+//
+// Durations are milliseconds throughout, as the database keeps them,
+// because a reader charting them wants a number and not a word.
+type StatsReport struct {
+	// Database is the file the rows came from, and Days the window
+	// they cover, which is the retention window.
+	Database string `json:"database" yaml:"database"`
+	Days     int    `json:"days" yaml:"days"`
+
+	// From and To bound the window, as dates.
+	From string `json:"from" yaml:"from"`
+	To   string `json:"to" yaml:"to"`
+
+	// Runs and TotalMs are the whole window: how many commands ran and
+	// how long they took between them.
+	Runs    int64 `json:"runs" yaml:"runs"`
+	TotalMs int64 `json:"total_ms" yaml:"total_ms"`
+
+	// Commands are the normalized commands by total time.
+	Commands []CommandReport `json:"commands" yaml:"commands"`
+
+	// Tools are the tools by total time, each a roll-up of its
+	// commands.
+	Tools []ToolReport `json:"tools" yaml:"tools"`
+
+	// Usage is a row per day per tool, oldest first: the series a chart
+	// of tool use over time is drawn from. A day a tool did not run has
+	// no row.
+	Usage []UsageReport `json:"usage" yaml:"usage"`
+}
+```
+
+</details>
+
+<details>
+<summary><code>type ToolReport</code></summary>
+
+```go
+// ToolReport is one tool and what it has cost, across every form of it.
+type ToolReport struct {
+	Tool     string `json:"tool" yaml:"tool"`
+	Commands int64  `json:"commands" yaml:"commands"`
+	Runs     int64  `json:"runs" yaml:"runs"`
+	TotalMs  int64  `json:"total_ms" yaml:"total_ms"`
+	Failures int64  `json:"failures" yaml:"failures"`
+}
+```
+
+</details>
+
+<details>
+<summary><code>type UsageReport</code></summary>
+
+```go
+// UsageReport is one tool on one day.
+type UsageReport struct {
+	Date    string `json:"date" yaml:"date"`
+	Tool    string `json:"tool" yaml:"tool"`
+	Runs    int64  `json:"runs" yaml:"runs"`
+	TotalMs int64  `json:"total_ms" yaml:"total_ms"`
 }
 ```
 

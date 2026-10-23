@@ -10,39 +10,79 @@ Every run records what it did in a SQLite file, and `atkins --stats` reports the
 atkins --stats
 ```
 
-On a terminal the table is drawn with borders and colour, the way `atkins --help` draws its tables. Redirected to a file or a pipe it is plain markdown, so the same command serves a terminal and a document with no flag to say which:
+The report has three parts: a column per day of the window, the tools ranked by the time they have taken, and the commands in a table.
 
 ```
 /w/atkins/.atkins/atkins.db
+31 days, 2026-09-22 to 2026-10-23, 30.5s across 624 runs
+
+2.9s │    ▂     ▂▃     █▄▄         ▂
+     │    █     ██    ▅███         █▃▄
+     │    █     ██    ████     ▃▇  ████
+     │    █     ██    ████     ██  ████
+     │    █     ██    ████     ██  ████
+     │    █     ██    ████     ██  ████
+   0 └─────────────────────────────────
+       2026-09-22            2026-10-23
+
+sleep  ████████████████████████  28.7s  78 runs
+go     ▇                          1.1s  208 runs
+git    ▂                         318ms  130 runs
+head   ▂                         306ms  78 runs
+echo   ▁                         113ms  130 runs
 
 | Command | Runs | Total | Avg | Max | Failed | Last |
 | --- | --- | --- | --- | --- | --- | --- |
-| go test -coverprofile | 128 | 1h14m | 34.8s | 1m12s | 6 | 12m ago |
-| go build -o | 96 | 9m20s | 5.8s | 11.4s | 0 | 12m ago |
-| splint | 64 | 2m08s | 2.0s | 3.1s | 0 | 3h ago |
-| mig migrate --apply | 12 | 4.1s | 341ms | 890ms | 0 | 2d ago |
+| sleep | 78 | 28.7s | 367ms | 574ms | 5 | just now |
+| go version | 130 | 686ms | 5ms | 11ms | 4 | just now |
+| go env GOOS | 78 | 379ms | 4ms | 11ms | 1 | just now |
 ```
 
-`--json` and `--yaml` emit the same report for a program, with the durations in milliseconds rather than words:
+The daily chart answers whether a month was steady or was one Tuesday. Each column is a day, every bar is measured from zero, and the only value labelled is the busiest day: a number on every column would hide the shape. A day nothing ran is an empty column rather than a missing one.
+
+The tool ranking rolls up every form of a tool, so `go build`, `go test` and `go vet` count as go. It is what the command table cannot show: a tool that runs two hundred times for a second in total against one that runs twice for half a minute.
+
+On a terminal all three are drawn in colour, and the table gets the borders `atkins --help` draws its tables with. Redirected to a file or a pipe the output is plain, so the same command serves a terminal and a document with no flag to say which.
+
+## Reading it from a program
+
+`--json` and `--yaml` emit the whole report, with the durations in milliseconds rather than words, and a row per tool per day as the series a chart of tool use over time is drawn from.
 
 ```bash
 atkins --stats --json
 ```
 
 ```json
-[
-  {
-    "command": "go test -coverprofile",
-    "tool": "go",
-    "runs": 128,
-    "total_ms": 4452000,
-    "average_ms": 34781,
-    "max_ms": 72000,
-    "failures": 6,
-    "last_run_at": "2026-10-23T09:12:04.318Z"
-  }
-]
+{
+  "database": "/w/atkins/.atkins/atkins.db",
+  "days": 31,
+  "from": "2026-09-22",
+  "to": "2026-10-23",
+  "runs": 624,
+  "total_ms": 30512,
+  "commands": [
+    {
+      "command": "sleep",
+      "tool": "sleep",
+      "runs": 78,
+      "total_ms": 28700,
+      "average_ms": 367,
+      "max_ms": 574,
+      "failures": 5,
+      "last_run_at": "2026-10-23T13:41:02.118Z"
+    }
+  ],
+  "tools": [
+    { "tool": "sleep", "commands": 1, "runs": 78, "total_ms": 28700, "failures": 5 }
+  ],
+  "usage": [
+    { "date": "2026-09-25", "tool": "sleep", "runs": 3, "total_ms": 1104 },
+    { "date": "2026-09-25", "tool": "go", "runs": 10, "total_ms": 52 }
+  ]
+}
 ```
+
+A day a tool did not run has no row in `usage`, so a reader drawing a series fills the gaps with zero.
 
 ## Where the file is
 

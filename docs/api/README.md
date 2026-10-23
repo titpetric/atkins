@@ -3,6 +3,7 @@
 ## Table of Contents
 
 - [github.com/titpetric/atkins](./atkins.md)
+- [github.com/titpetric/atkins/chart](./atkins_chart.md)
 - [github.com/titpetric/atkins/colors](./atkins_colors.md)
 - [github.com/titpetric/atkins/config](./atkins_config.md)
 - [github.com/titpetric/atkins/eventlog](./atkins_eventlog.md)

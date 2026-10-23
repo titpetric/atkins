@@ -250,6 +250,34 @@ type Storage struct {
 </details>
 
 <details>
+<summary><code>type ToolStat</code></summary>
+
+```go
+// ToolStat is one tool and what it has cost, across every form of it.
+// It answers the question a per-command report cannot: `go` is one tool
+// whether it builds, tests or vets, and the share of a week it takes is
+// the share of a week spent on Go.
+type ToolStat struct {
+	// Tool is the first word of the normalized command.
+	Tool string `db:"tool"`
+
+	// Commands is how many distinct normalized forms of it ran.
+	Commands int64 `db:"commands"`
+
+	// Runs is how many times any of them ran.
+	Runs int64 `db:"runs"`
+
+	// TotalMs is the time they have taken altogether.
+	TotalMs int64 `db:"total_ms"`
+
+	// Failures is how many of the runs exited non-zero.
+	Failures int64 `db:"failures"`
+}
+```
+
+</details>
+
+<details>
 <summary><code>type UsageEntry</code></summary>
 
 ```go
@@ -377,6 +405,7 @@ var ErrNotFound = errors.New("not found")
 - `func (*Storage) Run (ctx context.Context, id string) (*model.Run, error)`
 - `func (*Storage) Runs (ctx context.Context, filter RunFilter) ([]model.Run, error)`
 - `func (*Storage) Stats (ctx context.Context, req StatsRequest) ([]CommandStat, error)`
+- `func (*Storage) Tools (ctx context.Context, req StatsRequest) ([]ToolStat, error)`
 - `func (*Storage) Usage (ctx context.Context, req UsageRequest) ([]UsageEntry, error)`
 
 ### `Discover`
@@ -551,6 +580,15 @@ altogether, the most expensive first.
 
 ```go
 func (*Storage) Stats(ctx context.Context, req StatsRequest) ([]CommandStat, error)
+```
+
+### `Tools`
+
+`Tools` reports the tools by the time they have taken altogether, the
+most expensive first.
+
+```go
+func (*Storage) Tools(ctx context.Context, req StatsRequest) ([]ToolStat, error)
 ```
 
 ### `Usage`
