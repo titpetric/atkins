@@ -7,8 +7,7 @@ import (
 // HorizontalOptions is a chart of named totals against each other, one
 // row each.
 type HorizontalOptions struct {
-	// Bars are the rows, in the order they are drawn. The caller sorts
-	// them: a ranking is the caller's question, not the chart's.
+	// Bars are the rows, drawn in the order given.
 	Bars []Bar
 
 	// Width is how many cells the longest bar fills. Twenty-four unless
@@ -28,12 +27,7 @@ type HorizontalOptions struct {
 	Color bool
 }
 
-// Horizontal draws a row per bar, measured from zero against the
-// largest.
-//
-// Every row carries its label and its value, because a reader of a
-// ranking is reading the names: the bars are there to show how far
-// ahead the first one is, which is the thing a column of numbers hides.
+// Horizontal returns a row per bar, or an empty string for no bars.
 func Horizontal(opts HorizontalOptions) string {
 	if len(opts.Bars) == 0 {
 		return ""
@@ -82,7 +76,7 @@ func Horizontal(opts HorizontalOptions) string {
 }
 
 // row draws one horizontal bar: full cells, then the eighth nearest the
-// remainder, then spaces to the chart's width so the values line up.
+// leftover, then spaces to the chart's width so the values line up.
 func row(value, most int64, width int) string {
 	filled := eighths(value, most, width)
 

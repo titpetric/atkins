@@ -1,16 +1,3 @@
-// Package helpdoc renders `atkins --help`.
-//
-// The help reads as a document: the usage line, the commands, every flag
-// with its default, the skills installed on this machine with the jobs
-// each contributes, and a reference for the atkins.yml schema. A person
-// or an agent reading it can run atkins and write a pipeline without
-// opening a second page.
-//
-// Write builds the document as plain markdown throughout, with padded
-// table cells so it reads as columns in a file too. Write adds colour -
-// on the headings, and on every table, which the markdown package redraws
-// with borders - only when the caller says the writer is a terminal, so
-// `atkins --help > help.md` is a document and not a screenshot of one.
 package helpdoc
 
 import (
@@ -30,11 +17,7 @@ import (
 	"github.com/titpetric/atkins/runner"
 )
 
-// Write renders the whole help document.
-//
-// The section order lets a reader stop early: what to type, then the
-// flags, then the jobs the installed skills add, then the schema for
-// writing a pipeline of your own.
+// Write renders the whole help document to w.
 func Write(w io.Writer, opts *Options) error {
 	name := opts.Name
 	if name == "" {

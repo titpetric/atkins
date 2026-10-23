@@ -9,28 +9,22 @@ import (
 // VerticalOptions is a chart of a measure over a run of bars, one
 // column each, drawn bottom up.
 type VerticalOptions struct {
-	// Bars are the columns, in the order they are drawn. A day with
-	// nothing in it is a bar of zero, not a missing bar: the gaps are
-	// what makes a run of days read as time.
+	// Bars are the columns, drawn in the order given. An empty day is a bar
+	// of zero: the gaps make a run of days read as time.
 	Bars []Bar
 
 	// Height is how many rows tall the chart is. Six unless set.
 	Height int
 
-	// Format renders the peak, which is the only value labelled. A nil
-	// Format labels nothing.
+	// Format renders the peak, the one value with a label. A nil Format
+	// labels nothing.
 	Format Format
 
 	// Color draws the bars and the axis in colour.
 	Color bool
 }
 
-// Vertical draws a column per bar, bottom up, measured from zero.
-//
-// The peak sits at the top of the axis and nothing else is labelled: a
-// reader of a month of days wants the shape and the ceiling, and a
-// number on every column hides both. The first and last labels sit
-// under the ends, which is where a date range belongs.
+// Vertical returns a column per bar, bottom up, or an empty string for no bars.
 func Vertical(opts VerticalOptions) string {
 	if len(opts.Bars) == 0 {
 		return ""
@@ -107,7 +101,7 @@ func axis(bars []Bar) string {
 	return first + " " + last
 }
 
-// dim renders the chart's furniture, which is there to be read past.
+// dim renders the chart's furniture, the axis and the notes.
 func dim(text string, color bool) string {
 	if !color {
 		return text

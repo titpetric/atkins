@@ -7,13 +7,8 @@ import (
 	"github.com/titpetric/atkins/colors"
 )
 
-// Render redraws every GFM pipe table in a markdown document as a
-// bordered ANSI table, colours every ATX heading the caller left plain,
-// and leaves everything else untouched.
-//
-// With color false Render returns the document byte for byte,
-// so `atkins --help > help.md` or a piped `atkins --help | less` still
-// gets plain markdown a table-aware reader can parse.
+// Render returns doc unchanged without color, and with its tables and
+// headings drawn in ANSI otherwise.
 func Render(doc string, color bool) string {
 	if !color {
 		return doc

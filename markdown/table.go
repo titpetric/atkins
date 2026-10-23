@@ -21,9 +21,8 @@ func IsTable(section string) bool {
 	return isRow(lines[0]) && isSeparatorRow(lines[1])
 }
 
-// ParseTable decodes a section as a table. It returns ok=false for a
-// section IsTable rejects, so a caller can try it on every section
-// without checking first.
+// ParseTable returns ok=false for a section IsTable rejects, and the
+// decoded table otherwise.
 func ParseTable(section string) (*Table, bool) {
 	if !IsTable(section) {
 		return nil, false

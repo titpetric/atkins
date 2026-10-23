@@ -93,8 +93,7 @@ func Fail(t testing.TB, msg string, args ...any) {
 	t.FailNow()
 }
 
-// CheckEquals checks if actual == expect and fails the test and logs
-// failure (including filename:linenum if they are not equal).
+// CheckEquals fails the test, logging file:line, when actual != expected.
 func CheckEquals(t testing.TB, actual, expected any, msg ...any) {
 	if expected != actual {
 		_, file, line, _ := runtime.Caller(1)
@@ -104,8 +103,7 @@ func CheckEquals(t testing.TB, actual, expected any, msg ...any) {
 	}
 }
 
-// Assert matches True() under a different name and earlier
-// fortio/stats test implementation.
+// Assert is True with a printf message, for earlier fortio/stats tests.
 func Assert(t testing.TB, cond bool, msg string, rest ...any) {
 	if !cond {
 		_, file, line, _ := runtime.Caller(1)
@@ -145,8 +143,7 @@ type hasTearDown interface {
 	TearDownTest()
 }
 
-// Run runs the test suite with SetupTest first and TearDownTest after.
-// Replaces https://pkg.go.dev/github.com/stretchr/testify/suite#Run.
+// Run runs each Test method of suite with SetupTest first and TearDownTest after.
 func Run(t *testing.T, suite hasT) {
 	suite.SetT(t)
 	tests := []testing.InternalTest{}

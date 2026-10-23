@@ -1,14 +1,3 @@
-// Package chart draws small bar charts for a terminal.
-//
-// It exists for `atkins --stats`, which has two shapes to show: a
-// measure over a run of days, and a handful of named totals against each
-// other. Both are drawn with block characters, so they need no terminal
-// capability beyond the ones a box-drawing table already assumes, and
-// they read the same in a pipe as on a screen.
-//
-// Nothing here knows what it is drawing. The caller supplies values and
-// the function that renders one, so the same chart serves milliseconds,
-// counts and bytes.
 package chart
 
 import (
@@ -16,10 +5,7 @@ import (
 	"unicode/utf8"
 )
 
-// blocks are the eighths of a filled cell, from one eighth to a full
-// one. A bar taller than a whole row draws full cells and ends in the
-// eighth nearest its remainder, which is what gives a six-row chart the
-// resolution of forty-eight.
+// blocks are the eighths of a filled cell, from one eighth to a full one.
 var blocks = []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
 
 // Bar is one bar: what it measures and what to call it.
@@ -38,8 +24,7 @@ type Bar struct {
 type Format func(int64) string
 
 // peak returns the largest value among the bars, and zero when they are
-// all empty. Every bar is measured from zero against it, so a chart
-// never exaggerates a difference by cutting its axis.
+// all empty.
 func peak(bars []Bar) int64 {
 	var most int64
 	for _, bar := range bars {
@@ -51,11 +36,7 @@ func peak(bars []Bar) int64 {
 }
 
 // eighths returns how many eighths of a cell a value fills, out of a
-// height in cells.
-//
-// A value above zero always fills at least one eighth: a day with one
-// short command in it is a day something happened, and a blank column
-// would say it did not.
+// height in cells, and at least one for a value above zero.
 func eighths(value, most int64, height int) int {
 	if value <= 0 || most <= 0 {
 		return 0
@@ -86,9 +67,8 @@ func cell(row, filled int) rune {
 	return blocks[remainder-1]
 }
 
-// pad returns a string padded to a width with spaces on the right.
-// Width is counted in runes, because a command may hold any of them and
-// a byte count would misalign the column after it.
+// pad returns a string padded to a width in runes with spaces on the
+// right, so a command of any runes keeps the next column aligned.
 func pad(text string, width int) string {
 	if gap := width - utf8.RuneCountInString(text); gap > 0 {
 		return text + strings.Repeat(" ", gap)

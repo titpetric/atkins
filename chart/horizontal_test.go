@@ -24,8 +24,8 @@ func TestHorizontal(t *testing.T) {
 	rows := lines(rendered)
 	assert.Len(t, rows, 3)
 
-	// Every row carries its name, because a ranking is read by its
-	// names.
+	// Every row carries its name, because a reader of a ranking reads
+	// the names.
 	assert.Contains(t, rows[0], "go")
 	assert.Contains(t, rows[1], "npm")
 	assert.Contains(t, rows[2], "docker")
@@ -36,8 +36,8 @@ func TestHorizontal(t *testing.T) {
 	assert.Equal(t, 4, count(rows[1], '█'))
 	assert.Equal(t, 0, count(rows[2], '█'))
 
-	// Labels are padded to the widest, so every bar starts in one
-	// column whatever its name is.
+	// Padding to the widest label starts every bar in one column
+	// whatever its name is.
 	assert.Equal(t, strings.Index(rows[0], "█"), strings.Index(rows[1], "█"))
 
 	// Values are right-aligned to the widest, so they read as a column.
