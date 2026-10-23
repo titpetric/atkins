@@ -64,11 +64,13 @@ func NewPipeline(data *model.Pipeline, opts PipelineOptions) *Pipeline {
 
 // RunPipeline runs a pipeline with the given options.
 func RunPipeline(ctx context.Context, pipeline *model.Pipeline, opts PipelineOptions) error {
-	logger := eventlog.NewLogger(opts.LogFile, pipeline.Name, opts.PipelineFile, opts.Debug)
+	return NewPipeline(pipeline, opts).Run(ctx)
+}
 
-	service := NewPipeline(pipeline, opts)
-
-	return service.runPipeline(ctx, logger)
+// Run returns the error of the first job that fails, nil when every job passes.
+func (p *Pipeline) Run(ctx context.Context) error {
+	logger := eventlog.NewLogger(p.opts.LogFile, p.data.Name, p.opts.PipelineFile, p.opts.Debug)
+	return p.runPipeline(ctx, logger)
 }
 
 func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) error {
