@@ -112,6 +112,52 @@ The two scopes carry the same fields, so a reader draws either with one piece of
 
 A day a tool or a command did not run has no row in `usage` or `command_usage`, so a reader drawing a series fills the gaps with zero.
 
+## Every command
+
+`--all` adds the commands themselves, one by one, oldest first: every command of the window that the report counts, builtins left out as they are from the totals. A chart finer than a day, an hour or three, buckets these itself.
+
+```bash
+atkins --stats --json --all
+atkins --stats --json --all --limit 500
+```
+
+Each scope gains a `samples` array. Without `--all` the key is absent and the report is as above.
+
+```json
+"samples": [
+  {
+    "at": "2026-10-23T16:23:37.551Z",
+    "command": "docker compose build",
+    "tool": "docker",
+    "kind": "step",
+    "duration_ms": 2789,
+    "exit_code": 0,
+    "failed": false,
+    "pipeline": "Image",
+    "job": "build",
+    "invocation_id": "01M5MS6JS6S2VE63XVY5WWMQRY"
+  }
+]
+```
+
+| Field           | What it holds                                                              |
+|-----------------|----------------------------------------------------------------------------|
+| `at`            | When the command started, RFC 3339 in UTC to the millisecond               |
+| `command`       | The command key, as the report groups by it                                |
+| `tool`          | The first word of the key                                                  |
+| `kind`          | `step`, `substitution` for a `$(...)`, or `interpolation` for a variable   |
+| `duration_ms`   | How long it took                                                           |
+| `exit_code`     | The code it exited with, and `failed` whether that code is other than zero |
+| `pipeline`      | The pipeline the run ran, as its `name:` spells it                         |
+| `job`           | The job the command ran in, absent when it ran in none                     |
+| `invocation_id` | The `atkins` process, the same for every command of one run                |
+
+A sample names its command by the key and never by the command line. A command line holds its values, and a value can be a token: `docker login -p ...` reports as `docker login`.
+
+The window bounds the list: 31 days of history, which for a busy workspace runs to tens of thousands of commands. `--limit N` keeps the newest N, still oldest first. With no limit the list holds every command of the window.
+
+On a terminal, or redirected as markdown, `--all` adds a table after the commands: the time in the local zone, the key, the job, the duration and the exit code.
+
 ## Two databases
 
 A run records twice, because the two answer different questions.
@@ -145,18 +191,18 @@ Both tables carry the `invocation_id` of the pipeline row, so the rows of one `a
 
 The report groups commands by their key: the words up to the first argument that starts with `-`, at most three of them, and none that is a path or a value. A word holding `/`, `.`, `=`, `$`, a quote or another shell character ends the key, and so does a number. The key leaves out an environment assignment ahead of the tool, and a pipeline or a list keys by its first command.
 
-| Command                                 | Key                  |
-|-----------------------------------------|----------------------|
-| `go test ./...`                         | `go test`            |
-| `go test -v -cover ./...`               | `go test`            |
-| `docker build -q -t app .`              | `docker build`       |
-| `docker compose up -d`                  | `docker compose up`  |
-| `git clone --depth 1 <url>`             | `git clone`          |
-| `git rev-parse HEAD \| cut -c1-8`       | `git rev-parse HEAD` |
-| `kubectl get pods web-1 -o yaml`        | `kubectl get pods`   |
-| `npm run build`                         | `npm run build`      |
-| `cat README.md`                         | `cat`                |
-| `CGO_ENABLED=0 go build -o bin/x .`     | `go build`           |
+| Command                             | Key                 |
+|-------------------------------------|---------------------|
+| `go test ./...`                     | `go test`           |
+| `go test -v -cover ./...`           | `go test`           |
+| `docker build -q -t app .`          | `docker build`      |
+| `docker compose up -d`              | `docker compose up` |
+| `git clone --depth 1 <url>`         | `git clone`         |
+| `git rev-parse HEAD                 | cut -c1-8`          |
+| `kubectl get pods web-1 -o yaml`    | `kubectl get pods`  |
+| `npm run build`                     | `npm run build`     |
+| `cat README.md`                     | `cat`               |
+| `CGO_ENABLED=0 go build -o bin/x .` | `go build`          |
 
 Shell builtins a step runs to set itself up, `set`, `cd`, `export`, `echo`, `test`, `[`, `true`, `false` and `:`, are neither recorded nor reported. `set -eu` at the top of a script is not a tool.
 

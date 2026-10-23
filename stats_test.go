@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/titpetric/atkins/eventlog"
 	"github.com/titpetric/atkins/internal/assert"
+	"github.com/titpetric/atkins/storage"
 )
 
 // sample is a report of two tools over three days, enough for every
@@ -256,4 +259,79 @@ func TestWriteStatsJSONScopes(t *testing.T) {
 	assert.NoError(t, writeJSON(&alone, &StatsReport{Workspace: sampleScope()}))
 	assert.NotContains(t, alone.String(), `"project"`)
 	assert.Contains(t, alone.String(), `"workspace": {`)
+}
+
+func TestWriteStatsSamples(t *testing.T) {
+	report := sample()
+
+	// Without --all the report carries no samples key at all.
+	var without bytes.Buffer
+	assert.NoError(t, writeJSON(&without, report))
+	assert.NotContains(t, without.String(), `"samples"`)
+
+	report.Workspace.Samples = []SampleReport{
+		{At: "2026-10-23T09:15:02.118Z", Command: "go test", Tool: "go", Kind: "step", DurationMs: 4_200, Job: "test", InvocationID: "01HRUN"},
+		{At: "2026-10-23T09:16:40.000Z", Command: "npm run build", Tool: "npm", Kind: "step", DurationMs: 450, ExitCode: 2, Failed: true, InvocationID: "01HRUN"},
+	}
+
+	var with bytes.Buffer
+	assert.NoError(t, writeJSON(&with, report))
+	assert.Contains(t, with.String(), `"samples"`)
+	assert.Contains(t, with.String(), `"at": "2026-10-23T09:15:02.118Z"`)
+	assert.Contains(t, with.String(), `"failed": true`)
+
+	var text bytes.Buffer
+	writeStats(&text, report, false)
+	assert.Contains(t, text.String(), "| At | Command | Job | Took | Exit |")
+	assert.Contains(t, text.String(), "| go test | test | 4.2s | 0 |")
+	assert.Contains(t, text.String(), "| npm run build | - | 450ms | 2 |")
+}
+
+func TestCollectStatsSamples(t *testing.T) {
+	ctx := context.Background()
+	store, err := storage.NewStorageAt(ctx, storage.Memory)
+	assert.NoError(t, err)
+	defer store.Close()
+
+	at := time.Now().Add(-time.Hour).UTC()
+	_, err = store.Record(ctx, storage.RecordRequest{Log: &eventlog.Log{
+		Metadata: eventlog.RunMetadata{CreatedAt: at, Pipeline: "Demo"},
+		State: &eventlog.StateNode{Name: "Demo", Children: []*eventlog.StateNode{{
+			Name: "build", ID: "jobs.build",
+			Children: []*eventlog.StateNode{
+				{Name: "go build", ID: "jobs.build.steps.0", Duration: 2},
+				{Name: "go vet", ID: "jobs.build.steps.1", Start: 2, Duration: 1},
+			},
+		}}},
+		Events: []*eventlog.Event{
+			{ID: "jobs.build.steps.0", Type: eventlog.EventTypeStep, Command: "go build -ldflags=-X=main.token=abc .", Duration: 2},
+			{ID: "jobs.build.steps.1", Type: eventlog.EventTypeStep, Command: "go vet ./...", Start: 2, Duration: 1, ExitCode: 1},
+		},
+	}})
+	assert.NoError(t, err)
+
+	report, err := collectStats(ctx, []*storage.Storage{store}, sampling{})
+	assert.NoError(t, err)
+	assert.Len(t, report.Workspace.Samples, 0)
+
+	report, err = collectStats(ctx, []*storage.Storage{store}, sampling{All: true})
+	assert.NoError(t, err)
+	samples := report.Workspace.Samples
+	assert.Len(t, samples, 2)
+	assert.Equal(t, at.Truncate(time.Millisecond).Format(sampleTime), samples[0].At)
+	assert.Equal(t, "go build", samples[0].Command)
+	assert.Equal(t, "build", samples[0].Job)
+	assert.Equal(t, "Demo", samples[0].Pipeline)
+	assert.Equal(t, "go vet", samples[1].Command)
+	assert.True(t, samples[1].Failed)
+
+	// The key and never the command line: the value given is not there.
+	var out bytes.Buffer
+	assert.NoError(t, writeJSON(&out, report))
+	assert.NotContains(t, out.String(), "abc")
+
+	report, err = collectStats(ctx, []*storage.Storage{store}, sampling{All: true, Limit: 1})
+	assert.NoError(t, err)
+	assert.Len(t, report.Workspace.Samples, 1)
+	assert.Equal(t, "go vet", report.Workspace.Samples[0].Command)
 }

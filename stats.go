@@ -50,7 +50,7 @@ func runStats(ctx context.Context, settings *config.Config, opts *Options) error
 		}
 	}()
 
-	report, err := collectStats(ctx, stores)
+	report, err := collectStats(ctx, stores, sampling{All: opts.All, Limit: opts.Limit})
 	if err != nil {
 		return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 	}
@@ -138,6 +138,11 @@ type StatsScope struct {
 	// CommandUsage is a row per day per command key, oldest first: the
 	// series a chart stacks by command.
 	CommandUsage []CommandUsageReport `json:"command_usage" yaml:"command_usage"`
+
+	// Samples is every command of the window one by one, oldest first,
+	// with --all: the rows a reader buckets finer than a day.
+	// --limit keeps the newest.
+	Samples []SampleReport `json:"samples,omitempty" yaml:"samples,omitempty"`
 }
 
 // CommandReport is one command key and what it has cost. The key is
@@ -186,7 +191,7 @@ type CommandUsageReport struct {
 // Which is which is the order Discover returns them in, and a single
 // database is the workspace's: a directory that belongs to no project
 // records to $HOME/.atkins and has no project to report.
-func collectStats(ctx context.Context, stores []*storage.Storage) (*StatsReport, error) {
+func collectStats(ctx context.Context, stores []*storage.Storage, samples sampling) (*StatsReport, error) {
 	report := &StatsReport{}
 
 	for index, store := range stores {
@@ -195,7 +200,7 @@ func collectStats(ctx context.Context, stores []*storage.Storage) (*StatsReport,
 			name = projectScope
 		}
 
-		scope, err := collectScope(ctx, store, name)
+		scope, err := collectScope(ctx, store, name, samples)
 		if err != nil {
 			return nil, err
 		}
@@ -216,8 +221,8 @@ const (
 )
 
 // collectScope asks one database its five questions over the retention
-// window.
-func collectScope(ctx context.Context, store *storage.Storage, name string) (*StatsScope, error) {
+// window, and a sixth for the commands one by one when asked to.
+func collectScope(ctx context.Context, store *storage.Storage, name string, samples sampling) (*StatsScope, error) {
 	now := time.Now()
 	since := now.Add(-storage.Retention)
 
@@ -293,6 +298,13 @@ func collectScope(ctx context.Context, store *storage.Storage, name string) (*St
 			Runs:    entry.Runs,
 			TotalMs: entry.TotalMs,
 		})
+	}
+
+	if samples.All {
+		report.Samples, err = collectSamples(ctx, store, since, samples.Limit)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return report, nil
@@ -376,6 +388,11 @@ func writeScope(w io.Writer, scope *StatsScope, color bool) {
 	}
 
 	fmt.Fprint(w, commandTable(scope, color))
+
+	if len(scope.Samples) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprint(w, sampleTable(scope, color))
+	}
 }
 
 // dailyChart draws a column per day of the window, so a reader sees
