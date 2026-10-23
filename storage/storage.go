@@ -53,25 +53,49 @@ type Storage struct {
 	path string
 }
 
-// NewStorage opens the event database for the working directory,
-// applies the migrations and returns it.
+// NewStorage opens the event databases for the working directory,
+// applies the migrations and returns them, the project's first.
 //
-// The path comes from Discover: the nearest .atkins folder, or
-// $HOME/.atkins. Opening is the only thing that can fail here, and a
-// caller that cannot record is expected to carry on without recording,
-// so the error says which file it was.
-func NewStorage() (*Storage, error) {
+// The paths come from Discover. Opening is the only thing that can fail
+// here, and a caller that cannot record is expected to carry on without
+// recording, so the error says which file it was.
+//
+// A database that opens is kept even when the other does not: half a
+// history is worth more than none, and the report says which file each
+// half came from.
+func NewStorage() ([]*Storage, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
 
-	path, err := Discover(dir)
+	paths, err := Discover(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewStorageAt(context.Background(), path)
+	return OpenAll(context.Background(), paths.List()...)
+}
+
+// OpenAll opens each path and applies the migrations, in order. It
+// returns what opened and the first error, so a caller may use the one
+// that worked and report the one that did not.
+func OpenAll(ctx context.Context, paths ...string) ([]*Storage, error) {
+	var (
+		stores []*Storage
+		failed error
+	)
+	for _, path := range paths {
+		store, err := NewStorageAt(ctx, path)
+		if err != nil {
+			if failed == nil {
+				failed = err
+			}
+			continue
+		}
+		stores = append(stores, store)
+	}
+	return stores, failed
 }
 
 // NewStorageAt opens the event database at a path, applies the
@@ -182,35 +206,68 @@ func stamp(at time.Time) *time.Time {
 	return &utc
 }
 
-// Discover returns the path of the event database for a directory.
+// Paths are the event databases a run records to.
 //
-// It walks up from dir looking for a .atkins folder and answers with the
-// atkins.db inside the first one it finds, so every run in a checkout
-// records to the same file. A directory that belongs to no project
-// records to $HOME/.atkins/atkins.db, which Discover creates.
-func Discover(dir string) (string, error) {
+// A run records to both, because the two answer different questions.
+// The project's says what this checkout costs, which is the question
+// standing in it; the workspace's says what every checkout on the
+// machine costs between them, which is the one a week of work asks and
+// no single project can answer.
+type Paths struct {
+	// Project is the atkins.db of the nearest .atkins folder, empty
+	// when the directory belongs to no project, and empty when the
+	// nearest folder is the workspace's own.
+	Project string
+
+	// Workspace is $HOME/.atkins/atkins.db, which every run records to.
+	Workspace string
+}
+
+// Discover returns the event databases for a directory.
+//
+// It walks up from dir looking for a .atkins folder and takes the
+// atkins.db inside the first one it finds as the project's, so every
+// run in a checkout records to the same file. $HOME/.atkins/atkins.db
+// is the workspace's, and Discover creates the folder.
+//
+// A directory inside $HOME with no .atkins folder of its own finds the
+// workspace's, which is then the only database: a run records to it
+// once rather than twice.
+func Discover(dir string) (Paths, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return Paths{}, err
+	}
+
+	workspace := filepath.Join(home, ".atkins")
+	if err := os.MkdirAll(workspace, 0o755); err != nil {
+		return Paths{}, err
+	}
+
+	paths := Paths{Workspace: filepath.Join(workspace, "atkins.db")}
+
 	for at := filepath.Clean(dir); ; {
 		candidate := filepath.Join(at, ".atkins")
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return filepath.Join(candidate, "atkins.db"), nil
+			if project := filepath.Join(candidate, "atkins.db"); project != paths.Workspace {
+				paths.Project = project
+			}
+			return paths, nil
 		}
 
 		parent := filepath.Dir(at)
 		if parent == at {
-			break
+			return paths, nil
 		}
 		at = parent
 	}
+}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
+// List returns the databases to open, the project's first. A run
+// records to each, and a report reads each.
+func (p Paths) List() []string {
+	if p.Project == "" {
+		return []string{p.Workspace}
 	}
-
-	fallback := filepath.Join(home, ".atkins")
-	if err := os.MkdirAll(fallback, 0o755); err != nil {
-		return "", err
-	}
-
-	return filepath.Join(fallback, "atkins.db"), nil
+	return []string{p.Project, p.Workspace}
 }

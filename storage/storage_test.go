@@ -214,16 +214,22 @@ func TestRunByID(t *testing.T) {
 }
 
 func TestDiscoverWalksUpToTheProject(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	root := t.TempDir()
 	nested := filepath.Join(root, "a", "b")
 	assert.NoError(t, os.MkdirAll(nested, 0o755))
 	assert.NoError(t, os.MkdirAll(filepath.Join(root, ".atkins"), 0o755))
 
 	// Every run in a checkout records to the same file, whichever
-	// directory inside it the run happens in.
-	path, err := storage.Discover(nested)
+	// directory inside it the run happens in, and to the workspace's
+	// beside it.
+	paths, err := storage.Discover(nested)
 	assert.NoError(t, err)
-	assert.Equal(t, filepath.Join(root, ".atkins", "atkins.db"), path)
+	assert.Equal(t, filepath.Join(root, ".atkins", "atkins.db"), paths.Project)
+	assert.Equal(t, filepath.Join(home, ".atkins", "atkins.db"), paths.Workspace)
+	assert.Equal(t, []string{paths.Project, paths.Workspace}, paths.List())
 }
 
 func TestDiscoverFallsBackToHome(t *testing.T) {
@@ -231,11 +237,52 @@ func TestDiscoverFallsBackToHome(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	// A directory that belongs to no project still records, so a stray
-	// command in /tmp is counted too.
-	path, err := storage.Discover(t.TempDir())
+	// command in /tmp is counted too. It has no project, so the
+	// workspace's is the one database and the run records once.
+	paths, err := storage.Discover(t.TempDir())
 	assert.NoError(t, err)
-	assert.Equal(t, filepath.Join(home, ".atkins", "atkins.db"), path)
+	assert.Equal(t, "", paths.Project)
+	assert.Equal(t, filepath.Join(home, ".atkins", "atkins.db"), paths.Workspace)
+	assert.Equal(t, []string{paths.Workspace}, paths.List())
 	assert.DirExists(t, filepath.Join(home, ".atkins"))
+}
+
+// A directory inside $HOME whose nearest .atkins is the workspace's own
+// has no project: the run records once and not twice to one file.
+func TestDiscoverInsideHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	assert.NoError(t, os.MkdirAll(filepath.Join(home, ".atkins"), 0o755))
+
+	nested := filepath.Join(home, "scratch")
+	assert.NoError(t, os.MkdirAll(nested, 0o755))
+
+	paths, err := storage.Discover(nested)
+	assert.NoError(t, err)
+	assert.Equal(t, "", paths.Project)
+	assert.Equal(t, filepath.Join(home, ".atkins", "atkins.db"), paths.Workspace)
+}
+
+// OpenAll keeps what opened and reports the first failure, so a run
+// records to the database that works.
+func TestOpenAll(t *testing.T) {
+	ctx := context.Background()
+	good := filepath.Join(t.TempDir(), "atkins.db")
+
+	stores, err := storage.OpenAll(ctx, good)
+	assert.NoError(t, err)
+	assert.Len(t, stores, 1)
+	assert.NoError(t, stores[0].Close())
+
+	// A path inside a file is no directory to make a database in.
+	blocked := filepath.Join(t.TempDir(), "file")
+	assert.NoError(t, os.WriteFile(blocked, []byte("x"), 0o644))
+
+	stores, err = storage.OpenAll(ctx, good, filepath.Join(blocked, "atkins.db"))
+	assert.Error(t, err)
+	assert.Len(t, stores, 1)
+	assert.Equal(t, good, stores[0].Path())
+	assert.NoError(t, stores[0].Close())
 }
 
 func TestStorageOnAFile(t *testing.T) {

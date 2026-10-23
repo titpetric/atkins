@@ -39,6 +39,40 @@ func (s *Storage) Recorder() *Recorder {
 	return &Recorder{storage: s, dir: dir}
 }
 
+// Recorders writes a run to each of them: the project's database and
+// the workspace's.
+//
+// The write is the same rows twice rather than a summary in one and the
+// detail in the other, because a report of the workspace asks the same
+// questions of it that a report of a project asks: which command, how
+// often, how long.
+type Recorders []*Recorder
+
+// NewRecorders returns a recorder per storage, for a run to record to
+// each.
+func NewRecorders(stores []*Storage) Recorders {
+	recorders := make(Recorders, 0, len(stores))
+	for _, store := range stores {
+		recorders = append(recorders, store.Recorder())
+	}
+	return recorders
+}
+
+// Record stores a finished run in each database.
+//
+// Every one is written even when an earlier fails, and the first error
+// is the one reported: a database that is locked does not cost the run
+// its row in the other.
+func (r Recorders) Record(ctx context.Context, log *eventlog.Log) error {
+	var failed error
+	for _, recorder := range r {
+		if err := recorder.Record(ctx, log); err != nil && failed == nil {
+			failed = err
+		}
+	}
+	return failed
+}
+
 // Record stores a finished run, then drops whatever has fallen outside
 // the retention window.
 //
