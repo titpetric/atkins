@@ -198,8 +198,13 @@ func (e *Executor) executeStep(ctx context.Context, execCtx *ExecutionContext, s
 		}
 	}
 
-	// Interpolate step display label with current context
-	if label := step.DisplayLabel(); label != "" {
+	// Interpolate step display label with current context.
+	//
+	// A step with a for loop skips it: the label still holds the loop's
+	// own variables, and each iteration sets the node's name again from
+	// its own context below. Rendering it here would execute the
+	// substitutions in it for a name nothing keeps.
+	if label := step.DisplayLabel(); label != "" && step.For.IsEmpty() {
 		if interpolated, err := InterpolateCommand(label, stepCtx); err == nil {
 			stepNode.SetName(interpolated)
 		}
@@ -275,6 +280,10 @@ func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.C
 	stepCtx.Context = ctx
 	stepCtx.Step = step
 
+	// One step, one set of answers: the passes that interpolate this
+	// step share them, and the next step asks again.
+	stepCtx.substitutions = newSubstitutionCache()
+
 	env := make(map[string]string)
 	for k, v := range parentCtx.Env {
 		env[k] = v
@@ -295,6 +304,9 @@ func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.C
 // prepareIterationContext creates a new execution context for a loop iteration, overlaying iteration variables
 func (e *Executor) prepareIterationContext(parentCtx *ExecutionContext, iteration model.VariableStorage) *ExecutionContext {
 	iterCtx := parentCtx.Copy()
+	// An iteration is a step execution of its own, so it asks its own
+	// substitutions rather than reading the previous iteration's.
+	iterCtx.substitutions = newSubstitutionCache()
 	iteration.Walk(func(k string, v any) {
 		iterCtx.Variables.Set(k, v)
 	})
@@ -305,6 +317,9 @@ func (e *Executor) prepareIterationContext(parentCtx *ExecutionContext, iteratio
 func (e *Executor) prepareIterationContextWithContext(parentCtx *ExecutionContext, ctx context.Context, iteration model.VariableStorage) (*ExecutionContext, error) {
 	iterCtx := parentCtx.Copy()
 	iterCtx.Context = ctx
+	// An iteration is a step execution of its own; see
+	// prepareIterationContext.
+	iterCtx.substitutions = newSubstitutionCache()
 	iteration.Walk(func(k string, v any) {
 		iterCtx.Variables.Set(k, v)
 	})
@@ -389,6 +404,15 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 
 	stepNode.SetSummarize(step.Summarize)
 
+	// An iteration is interpolated twice: once below to name its node
+	// before anything runs, and once again when it runs. One memo per
+	// iteration, held here, is what keeps a `$(...)` in the command to
+	// one execution across both.
+	memos := make([]*substitutionCache, len(iterations))
+	for idx := range memos {
+		memos[idx] = newSubstitutionCache()
+	}
+
 	// Build iteration nodes as children of the step node
 	iterationNodes := make([]*treeview.Node, 0, len(iterations))
 	if stepNode != nil {
@@ -402,6 +426,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 		for idx, iteration := range iterations {
 			// Interpolate command with iteration variables
 			iterCtx := e.prepareIterationContext(execCtx, iteration.Variables)
+			iterCtx.substitutions = memos[idx]
 
 			var interpolated string
 			var nodeName string
@@ -495,6 +520,7 @@ func (e *Executor) executeStepWithForLoop(ctx context.Context, execCtx *Executio
 			if err != nil {
 				return fmt.Errorf("failed to prepare iteration context %d: %w", idx, err)
 			}
+			stepIterCtx.substitutions = memos[idx]
 
 			// Merge step-level env with interpolation
 			// This happens before building the command so interpolation can use env vars

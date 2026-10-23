@@ -74,6 +74,59 @@ func interpolateString(s string, ctx *ExecutionContext, commandStatusAsCondition
 	return result, nil
 }
 
+// runSubstitution executes one `$(...)` and records it in the event log.
+//
+// It is called once per substitution per step, from the pass that gets
+// there first; the memo in the context answers the rest. The event log
+// therefore holds a row per command that ran, which is what the
+// statistics count.
+func runSubstitution(ctx *ExecutionContext, command string) substitutionResult {
+	startTime := time.Now()
+	var startOffset float64
+	if ctx.EventLogger != nil {
+		startOffset = ctx.EventLogger.GetElapsed()
+	}
+
+	exec := psexec.NewWithOptions(&psexec.Options{
+		DefaultDir: ctx.Dir,
+		DefaultEnv: ctx.Env.Environ(),
+	})
+	cmdResult := exec.Run(context.Background(), exec.ShellCommand(command))
+	durationMs := time.Since(startTime).Milliseconds()
+
+	outcome := substitutionResult{
+		output:   strings.TrimSpace(cmdResult.Output()),
+		success:  cmdResult.Success(),
+		exitCode: cmdResult.ExitCode(),
+	}
+	if !outcome.success && cmdResult.Err() != nil {
+		outcome.err = cmdResult.Err().Error()
+	}
+
+	if ctx.EventLogger != nil {
+		var parentID string
+		if ctx.CurrentStep != nil {
+			parentID = ctx.CurrentStep.ID
+		} else if ctx.Job != nil {
+			parentID = ctx.Job.Name
+		}
+		ctx.EventLogger.LogCommand(eventlog.LogEntry{
+			Type:       eventlog.EventTypeSubstitution,
+			ID:         fmt.Sprintf("subst-%d", startTime.UnixNano()),
+			ParentID:   parentID,
+			Command:    command,
+			Dir:        ctx.Dir,
+			Output:     outcome.output,
+			Error:      outcome.err,
+			ExitCode:   outcome.exitCode,
+			Start:      startOffset,
+			DurationMs: durationMs,
+		})
+	}
+
+	return outcome
+}
+
 // extractAndProcessCommandSubstitutions handles $(...) by properly matching nested parentheses
 func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdErr *error, commandStatusAsCondition bool) string {
 	if *cmdErr != nil {
@@ -106,62 +159,26 @@ func extractAndProcessCommandSubstitutions(ctx *ExecutionContext, s string, cmdE
 				interpolatedCmd = cmd
 			}
 
-			// Execute with context env variables
-			startTime := time.Now()
-			var startOffset float64
-			if ctx.EventLogger != nil {
-				startOffset = ctx.EventLogger.GetElapsed()
+			// A step is interpolated several times before it runs, and
+			// every pass reads this same text. The memo is what keeps the
+			// shell command inside it to one execution: a hit logs no
+			// second event, because nothing ran to log.
+			key := substitutionKey(ctx.Dir, interpolatedCmd)
+			outcome, cached := ctx.substitutions.lookup(key)
+			if !cached {
+				outcome = runSubstitution(ctx, interpolatedCmd)
+				ctx.substitutions.store(key, outcome)
 			}
 
-			exec := psexec.NewWithOptions(&psexec.Options{
-				DefaultDir: ctx.Dir,
-				DefaultEnv: ctx.Env.Environ(),
-			})
-			cmdResult := exec.Run(context.Background(), exec.ShellCommand(interpolatedCmd))
-			durationMs := time.Since(startTime).Milliseconds()
-
-			// Log the command execution
-			if ctx.EventLogger != nil {
-				var parentID string
-				if ctx.CurrentStep != nil {
-					parentID = ctx.CurrentStep.ID
-				} else if ctx.Job != nil {
-					parentID = ctx.Job.Name
-				}
-				exitCode := cmdResult.ExitCode()
-				errMsg := ""
-				if !cmdResult.Success() {
-					if cmdResult.Err() != nil {
-						errMsg = cmdResult.Err().Error()
-					}
-				}
-				ctx.EventLogger.LogCommand(eventlog.LogEntry{
-					Type:       eventlog.EventTypeSubstitution,
-					ID:         fmt.Sprintf("subst-%d", startTime.UnixNano()),
-					ParentID:   parentID,
-					Command:    interpolatedCmd,
-					Dir:        ctx.Dir,
-					Output:     strings.TrimSpace(cmdResult.Output()),
-					Error:      errMsg,
-					ExitCode:   exitCode,
-					Start:      startOffset,
-					DurationMs: durationMs,
-				})
-			}
-
-			if !cmdResult.Success() && !commandStatusAsCondition {
+			if !outcome.success && !commandStatusAsCondition {
 				// Capture error with better context showing the command that ran
-				errMsg := ""
-				if cmdResult.Err() != nil {
-					errMsg = cmdResult.Err().Error()
-				}
-				*cmdErr = fmt.Errorf("command execution failed in $(%s): %s", interpolatedCmd, errMsg)
+				*cmdErr = fmt.Errorf("command execution failed in $(%s): %s", interpolatedCmd, outcome.err)
 				return s
 			}
 
-			output := strings.TrimSpace(cmdResult.Output())
+			output := outcome.output
 			if commandStatusAsCondition {
-				if !cmdResult.Success() {
+				if !outcome.success {
 					output = "false"
 				} else if output == "" {
 					output = "true"
