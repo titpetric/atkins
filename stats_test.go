@@ -89,7 +89,7 @@ func TestWriteStatsAsJSONAndYAML(t *testing.T) {
 	report := sample()
 
 	// The machine-readable output carries milliseconds, not words, and
-	// the per-day series a chart of tool use over time is drawn from.
+	// the per-day series a chart of tool use over time draws.
 	var asJSON bytes.Buffer
 	assert.NoError(t, writeJSON(&asJSON, report))
 	assert.Contains(t, asJSON.String(), `"command": "go test -cover"`)
@@ -175,8 +175,8 @@ func TestAgo(t *testing.T) {
 	}
 }
 
-// The plain report is a document: every line of it is readable text
-// with no control characters in it.
+// The plain report is a document: every line reads as text with no
+// control characters.
 func TestPlainReportIsPlain(t *testing.T) {
 	var out bytes.Buffer
 	writeStats(&out, sample(), false)
@@ -186,9 +186,8 @@ func TestPlainReportIsPlain(t *testing.T) {
 	}
 }
 
-// TestStatsReport_Scopes covers the order the report hands its scopes
-// over: the project first, because standing in one is the context the
-// reader is in.
+// TestStatsReport_Scopes covers the order of the scopes: the project
+// first, the context the reader stands in.
 func TestStatsReport_Scopes(t *testing.T) {
 	project := sampleScope()
 	project.Name = "project"
@@ -229,7 +228,7 @@ func TestWriteStatsBothScopes(t *testing.T) {
 }
 
 // A scope whose database holds nothing says so under its own heading,
-// rather than taking the other's place.
+// and the other scope keeps its own.
 func TestWriteStatsOneEmptyScope(t *testing.T) {
 	project := &StatsScope{Name: "project", Database: "/w/atkins/.atkins/atkins.db"}
 

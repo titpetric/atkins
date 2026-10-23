@@ -19,26 +19,17 @@ import (
 	"github.com/titpetric/atkins/storage"
 )
 
-// statsLimit is how many commands the report lists. Twenty fits a
-// terminal, and the tail of a long tail is not what anyone is looking
-// for.
+// statsLimit is how many commands the report lists: twenty fit a terminal.
 const statsLimit = 20
 
-// toolsLimit is how many tools the ranking lists. A checkout that uses
-// more than eight is not a checkout whose ninth is worth a row.
+// toolsLimit is how many tools the ranking lists.
 const toolsLimit = 8
 
-// chartHeight is how many rows the daily chart is drawn in. Six rows of
-// eighths resolve to forty-eight steps, which is more than a month of
-// days can show apart anyway.
+// chartHeight is the row count of the daily chart: six rows of eighths
+// resolve to forty-eight steps, more than a month of days tells apart.
 const chartHeight = 6
 
-// runStats reports what has been recorded: the days, the tools, and the
-// commands by the time they have taken.
-//
-// The question it answers is where the time goes. Not which command is
-// slowest, but which one costs the most once its frequency is counted,
-// and whether that has been true all month or only since Tuesday.
+// runStats prints the stats report, or writes it as JSON or YAML.
 func runStats(ctx context.Context, settings *config.Config, opts *Options) error {
 	stores, err := openStorage(settings)
 	if err != nil && len(stores) == 0 {
@@ -98,10 +89,10 @@ func (r *StatsReport) Scopes() []*StatsScope {
 // StatsScope is one database's history, and everything a reader of
 // `--stats --json` needs to draw it again elsewhere.
 //
-// Durations are milliseconds throughout, as the database keeps them,
-// because a reader charting them wants a number and not a word.
+// Durations are milliseconds throughout, as the database keeps them: a
+// chart takes a number and not a word.
 type StatsScope struct {
-	// Name is what the scope is called, project or workspace.
+	// Name names the scope, project or workspace.
 	Name string `json:"name" yaml:"name"`
 
 	// Repository is the checkout the rows came from, as its remote
@@ -131,7 +122,7 @@ type StatsScope struct {
 	Tools []ToolReport `json:"tools" yaml:"tools"`
 
 	// Usage is a row per day per tool, oldest first: the series a chart
-	// of tool use over time is drawn from. A day a tool did not run has
+	// of tool use over time draws. A day a tool did not run has
 	// no row.
 	Usage []UsageReport `json:"usage" yaml:"usage"`
 
@@ -185,12 +176,8 @@ type CommandUsageReport struct {
 	TotalMs int64  `json:"total_ms" yaml:"total_ms"`
 }
 
-// collectStats reports each database the run would record to, the
-// project's as the project and the workspace's as the workspace.
-//
-// Which is which is the order Discover returns them in, and a single
-// database is the workspace's: a directory that belongs to no project
-// records to $HOME/.atkins and has no project to report.
+// collectStats reports each database, in the order storage.Discover returns
+// them: the project's, then the workspace's. A lone database is the workspace's.
 func collectStats(ctx context.Context, stores []*storage.Storage, samples sampling) (*StatsReport, error) {
 	report := &StatsReport{}
 
@@ -220,8 +207,7 @@ const (
 	workspaceScope = "workspace"
 )
 
-// collectScope asks one database its five questions over the retention
-// window, and a sixth for the commands one by one when asked to.
+// collectScope queries one database over the retention window.
 func collectScope(ctx context.Context, store *storage.Storage, name string, samples sampling) (*StatsScope, error) {
 	now := time.Now()
 	since := now.Add(-storage.Retention)
@@ -340,13 +326,7 @@ func writeYAML(w io.Writer, report *StatsReport) error {
 	return err
 }
 
-// writeStats renders the report for a person: the days, the tools, then
-// the commands.
-//
-// On a terminal the table is drawn with borders and colour, the way
-// `atkins --help` draws its tables. Redirected to a file or a pipe it
-// is plain markdown, so the same command serves a terminal and a
-// document without a flag to say which.
+// writeStats writes each scope, as coloured tables or as markdown.
 func writeStats(w io.Writer, report *StatsReport, color bool) {
 	scopes := report.Scopes()
 	if len(scopes) == 0 {
@@ -362,8 +342,7 @@ func writeStats(w io.Writer, report *StatsReport, color bool) {
 	}
 }
 
-// writeScope renders one database: what it is, what it holds, the days,
-// the tools and the commands.
+// writeScope renders one database: its header, the days, the tools and the commands.
 func writeScope(w io.Writer, scope *StatsScope, color bool) {
 	title := scope.Name
 	if scope.Repository != "" {
@@ -395,8 +374,7 @@ func writeScope(w io.Writer, scope *StatsScope, color bool) {
 	}
 }
 
-// dailyChart draws a column per day of the window, so a reader sees
-// whether the month was steady or was one Tuesday.
+// dailyChart draws a column per day of the window.
 func dailyChart(report *StatsScope, color bool) string {
 	bars := dailyBars(report)
 	if len(bars) == 0 {
@@ -411,9 +389,7 @@ func dailyChart(report *StatsScope, color bool) string {
 	})
 }
 
-// dailyBars folds the per-tool usage rows into one bar per day of the
-// window, including the days nothing ran: a run of days reads as time
-// only when the empty ones are drawn.
+// dailyBars folds the usage rows into one bar per day, empty days included.
 func dailyBars(report *StatsScope) []chart.Bar {
 	from, err := time.Parse(time.DateOnly, report.From)
 	if err != nil {
@@ -494,7 +470,7 @@ func heading(text string, color bool) string {
 	return colors.BrightWhite(text)
 }
 
-// dim renders a line that is there to be read past.
+// dim renders a line a reader skims past.
 func dim(text string, color bool) string {
 	if !color {
 		return text
@@ -526,7 +502,7 @@ func duration(ms int64) string {
 	}
 }
 
-// ago renders how long ago a time was, and a dash for no time at all.
+// ago renders how long ago a time is, and a dash for no time.
 func ago(at *time.Time) string {
 	if at == nil {
 		return "-"

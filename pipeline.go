@@ -107,7 +107,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 
 	// These flags take over the whole invocation: they open the
 	// configuration menu, vendor skills into the repository or report
-	// what has been recorded, and exit.
+	// the recorded runs, and exit.
 	switch {
 	case opts.Config:
 		return runConfig(cwd)
@@ -363,9 +363,8 @@ pipelineReady:
 	}
 
 	// The event database records what ran and how long it took, so
-	// `atkins --stats` and later task-ui can report on it. A database
-	// that will not open is not a reason to refuse to run: the recorder
-	// stays nil and the pipeline runs unrecorded.
+	// `atkins --stats` and task-ui can report on it. When no database
+	// opens, the recorder stays nil and the pipeline runs unrecorded.
 	recorder := openRecorder(settings, opts)
 
 	exitCode, _ := runPipelines(ctx, opts, pipelineOrder, pipelineJobsMap, allPipelines, recorder.recorder)
@@ -464,13 +463,9 @@ func (r recording) Close() {
 	}
 }
 
-// openRecorder opens the event databases for this run.
-//
-// A failure is reported and nothing more: the point of the run is the
-// pipeline, and a machine whose database is locked, full or read-only
-// still has work to do. One of the two opening is enough to record;
-// `--local` and `record: false` turn recording off on purpose, and
-// neither prints anything.
+// openRecorder returns an empty recording for `--local`, `record: false` and
+// when no database opens; it prints the error and the pipeline still runs.
+// It returns a recording over every database that opens otherwise.
 func openRecorder(settings *config.Config, opts *Options) recording {
 	if opts.Local || !settings.Storage.Record {
 		return recording{}
@@ -491,13 +486,8 @@ func openRecorder(settings *config.Config, opts *Options) recording {
 	return recording{stores: stores, recorder: storage.NewRecorders(stores)}
 }
 
-// openStorage opens the event database the configuration names, or the
-// project's and the workspace's that Discover finds for the working
-// directory.
-//
-// A configured path is the one database: naming a file says where the
-// history goes, and a second copy somewhere else would make that less
-// true, not more.
+// openStorage opens the one database the configuration names.
+// It opens the project's and the workspace's, as storage.Discover finds them, otherwise.
 func openStorage(settings *config.Config) ([]*storage.Storage, error) {
 	if path := settings.Storage.Database; path != "" {
 		return storage.OpenAll(context.Background(), path)
