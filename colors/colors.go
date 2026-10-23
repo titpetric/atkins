@@ -1,7 +1,6 @@
 package colors
 
 import (
-	"fmt"
 	"os"
 	"regexp"
 	"sync"
@@ -14,8 +13,7 @@ var stdoutIsTerminal = sync.OnceValue(func() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
 })
 
-// StdoutIsTerminal reports whether the process stdout is attached to a
-// terminal. The check runs once; every later call returns the cached answer.
+// StdoutIsTerminal reports whether stdout is a terminal, checked once per process.
 func StdoutIsTerminal() bool {
 	return stdoutIsTerminal()
 }
@@ -118,49 +116,4 @@ func Gray(text string) string {
 // MediumGray returns text in medium gray (50%) color.
 func MediumGray(text string) string {
 	return colorize(colorMediumGray, text)
-}
-
-// PrintHeader prints a header with bright cyan color.
-func PrintHeader(title string) {
-	fmt.Printf("# %s\n", BrightCyan(title))
-}
-
-// PrintSectionStart prints a section start marker.
-func PrintSectionStart(section string) {
-	fmt.Printf("%s %s\n", colorize(colorMagenta, "▶"), BrightMagenta(section))
-}
-
-// PrintSectionEnd prints a section end marker.
-func PrintSectionEnd(section string, success bool) {
-	if success {
-		fmt.Printf("%s %s\n", colorize(colorGreen, "✓"), BrightGreen(section))
-	} else {
-		fmt.Printf("%s %s\n", colorize(colorRed, "✗"), BrightRed(section))
-	}
-}
-
-// PrintPass prints a passing item.
-func PrintPass(name string) {
-	fmt.Printf(" %s %s\n", colorize(colorGreen, "[✓]"), BrightGreen(name))
-}
-
-// PrintFail prints a failed item with error message.
-func PrintFail(name, errMsg string) {
-	fmt.Printf(" %s %s\n", colorize(colorRed, "[✗]"), BrightRed(name))
-	fmt.Printf("    %s %s\n", colorize(colorRed, "→"), colorize(colorRed, errMsg))
-}
-
-// PrintInfo prints an information line.
-func PrintInfo(key, value string) {
-	fmt.Printf(" %s %s %s\n", colorize(colorCyan, "●"), BrightCyan(key+":"), colorize(colorYellow, value))
-}
-
-// PrintSuccess prints a success message.
-func PrintSuccess(text string) {
-	fmt.Printf("%s %s\n", colorize(colorGreen, ">>"), BrightGreen(text))
-}
-
-// PrintWarning prints a warning message.
-func PrintWarning(text string) {
-	fmt.Printf("%s %s\n", colorize(colorYellow, "⚠"), BrightYellow(text))
 }
