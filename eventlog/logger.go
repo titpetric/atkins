@@ -12,7 +12,9 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// Logger collects events during execution and writes the final log.
+// Logger collects the events of one run and assembles the finished Log
+// from them. A nil Logger records nothing. The package documentation
+// says why it collects without a file.
 type Logger struct {
 	mu        sync.Mutex
 	filePath  string
@@ -22,12 +24,7 @@ type Logger struct {
 	debug     bool
 }
 
-// NewLogger creates a new event logger.
-//
-// The logger always collects, because the events are what a recorder
-// stores and what the summary counts, and collecting them costs a slice
-// append per command. An empty filePath writes no file: that is the only
-// thing the path decides.
+// NewLogger returns a logger of the run, which writes no file for an empty filePath.
 func NewLogger(filePath, pipelineName, pipelineFile string, debug bool) *Logger {
 	now := time.Now()
 	runID := ulid.Make().String()
@@ -113,11 +110,8 @@ func (l *Logger) elapsed() float64 {
 	return time.Since(l.startTime).Seconds()
 }
 
-// Document returns the finished log: the run's metadata, the state tree
-// it ended with, every event it collected and the summary.
-//
-// Write marshals it and a recorder stores it, so both read the same
-// document and neither assembles one of its own.
+// Document returns nil on a nil Logger, else the finished log: the
+// metadata, the state tree, every event and the summary.
 func (l *Logger) Document(state *StateNode, summary *RunSummary) *Log {
 	if l == nil {
 		return nil

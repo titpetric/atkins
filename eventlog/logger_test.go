@@ -12,7 +12,7 @@ import (
 
 // A logger with no file path still collects: the events are what a
 // recorder stores, and a run with no --log still records to the event
-// database. The path only decides whether a file is written.
+// database. The path decides whether the logger writes a file.
 func TestNewLogger_CollectsWithoutAFile(t *testing.T) {
 	logger := NewLogger("", "test-pipeline", "test.yml", false)
 	assert.NotNil(t, logger)
