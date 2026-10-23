@@ -1,21 +1,3 @@
-// Package storage owns the atkins event database.
-//
-// Every run leaves two kinds of row behind: a `run` row per node of the
-// tree atkins walked, carrying the time that node took with everything
-// under it, and a `command` row per command a step actually executed.
-// The first answers "how long does the release job take", the second
-// "how much of my day is go test".
-//
-// The file is atkins.db in the nearest .atkins folder, and
-// $HOME/.atkins/atkins.db when a directory belongs to no project. One
-// type, Storage, owns all of it: every method takes a context and one
-// request value and returns one result and an error, so a reader - the
-// --stats report today, task-ui later - has one surface to learn.
-//
-// Queries go through github.com/titpetric/pdo, whose generic methods
-// scan straight into the mig generated types in ../model. A *pdo.PDO is
-// request scoped and not safe for concurrent use, so every method
-// allocates one over the shared pool.
 package storage
 
 import (
@@ -47,22 +29,18 @@ const Memory = ":memory:"
 // ErrNotFound reports a row that is not there.
 var ErrNotFound = errors.New("not found")
 
-// Storage is the atkins event database.
+// Storage is one atkins event database: it applies the migrations on
+// open, writes the rows of finished runs and answers the reports. Every
+// method takes a context and one request value. A nil Storage records
+// nothing and closes nothing, so a caller that failed to open one has no
+// branch to write.
 type Storage struct {
 	db   *sqlx.DB
 	path string
 }
 
-// NewStorage opens the event databases for the working directory,
-// applies the migrations and returns them, the project's first.
-//
-// The paths come from Discover. Opening is the only thing that can fail
-// here, and a caller that cannot record is expected to carry on without
-// recording, so the error says which file it was.
-//
-// A database that opens is kept even when the other does not: half a
-// history is worth more than none, and the report says which file each
-// half came from.
+// NewStorage returns the databases Discover names for the working
+// directory, as OpenAll opens them.
 func NewStorage() ([]*Storage, error) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -77,9 +55,7 @@ func NewStorage() ([]*Storage, error) {
 	return OpenAll(context.Background(), paths.List()...)
 }
 
-// OpenAll opens each path and applies the migrations, in order. It
-// returns what opened and the first error, so a caller may use the one
-// that worked and report the one that did not.
+// OpenAll returns the databases that opened, in order, and the first error.
 func OpenAll(ctx context.Context, paths ...string) ([]*Storage, error) {
 	var (
 		stores []*Storage
@@ -98,9 +74,7 @@ func OpenAll(ctx context.Context, paths ...string) ([]*Storage, error) {
 	return stores, failed
 }
 
-// NewStorageAt opens the event database at a path, applies the
-// migrations and returns it. Memory opens a private database held on one
-// connection.
+// NewStorageAt returns the migrated database at path, Memory for a private one.
 func NewStorageAt(ctx context.Context, path string) (*Storage, error) {
 	db, err := open(path)
 	if err != nil {
@@ -128,8 +102,7 @@ func (s *Storage) Path() string {
 	return s.path
 }
 
-// Close releases the connection pool. A nil Storage closes nothing, so
-// a caller that failed to open one has no branch to write.
+// Close releases the connection pool; a nil Storage returns nil.
 func (s *Storage) Close() error {
 	if s == nil || s.db == nil {
 		return nil
@@ -137,21 +110,13 @@ func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
-// timeFormat makes the driver write a time in a layout SQLite
-// understands: `2006-01-02 15:04:05.999999999-07:00`.
-//
-// Without it the driver writes time.Time's own String form,
-// `2026-03-01 12:00:00 +0000 UTC`, which strftime cannot read, so every
-// usage bucket would come back empty. The usage report is the reason the
-// database exists, so the parameter is not optional.
+// timeFormat makes the driver write a time in a layout strftime reads,
+// `2006-01-02 15:04:05.999999999-07:00`. With time.Time's own String
+// form every usage bucket comes back empty.
 const timeFormat = "_time_format=sqlite"
 
-// open opens the sqlite database. The driver is the program's to link:
-// main imports modernc.org/sqlite for its side effect, as do the tests.
-//
-// A file also gets a busy timeout and the write-ahead log, because
-// several atkins runs in one checkout write to it at once and the second
-// must wait rather than fail.
+// open returns the sqlite pool for path, with a busy timeout and the
+// write-ahead log on a file. main and the tests link the driver.
 func open(path string) (*sqlx.DB, error) {
 	memory := path == "" || path == Memory
 	dsn := path
@@ -174,9 +139,7 @@ func open(path string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-// client returns a request scoped pdo client over the shared pool. It is
-// the one place pdo is named, so the rest of the package reads as SQL and
-// model types.
+// client returns a request scoped pdo client over the shared pool.
 func (s *Storage) client() *pdo.PDO {
 	return pdo.New(s.db)
 }
@@ -189,15 +152,13 @@ func notFound(err error) error {
 	return err
 }
 
-// newID returns an identifier for a row: a ULID, 26 characters, sorting
-// by the moment it was made.
+// newID returns a ULID for a row, which sorts by creation time.
 func newID() string {
 	return ulid.Make().String()
 }
 
-// stamp returns a time as the database keeps it, in UTC to the
-// millisecond. A column compared or ordered as text holds one zone,
-// whatever the zone of the clock that made the value. Nil stays nil.
+// stamp returns nil for a zero time, else the time in UTC to the
+// millisecond, so a text column compares in one zone.
 func stamp(at time.Time) *time.Time {
 	if at.IsZero() {
 		return nil
@@ -206,13 +167,20 @@ func stamp(at time.Time) *time.Time {
 	return &utc
 }
 
-// Paths are the event databases a run records to.
-//
-// A run records to both, because the two answer different questions.
-// The project's says what this checkout costs, which is the question
-// standing in it; the workspace's says what every checkout on the
-// machine costs between them, which is the one a week of work asks and
-// no single project can answer.
+// RawStartedAt returns the started_at of a command row as the database
+// holds the text, or the error of an empty table.
+func (s *Storage) RawStartedAt(ctx context.Context) (string, error) {
+	client := s.client()
+	defer client.Close()
+	value, err := client.Get[string](ctx, "SELECT CAST(started_at AS TEXT) FROM command LIMIT 1")
+	if err != nil {
+		return "", err
+	}
+	return *value, nil
+}
+
+// Paths are the event databases a run records to, the project's and the
+// workspace's. The package documentation says why a run writes both.
 type Paths struct {
 	// Project is the atkins.db of the nearest .atkins folder, empty
 	// when the directory belongs to no project, and empty when the
@@ -223,16 +191,9 @@ type Paths struct {
 	Workspace string
 }
 
-// Discover returns the event databases for a directory.
-//
-// It walks up from dir looking for a .atkins folder and takes the
-// atkins.db inside the first one it finds as the project's, so every
-// run in a checkout records to the same file. $HOME/.atkins/atkins.db
-// is the workspace's, and Discover creates the folder.
-//
-// A directory inside $HOME with no .atkins folder of its own finds the
-// workspace's, which is then the only database: a run records to it
-// once rather than twice.
+// Discover returns the databases for dir and creates $HOME/.atkins. The
+// project's is the atkins.db of the nearest .atkins folder above dir,
+// and empty when that folder is the workspace's own or there is none.
 func Discover(dir string) (Paths, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -263,8 +224,7 @@ func Discover(dir string) (Paths, error) {
 	}
 }
 
-// List returns the databases to open, the project's first. A run
-// records to each, and a report reads each.
+// List returns the workspace alone without a project, else both, the project's first.
 func (p Paths) List() []string {
 	if p.Project == "" {
 		return []string{p.Workspace}

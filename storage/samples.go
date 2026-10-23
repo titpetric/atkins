@@ -17,16 +17,14 @@ type sampleRow struct {
 	InvocationID string `db:"invocation_id"`
 }
 
-// Samples returns the commands of the request one by one, oldest first.
-//
-// The filter runs on the command table alone, in a subquery, because
-// the run rows it joins share its column names.
-//
-// A command's job is the job node above its step, or the node it names
-// itself when a $() substitution ran outside any step.
+// Samples returns the query error, or the commands of the request one by
+// one, oldest first, each with the job above its step.
 func (s *Storage) Samples(ctx context.Context, req SampleRequest) ([]Sample, error) {
 	where, args := commandWhere(req.Since, req.Until, req.Tool, req.Dir)
 
+	// The filter reads the command table alone, in a subquery: the
+	// joined run rows share its column names. A substitution outside any
+	// step names the job itself as its parent.
 	query := `SELECT
 			COALESCE(command.started_at, '') AS started_at,
 			command.normalized,

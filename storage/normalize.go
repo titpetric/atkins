@@ -5,30 +5,12 @@ import (
 	"strings"
 )
 
-// shellOperators end a normalized command. A pipeline or a list is
-// several commands, and the row groups by the first of them.
+// shellOperators end a normalized command. A pipeline or a list holds
+// more than one command, and the row groups by the first.
 var shellOperators = []string{"|", "&&", "||", ";", ">", ">>", "<", "&"}
 
-// Normalize reduces a command to the form the statistics group by, and
-// returns it with the tool that leads it.
-//
-// The form keeps the tool and its subcommands, keeps the flags with
-// their values removed, sorts the flags, and drops everything else:
-//
-//	go test -v ./...                      go test -v
-//	go test ./... -v                      go test -v
-//	go test -cover -coverprofile=c.out    go test -cover -coverprofile
-//	go test --cpuprofile cpu.out          go test --cpuprofile
-//	CGO_ENABLED=0 go build -o bin/x .     go build -o
-//	sleep 1                               sleep
-//	head -20 file.txt                     head
-//	git rev-parse HEAD | cut -c1-8        git rev-parse HEAD
-//
-// Sorting is what makes `go test -v -cover` and `go test -cover -v` one
-// row. Dropping operands is what makes a flag's argument disappear with
-// no table of which flags take one: `--cpuprofile cpu.out` leaves the
-// flag and the file is an operand like any other. A flag that is only
-// digits goes with them, so `head -20` and `head -50` count together.
+// Normalize returns two empty strings for a command with no tool, else
+// its stored form and tool, as the package documentation lists them.
 func Normalize(command string) (normalized, tool string) {
 	words := split(command)
 
@@ -51,9 +33,8 @@ func Normalize(command string) (normalized, tool string) {
 			continue
 		}
 
-		// An assignment ahead of the tool is the environment the command
-		// runs with, not the command: `CGO_ENABLED=0 go build` is a go
-		// build.
+		// An assignment ahead of the tool sets the environment of the
+		// command: `CGO_ENABLED=0 go build` counts as a go build.
 		if len(path) == 0 && isAssignment(word) {
 			continue
 		}
@@ -75,9 +56,9 @@ func Normalize(command string) (normalized, tool string) {
 	return strings.Join(append(path, flags...), " "), path[0]
 }
 
-// split breaks a command into words the way a shell does. A quoted run
-// is one word and keeps the quote, so what it holds is never read as a
-// flag or a subcommand however it is spelled.
+// split returns the words of a command the way a shell breaks them. A
+// quoted run makes one word that keeps the quote, so its text never
+// counts as a flag or a subcommand.
 func split(command string) []string {
 	var (
 		words  []string
@@ -131,8 +112,8 @@ func isOperator(word string) bool {
 	return false
 }
 
-// normalizeFlag strips a flag down to its name: the value it carries,
-// the digits it ends with, and the whole flag when nothing is left.
+// normalizeFlag returns the name of a flag without its value or trailing
+// digits, and an empty string when no name remains.
 func normalizeFlag(word string) string {
 	flag := word
 	if at := strings.IndexByte(flag, '='); at >= 0 {
@@ -184,8 +165,7 @@ func isPathWord(word string) bool {
 const keyWords = 3
 
 // builtins are the shell's own words a step runs to set itself up. They
-// cost nothing worth a row, and `set -eu` at the top of a
-// script is not a tool.
+// cost nothing worth a row.
 var builtins = []string{"set", "cd", "export", "echo", "test", "[", "true", "false", ":"}
 
 // IsBuiltin reports whether a tool is a shell builtin, which the
@@ -199,15 +179,8 @@ func IsBuiltin(tool string) bool {
 	return false
 }
 
-// Key is the name the reports group a command by: its words up to the
-// first argument that starts with `-`, at most three, none a path or a
-// value (a word with `/`, `.`, `=`, `$`, a quote or a number ends it):
-//
-//	go test -v ./...        go test
-//	docker compose up -d    docker compose up
-//	git clone --depth 1 x   git clone
-//
-// A normalized command keys the same as the command it came from.
+// Key returns the report key of a command and its tool, or two empty
+// strings for a builtin or a command with no tool.
 func Key(command string) (key, tool string) {
 	var words []string
 

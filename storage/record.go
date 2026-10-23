@@ -12,7 +12,7 @@ import (
 
 // RecordRequest is a finished run to store.
 type RecordRequest struct {
-	// Log is the event log document the run ended with: its metadata,
+	// Log is the event log document of the finished run: its metadata,
 	// the tree it walked, every event it collected and the summary.
 	Log *eventlog.Log
 
@@ -20,23 +20,20 @@ type RecordRequest struct {
 	Dir string
 }
 
-// RecordResult says what one Record wrote.
+// RecordResult counts what one Record wrote.
 type RecordResult struct {
 	// InvocationID is the run row of the pipeline node, the value every
 	// row of this invocation carries.
 	InvocationID string
 
-	// Runs and Commands are how many rows of each kind were written.
+	// Runs and Commands count the rows of each kind.
 	Runs     int
 	Commands int
 }
 
-// Record stores a finished run: a run row per node of the tree and a
-// command row per command the run executed.
-//
-// The rows go in one transaction. A run is read as a whole - the job's
-// time against its steps' - and half of one recorded is worse than none,
-// because a report would quietly treat it as complete.
+// Record returns an empty result for nothing to record, the error that
+// rolls the transaction back, the commit error, or what it wrote: a run
+// row per node of the tree and a command row per command the run executed.
 func (s *Storage) Record(ctx context.Context, req RecordRequest) (*RecordResult, error) {
 	if s == nil || req.Log == nil || req.Log.State == nil {
 		return &RecordResult{}, nil
@@ -76,13 +73,9 @@ func (s *Storage) Record(ctx context.Context, req RecordRequest) (*RecordResult,
 	}, nil
 }
 
-// runRows flattens the state tree into run rows, and returns them with a
-// map from the node id the events name to the row id they belong to.
-//
-// The root is the pipeline node and carries the metadata of the whole
-// invocation: the file, the directory, the module and the git state. Its
-// children are jobs and everything below them is a step, which is the
-// shape the tree has: a pipeline holds jobs and a job holds steps.
+// runRows returns the state tree as run rows, and a map from the node id
+// the events name to the row id. The pipeline root carries the metadata
+// of the invocation; its children are jobs and the nodes below are steps.
 func runRows(req RecordRequest) ([]*model.Run, map[string]string) {
 	var (
 		rows = make([]*model.Run, 0, 8)
@@ -132,8 +125,8 @@ func runRows(req RecordRequest) ([]*model.Run, map[string]string) {
 		if node.ID != "" {
 			ids[node.ID] = row.ID
 		}
-		// A job is addressed by name too: a $() substitution outside any
-		// step records the job name as its parent.
+		// A $() substitution outside any step names its job as the
+		// parent, so the map holds the job name too.
 		if depth == 1 && node.Name != "" {
 			ids[node.Name] = row.ID
 		}
@@ -200,13 +193,8 @@ func commandRows(req RecordRequest, invocation string, ids map[string]string) []
 	return rows
 }
 
-// name is what the row is grouped by over time.
-//
-// A job's displayed name carries its description, which an author edits
-// freely, so a job row takes the canonical name out of the node's id
-// instead: `jobs.release` is release, this month and next. A step's
-// displayed name is the command it ran, which is what a reader of a
-// single run wants to see, so a step keeps it.
+// name returns the canonical job name out of a job node id, and the
+// displayed name of any other node.
 func name(node *eventlog.StateNode, depth int) string {
 	if depth == 1 && strings.HasPrefix(node.ID, jobIDPrefix) {
 		return strings.TrimPrefix(node.ID, jobIDPrefix)
@@ -259,12 +247,8 @@ func seconds(value float64) time.Duration {
 	return time.Duration(value * float64(time.Second))
 }
 
-// milliseconds turns a duration in float seconds into whole
-// milliseconds, which is the resolution the columns keep.
-//
-// Rounded, not truncated: truncating loses half a millisecond on every
-// row, and a report that sums thousands of them is then short by
-// seconds it cannot account for.
+// milliseconds returns zero for no time, else float seconds rounded to
+// the whole milliseconds a column holds.
 func milliseconds(value float64) int64 {
 	if value <= 0 {
 		return 0
