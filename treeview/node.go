@@ -8,7 +8,10 @@ import (
 	"github.com/titpetric/atkins/colors"
 )
 
-// Node represents a node in the tree (job, step, or iteration).
+// Node is a job, step or iteration in the tree. Its accessors lock the node,
+// so the renderer reads it while the runner updates it, and its setters are
+// no-ops on a nil node. A multi-line name keeps its first line with a
+// summary of the rest, as TrimMultilineLabel writes it.
 type Node struct {
 	mu sync.Mutex
 
@@ -28,8 +31,7 @@ type Node struct {
 	Output       []string // Multi-line output from command execution
 }
 
-// NewNode creates a new tree node.
-// It trims a multi-line name to the first line with a summary suffix.
+// NewNode returns a pending node with the trimmed name.
 func NewNode(name string) *Node {
 	now := time.Now()
 	return &Node{
@@ -127,8 +129,8 @@ func (n *Node) Label() string {
 	return colors.White(name)
 }
 
-// SetName sets the display name of a node. Nil-safe: no-op on nil receiver.
-// It trims a multi-line name to the first line with a summary suffix.
+// SetName returns early on a nil node.
+// SetName sets the trimmed display name.
 func (n *Node) SetName(name string) {
 	if n == nil {
 		return

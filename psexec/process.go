@@ -14,7 +14,8 @@ import (
 	"github.com/creack/pty"
 )
 
-// Process represents a running process with PTY support.
+// Process is a running process with a PTY. Pipe copies both ways between
+// the PTY and a transport such as a websocket.
 type Process struct {
 	cmd       *exec.Cmd
 	ptmx      *os.File
@@ -119,8 +120,7 @@ func (p *Process) PID() int {
 	return p.cmd.Process.Pid
 }
 
-// Pipe sets up bidirectional I/O between the process and the provided
-// reader/writer. This is the primary method for websocket integration.
+// Pipe copies stdin to the PTY and the PTY to stdout until the process ends.
 func (p *Process) Pipe(stdout io.Writer, stdin io.Reader) error {
 	var wg sync.WaitGroup
 

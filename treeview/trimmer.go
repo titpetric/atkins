@@ -162,9 +162,7 @@ func trimWithANSI(s string, targetLen int) string {
 	return result.String()
 }
 
-// TrimLabel applies both compaction and viewport trimming to a label.
-// - maxArgLen: length limit for argument values before compaction
-// - prefixLen: visual length of the prefix (indentation, branch chars).
+// TrimLabel returns the label with values over maxArgLen compacted, fitted to the viewport after prefixLen.
 func (t *Trimmer) TrimLabel(label string, maxArgLen, prefixLen int) string {
 	// First, compact arguments
 	compacted := CompactArgs(label, maxArgLen)

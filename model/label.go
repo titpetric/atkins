@@ -1,6 +1,8 @@
 package model
 
-// Label represents a display label for a step or command.
+// Label is the display label of a step or command. NewLabel starts one and
+// the With* builders customize it. String is the plain name used for node
+// names and comparisons; ForDisplay adds the colour and status for rendering.
 type Label struct {
 	Text       string              // The display text (e.g., "docker compose up" or "run: splint fix ./...")
 	Type       string              // The operation kind: "task", "run", "cmd", "cmds"
@@ -9,8 +11,7 @@ type Label struct {
 	Color      func(string) string // Optional color function to apply to the label
 }
 
-// NewLabel creates a new label with the given text and type.
-// Use builder methods like WithPrefix(), WithStatus(), and WithColor() to customize.
+// NewLabel returns a label with the given text and type.
 func NewLabel(text, labelType string) *Label {
 	return &Label{
 		Text: text,
@@ -36,8 +37,7 @@ func (l *Label) WithColor(colorFn func(string) string) *Label {
 	return l
 }
 
-// String returns the formatted label as a clean string (no ANSI codes or status).
-// Use this for node names and comparisons.
+// String returns the label text, with the type in front when ShowPrefix holds.
 func (l *Label) String() string {
 	text := l.Text
 	if l.ShowPrefix {
@@ -46,8 +46,7 @@ func (l *Label) String() string {
 	return text
 }
 
-// ForDisplay returns the formatted label with color and status for rendering.
-// This includes ANSI color codes and status indicators.
+// ForDisplay returns String with the colour applied and the status appended.
 func (l *Label) ForDisplay() string {
 	text := l.String()
 

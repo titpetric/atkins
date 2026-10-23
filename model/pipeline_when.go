@@ -21,8 +21,7 @@ type PipelineWhen struct {
 	Contains string `yaml:"contains,omitempty" json:"contains,omitempty"`
 }
 
-// IsEmpty reports whether the block lists no files, which leaves the
-// pipeline or job active everywhere.
+// IsEmpty reports whether the block lists no files, leaving the pipeline or job active everywhere.
 func (w *PipelineWhen) IsEmpty() bool {
 	return w == nil || len(w.Files) == 0
 }

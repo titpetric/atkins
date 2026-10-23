@@ -4,8 +4,7 @@ import (
 	"slices"
 )
 
-// SortJobsByDepth sorts job names by ':' depth, then alphabetically.
-// Depth is the count of ':' separators in the job name.
+// SortJobsByDepth returns the job names sorted by their count of ':', then by name.
 func SortJobsByDepth(jobNames []string) []string {
 	result := make([]string, len(jobNames))
 	copy(result, jobNames)
@@ -57,8 +56,7 @@ func countDepth(name string) int {
 	return count
 }
 
-// SortByOrder returns the job names from the set in the order specified by orderList.
-// Jobs in the set that orderList does not list go at the end.
+// SortByOrder returns the set in orderList order, unlisted jobs last.
 func SortByOrder(jobSet map[string]bool, orderList []string) []string {
 	result := make([]string, 0, len(jobSet))
 

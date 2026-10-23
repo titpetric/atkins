@@ -11,7 +11,12 @@ import (
 	"github.com/titpetric/atkins/colors"
 )
 
-// Display manages in-place tree rendering with ANSI cursor control.
+// Display renders the tree in place with ANSI cursor control. On a terminal
+// each Render rolls back the lines of the previous one; Invalidate forgets
+// them when output from outside the tree, such as an interactive command,
+// lands between two renders. RenderFinal prints the whole tree once execution ends, so
+// the output stays scrollable. A silent display, for JSON and YAML output,
+// prints nothing live.
 type Display struct {
 	lastLineCount int
 	mu            sync.Mutex
@@ -40,8 +45,7 @@ func NewDisplayWithFinal(finalOnly bool) *Display {
 	}
 }
 
-// NewSilentDisplay creates a display that produces no output.
-// Used for JSON/YAML output mode.
+// NewSilentDisplay returns a display that renders nothing live.
 func NewSilentDisplay() *Display {
 	return &Display{
 		lastLineCount: 0,
@@ -56,9 +60,7 @@ func (d *Display) IsTerminal() bool {
 	return d.isTerminal
 }
 
-// Invalidate resets the line counter so the next Render does not
-// roll back over output from outside the tree (for example from
-// an interactive command).
+// Invalidate resets the line counter, so the next Render rolls nothing back.
 func (d *Display) Invalidate() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -112,8 +114,7 @@ func (d *Display) RenderStatic(root *Node) {
 	fmt.Print(plainWithoutTerminal(output))
 }
 
-// RenderFinal clears the live-updating tree and prints the full tree statically.
-// Call it when execution completes so the output is scrollable.
+// RenderFinal clears the live tree and prints the full tree statically.
 func (d *Display) RenderFinal(root *Node) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

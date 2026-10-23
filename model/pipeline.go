@@ -53,7 +53,7 @@ func (p *Pipeline) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-// GetJobs will returned the defined jobs in the pipeline.
+// GetJobs returns Jobs, or Tasks when Jobs is empty.
 func (p *Pipeline) GetJobs() map[string]*Job {
 	if len(p.Jobs) > 0 {
 		return p.Jobs
@@ -61,9 +61,7 @@ func (p *Pipeline) GetJobs() map[string]*Job {
 	return p.Tasks
 }
 
-// GetKeys will return the available targets in the pipeline. It uses the
-// pipeline ID to optionally prefix job/tasks map keys. The default
-// job comes first in the result.
+// GetKeys returns the sorted job names, "default" first, prefixed with "ID:" for a pipeline with an ID.
 func (p *Pipeline) GetKeys() []string {
 	var hasDefault bool
 	jobs := p.GetJobs()
@@ -103,8 +101,7 @@ func (p *Pipeline) JobNames() []string {
 	return slices.Collect(maps.Keys(p.GetJobs()))
 }
 
-// GetAliases returns a key => value mapping for commands in a pipeline.
-// Explicit job aliases take precedence over auto-generated aliases (like skill ID -> default).
+// GetAliases returns alias => job name, explicit job aliases ahead of the generated ones.
 func (p *Pipeline) GetAliases() map[string]string {
 	result := map[string]string{}
 	explicit := make(map[string]bool)
