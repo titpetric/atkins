@@ -15,14 +15,14 @@ import (
 )
 
 func main() {
-	if err := start(os.Args[1:], os.Stdout); err != nil {
+	if err := start(os.Stdout, os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 // start writes the help document for --help and runs the command otherwise.
-func start(args []string, stdout io.Writer) error {
+func start(stdout io.Writer, args []string) error {
 	// The cli package prints a command list and nothing else, and its
 	// help hook is per command. The long document covers the flags, the
 	// skills and the schema at once, so main answers --help here before

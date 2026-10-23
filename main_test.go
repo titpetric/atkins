@@ -12,6 +12,6 @@ func TestStartHelp(t *testing.T) {
 	t.Parallel()
 
 	var out bytes.Buffer
-	assert.NoError(t, start([]string{"go:fmt", "--help"}, &out))
+	assert.NoError(t, start(&out, []string{"go:fmt", "--help"}))
 	assert.Contains(t, out.String(), "Usage: atkins [flags] [job...]")
 }
