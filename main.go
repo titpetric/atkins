@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	// The storage package leaves sql driver registration to its caller,
@@ -14,19 +15,20 @@ import (
 )
 
 func main() {
-	if err := start(); err != nil {
+	if err := start(os.Args[1:], os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func start() error {
+// start writes the help document for --help and runs the command otherwise.
+func start(args []string, stdout io.Writer) error {
 	// The cli package prints a command list and nothing else, and its
 	// help hook is per command. The long document covers the flags, the
 	// skills and the schema at once, so main answers --help here before
 	// selecting a command.
-	if HelpRequested(HelpFlags(), os.Args[1:]) {
-		return WriteHelp(os.Stdout)
+	if HelpRequested(HelpFlags(), args) {
+		return WriteHelp(stdout)
 	}
 
 	app := cli.NewApp("atkins")
