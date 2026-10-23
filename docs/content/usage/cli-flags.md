@@ -18,14 +18,14 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 
 ### Choosing what runs
 
-| Flag                  | Short | Description                                                                    |
-|-----------------------|-------|--------------------------------------------------------------------------------|
-| `--file`              | `-f`  | Pipeline file to use, instead of the discovered one                            |
-| `--working-directory` | `-w`  | Change to this directory before running                                        |
-| `--jail`              |       | Load skills from the project only, ignoring parent folders and `$HOME/.atkins` |
-| `--list`              | `-l`  | List the jobs and dependencies instead of running them                         |
-| `--all`               |       | With `--list`, include the skills whose `when:` block doesn't match            |
-| `--lint`              |       | Check the pipeline for errors and exit                                         |
+| Flag                  | Short | Description                                                                                                      |
+|-----------------------|-------|------------------------------------------------------------------------------------------------------------------|
+| `--file`              | `-f`  | Pipeline file to use, instead of the discovered one                                                              |
+| `--working-directory` | `-w`  | Change to this directory before running                                                                          |
+| `--jail`              |       | Load skills from the project only, ignoring parent folders and `$HOME/.atkins`                                   |
+| `--list`              | `-l`  | List the jobs and dependencies instead of running them                                                           |
+| `--all`               |       | With `--list`, include the skills whose `when:` block doesn't match; with `--stats`, list every recorded command |
+| `--lint`              |       | Check the pipeline for errors and exit                                                                           |
 
 ### Output
 
@@ -41,10 +41,12 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 
 ### Statistics
 
-| Flag      | Description                                                               |
-|-----------|---------------------------------------------------------------------------|
-| `--stats` | Report the recorded commands by the time they have taken, and run nothing |
-| `--local` | Run without recording anything in the event database                      |
+| Flag      | Description                                                                           |
+|-----------|---------------------------------------------------------------------------------------|
+| `--stats` | Report the recorded commands by the time they have taken, and run nothing             |
+| `--all`   | With `--stats`, list every recorded command of the window, oldest first               |
+| `--limit` | With `--stats --all`, list only the newest N commands; 0, the default, lists them all |
+| `--local` | Run without recording anything in the event database                                  |
 
 ### Project setup
 
@@ -291,6 +293,7 @@ Every run records a row per job and per command in the event database, so the ti
 
 ```bash
 atkins --stats        # the commands by the time they have taken
+atkins --stats --all  # and every recorded command, one by one
 atkins --local build  # run this one without recording it
 ```
 

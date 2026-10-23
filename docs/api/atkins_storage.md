@@ -68,32 +68,55 @@ type CommandFilter struct {
 <summary><code>type CommandStat</code></summary>
 
 ```go
-// CommandStat is one normalized command and what it has cost.
+// CommandStat is one command key and what it has cost.
 type CommandStat struct {
-	// Normalized is the command with its operands dropped and its flags
-	// sorted, the form the rows group by.
-	Normalized string `db:"normalized"`
+	// Command is the key the rows group by, as Key names it: `go test`
+	// counts every test run whatever its flags and packages.
+	Command string
 
 	// Tool is the first word of it.
-	Tool string `db:"tool"`
+	Tool string
 
 	// Runs is how many times it ran.
-	Runs int64 `db:"runs"`
+	Runs int64
 
 	// TotalMs is the time it has taken altogether, which is what the
 	// report sorts by: a command that takes a second and runs four
 	// hundred times costs more than a build that takes a minute.
-	TotalMs int64 `db:"total_ms"`
+	TotalMs int64
 
 	// AvgMs and MaxMs are the average and the worst single run.
-	AvgMs int64 `db:"avg_ms"`
-	MaxMs int64 `db:"max_ms"`
+	AvgMs int64
+	MaxMs int64
 
 	// Failures is how many of the runs exited non-zero.
-	Failures int64 `db:"failures"`
+	Failures int64
 
 	// LastAt is when it last ran.
 	LastAt *time.Time
+}
+```
+
+</details>
+
+<details>
+<summary><code>type CommandUsage</code></summary>
+
+```go
+// CommandUsage is one command key in one bucket of time: the point a
+// chart stacked by command draws.
+type CommandUsage struct {
+	// Bucket is the start of the window, as the database spells a time.
+	Bucket string
+
+	// Command is the key, as Key names it, and Tool its first word.
+	Command string
+	Tool    string
+
+	// Runs and TotalMs are how often it ran in the window and for how
+	// long altogether.
+	Runs    int64
+	TotalMs int64
 }
 ```
 
@@ -251,6 +274,64 @@ type RunFilter struct {
 </details>
 
 <details>
+<summary><code>type Sample</code></summary>
+
+```go
+// Sample is one recorded command: when it started, its key and how it
+// ended.
+//
+// It carries the command's key and never the command line: a command
+// line holds its values, and a value can be a token.
+type Sample struct {
+	// At is when the command started.
+	At time.Time
+
+	// Command is the key, as Key names it, and Tool its first word.
+	Command string
+	Tool    string
+
+	// Kind is where the command came from: a step, a $() substitution
+	// or a variable.
+	Kind string
+
+	// DurationMs is how long it took and ExitCode how it ended.
+	DurationMs int64
+	ExitCode   int64
+
+	// Pipeline and Job are what ran it, and InvocationID the atkins
+	// process, so the commands of one run group together.
+	Pipeline     string
+	Job          string
+	InvocationID string
+}
+```
+
+</details>
+
+<details>
+<summary><code>type SampleRequest</code></summary>
+
+```go
+// SampleRequest selects the commands one by one, each its own row. A
+// zero value returns every command the database holds.
+type SampleRequest struct {
+	// Since and Until bound when a command started, Tool keeps one
+	// tool and Dir one directory and below, as for StatsRequest.
+	Since time.Time
+	Until time.Time
+	Tool  string
+	Dir   string
+
+	// Limit keeps the newest commands of the window. Zero keeps them
+	// all: a reader that buckets the samples needs the whole window,
+	// and the retention window bounds it.
+	Limit int
+}
+```
+
+</details>
+
+<details>
 <summary><code>type StatsRequest</code></summary>
 
 ```go
@@ -297,20 +378,20 @@ type Storage struct {
 // whether it builds, tests or vets, and the share of a week it takes is
 // the share of a week spent on Go.
 type ToolStat struct {
-	// Tool is the first word of the normalized command.
-	Tool string `db:"tool"`
+	// Tool is the first word of the command key.
+	Tool string
 
-	// Commands is how many distinct normalized forms of it ran.
-	Commands int64 `db:"commands"`
+	// Commands is how many distinct command keys of it ran.
+	Commands int64
 
 	// Runs is how many times any of them ran.
-	Runs int64 `db:"runs"`
+	Runs int64
 
 	// TotalMs is the time they have taken altogether.
-	TotalMs int64 `db:"total_ms"`
+	TotalMs int64
 
 	// Failures is how many of the runs exited non-zero.
-	Failures int64 `db:"failures"`
+	Failures int64
 }
 ```
 
@@ -430,6 +511,8 @@ var ErrNotFound = errors.New("not found")
 ## Function symbols
 
 - `func Discover (dir string) (Paths, error)`
+- `func IsBuiltin (tool string) bool`
+- `func Key (command string) string`
 - `func NewRecorders (stores []*Storage) Recorders`
 - `func NewStorage () ([]*Storage, error)`
 - `func NewStorageAt (ctx context.Context, path string) (*Storage, error)`
@@ -437,6 +520,7 @@ var ErrNotFound = errors.New("not found")
 - `func OpenAll (ctx context.Context, paths ...string) ([]*Storage, error)`
 - `func (*Recorder) Record (ctx context.Context, log *eventlog.Log) error`
 - `func (*Storage) Close () error`
+- `func (*Storage) CommandUsage (ctx context.Context, req UsageRequest) ([]CommandUsage, error)`
 - `func (*Storage) Commands (ctx context.Context, filter CommandFilter) ([]model.Command, error)`
 - `func (*Storage) Path () string`
 - `func (*Storage) Purge (ctx context.Context, req PurgeRequest) (*PurgeResult, error)`
@@ -445,6 +529,7 @@ var ErrNotFound = errors.New("not found")
 - `func (*Storage) Recorder () *Recorder`
 - `func (*Storage) Run (ctx context.Context, id string) (*model.Run, error)`
 - `func (*Storage) Runs (ctx context.Context, filter RunFilter) ([]model.Run, error)`
+- `func (*Storage) Samples (ctx context.Context, req SampleRequest) ([]Sample, error)`
 - `func (*Storage) Stats (ctx context.Context, req StatsRequest) ([]CommandStat, error)`
 - `func (*Storage) Tools (ctx context.Context, req StatsRequest) ([]ToolStat, error)`
 - `func (*Storage) Usage (ctx context.Context, req UsageRequest) ([]UsageEntry, error)`
@@ -466,6 +551,33 @@ once rather than twice.
 
 ```go
 func Discover(dir string) (Paths, error)
+```
+
+### `IsBuiltin`
+
+`IsBuiltin` reports whether a tool is a shell builtin, which the
+statistics neither record nor report.
+
+```go
+func IsBuiltin(tool string) bool
+```
+
+### `Key`
+
+`Key` is the name the reports group a command by: its words up to the
+first argument that starts with `-`, at most three, none a path or a
+value (a word with `/`, `.`, `=`, `$`, a quote or a number ends it):
+
+```go
+go test -v ./...        go test
+docker compose up -d    docker compose up
+git clone --depth 1 x   git clone
+```
+
+A normalized command keys the same as the command it came from.
+
+```go
+func Key(command string) string
 ```
 
 ### `NewRecorders`
@@ -566,6 +678,15 @@ a caller that failed to open one has no branch to write.
 func (*Storage) Close() error
 ```
 
+### `CommandUsage`
+
+`CommandUsage` reports runs and time per command key per bucket, oldest
+first and the most expensive first within a bucket.
+
+```go
+func (*Storage) CommandUsage(ctx context.Context, req UsageRequest) ([]CommandUsage, error)
+```
+
 ### `Commands`
 
 `Commands` lists command rows, newest first.
@@ -642,10 +763,28 @@ func (*Storage) Run(ctx context.Context, id string) (*model.Run, error)
 func (*Storage) Runs(ctx context.Context, filter RunFilter) ([]model.Run, error)
 ```
 
+### `Samples`
+
+`Samples` returns the commands of the request one by one, oldest first.
+
+The filter runs on the command table alone, in a subquery, because
+the run rows it joins share its column names.
+
+A command's job is the job node above its step, or the node it names
+itself when a $() substitution ran outside any step.
+
+```go
+func (*Storage) Samples(ctx context.Context, req SampleRequest) ([]Sample, error)
+```
+
 ### `Stats`
 
-`Stats` reports the normalized commands by the time they have taken
+`Stats` reports the command keys by the time they have taken
 altogether, the most expensive first.
+
+The database groups by the normalized form and the report folds the
+forms into their keys, so a row recorded before the key existed
+counts under it without a migration.
 
 ```go
 func (*Storage) Stats(ctx context.Context, req StatsRequest) ([]CommandStat, error)
@@ -654,7 +793,8 @@ func (*Storage) Stats(ctx context.Context, req StatsRequest) ([]CommandStat, err
 ### `Tools`
 
 `Tools` reports the tools by the time they have taken altogether, the
-most expensive first.
+most expensive first. They roll up the command keys, so a tool counts
+the same commands the command report does.
 
 ```go
 func (*Storage) Tools(ctx context.Context, req StatsRequest) ([]ToolStat, error)

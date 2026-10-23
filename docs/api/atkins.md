@@ -12,7 +12,9 @@ import (
 <summary><code>type CommandReport</code></summary>
 
 ```go
-// CommandReport is one normalized command and what it has cost.
+// CommandReport is one command key and what it has cost. The key is
+// the command's words up to its first flag, at most three and no path
+// or value, as storage.Key names it: `docker compose up`, `go test`.
 type CommandReport struct {
 	Command   string     `json:"command" yaml:"command"`
 	Tool      string     `json:"tool" yaml:"tool"`
@@ -22,6 +24,22 @@ type CommandReport struct {
 	MaxMs     int64      `json:"max_ms" yaml:"max_ms"`
 	Failures  int64      `json:"failures" yaml:"failures"`
 	LastRunAt *time.Time `json:"last_run_at,omitempty" yaml:"last_run_at,omitempty"`
+}
+```
+
+</details>
+
+<details>
+<summary><code>type CommandUsageReport</code></summary>
+
+```go
+// CommandUsageReport is one command key on one day.
+type CommandUsageReport struct {
+	Date    string `json:"date" yaml:"date"`
+	Command string `json:"command" yaml:"command"`
+	Tool    string `json:"tool" yaml:"tool"`
+	Runs    int64  `json:"runs" yaml:"runs"`
+	TotalMs int64  `json:"total_ms" yaml:"total_ms"`
 }
 ```
 
@@ -54,6 +72,10 @@ type Options struct {
 	Stats bool
 	Local bool
 
+	// Limit keeps the newest commands --stats --all lists. Zero keeps
+	// every command of the window.
+	Limit int
+
 	// Config opens the configuration menu for .atkins/config.yml.
 	Config bool
 
@@ -63,6 +85,34 @@ type Options struct {
 	Write  bool
 
 	FlagSet *cli.FlagSet
+}
+```
+
+</details>
+
+<details>
+<summary><code>type SampleReport</code></summary>
+
+```go
+// SampleReport is one recorded command. It names the command by its
+// key and never by its command line, because a command line carries
+// its values and a value can be a token.
+type SampleReport struct {
+	// At is when the command started, in UTC to the millisecond.
+	At string `json:"at" yaml:"at"`
+
+	Command    string `json:"command" yaml:"command"`
+	Tool       string `json:"tool" yaml:"tool"`
+	Kind       string `json:"kind" yaml:"kind"`
+	DurationMs int64  `json:"duration_ms" yaml:"duration_ms"`
+	ExitCode   int64  `json:"exit_code" yaml:"exit_code"`
+	Failed     bool   `json:"failed" yaml:"failed"`
+
+	// Pipeline and Job are what ran it, and InvocationID the atkins
+	// process, shared by every command of one run.
+	Pipeline     string `json:"pipeline,omitempty" yaml:"pipeline,omitempty"`
+	Job          string `json:"job,omitempty" yaml:"job,omitempty"`
+	InvocationID string `json:"invocation_id" yaml:"invocation_id"`
 }
 ```
 
@@ -125,7 +175,7 @@ type StatsScope struct {
 	Runs    int64 `json:"runs" yaml:"runs"`
 	TotalMs int64 `json:"total_ms" yaml:"total_ms"`
 
-	// Commands are the normalized commands by total time.
+	// Commands are the command keys by total time.
 	Commands []CommandReport `json:"commands" yaml:"commands"`
 
 	// Tools are the tools by total time, each a roll-up of its
@@ -136,6 +186,15 @@ type StatsScope struct {
 	// of tool use over time is drawn from. A day a tool did not run has
 	// no row.
 	Usage []UsageReport `json:"usage" yaml:"usage"`
+
+	// CommandUsage is a row per day per command key, oldest first: the
+	// series a chart stacks by command.
+	CommandUsage []CommandUsageReport `json:"command_usage" yaml:"command_usage"`
+
+	// Samples is every command of the window one by one, oldest first,
+	// with --all: the rows a reader buckets finer than a day.
+	// --limit keeps the newest.
+	Samples []SampleReport `json:"samples,omitempty" yaml:"samples,omitempty"`
 }
 ```
 

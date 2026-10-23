@@ -27,6 +27,10 @@ type Options struct {
 	Stats bool
 	Local bool
 
+	// Limit keeps the newest commands --stats --all lists. Zero keeps
+	// every command of the window.
+	Limit int
+
 	// Config opens the configuration menu for .atkins/config.yml.
 	Config bool
 
@@ -45,7 +49,7 @@ func NewOptions() *Options {
 func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.StringVarP(&o.File, "file", "f", "", "Path to pipeline file (auto-discovers .atkins.yml)")
 	fs.BoolVarP(&o.List, "list", "l", false, "List pipeline jobs and dependencies")
-	fs.BoolVar(&o.All, "all", false, "With --list, include the skills whose when: block does not match")
+	fs.BoolVar(&o.All, "all", false, "With --list, include the skills whose when: block does not match; with --stats, list every recorded command")
 	fs.BoolVar(&o.Lint, "lint", false, "Lint pipeline for errors")
 	fs.BoolVar(&o.Debug, "debug", false, "Print debug data")
 	fs.StringVar(&o.LogFile, "log", "", "Log file path for command execution")
@@ -56,6 +60,7 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.BoolVarP(&o.YAML, "yaml", "y", false, "Output in YAML format")
 	fs.BoolVarP(&o.Version, "version", "v", false, "Print version and build information")
 	fs.BoolVar(&o.Stats, "stats", false, "Report the recorded commands by the time they have taken, and run nothing")
+	fs.IntVar(&o.Limit, "limit", 0, "With --stats --all, list only the newest N commands (0 lists them all)")
 	fs.BoolVar(&o.Local, "local", false, "Run without recording anything in the event database")
 	fs.BoolVar(&o.Config, "config", false, "Open the configuration menu for .atkins/config.yml")
 	fs.BoolVar(&o.Vendor, "vendor", false, "List the skills this repository uses from $HOME/.atkins/skills")
