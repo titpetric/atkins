@@ -72,12 +72,45 @@ type Options struct {
 <summary><code>type StatsReport</code></summary>
 
 ```go
-// StatsReport is everything `atkins --stats` has to say, and everything
-// a reader of `--stats --json` needs to draw it again elsewhere.
+// StatsReport is everything `atkins --stats` has to say: what this
+// checkout has been running, and what every checkout on the machine has
+// been running between them.
+//
+// A run records to both databases, so the two answer different
+// questions of the same rows. The project's says what standing here
+// costs; the workspace's says where a week went across every project
+// atkins ran in.
+type StatsReport struct {
+	// Project is the checkout's own history, absent for a directory
+	// that belongs to no project and for one whose database is the
+	// workspace's.
+	Project *StatsScope `json:"project,omitempty" yaml:"project,omitempty"`
+
+	// Workspace is every project's history together.
+	Workspace *StatsScope `json:"workspace,omitempty" yaml:"workspace,omitempty"`
+}
+```
+
+</details>
+
+<details>
+<summary><code>type StatsScope</code></summary>
+
+```go
+// StatsScope is one database's history, and everything a reader of
+// `--stats --json` needs to draw it again elsewhere.
 //
 // Durations are milliseconds throughout, as the database keeps them,
 // because a reader charting them wants a number and not a word.
-type StatsReport struct {
+type StatsScope struct {
+	// Name is what the scope is called, project or workspace.
+	Name string `json:"name" yaml:"name"`
+
+	// Repository is the checkout the rows came from, as its remote
+	// names it; empty for the workspace, which holds many, and for a
+	// project with no remote.
+	Repository string `json:"repository,omitempty" yaml:"repository,omitempty"`
+
 	// Database is the file the rows came from, and Days the window
 	// they cover, which is the retention window.
 	Database string `json:"database" yaml:"database"`
@@ -164,6 +197,7 @@ var (
 - `func Pipeline () *cli.Command`
 - `func WriteHelp (w io.Writer) error`
 - `func (*Options) Bind (fs *cli.FlagSet)`
+- `func (*StatsReport) Scopes () []*StatsScope`
 
 ### `HelpFlags`
 
@@ -207,6 +241,14 @@ repository that answers.
 
 ```go
 func WriteHelp(w io.Writer) error
+```
+
+### `Scopes`
+
+`Scopes` returns the scopes to report, the project first.
+
+```go
+func (*StatsReport) Scopes() []*StatsScope
 ```
 
 ### `NewOptions`

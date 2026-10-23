@@ -100,6 +100,29 @@ type CommandStat struct {
 </details>
 
 <details>
+<summary><code>type Paths</code></summary>
+
+```go
+// Paths are the event databases a run records to.
+// A run records to both, because the two answer different questions.
+// The project's says what this checkout costs, which is the question
+// standing in it; the workspace's says what every checkout on the
+// machine costs between them, which is the one a week of work asks and
+// no single project can answer.
+type Paths struct {
+	// Project is the atkins.db of the nearest .atkins folder, empty
+	// when the directory belongs to no project, and empty when the
+	// nearest folder is the workspace's own.
+	Project string
+
+	// Workspace is $HOME/.atkins/atkins.db, which every run records to.
+	Workspace string
+}
+```
+
+</details>
+
+<details>
 <summary><code>type PurgeRequest</code></summary>
 
 ```go
@@ -179,6 +202,22 @@ type Recorder struct {
 	storage *Storage
 	dir     string
 }
+```
+
+</details>
+
+<details>
+<summary><code>type Recorders</code></summary>
+
+```go
+// Recorders writes a run to each of them: the project's database and
+// the workspace's.
+//
+// The write is the same rows twice rather than a summary in one and the
+// detail in the other, because a report of the workspace asks the same
+// questions of it that a report of a project asks: which command, how
+// often, how long.
+type Recorders []*Recorder
 ```
 
 </details>
@@ -390,10 +429,12 @@ var ErrNotFound = errors.New("not found")
 
 ## Function symbols
 
-- `func Discover (dir string) (string, error)`
-- `func NewStorage () (*Storage, error)`
+- `func Discover (dir string) (Paths, error)`
+- `func NewRecorders (stores []*Storage) Recorders`
+- `func NewStorage () ([]*Storage, error)`
 - `func NewStorageAt (ctx context.Context, path string) (*Storage, error)`
 - `func Normalize (command string) string`
+- `func OpenAll (ctx context.Context, paths ...string) ([]*Storage, error)`
 - `func (*Recorder) Record (ctx context.Context, log *eventlog.Log) error`
 - `func (*Storage) Close () error`
 - `func (*Storage) Commands (ctx context.Context, filter CommandFilter) ([]model.Command, error)`
@@ -407,32 +448,50 @@ var ErrNotFound = errors.New("not found")
 - `func (*Storage) Stats (ctx context.Context, req StatsRequest) ([]CommandStat, error)`
 - `func (*Storage) Tools (ctx context.Context, req StatsRequest) ([]ToolStat, error)`
 - `func (*Storage) Usage (ctx context.Context, req UsageRequest) ([]UsageEntry, error)`
+- `func (Paths) List () []string`
+- `func (Recorders) Record (ctx context.Context, log *eventlog.Log) error`
 
 ### `Discover`
 
-`Discover` returns the path of the event database for a directory.
+`Discover` returns the event databases for a directory.
 
-It walks up from dir looking for a .atkins folder and answers with the
-atkins.db inside the first one it finds, so every run in a checkout
-records to the same file. A directory that belongs to no project
-records to $HOME/.atkins/atkins.db, which Discover creates.
+It walks up from dir looking for a .atkins folder and takes the
+atkins.db inside the first one it finds as the project's, so every
+run in a checkout records to the same file. $HOME/.atkins/atkins.db
+is the workspace's, and Discover creates the folder.
+
+A directory inside $HOME with no .atkins folder of its own finds the
+workspace's, which is then the only database: a run records to it
+once rather than twice.
 
 ```go
-func Discover(dir string) (string, error)
+func Discover(dir string) (Paths, error)
+```
+
+### `NewRecorders`
+
+`NewRecorders` returns a recorder per storage, for a run to record to
+each.
+
+```go
+func NewRecorders(stores []*Storage) Recorders
 ```
 
 ### `NewStorage`
 
-`NewStorage` opens the event database for the working directory,
-applies the migrations and returns it.
+`NewStorage` opens the event databases for the working directory,
+applies the migrations and returns them, the project's first.
 
-The path comes from Discover: the nearest .atkins folder, or
-$HOME/.atkins. Opening is the only thing that can fail here, and a
-caller that cannot record is expected to carry on without recording,
-so the error says which file it was.
+The paths come from Discover. Opening is the only thing that can fail
+here, and a caller that cannot record is expected to carry on without
+recording, so the error says which file it was.
+
+A database that opens is kept even when the other does not: half a
+history is worth more than none, and the report says which file each
+half came from.
 
 ```go
-func NewStorage() (*Storage, error)
+func NewStorage() ([]*Storage, error)
 ```
 
 ### `NewStorageAt`
@@ -472,6 +531,16 @@ digits goes with them, so `head -20` and `head -50` count together.
 
 ```go
 func Normalize(command string) string
+```
+
+### `OpenAll`
+
+`OpenAll` opens each path and applies the migrations, in order. It
+returns what opened and the first error, so a caller may use the one
+that worked and report the one that did not.
+
+```go
+func OpenAll(ctx context.Context, paths ...string) ([]*Storage, error)
 ```
 
 ### `Record`
@@ -598,4 +667,25 @@ is the series a usage chart draws.
 
 ```go
 func (*Storage) Usage(ctx context.Context, req UsageRequest) ([]UsageEntry, error)
+```
+
+### `List`
+
+`List` returns the databases to open, the project's first. A run
+records to each, and a report reads each.
+
+```go
+func (Paths) List() []string
+```
+
+### `Record`
+
+`Record` stores a finished run in each database.
+
+Every one is written even when an earlier fails, and the first error
+is the one reported: a database that is locked does not cost the run
+its row in the other.
+
+```go
+func (Recorders) Record(ctx context.Context, log *eventlog.Log) error
 ```

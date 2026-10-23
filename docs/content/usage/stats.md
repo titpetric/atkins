@@ -10,10 +10,10 @@ Every run records what it did in a SQLite file, and `atkins --stats` reports the
 atkins --stats
 ```
 
-The report has three parts: a column per day of the window, the tools ranked by the time they have taken, and the commands in a table.
+The report is a section per database, the project first, each with three parts: a column per day of the window, the tools ranked by the time they have taken, and the commands in a table. A project section names the repository its runs came from.
 
 ```
-/w/atkins/.atkins/atkins.db
+project · github.com/titpetric/atkins  /w/atkins/.atkins/atkins.db
 31 days, 2026-09-22 to 2026-10-23, 30.5s across 624 runs
 
 2.9s │    ▂     ▂▃     █▄▄         ▂
@@ -36,6 +36,10 @@ echo   ▁                         113ms  130 runs
 | sleep | 78 | 28.7s | 367ms | 574ms | 5 | just now |
 | go version | 130 | 686ms | 5ms | 11ms | 4 | just now |
 | go env GOOS | 78 | 379ms | 4ms | 11ms | 1 | just now |
+
+workspace  /home/you/.atkins/atkins.db
+31 days, 2026-09-22 to 2026-10-23, 4m12s across 3104 runs
+...
 ```
 
 The daily chart answers whether a month was steady or was one Tuesday. Each column is a day, every bar is measured from zero, and the only value labelled is the busiest day: a number on every column would hide the shape. A day nothing ran is an empty column rather than a missing one.
@@ -52,43 +56,76 @@ On a terminal all three are drawn in colour, and the table gets the borders `atk
 atkins --stats --json
 ```
 
+A scope per database, keyed by what it is. The `project` key is absent for a directory with no project of its own.
+
 ```json
 {
-  "database": "/w/atkins/.atkins/atkins.db",
-  "days": 31,
-  "from": "2026-09-22",
-  "to": "2026-10-23",
-  "runs": 624,
-  "total_ms": 30512,
-  "commands": [
-    {
-      "command": "sleep",
-      "tool": "sleep",
-      "runs": 78,
-      "total_ms": 28700,
-      "average_ms": 367,
-      "max_ms": 574,
-      "failures": 5,
-      "last_run_at": "2026-10-23T13:41:02.118Z"
-    }
-  ],
-  "tools": [
-    { "tool": "sleep", "commands": 1, "runs": 78, "total_ms": 28700, "failures": 5 }
-  ],
-  "usage": [
-    { "date": "2026-09-25", "tool": "sleep", "runs": 3, "total_ms": 1104 },
-    { "date": "2026-09-25", "tool": "go", "runs": 10, "total_ms": 52 }
-  ]
+  "project": {
+    "name": "project",
+    "repository": "github.com/titpetric/atkins",
+    "database": "/w/atkins/.atkins/atkins.db",
+    "days": 31,
+    "from": "2026-09-22",
+    "to": "2026-10-23",
+    "runs": 624,
+    "total_ms": 30512,
+    "commands": [
+      {
+        "command": "sleep",
+        "tool": "sleep",
+        "runs": 78,
+        "total_ms": 28700,
+        "average_ms": 367,
+        "max_ms": 574,
+        "failures": 5,
+        "last_run_at": "2026-10-23T13:41:02.118Z"
+      }
+    ],
+    "tools": [
+      { "tool": "sleep", "commands": 1, "runs": 78, "total_ms": 28700, "failures": 5 }
+    ],
+    "usage": [
+      { "date": "2026-09-25", "tool": "sleep", "runs": 3, "total_ms": 1104 },
+      { "date": "2026-09-25", "tool": "go", "runs": 10, "total_ms": 52 }
+    ]
+  },
+  "workspace": {
+    "name": "workspace",
+    "database": "/home/you/.atkins/atkins.db",
+    "days": 31,
+    "from": "2026-09-22",
+    "to": "2026-10-23",
+    "runs": 3104,
+    "total_ms": 252018,
+    "commands": [],
+    "tools": [],
+    "usage": []
+  }
 }
 ```
 
+The two scopes carry the same fields, so a reader draws either with one piece of code. `repository` is on the project alone: a workspace holds many and names none.
+
 A day a tool did not run has no row in `usage`, so a reader drawing a series fills the gaps with zero.
 
-## Where the file is
+## Two databases
 
-Atkins walks up from the working directory looking for a `.atkins` folder and records into the `atkins.db` inside the first one it finds, so every run in a checkout counts towards the same history whichever subdirectory it started in. A directory that belongs to no project records into `$HOME/.atkins/atkins.db`, so a stray command in `/tmp` is counted too.
+A run records twice, because the two answer different questions.
 
-Point it somewhere else with `storage.database` in `.atkins/config.yml`, or with `ATKINS_DB`.
+The **project's** is the `atkins.db` of the nearest `.atkins` folder, found by walking up from the directory atkins runs in. Every run in a checkout counts towards the same history, whichever subdirectory it started in, and it says what standing in that checkout costs.
+
+The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across all of them. A command run in a directory that belongs to no project lands here alone, so a stray `sleep` in `/tmp` is counted too.
+
+A directory inside `$HOME` whose nearest `.atkins` folder is the workspace's own has no project of its own. There is one database, and the run records to it once.
+
+| Where atkins runs                    | Project                       | Workspace                 |
+|--------------------------------------|-------------------------------|---------------------------|
+| `/w/atkins`, holding `.atkins/`      | `/w/atkins/.atkins/atkins.db` | `$HOME/.atkins/atkins.db` |
+| `/w/atkins/runner`, under it         | `/w/atkins/.atkins/atkins.db` | `$HOME/.atkins/atkins.db` |
+| `/tmp/scratch`, under no project     | none                          | `$HOME/.atkins/atkins.db` |
+| `$HOME/notes`, under `$HOME/.atkins` | none                          | `$HOME/.atkins/atkins.db` |
+
+`storage.database` in `.atkins/config.yml`, or `ATKINS_DB`, names one database and makes it the only one. Naming a file says where the history goes, and a second copy elsewhere would make that less true.
 
 ## What a run records
 
@@ -134,11 +171,11 @@ A database that cannot be opened is not a reason to refuse to run. Atkins says s
 
 A recorded run is kept for 31 days, measured from when it started, on every machine. It is not a setting: 31 days is long enough to hold a month of work and compare this week against the last, and short enough that a checkout nobody prunes does not grow without bound.
 
-The run that records is the run that prunes. Each write drops whatever has fallen outside the window, in bounded batches, so the window holds with no daemon to hold it and no job to remember to run.
+The run that records is the run that prunes, in both databases. Each write drops whatever has fallen outside the window, in bounded batches, so the window holds with no daemon to hold it and no job to remember to run. The workspace database takes every project's rows, and 31 days is what keeps it a month of history rather than a year of it.
 
 ## Other readers
 
-The file is an ordinary SQLite database and nothing else holds it open between runs, so anything may read it. [task-ui](https://github.com/titpetric/task-ui) reads it to chart tool usage over time.
+Both files are ordinary SQLite databases and nothing holds them open between runs, so anything may read them. [task-ui](https://github.com/titpetric/task-ui) reads them to chart tool usage over time, a project's beside the workspace's.
 
 ## See Also
 
