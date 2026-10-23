@@ -31,7 +31,7 @@ func TestRecorders(t *testing.T) {
 	assert.NoError(t, storage.NewRecorders(stores).Record(ctx, sleepRun(time.Now())))
 
 	// The same tree and the same commands in each, so a report of
-	// either asks the same questions of it.
+	// either answers the same questions.
 	for _, store := range stores {
 		runs, err := store.Runs(ctx, storage.RunFilter{})
 		assert.NoError(t, err)
@@ -68,4 +68,44 @@ func TestRecordersWithoutADatabase(t *testing.T) {
 	var none storage.Recorders
 	assert.NoError(t, none.Record(context.Background(), sleepRun(time.Now())))
 	assert.True(t, errors.Is(nil, nil))
+}
+
+func TestRecorderWritesThroughTheRunnerInterface(t *testing.T) {
+	ctx := context.Background()
+	store := newStorage(t)
+
+	// The run starts at time.Now: a recorder prunes as it records, and
+	// the fixture's own date falls outside the window.
+	assert.NoError(t, store.Recorder().Record(ctx, sleepRun(time.Now())))
+
+	runs, err := store.Runs(ctx, storage.RunFilter{Kind: "job"})
+	assert.NoError(t, err)
+	assert.Len(t, runs, 1)
+
+	// The recorder records the directory it comes from, the directory
+	// of the run.
+	pipelines, err := store.Runs(ctx, storage.RunFilter{Kind: "pipeline"})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, pipelines[0].Dir)
+}
+
+func TestRecorderAppliesRetention(t *testing.T) {
+	ctx := context.Background()
+	store := newStorage(t)
+	recorder := store.Recorder()
+
+	// The window is 31 days and nobody chooses it. A run older than that
+	// falls outside it at once, and the write that records it removes it:
+	// the window holds with no daemon to hold it.
+	assert.NoError(t, recorder.Record(ctx, sleepRun(time.Now().Add(-storage.Retention-time.Hour))))
+	assert.NoError(t, recorder.Record(ctx, sleepRun(time.Now().Add(-storage.Retention+time.Hour))))
+	assert.NoError(t, recorder.Record(ctx, sleepRun(time.Now())))
+
+	runs, err := store.Runs(ctx, storage.RunFilter{Kind: "job"})
+	assert.NoError(t, err)
+	assert.Len(t, runs, 2)
+
+	commands, err := store.Commands(ctx, storage.CommandFilter{})
+	assert.NoError(t, err)
+	assert.Len(t, commands, 4)
 }

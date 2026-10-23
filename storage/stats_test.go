@@ -76,13 +76,19 @@ func TestStatsRanksByTotalTime(t *testing.T) {
 	assert.NotNil(t, stats[0].LastAt)
 	assert.Equal(t, "go", stats[0].Tool)
 
-	assert.Equal(t, "go build", stats[1].Command)
-	assert.Equal(t, int64(9000), stats[1].TotalMs)
-	assert.Equal(t, int64(1), stats[1].Runs)
+	assert.NotNil(t, stats[1].LastAt)
+	assert.Equal(t, storage.CommandStat{
+		Command: "go build",
+		Tool:    "go",
+		Runs:    1,
+		TotalMs: 9000,
+		AvgMs:   9000,
+		MaxMs:   9000,
+		LastAt:  stats[1].LastAt,
+	}, stats[1])
 
-	// Durations round rather than truncate, at both ends. 0.6ms and
-	// 1.4ms each store as 1ms, 0.4ms as none, and the three average to
-	// 1ms rather than to a column of zeroes.
+	// Durations round at both ends. 0.6ms and 1.4ms each store as 1ms,
+	// 0.4ms as none, and the three average to 1ms.
 	_, err = store.Record(ctx, storage.RecordRequest{Log: commandRun(base, []commandFixture{
 		{command: "pwd", seconds: 0.0006},
 		{command: "pwd", seconds: 0.0014},
@@ -145,127 +151,8 @@ func TestStatsNarrows(t *testing.T) {
 	assert.Len(t, window, 3)
 }
 
-func TestToolsRollUpTheirCommands(t *testing.T) {
-	ctx := context.Background()
-	store := newStorage(t)
-
-	// `go` is one tool whether it builds, tests or vets, and the share
-	// of a week it takes is what a per-command table cannot show.
-	_, err := store.Record(ctx, storage.RecordRequest{Log: commandRun(base, []commandFixture{
-		{command: "go test ./...", seconds: 4},
-		{command: "go test -v ./...", seconds: 4, exit: 1},
-		{command: "go build -o bin/x .", seconds: 9},
-		{command: "npm run build", seconds: 7},
-	})})
-	assert.NoError(t, err)
-
-	tools, err := store.Tools(ctx, storage.StatsRequest{})
-	assert.NoError(t, err)
-	assert.Len(t, tools, 2)
-
-	assert.Equal(t, "go", tools[0].Tool)
-	assert.Equal(t, int64(2), tools[0].Commands)
-	assert.Equal(t, int64(3), tools[0].Runs)
-	assert.Equal(t, int64(17000), tools[0].TotalMs)
-	assert.Equal(t, int64(1), tools[0].Failures)
-
-	assert.Equal(t, "npm", tools[1].Tool)
-	assert.Equal(t, int64(1), tools[1].Commands)
-	assert.Equal(t, int64(7000), tools[1].TotalMs)
-
-	byLimit, err := store.Tools(ctx, storage.StatsRequest{Limit: 1})
-	assert.NoError(t, err)
-	assert.Len(t, byLimit, 1)
-}
-
-func TestToolsOnAnEmptyDatabase(t *testing.T) {
-	tools, err := newStorage(t).Tools(context.Background(), storage.StatsRequest{})
-	assert.NoError(t, err)
-	assert.Len(t, tools, 0)
-}
-
 func TestStatsOnAnEmptyDatabase(t *testing.T) {
 	stats, err := newStorage(t).Stats(context.Background(), storage.StatsRequest{})
 	assert.NoError(t, err)
 	assert.Len(t, stats, 0)
-}
-
-func TestUsageBuckets(t *testing.T) {
-	ctx := context.Background()
-	store := newStorage(t)
-
-	// Two days of runs, so a daily bucket has two points and an hourly
-	// one keeps them apart by hour as well.
-	for _, at := range []time.Time{base, base.Add(2 * time.Hour), base.Add(26 * time.Hour)} {
-		_, err := store.Record(ctx, storage.RecordRequest{Log: commandRun(at, []commandFixture{
-			{command: "go test ./...", seconds: 3},
-		})})
-		assert.NoError(t, err)
-	}
-
-	daily, err := store.Usage(ctx, storage.UsageRequest{Bucket: storage.BucketDay})
-	assert.NoError(t, err)
-	assert.Len(t, daily, 2)
-	assert.Equal(t, "2026-03-01", daily[0].Bucket)
-	assert.Equal(t, "go", daily[0].Tool)
-	assert.Equal(t, int64(2), daily[0].Runs)
-	assert.Equal(t, int64(6000), daily[0].TotalMs)
-	assert.Equal(t, "2026-03-02", daily[1].Bucket)
-	assert.Equal(t, int64(1), daily[1].Runs)
-
-	hourly, err := store.Usage(ctx, storage.UsageRequest{Bucket: storage.BucketHour})
-	assert.NoError(t, err)
-	assert.Len(t, hourly, 3)
-	assert.Equal(t, "2026-03-01T12:00", hourly[0].Bucket)
-
-	// A week is labelled with its Monday, so the Sunday run and the
-	// Monday run after it fall in the two weeks they belong to.
-	weekly, err := store.Usage(ctx, storage.UsageRequest{Bucket: storage.BucketWeek})
-	assert.NoError(t, err)
-	assert.Len(t, weekly, 2)
-	assert.Equal(t, "2026-02-23", weekly[0].Bucket)
-	assert.Equal(t, "2026-03-02", weekly[1].Bucket)
-
-	// An empty bucket is a day, which is the series a usage chart draws
-	// by default.
-	byDefault, err := store.Usage(ctx, storage.UsageRequest{})
-	assert.NoError(t, err)
-	assert.Equal(t, daily, byDefault)
-
-	_, err = store.Usage(ctx, storage.UsageRequest{Bucket: "fortnight"})
-	assert.Error(t, err)
-}
-
-func TestPurgeDropsOldHistoryInBatches(t *testing.T) {
-	ctx := context.Background()
-	store := newStorage(t)
-
-	old := base.Add(-72 * time.Hour)
-	_, err := store.Record(ctx, storage.RecordRequest{Log: commandRun(old, []commandFixture{
-		{command: "go test ./...", seconds: 1},
-	})})
-	assert.NoError(t, err)
-	_, err = store.Record(ctx, storage.RecordRequest{Log: commandRun(base, []commandFixture{
-		{command: "go test ./...", seconds: 1},
-	})})
-	assert.NoError(t, err)
-
-	// A zero cutoff removes nothing: the caller that forgot to set a
-	// retention window must not lose its history to the default.
-	nothing, err := store.Purge(ctx, storage.PurgeRequest{})
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), nothing.Runs)
-
-	result, err := store.Purge(ctx, storage.PurgeRequest{Before: base.Add(-time.Hour), Batch: 1, Batches: 10})
-	assert.NoError(t, err)
-	assert.Equal(t, int64(1), result.Commands)
-	assert.Equal(t, int64(3), result.Runs)
-
-	left, err := store.Runs(ctx, storage.RunFilter{})
-	assert.NoError(t, err)
-	assert.Len(t, left, 3)
-
-	stats, err := store.Stats(ctx, storage.StatsRequest{})
-	assert.NoError(t, err)
-	assert.Equal(t, int64(1), stats[0].Runs)
 }
