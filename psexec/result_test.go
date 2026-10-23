@@ -127,3 +127,17 @@ func TestResult_Duration(t *testing.T) {
 		assert.Greater(t, result.Duration(), time.Duration(0))
 	})
 }
+
+// TestEmptyResult checks the result of a no-op command reads as a success
+// with nothing captured.
+func TestEmptyResult(t *testing.T) {
+	t.Parallel()
+
+	result := psexec.EmptyResult{}
+	assert.Equal(t, "", result.Output())
+	assert.Equal(t, "", result.ErrorOutput())
+	assert.Equal(t, 0, result.ExitCode())
+	assert.NoError(t, result.Err())
+	assert.True(t, result.Success())
+	assert.Equal(t, time.Duration(0), result.Duration())
+}

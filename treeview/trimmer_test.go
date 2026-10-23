@@ -214,3 +214,28 @@ func stripResetCode(s string) string {
 	result = strings.ReplaceAll(result, resetCode, "")
 	return result
 }
+
+// TestTrimmer_RefreshViewport checks a refresh replaces a width set by hand
+// with the detected one, 80 columns without a terminal.
+func TestTrimmer_RefreshViewport(t *testing.T) {
+	t.Parallel()
+
+	trimmer := NewTrimmer()
+	detected := trimmer.GetViewportWidth()
+	trimmer.SetViewportWidth(7)
+	trimmer.RefreshViewport()
+	assert.Equal(t, detected, trimmer.GetViewportWidth())
+	assert.Positive(t, trimmer.GetViewportWidth())
+}
+
+// TestCompactArgList checks a list that overflows keeps the leading
+// arguments that fit and counts the rest.
+func TestCompactArgList(t *testing.T) {
+	t.Parallel()
+
+	args := []string{"go", "test", "./a", "./b", "./c"}
+	assert.Equal(t, "go test", CompactArgList(args[:2], 1))
+	assert.Equal(t, "go test ./a ./b ./c", CompactArgList(args, 80))
+	assert.Equal(t, "go test <...3 more>", CompactArgList(args, 20))
+	assert.Equal(t, "go <...4 more>", CompactArgList(args, 5))
+}

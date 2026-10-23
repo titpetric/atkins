@@ -243,3 +243,13 @@ func TestCompareByDepthThenName(t *testing.T) {
 		})
 	}
 }
+
+// TestSortByOrder checks the set comes back in the listed order, and a job
+// the list leaves out goes last.
+func TestSortByOrder(t *testing.T) {
+	t.Parallel()
+
+	set := map[string]bool{"test": true, "build": true, "lint": true}
+	got := SortByOrder(set, []string{"build", "missing", "test"})
+	assert.Equal(t, []string{"build", "test", "lint"}, got)
+}

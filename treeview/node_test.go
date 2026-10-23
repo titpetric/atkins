@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/titpetric/atkins/colors"
 	"github.com/titpetric/atkins/internal/assert"
 )
 
@@ -342,4 +343,91 @@ func TestNodeNestedStructure(t *testing.T) {
 			assert.Equal(t, 2, len(child.GetChildren()))
 		}
 	})
+}
+
+// TestNewPendingStepNode checks a pending step keeps its deferred and
+// summarize flags.
+func TestNewPendingStepNode(t *testing.T) {
+	t.Parallel()
+
+	node := NewPendingStepNode("run: echo", true, true)
+	assert.Equal(t, StatusPending, node.GetStatus())
+	assert.True(t, node.Deferred)
+	assert.True(t, node.IsSummarize())
+}
+
+// TestNewCmdNode checks a command node starts pending with a trimmed name.
+func TestNewCmdNode(t *testing.T) {
+	t.Parallel()
+
+	node := NewCmdNode("echo a\necho b")
+	assert.Equal(t, StatusPending, node.GetStatus())
+	assert.Equal(t, "echo a [... and 1 more]", node.GetName())
+}
+
+// TestNode_Label checks the label carries the name whatever the status.
+func TestNode_Label(t *testing.T) {
+	t.Parallel()
+
+	node := NewNode("build")
+	for _, status := range []Status{StatusPending, StatusRunning, StatusPassed, StatusFailed, StatusSkipped, StatusConditional} {
+		node.SetStatus(status)
+		assert.Equal(t, "build", colors.StripANSI(node.Label()))
+	}
+}
+
+// TestNode_Setters checks each setter sets what its getter reads, and that
+// the nil-safe setters accept a nil node.
+func TestNode_Setters(t *testing.T) {
+	t.Parallel()
+
+	node := NewNode("a")
+	node.SetName("b\nc")
+	assert.Equal(t, "b [... and 1 more]", node.GetName())
+	node.SetID("job.steps.0")
+	assert.Equal(t, "job.steps.0", node.ID)
+	node.SetSummarize(true)
+	assert.True(t, node.IsSummarize())
+	node.SetQuiet(true)
+	assert.True(t, node.IsQuiet())
+
+	var none *Node
+	none.SetName("x")
+	none.SetSummarize(true)
+	none.SetID("x")
+	none.SetQuiet(true)
+}
+
+// TestNode_GetOutput checks the output comes back as a copy, and nil
+// without output.
+func TestNode_GetOutput(t *testing.T) {
+	t.Parallel()
+
+	node := NewNode("a")
+	assert.Nil(t, node.GetOutput())
+	node.SetOutput([]string{"one"})
+	output := node.GetOutput()
+	output[0] = "changed"
+	assert.Equal(t, []string{"one"}, node.GetOutput())
+}
+
+// TestNode_GetDependencies checks the dependencies come back as a copy.
+func TestNode_GetDependencies(t *testing.T) {
+	t.Parallel()
+
+	node := NewNode("a")
+	node.Dependencies = []string{"build"}
+	deps := node.GetDependencies()
+	deps[0] = "changed"
+	assert.Equal(t, []string{"build"}, node.GetDependencies())
+}
+
+// TestNode_ClearChildren checks the node drops its children.
+func TestNode_ClearChildren(t *testing.T) {
+	t.Parallel()
+
+	node := NewNode("a")
+	node.AddChildren(NewNode("b"), NewNode("c"))
+	node.ClearChildren()
+	assert.False(t, node.HasChildren())
 }

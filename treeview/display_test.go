@@ -1,7 +1,6 @@
 package treeview_test
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 
@@ -97,77 +96,6 @@ func TestDisplayRenderStatic(t *testing.T) {
 	})
 }
 
-func TestSlidingWindowCalculation(t *testing.T) {
-	t.Run("sliding window uses termHeight-1", func(t *testing.T) {
-		// The sliding window should use termHeight-1 to leave room for cursor
-		termHeight := 24
-		maxLines := termHeight - 1 // 23
-
-		testCases := []struct {
-			totalLines    int
-			expectedLines int
-		}{
-			{10, 10},  // fits, no trimming
-			{20, 20},  // fits, no trimming
-			{23, 23},  // exactly maxLines
-			{24, 23},  // exceeds, trim to 23
-			{50, 23},  // exceeds, trim to 23
-			{100, 23}, // exceeds, trim to 23
-		}
-
-		for _, tc := range testCases {
-			lines := tc.totalLines
-			if lines > maxLines {
-				lines = maxLines
-			}
-			assert.Equal(t, tc.expectedLines, lines,
-				"totalLines=%d should result in %d lines", tc.totalLines, tc.expectedLines)
-		}
-	})
-}
-
-func TestDisplayRollbackCalculation(t *testing.T) {
-	t.Run("rollback should match lines printed when output grows past terminal height", func(t *testing.T) {
-		// Simulate the scenario where output exceeds terminal height
-		// and check the rollback count
-
-		termHeight := 30
-
-		// Scenario: output grows from 25 -> 28 -> 32 -> 35 lines
-		renders := []struct {
-			totalLines    int
-			expectedClamp int
-		}{
-			{25, 25}, // fits in terminal
-			{28, 28}, // still fits
-			{32, 30}, // exceeds, clamped to 30
-			{35, 30}, // exceeds, clamped to 30
-		}
-
-		lastLineCount := 0
-		for i, r := range renders {
-			lineCount := r.totalLines
-			if termHeight > 0 && lineCount > termHeight {
-				lineCount = termHeight
-			}
-
-			assert.Equal(t, r.expectedClamp, lineCount,
-				"render %d: expected clamped line count", i)
-
-			// The problematic case: we print MORE lines than we rolled back
-			// This happens when output grows and we haven't reached terminal height yet
-			if lastLineCount > 0 && lineCount > lastLineCount {
-				// This is where scroll artifacts can occur
-				// The fix ensures we handle this transition properly
-				t.Logf("render %d: rollback=%d, print=%d (diff=%d)",
-					i, lastLineCount, lineCount, lineCount-lastLineCount)
-			}
-
-			lastLineCount = lineCount
-		}
-	})
-}
-
 func TestDisplayNoDuplicateLines(t *testing.T) {
 	t.Run("rendered output should not contain duplicate lines", func(t *testing.T) {
 		renderer := treeview.NewRenderer()
@@ -256,76 +184,6 @@ func TestDisplayLineCountAccuracy(t *testing.T) {
 	})
 }
 
-func TestDisplayCursorMovementSequences(t *testing.T) {
-	t.Run("cursor up value should not exceed terminal height", func(t *testing.T) {
-		// This test validates that the ANSI cursor-up sequence value
-		// stays within bounds to prevent over-rollback
-
-		// Simulate repeated renders and track the cursor-up values
-		termHeight := 30
-		renders := []int{10, 20, 30, 40, 50, 60}
-
-		lastLineCount := 0
-		for _, totalLines := range renders {
-			lineCount := totalLines
-			if termHeight > 0 && lineCount > termHeight {
-				lineCount = termHeight
-			}
-
-			rollback := lastLineCount
-
-			// The rollback never exceeds the line count of the last render
-			// AND should never exceed terminal height
-			assert.LessOrEqual(t, rollback, termHeight,
-				"rollback should not exceed terminal height")
-			assert.LessOrEqual(t, rollback, lastLineCount,
-				"rollback should not exceed previous line count")
-
-			lastLineCount = lineCount
-		}
-	})
-}
-
-func TestDisplayScrollTransition(t *testing.T) {
-	t.Run("transition from non-scroll to scroll state", func(t *testing.T) {
-		// This tests the specific transition that can cause duplicate lines:
-		// when output grows from under terminal height to over terminal height
-
-		termHeight := 30
-
-		// Build up renders
-		var lastLineCount int
-		transitionIssues := []string{}
-
-		for total := 20; total <= 40; total += 2 {
-			lineCount := total
-			if termHeight > 0 && lineCount > termHeight {
-				lineCount = termHeight
-			}
-
-			if lastLineCount > 0 {
-				if lineCount > lastLineCount {
-					// We're printing more than we're rolling back
-					// This is the problematic transition
-					diff := lineCount - lastLineCount
-					if diff > 0 && lineCount == termHeight {
-						// First time hitting terminal height while growing
-						transitionIssues = append(transitionIssues,
-							"scroll transition: rollback=%d, print=%d")
-					}
-				}
-			}
-
-			lastLineCount = lineCount
-		}
-
-		// The test documents the issue - when we first hit terminal height
-		// while output is still growing, there's a mismatch between
-		// rollback and print counts
-		t.Logf("documented %d scroll transitions", len(transitionIssues))
-	})
-}
-
 func TestRenderANSISequences(t *testing.T) {
 	t.Run("render output uses correct ANSI structure", func(t *testing.T) {
 		renderer := treeview.NewRenderer()
@@ -344,84 +202,6 @@ func TestRenderANSISequences(t *testing.T) {
 		// Output should not have consecutive newlines (empty lines)
 		assert.NotContains(t, output, "\n\n",
 			"output should not have empty lines")
-	})
-}
-
-// simulateRender simulates what Display.Render does and returns debug details
-func simulateRender(termHeight, totalLines, lastLineCount int) (lineCount, rollback int, wouldScroll bool) {
-	lineCount = totalLines
-	if termHeight > 0 && lineCount > termHeight {
-		lineCount = termHeight
-	}
-
-	rollback = lastLineCount
-
-	// Scroll would occur if we print more lines than we roll back
-	// and the resulting cursor position would exceed terminal height
-	wouldScroll = lineCount > lastLineCount && lineCount == termHeight
-
-	return
-}
-
-func TestSimulateRender(t *testing.T) {
-	t.Run("simulate render behavior", func(t *testing.T) {
-		tests := []struct {
-			name          string
-			termHeight    int
-			totalLines    int
-			lastLineCount int
-			wantLineCount int
-			wantRollback  int
-			wantScroll    bool
-		}{
-			{
-				name:          "normal render under terminal height",
-				termHeight:    30,
-				totalLines:    20,
-				lastLineCount: 15,
-				wantLineCount: 20,
-				wantRollback:  15,
-				wantScroll:    false,
-			},
-			{
-				name:          "render exactly at terminal height",
-				termHeight:    30,
-				totalLines:    30,
-				lastLineCount: 25,
-				wantLineCount: 30,
-				wantRollback:  25,
-				wantScroll:    true, // first time hitting terminal height
-			},
-			{
-				name:          "render exceeding terminal height",
-				termHeight:    30,
-				totalLines:    40,
-				lastLineCount: 30,
-				wantLineCount: 30,
-				wantRollback:  30,
-				wantScroll:    false, // already at terminal height
-			},
-			{
-				name:          "render shrinking from terminal height",
-				termHeight:    30,
-				totalLines:    25,
-				lastLineCount: 30,
-				wantLineCount: 25,
-				wantRollback:  30,
-				wantScroll:    false,
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				lineCount, rollback, wouldScroll := simulateRender(
-					tt.termHeight, tt.totalLines, tt.lastLineCount)
-
-				assert.Equal(t, tt.wantLineCount, lineCount, "lineCount")
-				assert.Equal(t, tt.wantRollback, rollback, "rollback")
-				assert.Equal(t, tt.wantScroll, wouldScroll, "wouldScroll")
-			})
-		}
 	})
 }
 
@@ -506,51 +286,6 @@ func isBorderLine(line string) bool {
 		}
 	}
 	return false
-}
-
-func TestCountOutputLines(t *testing.T) {
-	tests := []struct {
-		name   string
-		output string
-		want   int
-	}{
-		{"empty string", "", 0},
-		{"single line no newline", "hello", 0},
-		{"single line with newline", "hello\n", 1},
-		{"two lines", "hello\nworld\n", 2},
-		{"three lines", "a\nb\nc\n", 3},
-		{"with ansi codes", "\033[1mhello\033[0m\n\033[32mworld\033[0m\n", 2},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			count := 0
-			for _, ch := range tt.output {
-				if ch == '\n' {
-					count++
-				}
-			}
-			assert.Equal(t, tt.want, count, "newline count")
-		})
-	}
-}
-
-func TestCursorUpSequenceExtraction(t *testing.T) {
-	t.Run("extract cursor up values from ANSI sequences", func(t *testing.T) {
-		// Pattern for cursor up: \033[<N>A
-		pattern := regexp.MustCompile(`\x1b\[(\d+)A`)
-
-		// Simulated terminal output with cursor movements
-		sample := "\x1b[25A\x1b[Jline1\nline2\n\x1b[2A\x1b[Jnew1\nnew2\n"
-
-		matches := pattern.FindAllStringSubmatch(sample, -1)
-		assert.Len(t, matches, 2, "should find 2 cursor-up sequences")
-
-		if len(matches) >= 2 {
-			assert.Equal(t, "25", matches[0][1], "first cursor-up value")
-			assert.Equal(t, "2", matches[1][1], "second cursor-up value")
-		}
-	})
 }
 
 // Benchmark to measure rendering performance

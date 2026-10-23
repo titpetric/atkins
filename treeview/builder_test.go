@@ -416,3 +416,12 @@ func mockResolveDeps(jobs map[string]*model.Job, startingJob string) ([]string, 
 	}
 	return result, nil
 }
+
+// TestBuilder_Root checks the builder roots its tree at the pipeline name.
+func TestBuilder_Root(t *testing.T) {
+	t.Parallel()
+
+	root := NewBuilder("pipeline").Root()
+	assert.Equal(t, "pipeline", root.GetName())
+	assert.Equal(t, StatusPending, root.GetStatus())
+}
