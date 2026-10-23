@@ -88,7 +88,7 @@ func Pipeline() *cli.Command {
 func runPipeline(ctx context.Context, opts *Options, args []string) error {
 	// Handle version flag early, before any file discovery
 	if opts.Version {
-		return version.Run(version.Info{
+		return version.Run(os.Stdout, version.Info{
 			Version:    Version,
 			Commit:     Commit,
 			CommitTime: CommitTime,
