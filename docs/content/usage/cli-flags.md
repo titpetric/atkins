@@ -41,12 +41,16 @@ Running jobs is the default, so `atkins build` and `atkins run build` are the sa
 
 ### Statistics
 
-| Flag      | Description                                                                           |
-|-----------|---------------------------------------------------------------------------------------|
-| `--stats` | Report the recorded commands by the time they have taken, and run nothing             |
-| `--all`   | With `--stats`, list every recorded command of the window, oldest first               |
-| `--limit` | With `--stats --all`, list only the newest N commands; 0, the default, lists them all |
-| `--local` | Run without recording anything in the event database                                  |
+| Flag           | Description                                                                                                                 |
+|----------------|-----------------------------------------------------------------------------------------------------------------------------|
+| `--stats`      | Report the recorded commands by the time they have taken, and run nothing                                                   |
+| `--all`        | With `--stats`, list every recorded command of the window, oldest first                                                     |
+| `--limit`      | With `--stats --all`, list only the newest N commands; 0, the default, lists them all                                       |
+| `--local`      | Run without recording anything in the event database                                                                        |
+| `--prune`      | Remove the runs and commands older than `--older-than` from the database `--db` names, give the space back, and run nothing |
+| `--db`         | With `--prune`, the database file to prune                                                                                  |
+| `--older-than` | With `--prune`, the age past which a run goes: days, such as `31d`, or a duration, such as `720h`; `31d` unless given       |
+| `--dry-run`    | With `--prune`, count what would go and change nothing                                                                      |
 
 ### Project setup
 
@@ -295,9 +299,10 @@ Every run records a row per job and per command in the event database, so the ti
 atkins --stats        # the commands by the time they have taken
 atkins --stats --all  # and every recorded command, one by one
 atkins --local build  # run this one without recording it
+atkins --prune --db ~/.atkins/atkins.db --older-than 90d --dry-run  # what a prune of one database would drop
 ```
 
-See [Statistics](./stats) for the database, the normalised command and the retention window.
+See [Statistics](./stats) for the database, the normalised command, the retention window and `--prune`.
 
 ## Combining Flags
 

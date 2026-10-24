@@ -104,6 +104,14 @@ type Options struct {
 	Vendor bool
 	Write  bool
 
+	// Prune removes the runs and commands older than OlderThan from the
+	// database DB names and gives the space back, and runs no pipeline;
+	// DryRun counts them and changes nothing.
+	Prune     bool
+	DB        string
+	OlderThan string
+	DryRun    bool
+
 	FlagSet *cli.FlagSet
 }
 ```
@@ -273,6 +281,7 @@ var (
 - `func HelpFlags () *pflag.FlagSet`
 - `func HelpRequested (flags *pflag.FlagSet, args []string) bool`
 - `func NewOptions () *Options`
+- `func ParseAge (text string) (time.Duration, error)`
 - `func Pipeline () *cli.Command`
 - `func WriteHelp (w io.Writer) error`
 - `func (*Options) Bind (fs *cli.FlagSet)`
@@ -299,6 +308,16 @@ pflag parses by. Everything after a bare -- is an argument.
 
 ```go
 func HelpRequested(flags *pflag.FlagSet, args []string) bool
+```
+
+### `ParseAge`
+
+`ParseAge` reads an age as --older-than takes it: a number of days,
+`31d`, or a duration Go reads, `720h`. Empty, zero and a negative
+age are errors: a prune of everything is no default.
+
+```go
+func ParseAge(text string) (time.Duration, error)
 ```
 
 ### `Pipeline`

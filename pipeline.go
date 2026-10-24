@@ -115,6 +115,8 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 		return runVendor(cwd, opts)
 	case opts.Stats:
 		return runStats(ctx, settings, opts)
+	case opts.Prune:
+		return runPrune(ctx, os.Stdout, opts)
 	}
 
 	// Check mutually exclusive flags
