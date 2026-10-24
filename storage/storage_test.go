@@ -103,6 +103,19 @@ func TestDiscoverFallsBackToHome(t *testing.T) {
 	assert.DirExists(t, filepath.Join(home, ".atkins"))
 }
 
+// ATKINS_DB moves the workspace's database out of $HOME, as a runner
+// that sets HOME per checkout does to keep one history.
+func TestDiscoverEnvDB(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	file := filepath.Join(t.TempDir(), "stats", "atkins.db")
+	t.Setenv(storage.EnvDB, file)
+
+	paths, err := storage.Discover(t.TempDir())
+	assert.NoError(t, err)
+	assert.Equal(t, file, paths.Workspace)
+	assert.DirExists(t, filepath.Dir(file))
+}
+
 // A directory inside $HOME whose nearest .atkins is the workspace's own
 // has no project: the run records once and not twice to one file.
 func TestDiscoverInsideHome(t *testing.T) {

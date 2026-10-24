@@ -164,7 +164,7 @@ A run records twice, because the two answer different questions.
 
 The **project's** is the `atkins.db` of the nearest `.atkins` folder, found by walking up from the directory atkins runs in. Every run in a checkout counts towards the same history, whichever subdirectory it started in, and it says what standing in that checkout costs.
 
-The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across them. A command run in a directory that belongs to no project lands here alone, so a stray `sleep` in `/tmp` counts too.
+The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across them. A command run in a directory that belongs to no project lands here alone, so a stray `sleep` in `/tmp` counts too. `ATKINS_DB` names another file for it: a runner that gives each checkout its own `$HOME` sets it to keep one history across them.
 
 A directory inside `$HOME` whose nearest `.atkins` folder is the workspace's own has no project of its own. There is one database, and the run records to it once.
 

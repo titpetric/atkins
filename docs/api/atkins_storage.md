@@ -18,9 +18,9 @@ my day goes to go test".
 
 A run records to two databases, and Discover names them. The
 project's, atkins.db in the nearest .atkins folder, says what this
-checkout costs. The workspace's, $HOME/.atkins/atkins.db, says what
-every checkout on the machine costs between them, a question no single
-project can answer. A directory with no .atkins folder of its own, or
+checkout costs. The workspace's, $HOME/.atkins/atkins.db or the file
+ATKINS_DB names, says what every checkout on the machine costs between
+them, a question no single project can answer. A directory with no .atkins folder of its own, or
 one whose nearest folder belongs to the workspace, records to the
 workspace's alone, once.
 
@@ -220,7 +220,8 @@ type Paths struct {
 	// nearest folder is the workspace's own.
 	Project string
 
-	// Workspace is $HOME/.atkins/atkins.db, which every run records to.
+	// Workspace is $HOME/.atkins/atkins.db, or the file $ATKINS_DB
+	// names, which every run records to.
 	Workspace string
 }
 ```
@@ -614,9 +615,9 @@ var ErrNotFound = errors.New("not found")
 
 ### `Discover`
 
-`Discover` returns the databases for dir and creates $HOME/.atkins. The
-project's is the atkins.db of the nearest .atkins folder above dir,
-and empty when that folder is the workspace's own or there is none.
+`Discover` returns the databases for dir and creates the workspace's
+folder. The project's is the atkins.db of the nearest .atkins folder
+above dir, and empty when that is the workspace's file or there is none.
 
 ```go
 func Discover(dir string) (Paths, error)

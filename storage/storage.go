@@ -187,25 +187,32 @@ type Paths struct {
 	// nearest folder is the workspace's own.
 	Project string
 
-	// Workspace is $HOME/.atkins/atkins.db, which every run records to.
+	// Workspace is $HOME/.atkins/atkins.db, or the file $ATKINS_DB
+	// names, which every run records to.
 	Workspace string
 }
 
-// Discover returns the databases for dir and creates $HOME/.atkins. The
-// project's is the atkins.db of the nearest .atkins folder above dir,
-// and empty when that folder is the workspace's own or there is none.
+// EnvDB names the workspace's database in place of $HOME/.atkins/atkins.db.
+const EnvDB = "ATKINS_DB"
+
+// Discover returns the databases for dir and creates the workspace's
+// folder. The project's is the atkins.db of the nearest .atkins folder
+// above dir, and empty when that is the workspace's file or there is none.
 func Discover(dir string) (Paths, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
+	file := os.Getenv(EnvDB)
+	if file == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return Paths{}, err
+		}
+		file = filepath.Join(home, ".atkins", "atkins.db")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 		return Paths{}, err
 	}
 
-	workspace := filepath.Join(home, ".atkins")
-	if err := os.MkdirAll(workspace, 0o755); err != nil {
-		return Paths{}, err
-	}
-
-	paths := Paths{Workspace: filepath.Join(workspace, "atkins.db")}
+	paths := Paths{Workspace: file}
 
 	for at := filepath.Clean(dir); ; {
 		candidate := filepath.Join(at, ".atkins")
