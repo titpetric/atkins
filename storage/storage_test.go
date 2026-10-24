@@ -81,7 +81,7 @@ func TestDiscoverWalksUpToTheProject(t *testing.T) {
 	// Every run in a checkout records to the same file, whichever
 	// directory inside it the run happens in, and to the workspace's
 	// beside it.
-	paths, err := storage.Discover(nested)
+	paths, err := storage.Discover(nested, "")
 	assert.NoError(t, err)
 	assert.Equal(t, filepath.Join(root, ".atkins", "atkins.db"), paths.Project)
 	assert.Equal(t, filepath.Join(home, ".atkins", "atkins.db"), paths.Workspace)
@@ -95,7 +95,7 @@ func TestDiscoverFallsBackToHome(t *testing.T) {
 	// A directory that belongs to no project still records, so the
 	// report counts a stray command in /tmp too. With no project, the
 	// workspace's is the one database and the run records once.
-	paths, err := storage.Discover(t.TempDir())
+	paths, err := storage.Discover(t.TempDir(), "")
 	assert.NoError(t, err)
 	assert.Equal(t, "", paths.Project)
 	assert.Equal(t, filepath.Join(home, ".atkins", "atkins.db"), paths.Workspace)
@@ -110,10 +110,49 @@ func TestDiscoverEnvDB(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "stats", "atkins.db")
 	t.Setenv(storage.EnvDB, file)
 
-	paths, err := storage.Discover(t.TempDir())
+	paths, err := storage.Discover(t.TempDir(), "")
 	assert.NoError(t, err)
 	assert.Equal(t, file, paths.Workspace)
+	assert.Empty(t, paths.Mirrors)
 	assert.DirExists(t, filepath.Dir(file))
+}
+
+// A list names the workspace's database first and its mirrors after it;
+// the project's is the checkout's own, as without the list. A report
+// reads the first two, a run writes all three.
+func TestDiscoverList(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(storage.EnvDB, "")
+
+	root := t.TempDir()
+	assert.NoError(t, os.MkdirAll(filepath.Join(root, ".atkins"), 0o755))
+	workspace := filepath.Join(t.TempDir(), "ws", "atkins.db")
+	mirror := filepath.Join(t.TempDir(), "instance", "atkins.db")
+
+	paths, err := storage.Discover(root, workspace+string(os.PathListSeparator)+mirror)
+	assert.NoError(t, err)
+	assert.Equal(t, filepath.Join(root, ".atkins", "atkins.db"), paths.Project)
+	assert.Equal(t, workspace, paths.Workspace)
+	assert.Equal(t, []string{mirror}, paths.Mirrors)
+	assert.Equal(t, []string{paths.Project, workspace}, paths.List())
+	assert.Equal(t, []string{paths.Project, workspace, mirror}, paths.All())
+	assert.DirExists(t, filepath.Dir(mirror))
+
+	// The setting wins over the environment, which holds the same list
+	// through the configuration anyway.
+	t.Setenv(storage.EnvDB, filepath.Join(t.TempDir(), "env.db"))
+	paths, err = storage.Discover(root, workspace)
+	assert.NoError(t, err)
+	assert.Equal(t, workspace, paths.Workspace)
+}
+
+// Databases drops the empty entries a shell leaves in a list.
+func TestDatabases(t *testing.T) {
+	t.Parallel()
+
+	assert.Nil(t, storage.Databases(""))
+	assert.Nil(t, storage.Databases(string(os.PathListSeparator)))
+	assert.Equal(t, []string{"/a.db", "/b.db"}, storage.Databases("/a.db"+string(os.PathListSeparator)+" /b.db "+string(os.PathListSeparator)))
 }
 
 // A directory inside $HOME whose nearest .atkins is the workspace's own
@@ -126,7 +165,7 @@ func TestDiscoverInsideHome(t *testing.T) {
 	nested := filepath.Join(home, "scratch")
 	assert.NoError(t, os.MkdirAll(nested, 0o755))
 
-	paths, err := storage.Discover(nested)
+	paths, err := storage.Discover(nested, "")
 	assert.NoError(t, err)
 	assert.Equal(t, "", paths.Project)
 	assert.Equal(t, filepath.Join(home, ".atkins", "atkins.db"), paths.Workspace)
@@ -201,13 +240,47 @@ func TestNewStorage(t *testing.T) {
 	assert.NoError(t, os.MkdirAll(filepath.Join(project, ".atkins"), 0o755))
 	t.Chdir(project)
 
-	stores, err := storage.NewStorage()
+	stores, err := storage.NewStorage("")
 	assert.NoError(t, err)
 	assert.Len(t, stores, 2)
 	assert.Equal(t, filepath.Join(project, ".atkins", "atkins.db"), stores[0].Path())
 	assert.Equal(t, filepath.Join(home, ".atkins", "atkins.db"), stores[1].Path())
 	for _, store := range stores {
 		assert.NoError(t, store.Close())
+	}
+}
+
+// A run records to the project's, the workspace's and every mirror, the
+// same rows in each, so the mirror's reader sees what the workspace's does.
+func TestNewStorageWithMirror(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(storage.EnvDB, "")
+
+	project := t.TempDir()
+	assert.NoError(t, os.MkdirAll(filepath.Join(project, ".atkins"), 0o755))
+	t.Chdir(project)
+
+	workspace := filepath.Join(t.TempDir(), "ws", "atkins.db")
+	mirror := filepath.Join(t.TempDir(), "instance", "atkins.db")
+
+	stores, err := storage.NewStorage(workspace + string(os.PathListSeparator) + mirror)
+	assert.NoError(t, err)
+	assert.Len(t, stores, 3)
+	assert.Equal(t, filepath.Join(project, ".atkins", "atkins.db"), stores[0].Path())
+	assert.Equal(t, workspace, stores[1].Path())
+	assert.Equal(t, mirror, stores[2].Path())
+	t.Cleanup(func() {
+		for _, store := range stores {
+			assert.NoError(t, store.Close())
+		}
+	})
+
+	ctx := context.Background()
+	assert.NoError(t, storage.NewRecorders(stores).Record(ctx, sleepRun(time.Now())))
+	for _, store := range stores {
+		runs, err := store.Runs(ctx, storage.RunFilter{Kind: "job"})
+		assert.NoError(t, err)
+		assert.Len(t, runs, 1, store.Path())
 	}
 }
 

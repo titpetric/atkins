@@ -28,10 +28,11 @@ type Config struct {
 // StorageConfig is the event database: the file every run appends a row
 // per job and per command to, and what it holds.
 type StorageConfig struct {
-	// Database is the file to record into. Empty discovers it: the
-	// atkins.db of the nearest .atkins folder, and
-	// $HOME/.atkins/atkins.db for a directory that belongs to no
-	// project.
+	// Database is the workspace's file in place of
+	// $HOME/.atkins/atkins.db, or a list of files in the form of PATH:
+	// the first is the workspace's, the rest are mirrors that take the
+	// same rows and are never read. The project's, the atkins.db of the
+	// nearest .atkins folder, records as well either way.
 	Database string `yaml:"database" json:"database" env:"ATKINS_DB"`
 
 	// Record writes a row per job and per command of every run. Off

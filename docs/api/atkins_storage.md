@@ -18,11 +18,19 @@ my day goes to go test".
 
 A run records to two databases, and Discover names them. The
 project's, atkins.db in the nearest .atkins folder, says what this
-checkout costs. The workspace's, $HOME/.atkins/atkins.db or the file
-ATKINS_DB names, says what every checkout on the machine costs between
-them, a question no single project can answer. A directory with no .atkins folder of its own, or
-one whose nearest folder belongs to the workspace, records to the
-workspace's alone, once.
+checkout costs. The workspace's, $HOME/.atkins/atkins.db or the first
+file the database setting or ATKINS_DB names, says what every checkout
+on the machine costs between them, a question no single project can
+answer. A directory with no .atkins folder of its own, or one whose
+nearest folder belongs to the workspace, records to the workspace's
+alone, once.
+
+The other files the setting names, a list in the form of PATH, are
+mirrors of the workspace's: each takes every row the workspace's takes,
+and no report reads one. A runner that sets a $HOME per checkout
+names the checkout's file first and its own second, and keeps one
+history across them. atkins reports a mirror that fails to open once,
+and the rest take the row.
 
 Both files hold the same rows, so a report of the workspace answers
 the questions of a project report: which command, how often, how
@@ -213,16 +221,22 @@ type CommandUsage struct {
 
 ```go
 // Paths are the event databases a run records to, the project's and the
-// workspace's. The package documentation says why a run writes both.
+// workspace's, and the mirrors that take the same rows. The package
+// documentation says why a run writes both.
 type Paths struct {
 	// Project is the atkins.db of the nearest .atkins folder, empty
 	// when the directory belongs to no project, and empty when the
 	// nearest folder is the workspace's own.
 	Project string
 
-	// Workspace is $HOME/.atkins/atkins.db, or the file $ATKINS_DB
-	// names, which every run records to.
+	// Workspace is $HOME/.atkins/atkins.db, or the first file the
+	// database setting or $ATKINS_DB names, which every run records to.
 	Workspace string
+
+	// Mirrors are the other files the setting names, written as the
+	// workspace's is and never read: a runner keeps one for itself
+	// beside the one of the checkout.
+	Mirrors []string
 }
 ```
 
@@ -527,6 +541,18 @@ type UsageRequest struct {
 ## Consts
 
 <details>
+<summary><code>const EnvDB</code></summary>
+
+```go
+// EnvDB names the workspace's database in place of $HOME/.atkins/atkins.db,
+// a list in the form of PATH: the first file is the workspace's, the rest
+// are its mirrors.
+const EnvDB = "ATKINS_DB"
+```
+
+</details>
+
+<details>
 <summary><code>const Memory</code></summary>
 
 ```go
@@ -587,11 +613,12 @@ var ErrNotFound = errors.New("not found")
 
 ## Function symbols
 
-- `func Discover (dir string) (Paths, error)`
+- `func Databases (list string) []string`
+- `func Discover (dir string, list string) (Paths, error)`
 - `func IsBuiltin (tool string) bool`
 - `func Key (command string) string`
 - `func NewRecorders (stores []*Storage) Recorders`
-- `func NewStorage () ([]*Storage, error)`
+- `func NewStorage (list string) ([]*Storage, error)`
 - `func NewStorageAt (ctx context.Context, path string) (*Storage, error)`
 - `func Normalize (command string) string`
 - `func OpenAll (ctx context.Context, paths ...string) ([]*Storage, error)`
@@ -610,17 +637,28 @@ var ErrNotFound = errors.New("not found")
 - `func (*Storage) Stats (ctx context.Context, req StatsRequest) ([]CommandStat, error)`
 - `func (*Storage) Tools (ctx context.Context, req StatsRequest) ([]ToolStat, error)`
 - `func (*Storage) Usage (ctx context.Context, req UsageRequest) ([]UsageEntry, error)`
+- `func (Paths) All () []string`
 - `func (Paths) List () []string`
 - `func (Recorders) Record (ctx context.Context, log *eventlog.Log) error`
 
-### `Discover`
+### `Databases`
 
-`Discover` returns the databases for dir and creates the workspace's
-folder. The project's is the atkins.db of the nearest .atkins folder
-above dir, and empty when that is the workspace's file or there is none.
+`Databases` splits a database setting into its files, dropping empty entries.
 
 ```go
-func Discover(dir string) (Paths, error)
+func Databases(list string) []string
+```
+
+### `Discover`
+
+`Discover` returns the databases for dir and creates their folders. The
+workspace's and its mirrors are the files list names, $ATKINS_DB when
+list is empty, and $HOME/.atkins/atkins.db when neither names one. The
+project's is the atkins.db of the nearest .atkins folder above dir, and
+empty when that is one of the files named or there is none.
+
+```go
+func Discover(dir string, list string) (Paths, error)
 ```
 
 ### `IsBuiltin`
@@ -651,16 +689,17 @@ func NewRecorders(stores []*Storage) Recorders
 
 ### `NewStorage`
 
-`NewStorage` returns the databases Discover names for the working
-directory, as OpenAll opens them.
+`NewStorage` returns the databases a run in the working directory records
+to, as Discover names them for list and OpenAll opens them.
 
 ```go
-func NewStorage() ([]*Storage, error)
+func NewStorage(list string) ([]*Storage, error)
 ```
 
 ### `NewStorageAt`
 
-`NewStorageAt` returns the migrated database at path, Memory for a private one.
+`NewStorageAt` returns the migrated database at path, Memory for a private
+one, creating the directory of a file.
 
 ```go
 func NewStorageAt(ctx context.Context, path string) (*Storage, error)
@@ -815,9 +854,18 @@ tool per bucket, oldest first: the series of a usage chart.
 func (*Storage) Usage(ctx context.Context, req UsageRequest) ([]UsageEntry, error)
 ```
 
+### `All`
+
+`All` returns the databases a run writes: List and the mirrors after it.
+
+```go
+func (Paths) All() []string
+```
+
 ### `List`
 
-`List` returns the workspace alone without a project, else both, the project's first.
+`List` returns the databases a report reads: the workspace's alone
+without a project, else both, the project's first.
 
 ```go
 func (Paths) List() []string

@@ -3,10 +3,13 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/titpetric/atkins/config"
 	"github.com/titpetric/atkins/eventlog"
 	"github.com/titpetric/atkins/internal/assert"
 	"github.com/titpetric/atkins/storage"
@@ -333,4 +336,38 @@ func TestCollectStatsSamples(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, report.Workspace.Samples, 1)
 	assert.Equal(t, "go vet", report.Workspace.Samples[0].Command)
+}
+
+// A mirror in the database setting takes the rows of a run and nothing
+// else: the report opens the project's and the workspace's alone, so its
+// output stays the same with or without one.
+func TestOpenStatsStorageSkipsMirrors(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv(storage.EnvDB, "")
+
+	project := t.TempDir()
+	assert.NoError(t, os.MkdirAll(filepath.Join(project, ".atkins"), 0o755))
+	t.Chdir(project)
+
+	workspace := filepath.Join(t.TempDir(), "ws", "atkins.db")
+	mirror := filepath.Join(t.TempDir(), "instance", "atkins.db")
+	settings, err := config.Default()
+	assert.NoError(t, err)
+	settings.Storage.Database = workspace + string(os.PathListSeparator) + mirror
+
+	recorders, err := openStorage(settings)
+	assert.NoError(t, err)
+	assert.Len(t, recorders, 3)
+	for _, store := range recorders {
+		assert.NoError(t, store.Close())
+	}
+
+	readers, err := openStatsStorage(settings)
+	assert.NoError(t, err)
+	assert.Len(t, readers, 2)
+	assert.Equal(t, filepath.Join(project, ".atkins", "atkins.db"), readers[0].Path())
+	assert.Equal(t, workspace, readers[1].Path())
+	for _, store := range readers {
+		assert.NoError(t, store.Close())
+	}
 }

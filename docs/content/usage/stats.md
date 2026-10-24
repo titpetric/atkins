@@ -164,7 +164,7 @@ A run records twice, because the two answer different questions.
 
 The **project's** is the `atkins.db` of the nearest `.atkins` folder, found by walking up from the directory atkins runs in. Every run in a checkout counts towards the same history, whichever subdirectory it started in, and it says what standing in that checkout costs.
 
-The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across them. A command run in a directory that belongs to no project lands here alone, so a stray `sleep` in `/tmp` counts too. `ATKINS_DB` names another file for it: a runner that gives each checkout its own `$HOME` sets it to keep one history across them.
+The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across them. A command run in a directory that belongs to no project lands here alone, so a stray `sleep` in `/tmp` counts too. `ATKINS_DB` names another file for it.
 
 A directory inside `$HOME` whose nearest `.atkins` folder is the workspace's own has no project of its own. There is one database, and the run records to it once.
 
@@ -175,7 +175,7 @@ A directory inside `$HOME` whose nearest `.atkins` folder is the workspace's own
 | `/tmp/scratch`, under no project     | none                          | `$HOME/.atkins/atkins.db` |
 | `$HOME/notes`, under `$HOME/.atkins` | none                          | `$HOME/.atkins/atkins.db` |
 
-`storage.database` in `.atkins/config.yml`, or `ATKINS_DB`, names one database and makes it the only one. Naming a file says where the history goes, and a second copy elsewhere would make that less true.
+`storage.database` in `.atkins/config.yml`, or `ATKINS_DB`, names the workspace's database in place of `$HOME/.atkins/atkins.db`; the project's records as before. A list of files in the form of `PATH` (`a.db:b.db`) names the workspace's first and **mirrors** after it: each mirror takes every row the workspace's takes, and no report reads one. A runner that sets a `$HOME` per checkout names the checkout's file first and its own second, and keeps one history across them. atkins reports a mirror that fails to open once, and the other databases still take the row.
 
 ## What a run records
 

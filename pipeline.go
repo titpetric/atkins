@@ -475,7 +475,7 @@ func openRecorder(settings *config.Config, opts *Options) recording {
 	if err != nil {
 		what := "not recording this run"
 		if len(stores) > 0 {
-			what = "recording this run to " + stores[0].Path() + " alone"
+			what = "recording this run to " + storagePaths(stores) + " alone"
 		}
 		fmt.Fprintf(os.Stderr, "%s %s: %v\n", colors.BrightYellow("INFO:"), what, err)
 	}
@@ -486,11 +486,18 @@ func openRecorder(settings *config.Config, opts *Options) recording {
 	return recording{stores: stores, recorder: storage.NewRecorders(stores)}
 }
 
-// openStorage opens the one database the configuration names.
-// It opens the project's and the workspace's, as storage.Discover finds them, otherwise.
+// openStorage opens the databases a run records to: the project's, the
+// workspace's, which the configuration names in place of $HOME's, and the
+// mirrors named after it.
 func openStorage(settings *config.Config) ([]*storage.Storage, error) {
-	if path := settings.Storage.Database; path != "" {
-		return storage.OpenAll(context.Background(), path)
+	return storage.NewStorage(settings.Storage.Database)
+}
+
+// storagePaths names the open databases, comma separated.
+func storagePaths(stores []*storage.Storage) string {
+	names := make([]string, 0, len(stores))
+	for _, store := range stores {
+		names = append(names, store.Path())
 	}
-	return storage.NewStorage()
+	return strings.Join(names, ", ")
 }

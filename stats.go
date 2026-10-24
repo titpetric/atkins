@@ -31,7 +31,7 @@ const chartHeight = 6
 
 // runStats prints the stats report, or writes it as JSON or YAML.
 func runStats(ctx context.Context, settings *config.Config, opts *Options) error {
-	stores, err := openStorage(settings)
+	stores, err := openStatsStorage(settings)
 	if err != nil && len(stores) == 0 {
 		return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 	}
@@ -55,6 +55,22 @@ func runStats(ctx context.Context, settings *config.Config, opts *Options) error
 
 	writeStats(os.Stdout, report, isTerminal(os.Stdout))
 	return nil
+}
+
+// openStatsStorage opens the databases a report reads, the project's and
+// the workspace's; a mirror holds the workspace's rows again and is not read.
+func openStatsStorage(settings *config.Config) ([]*storage.Storage, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	paths, err := storage.Discover(dir, settings.Storage.Database)
+	if err != nil {
+		return nil, err
+	}
+
+	return storage.OpenAll(context.Background(), paths.List()...)
 }
 
 // StatsReport is everything `atkins --stats` has to say: what this

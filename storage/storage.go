@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,20 +40,20 @@ type Storage struct {
 	path string
 }
 
-// NewStorage returns the databases Discover names for the working
-// directory, as OpenAll opens them.
-func NewStorage() ([]*Storage, error) {
+// NewStorage returns the databases a run in the working directory records
+// to, as Discover names them for list and OpenAll opens them.
+func NewStorage(list string) ([]*Storage, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
 
-	paths, err := Discover(dir)
+	paths, err := Discover(dir, list)
 	if err != nil {
 		return nil, err
 	}
 
-	return OpenAll(context.Background(), paths.List()...)
+	return OpenAll(context.Background(), paths.All()...)
 }
 
 // OpenAll returns the databases that opened, in order, and the first error.
@@ -74,8 +75,15 @@ func OpenAll(ctx context.Context, paths ...string) ([]*Storage, error) {
 	return stores, failed
 }
 
-// NewStorageAt returns the migrated database at path, Memory for a private one.
+// NewStorageAt returns the migrated database at path, Memory for a private
+// one, creating the directory of a file.
 func NewStorageAt(ctx context.Context, path string) (*Storage, error) {
+	if path != "" && path != Memory {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+	}
+
 	db, err := open(path)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
@@ -180,44 +188,70 @@ func (s *Storage) RawStartedAt(ctx context.Context) (string, error) {
 }
 
 // Paths are the event databases a run records to, the project's and the
-// workspace's. The package documentation says why a run writes both.
+// workspace's, and the mirrors that take the same rows. The package
+// documentation says why a run writes both.
 type Paths struct {
 	// Project is the atkins.db of the nearest .atkins folder, empty
 	// when the directory belongs to no project, and empty when the
 	// nearest folder is the workspace's own.
 	Project string
 
-	// Workspace is $HOME/.atkins/atkins.db, or the file $ATKINS_DB
-	// names, which every run records to.
+	// Workspace is $HOME/.atkins/atkins.db, or the first file the
+	// database setting or $ATKINS_DB names, which every run records to.
 	Workspace string
+
+	// Mirrors are the other files the setting names, written as the
+	// workspace's is and never read: a runner keeps one for itself
+	// beside the one of the checkout.
+	Mirrors []string
 }
 
-// EnvDB names the workspace's database in place of $HOME/.atkins/atkins.db.
+// EnvDB names the workspace's database in place of $HOME/.atkins/atkins.db,
+// a list in the form of PATH: the first file is the workspace's, the rest
+// are its mirrors.
 const EnvDB = "ATKINS_DB"
 
-// Discover returns the databases for dir and creates the workspace's
-// folder. The project's is the atkins.db of the nearest .atkins folder
-// above dir, and empty when that is the workspace's file or there is none.
-func Discover(dir string) (Paths, error) {
-	file := os.Getenv(EnvDB)
-	if file == "" {
+// Databases splits a database setting into its files, dropping empty entries.
+func Databases(list string) []string {
+	var files []string
+	for _, file := range filepath.SplitList(list) {
+		if file = strings.TrimSpace(file); file != "" {
+			files = append(files, file)
+		}
+	}
+	return files
+}
+
+// Discover returns the databases for dir and creates their folders. The
+// workspace's and its mirrors are the files list names, $ATKINS_DB when
+// list is empty, and $HOME/.atkins/atkins.db when neither names one. The
+// project's is the atkins.db of the nearest .atkins folder above dir, and
+// empty when that is one of the files named or there is none.
+func Discover(dir string, list string) (Paths, error) {
+	files := Databases(list)
+	if len(files) == 0 {
+		files = Databases(os.Getenv(EnvDB))
+	}
+	if len(files) == 0 {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return Paths{}, err
 		}
-		file = filepath.Join(home, ".atkins", "atkins.db")
+		files = []string{filepath.Join(home, ".atkins", "atkins.db")}
 	}
 
-	if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
-		return Paths{}, err
+	for _, file := range files {
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			return Paths{}, err
+		}
 	}
 
-	paths := Paths{Workspace: file}
+	paths := Paths{Workspace: files[0], Mirrors: files[1:]}
 
 	for at := filepath.Clean(dir); ; {
 		candidate := filepath.Join(at, ".atkins")
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			if project := filepath.Join(candidate, "atkins.db"); project != paths.Workspace {
+			if project := filepath.Join(candidate, "atkins.db"); !slices.Contains(files, project) {
 				paths.Project = project
 			}
 			return paths, nil
@@ -231,10 +265,16 @@ func Discover(dir string) (Paths, error) {
 	}
 }
 
-// List returns the workspace alone without a project, else both, the project's first.
+// List returns the databases a report reads: the workspace's alone
+// without a project, else both, the project's first.
 func (p Paths) List() []string {
 	if p.Project == "" {
 		return []string{p.Workspace}
 	}
 	return []string{p.Project, p.Workspace}
+}
+
+// All returns the databases a run writes: List and the mirrors after it.
+func (p Paths) All() []string {
+	return append(p.List(), p.Mirrors...)
 }

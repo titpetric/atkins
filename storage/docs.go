@@ -10,11 +10,19 @@
 //
 // A run records to two databases, and Discover names them. The
 // project's, atkins.db in the nearest .atkins folder, says what this
-// checkout costs. The workspace's, $HOME/.atkins/atkins.db or the file
-// ATKINS_DB names, says what every checkout on the machine costs between
-// them, a question no single project can answer. A directory with no .atkins folder of its own, or
-// one whose nearest folder belongs to the workspace, records to the
-// workspace's alone, once.
+// checkout costs. The workspace's, $HOME/.atkins/atkins.db or the first
+// file the database setting or ATKINS_DB names, says what every checkout
+// on the machine costs between them, a question no single project can
+// answer. A directory with no .atkins folder of its own, or one whose
+// nearest folder belongs to the workspace, records to the workspace's
+// alone, once.
+//
+// The other files the setting names, a list in the form of PATH, are
+// mirrors of the workspace's: each takes every row the workspace's takes,
+// and no report reads one. A runner that sets a $HOME per checkout
+// names the checkout's file first and its own second, and keeps one
+// history across them. atkins reports a mirror that fails to open once,
+// and the rest take the row.
 //
 // Both files hold the same rows, so a report of the workspace answers
 // the questions of a project report: which command, how often, how
