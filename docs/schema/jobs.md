@@ -57,10 +57,8 @@ This matches:
 tasks:
   up:
     cmd: docker compose up -d
-    passthru: true
   down:
     cmd: docker compose down
-    passthru: true
 ```
 
 ## Steps vs Cmds

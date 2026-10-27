@@ -97,7 +97,6 @@ func (j *Job) UnmarshalYAML(node *yaml.Node) error {
 		cmd := strings.TrimSpace(node.Value)
 		j.Desc = cmd // Use command as description for simple tasks
 		j.Steps = []*Step{{Run: cmd, Name: cmd, HidePrefix: true}}
-		j.Passthru = true
 		return nil
 	}
 
@@ -124,7 +123,6 @@ func (j *Job) UnmarshalYAML(node *yaml.Node) error {
 		}
 		if cmd != "" {
 			j.Steps = []*Step{{Run: cmd, Name: cmd, HidePrefix: true}}
-			j.Passthru = true
 		}
 	}
 

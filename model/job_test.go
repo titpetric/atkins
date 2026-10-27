@@ -153,7 +153,7 @@ cmd: docker compose down
 	assert.Equal(t, "docker compose down", job.Steps[0].Run)
 	assert.Equal(t, "docker compose down", job.Steps[0].Name)
 	assert.True(t, job.Steps[0].HidePrefix)
-	assert.True(t, job.Passthru)
+	assert.False(t, job.Passthru)
 }
 
 // TestJobUnmarshalYAML_RunToSyntheticStep tests that job-level run creates a synthetic step
@@ -171,7 +171,7 @@ run: go test ./...
 	assert.NotNil(t, job.Steps)
 	assert.Len(t, job.Steps, 1)
 	assert.Equal(t, "go test ./...", job.Steps[0].Run)
-	assert.True(t, job.Passthru)
+	assert.False(t, job.Passthru)
 }
 
 // TestJobUnmarshalYAML_CmdTakesPrecedenceOverRun tests that cmd takes precedence over run
@@ -242,7 +242,7 @@ func TestJobUnmarshalYAML_StringShorthand(t *testing.T) {
 	assert.Len(t, job.Steps, 1)
 	assert.Equal(t, "docker compose up -d", job.Steps[0].Run)
 	assert.Equal(t, "docker compose up -d", job.Desc)
-	assert.True(t, job.Passthru)
+	assert.False(t, job.Passthru)
 }
 
 // TestJob_GetAliases checks a job returns its aliases, and a nil job none.

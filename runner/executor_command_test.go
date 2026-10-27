@@ -101,7 +101,7 @@ func TestExecStep_Args(t *testing.T) {
 }
 
 // TestExecStep_Output checks an exec: step prints its output on success,
-// as a job's cmd: shorthand does, and passthru: false keeps it quiet.
+// and passthru: false keeps it quiet.
 func TestExecStep_Output(t *testing.T) {
 	t.Parallel()
 

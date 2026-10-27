@@ -131,7 +131,7 @@ atkins compose:custom -- ps -a       # runs: docker compose ps -a
 atkins compose:custom -- '; id'      # docker compose gets one argument, "; id"
 ```
 
-An `exec:` step lists the program and its arguments and runs them without a shell. Atkins interpolates `${{ }}` in each item, and each item stays one argument. The arguments from the command line stay untouched: no interpolation, no globbing, no word splitting, so `$(id)`, `*` and `;` reach the program as typed. Atkins prints the output of an `exec:` step, as it does for a job's `cmd:` shorthand; `passthru: false` on the step turns that off.
+An `exec:` step lists the program and its arguments and runs them without a shell. Atkins interpolates `${{ }}` in each item, and each item stays one argument. The arguments from the command line stay untouched: no interpolation, no globbing, no word splitting, so `$(id)`, `*` and `;` reach the program as typed. Atkins prints the output of an `exec:` step; `passthru: false` on the step turns that off.
 
 Arguments need exactly one job on the command line, and that job must set `args: true`; anything else fails before a step runs. A `run:` or `cmd:` step of the same job never sees the arguments. A job that `task:` invokes from an `args: true` job gets them when it sets `args: true` itself.
 
