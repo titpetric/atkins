@@ -196,8 +196,7 @@ type Job struct {
 	Timeout     string       `yaml:"timeout,omitempty"`  // e.g., "10m", "300s"
 	Summarize   bool         `yaml:"summarize,omitempty"`
 	Quiet       bool         `yaml:"quiet,omitempty"`
-	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation; gets a PTY when stdout is a terminal
-	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for all steps even when stdout is not a terminal
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 
 	// Args lets the command line pass arguments to the job: everything
@@ -490,8 +489,7 @@ type Step struct {
 	Verbose     bool         `yaml:"verbose,omitempty"`
 	Summarize   bool         `yaml:"summarize,omitempty"`
 	Quiet       bool         `yaml:"quiet,omitempty"`
-	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation; gets a PTY when stdout is a terminal
-	TTY         bool         `yaml:"tty,omitempty"`         // If true, attach a PTY for the command even when stdout is not a terminal
+	Passthru    bool         `yaml:"passthru,omitempty"`    // If true, print output with tree indentation
 	Interactive bool         `yaml:"interactive,omitempty"` // If true, stream output live and connect stdin for keyboard input
 	HidePrefix  bool         `yaml:"-"`                     // If true, don't show "run:" prefix in display
 }

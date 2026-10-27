@@ -164,8 +164,10 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 	// Check step passthru flag first, then job passthru flag
 	shouldPassthru := step.Passthru || (execCtx.Job != nil && execCtx.Job.Passthru)
 
-	// Determine TTY allocation: explicit tty forces a PTY, passthru follows terminal detection
-	useTTY := shouldUseTTY(step, execCtx.Job, colors.StdoutIsTerminal())
+	// A command gets a pseudo-terminal whenever atkins itself runs on a
+	// terminal: colour survives, while a run redirected to a pipe or a
+	// file captures no escape sequences.
+	useTTY := colors.StdoutIsTerminal()
 
 	// Track execution for logging
 	startTime := time.Now()
@@ -198,6 +200,7 @@ func (e *Executor) executeCommand(ctx context.Context, execCtx *ExecutionContext
 		shellCmd.UsePTY = useTTY
 		result = executor.Run(ctx, shellCmd)
 	} else {
+		shellCmd.UsePTY = useTTY
 		result = executor.Run(ctx, shellCmd)
 	}
 
@@ -285,21 +288,6 @@ func execArgv(execCtx *ExecutionContext, step *model.Step) ([]string, error) {
 		argv = append(argv, execCtx.Args...)
 	}
 	return argv, nil
-}
-
-// shouldUseTTY decides whether a command gets a pseudo-terminal.
-// An explicit tty on the step or job always opens one, whatever
-// stdout is. A passthru step or job opens one only when stdout is
-// a terminal: a human reads that output, so colour survives, while a
-// run redirected to a pipe or file captures no escape sequences.
-func shouldUseTTY(step *model.Step, job *model.Job, terminal bool) bool {
-	if step.TTY || (job != nil && job.TTY) {
-		return true
-	}
-	if step.Passthru || (job != nil && job.Passthru) {
-		return terminal
-	}
-	return false
 }
 
 // IsEchoCommand checks if a command is a bare echo command.

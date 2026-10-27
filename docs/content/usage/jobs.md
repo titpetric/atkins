@@ -22,8 +22,7 @@ A job groups related steps and controls how they execute. A pipeline declares jo
 | `if:`               | Conditional execution (string or list; all items must pass) |
 | `dir:`              | Working directory for all steps                             |
 | `timeout:`          | Execution time limit (e.g. `"10m"`, `"300s"`)               |
-| `passthru: true`    | Output printed with tree indentation, PTY on a terminal     |
-| `tty: true`         | Attach a PTY even when stdout is not a terminal             |
+| `passthru: true`    | Output printed with tree indentation                        |
 | `interactive: true` | Stream output live and connect stdin                        |
 | `quiet: true`       | Suppress output                                             |
 | `summarize: true`   | Summarize output                                            |

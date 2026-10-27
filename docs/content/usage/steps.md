@@ -22,8 +22,7 @@ Steps are the individual commands or actions within a job. They execute sequenti
 | `deferred: true`    | Run after other steps complete                              |
 | `defer:`            | Shorthand for a deferred step                               |
 | `verbose: true`     | Show more output                                            |
-| `passthru: true`    | Output with tree indentation, PTY on a terminal             |
-| `tty: true`         | Attach a PTY even when stdout is not a terminal             |
+| `passthru: true`    | Output with tree indentation                                |
 | `interactive: true` | Live streaming with stdin                                   |
 | `vars:`             | Step-level variables                                        |
 | `env:`              | Step-level environment variables                            |

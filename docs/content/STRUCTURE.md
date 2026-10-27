@@ -58,7 +58,7 @@ Pipeline-level fields: `name`, `dir`, `vars`, `env`, `jobs`/`tasks`, `include`, 
 
 ### Jobs
 
-Job-level fields: `desc`, `steps`/`cmds`, dependencies, conditions, loops, and the run-behavior flags (`detach`, `passthru`, `tty`, `interactive`, `summarize`, `quiet`).
+Job-level fields: `desc`, `steps`/`cmds`, dependencies, conditions, loops, and the run-behavior flags (`detach`, `passthru`, `interactive`, `summarize`, `quiet`).
 
 ### Steps
 

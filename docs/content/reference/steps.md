@@ -38,14 +38,13 @@ steps:
 | `deferred`    | bool        | `false` | Run on cleanup (like Go defer)                                 |
 | `defer`       | string/obj  | -       | Deferred step (shorthand or object)                            |
 | `detach`      | bool        | `false` | Run in background                                              |
-| `tty`         | bool        | `false` | Attach a PTY even when stdout is not a terminal                |
 | `interactive` | bool        | `false` | Stream output live, connect stdin                              |
 | `verbose`     | bool        | `false` | Show output                                                    |
 | `summarize`   | bool        | `false` | Summarize output                                               |
 | `quiet`       | bool        | `false` | Suppress output                                                |
 | `passthru`    | bool        | `false` | Print output with tree indentation; `true` for an `exec:` step |
 
-A passthru step gets a PTY when stdout is a terminal, so colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences. `tty` is the override.
+A step gets a PTY when stdout is a terminal, so colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences.
 
 ## Basic Steps
 

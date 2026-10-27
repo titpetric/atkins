@@ -28,21 +28,18 @@ jobs:
       - rm examples/*.txt
 
   main:
-    tty: true
     detach: true
     steps:
       - termos shot -c 120 --filename examples/atkins.run -- atkins --final
       - termos shot -c 120 --filename examples/atkins.list -- atkins -l
 
   run:
-    tty: true
     detach: true
     steps:
       - for: test in tests
         cmd: termos shot -c 120 --filename examples/${{test}}.run -- atkins --file tests/${{test}}.yml --final
 
   list:
-    tty: true
     detach: true
     steps:
       - for: test in tests

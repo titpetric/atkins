@@ -10,32 +10,31 @@ A pipeline defines jobs with either `jobs:` (GitHub Actions style) or `tasks:` (
 
 ## Properties
 
-| Field         | Type        | Default | Description                                     |
-|---------------|-------------|---------|-------------------------------------------------|
-| `desc`        | string      | -       | Short description for `--list`                  |
-| `steps`       | list        | `[]`    | Steps to execute                                |
-| `cmds`        | list        | `[]`    | Alias for `steps`                               |
-| `run`         | string      | -       | Single command (creates synthetic step)         |
-| `cmd`         | string      | -       | Alias for `run`                                 |
-| `depends_on`  | string/list | `[]`    | Jobs to run before this job                     |
-| `for`         | string/list | -       | Run the job once per item                       |
-| `vars`        | map         | `{}`    | Job-level variables                             |
-| `env`         | object      | `{}`    | Job-level environment                           |
-| `include`     | string/list | -       | Include external files                          |
-| `if`          | string/list | -       | Conditional execution (list items ANDed)        |
-| `dir`         | string      | -       | Working directory override                      |
-| `aliases`     | list        | `[]`    | Alternative names for invoking this job         |
-| `requires`    | list        | `[]`    | Variables required when invoked in loop         |
-| `timeout`     | string      | -       | Execution timeout (e.g., `10m`, `300s`)         |
-| `detach`      | bool        | `false` | Run in background                               |
-| `show`        | bool        | auto    | Show in `--list` (root jobs shown)              |
-| `summarize`   | bool        | `false` | Summarize output                                |
-| `quiet`       | bool        | `false` | Suppress output                                 |
-| `passthru`    | bool        | `false` | Print output with tree indentation              |
-| `tty`         | bool        | `false` | Attach a PTY even when stdout is not a terminal |
-| `interactive` | bool        | `false` | Stream output live, connect stdin               |
+| Field         | Type        | Default | Description                              |
+|---------------|-------------|---------|------------------------------------------|
+| `desc`        | string      | -       | Short description for `--list`           |
+| `steps`       | list        | `[]`    | Steps to execute                         |
+| `cmds`        | list        | `[]`    | Alias for `steps`                        |
+| `run`         | string      | -       | Single command (creates synthetic step)  |
+| `cmd`         | string      | -       | Alias for `run`                          |
+| `depends_on`  | string/list | `[]`    | Jobs to run before this job              |
+| `for`         | string/list | -       | Run the job once per item                |
+| `vars`        | map         | `{}`    | Job-level variables                      |
+| `env`         | object      | `{}`    | Job-level environment                    |
+| `include`     | string/list | -       | Include external files                   |
+| `if`          | string/list | -       | Conditional execution (list items ANDed) |
+| `dir`         | string      | -       | Working directory override               |
+| `aliases`     | list        | `[]`    | Alternative names for invoking this job  |
+| `requires`    | list        | `[]`    | Variables required when invoked in loop  |
+| `timeout`     | string      | -       | Execution timeout (e.g., `10m`, `300s`)  |
+| `detach`      | bool        | `false` | Run in background                        |
+| `show`        | bool        | auto    | Show in `--list` (root jobs shown)       |
+| `summarize`   | bool        | `false` | Summarize output                         |
+| `quiet`       | bool        | `false` | Suppress output                          |
+| `passthru`    | bool        | `false` | Print output with tree indentation       |
+| `interactive` | bool        | `false` | Stream output live, connect stdin        |
 
-A passthru job gets a PTY when stdout is a terminal, so colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences. `tty` is the override.
+A job gets a PTY when stdout is a terminal, so colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences.
 
 ## Basic Job
 
