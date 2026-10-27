@@ -40,7 +40,7 @@ type Options struct {
 	Write  bool
 
 	// Prune removes the runs and commands older than OlderThan from the
-	// database DB names and gives the space back, and runs no pipeline;
+	// database DB names and releases the space, and runs no pipeline;
 	// DryRun counts them and changes nothing.
 	Prune     bool
 	DB        string
@@ -73,7 +73,7 @@ func (o *Options) Bind(fs *cli.FlagSet) {
 	fs.BoolVar(&o.Config, "config", false, "Open the configuration menu for .atkins/config.yml")
 	fs.BoolVar(&o.Vendor, "vendor", false, "List the skills this repository uses from $HOME/.atkins/skills")
 	fs.BoolVar(&o.Write, "write", false, "With --vendor, write the skills into .atkins/skills")
-	fs.BoolVar(&o.Prune, "prune", false, "Remove the runs and commands older than --older-than from the database --db names, give the space back, and run nothing")
+	fs.BoolVar(&o.Prune, "prune", false, "Remove the runs and commands older than --older-than from the database --db names, release the space, and run nothing")
 	fs.StringVar(&o.DB, "db", "", "With --prune, the database file to prune")
 	fs.StringVar(&o.OlderThan, "older-than", "31d", "With --prune, the age past which a run goes: days, such as 31d, or a duration, such as 720h")
 	fs.BoolVar(&o.DryRun, "dry-run", false, "With --prune, count what would go and change nothing")

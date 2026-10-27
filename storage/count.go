@@ -6,7 +6,7 @@ import (
 )
 
 // Count returns how many runs and commands started before a time, every
-// row for a zero time: what a prune would remove, or what is left.
+// row for a zero time: what a prune would remove, or what remains.
 func (s *Storage) Count(ctx context.Context, before time.Time) (*PurgeResult, error) {
 	client := s.client()
 	defer client.Close()

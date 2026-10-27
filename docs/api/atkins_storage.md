@@ -727,8 +727,7 @@ func OpenAll(ctx context.Context, paths ...string) ([]*Storage, error)
 
 ### `Size`
 
-`Size` returns the bytes a database file takes on disk with its
-write-ahead log and shared memory, zero for one that is not there.
+`Size` returns the bytes a database takes with its wal and shm files, zero when absent.
 
 ```go
 func Size(path string) int64
@@ -771,7 +770,7 @@ func (*Storage) Commands(ctx context.Context, filter CommandFilter) ([]model.Com
 ### `Count`
 
 `Count` returns how many runs and commands started before a time, every
-row for a zero time: what a prune would remove, or what is left.
+row for a zero time: what a prune would remove, or what remains.
 
 ```go
 func (*Storage) Count(ctx context.Context, before time.Time) (*PurgeResult, error)
@@ -788,7 +787,7 @@ func (*Storage) Path() string
 ### `Prune`
 
 `Prune` removes every run and command started before a time, batch
-after batch until none is left, then gives the space back: it vacuums
+after batch until none remains, then releases the space: it vacuums
 the file and truncates its write-ahead log. A zero time removes
 nothing.
 

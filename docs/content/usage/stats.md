@@ -224,14 +224,14 @@ Atkins keeps a recorded run for 31 days from its start, on every machine. No set
 
 The run that records is the run that prunes, in both databases. Each write drops whatever has fallen outside the window, in bounded batches, so the window holds with no daemon to hold it and no job to remember to run. The workspace database takes every project's rows, and 31 days keep it a month of history.
 
-A database nothing records to any more keeps its last month until something prunes it, and a write prunes rows and gives no space back to the file system. `--prune` does both for one database, by name, at an age of the caller's:
+A database nothing records to any more keeps its last month until something prunes it, and a write prunes rows and releases no space to the file system. `--prune` does both for one database, by name, at an age of the caller's:
 
 ```bash
 atkins --prune --db ~/.atkins/atkins.db --older-than 31d --dry-run
 atkins --prune --db ~/.atkins/atkins.db --older-than 90d
 ```
 
-It removes every run and command that started before the age, `31d` unless `--older-than` says otherwise, days or a duration such as `720h`, vacuums the file and truncates its write-ahead log, and prints one line: the file, what went, what is left, and the file's size before and after. `--dry-run` counts and changes nothing. A file that is not there is an error, not a new database. A runner that holds many checkouts' databases, such as [task-ui](https://github.com/titpetric/task-ui), runs it on each from its own cleanup, under the age its settings hold.
+It removes every run and command that started before the age, `31d` unless `--older-than` says otherwise, days or a duration such as `720h`, vacuums the file and truncates its write-ahead log, and prints one line: the file, what went, what remains, and the file's size before and after. `--dry-run` counts and changes nothing. A file that is not there is an error; atkins never creates an empty database. A runner that holds many checkouts' databases, such as [task-ui](https://github.com/titpetric/task-ui), runs it on each from its own cleanup, under the age its settings hold.
 
 ```
 /home/you/.atkins/atkins.db: removed 1824 runs, 608 commands older than 31d; 3104 runs, 1035 commands left; 4.2 MB before, 2.9 MB after

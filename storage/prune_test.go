@@ -11,7 +11,7 @@ import (
 )
 
 // Count says what started before a time, everything for a zero time;
-// Prune takes those rows out to the last one and gives the space back,
+// Prune takes those rows out to the last one and releases the space,
 // and a zero time removes nothing.
 func TestPruneCountsAndRemovesToTheLastRow(t *testing.T) {
 	ctx := context.Background()

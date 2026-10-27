@@ -42,7 +42,7 @@ func oneStep(at time.Time) *eventlog.Log {
 }
 
 // --prune takes --db; a dry run counts the old rows and removes nothing,
-// a prune removes them and says what is left; a database that is not
+// a prune removes them and reports what remains; a database that is not
 // there is an error and stays absent.
 func TestPrune(t *testing.T) {
 	t.Parallel()

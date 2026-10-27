@@ -7,7 +7,7 @@ import (
 )
 
 // Prune removes every run and command started before a time, batch
-// after batch until none is left, then gives the space back: it vacuums
+// after batch until none remains, then releases the space: it vacuums
 // the file and truncates its write-ahead log. A zero time removes
 // nothing.
 func (s *Storage) Prune(ctx context.Context, before time.Time) (*PurgeResult, error) {
