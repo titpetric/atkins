@@ -41,11 +41,11 @@ workspace  /home/you/.atkins/atkins.db
 ...
 ```
 
-The daily chart shows whether the month runs steady or spikes on one Tuesday. Each column is a day, every bar starts from zero, and the busiest day carries the one label: a number on every column would hide the shape. A day nothing ran shows as an empty column.
+The daily chart shows whether the month runs steady or spikes on one Tuesday. Each column is a day, every bar starts from zero, and the busiest day carries the one label, which keeps the shape readable. A day with no runs shows as an empty column.
 
-The tool ranking rolls up every form of a tool, so `go build`, `go test` and `go vet` count as go. The command table cannot show this: a tool that runs two hundred times for a second in total against one that runs twice for half a minute.
+The tool ranking rolls up every form of a tool: `go build`, `go test` and `go vet` count as go. The ranking shows a tool that runs two hundred times for a second in total next to one that runs twice for half a minute.
 
-On a terminal all three render in colour, and the table gets the borders of the `atkins --help` tables. Redirected to a file or a pipe the output is plain, so the same command serves a terminal and a document with no flag to say which.
+On a terminal all three render in colour, and the table gets the borders of the `atkins --help` tables. Redirected to a file or a pipe the output is plain text. One command serves a terminal and a document.
 
 ## Reading it from a program
 
@@ -108,9 +108,9 @@ A scope per database, keyed by its kind. The `project` key is absent for a direc
 }
 ```
 
-The two scopes carry the same fields, so a reader draws either with one piece of code. `repository` is on the project alone: a workspace holds many and names none.
+The two scopes carry the same fields. A reader draws either with one piece of code. `repository` is on the project alone: a workspace holds many and names none.
 
-A day a tool or a command did not run has no row in `usage` or `command_usage`, so a reader drawing a series fills the gaps with zero.
+A day a tool or a command did not run has no row in `usage` or `command_usage`. A reader drawing a series fills the gaps with zero.
 
 ## Every command
 
@@ -164,7 +164,7 @@ A run records twice, because the two answer different questions.
 
 The **project's** is the `atkins.db` of the nearest `.atkins` folder, found by walking up from the directory atkins runs in. Every run in a checkout counts towards the same history, whichever subdirectory it started in, and it says what standing in that checkout costs.
 
-The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across them. A command run in a directory that belongs to no project lands here alone, so a stray `sleep` in `/tmp` counts too. `ATKINS_DB` names another file for it.
+The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across them. A command run in a directory outside any project lands here alone, and a stray `sleep` in `/tmp` counts too. `ATKINS_DB` names another file for it.
 
 A directory inside `$HOME` whose nearest `.atkins` folder is the workspace's own has no project of its own. There is one database, and the run records to it once.
 
@@ -185,7 +185,7 @@ The `run` table holds one row per node of the tree atkins walked: the pipeline, 
 
 The `command` table holds one row per command a step executed, with the command as the shell received it, its exit code, its directory and how long it took. A `$(...)` substitution is a command too, and records as one.
 
-Both tables carry the `invocation_id` of the pipeline row, so the rows of one `atkins` process are one group. The pipeline row also carries the file, the module, the repository, the branch and the commit, so a reader can split a history by branch.
+Both tables carry the `invocation_id` of the pipeline row, which groups the rows of one `atkins` process. The pipeline row also carries the file, the module, the repository, the branch and the commit. A reader can split a history by branch.
 
 ## The command key
 
@@ -206,7 +206,7 @@ The report groups commands by their key: the words up to the first argument that
 
 Shell builtins a step runs to set itself up, `set`, `cd`, `export`, `echo`, `test`, `[`, `true`, `false` and `:`, are neither recorded nor reported. `set -eu` at the top of a script is not a tool.
 
-The database also stores each command in a normalised form, the tool and its subcommands with the flags sorted and their values removed, such as `go test -cover -v`. The report folds those forms into their keys as it reads them, so the rows a run recorded before the key existed count under it too.
+The database also stores each command in a normalised form, the tool and its subcommands with the flags sorted and their values removed, such as `go test -cover -v`. The report folds those forms into their keys as it reads them. The rows a run recorded before the key existed count under it too.
 
 ## Not recording
 
@@ -222,7 +222,7 @@ When a database does not open, atkins says so once and runs the pipeline unrecor
 
 Atkins keeps a recorded run for 31 days from its start, on every machine. No setting changes it: 31 days is long enough to hold a month of work and compare this week against the last, and short enough that a checkout nobody prunes does not grow without bound.
 
-The run that records is the run that prunes, in both databases. Each write drops whatever has fallen outside the window, in bounded batches, so the window holds with no daemon to hold it and no job to remember to run. The workspace database takes every project's rows, and 31 days keep it a month of history.
+The run that records is the run that prunes, in both databases. Each write drops the rows that have fallen outside the window, in bounded batches. The window holds through the runs themselves. The workspace database takes every project's rows, and 31 days keep it a month of history.
 
 A database nothing records to any more keeps its last month until something prunes it, and a write prunes rows and releases no space to the file system. `--prune` does both for one database, by name, at an age of the caller's:
 
@@ -239,7 +239,7 @@ It removes every run and command that started before the age, `31d` unless `--ol
 
 ## Other readers
 
-Both files are ordinary SQLite databases and nothing holds them open between runs, so anything may read them. [task-ui](https://github.com/titpetric/task-ui) reads them to chart tool usage over time, a project's beside the workspace's.
+Both files are ordinary SQLite databases. atkins closes them at the end of each run, and any SQLite client may read them. [task-ui](https://github.com/titpetric/task-ui) reads them to chart tool usage over time, a project's beside the workspace's.
 
 ## See Also
 

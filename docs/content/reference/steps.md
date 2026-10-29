@@ -44,7 +44,7 @@ steps:
 | `quiet`       | bool        | `false` | Suppress output                                                |
 | `passthru`    | bool        | `false` | Print output with tree indentation; `true` for an `exec:` step |
 
-A step gets a PTY when stdout is a terminal, so colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences.
+A step gets a PTY when stdout is a terminal, and colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences.
 
 ## Basic Steps
 

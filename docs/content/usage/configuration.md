@@ -83,7 +83,7 @@ name: My Project
 include: ci/vars.yml
 
 vars:
-  environment: staging   # wins over a same-named key in ci/vars.yml
+  environment: staging   # read after ci/vars.yml, sets environment
 
 jobs:
   default:

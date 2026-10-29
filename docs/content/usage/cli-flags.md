@@ -12,7 +12,7 @@ Atkins command-line flags select the pipeline file, the jobs to run, and the out
 atkins [flags] [job-names...] [-- job-args...]
 ```
 
-Running jobs is the default, so `atkins build` and `atkins run build` are the same command.
+Running jobs is the default: `atkins build` and `atkins run build` are the same command.
 
 ## Flag Reference
 
@@ -281,7 +281,7 @@ The command writes nothing until `--write`, which creates the missing skills and
 atkins --vendor --write
 ```
 
-`--debug` adds the reason behind each skill selection and the diff behind the line counts. The copies are ordinary repository content, so a clone or a CI agent gets the same jobs without a personal skills directory. `--vendor` and `--jail` do not combine: jail mode excludes the directory vendoring reads from. See [Skills](./skills#vendoring) for the selection rules.
+`--debug` adds the reason behind each skill selection and the diff behind the line counts. The copies are ordinary repository content. A clone or a CI agent gets the same jobs from the repository alone. `--vendor` and `--jail` are exclusive: jail mode excludes the directory vendoring reads from. See [Skills](./skills#vendoring) for the selection rules.
 
 ## Configuration
 
@@ -293,7 +293,7 @@ Opens a menu over `.atkins/config.yml`, creating it from the built-in defaults i
 
 ## Statistics
 
-Every run records a row per job and per command in the event database, so the time a repository spends on its own tooling is a query and not a guess.
+Every run records a row per job and per command in the event database. A query shows the time a repository spends on its own tooling.
 
 ```bash
 atkins --stats        # the commands by the time they have taken

@@ -4,7 +4,7 @@ subtitle: Modular, reusable pipeline components
 layout: page
 ---
 
-Skills are modular pipeline files that automatically activate based on project context. A Go skill can define `go:build`, `go:test`, and `go:lint` jobs that appear only when `go.mod` exists in your project. Skills let you build a library of reusable workflows that work across projects without copying configuration.
+Skills are modular pipeline files that automatically activate based on project context. A Go skill can define `go:build`, `go:test`, and `go:lint` jobs that appear only when `go.mod` exists in your project. Skills let you build a library of reusable workflows that you share across projects.
 
 ## Skill Locations
 
@@ -14,7 +14,7 @@ Skills are YAML pipeline files stored in special directories:
 - `.atkins/skills/` in a parent folder - Workspace skills (shared across the projects cloned inside it)
 - `$HOME/.atkins/skills/` - Global skills (shared across all projects)
 
-The nearest folder wins: a project skill shadows a workspace skill with the same name, and both shadow a global one.
+For each skill name, the nearest `.atkins/skills/` folder that holds it supplies the skill: project first, then workspace, then global.
 
 Each skill file becomes a namespace. For example, `go.yml` creates jobs like `go:build`, `go:test`.
 
@@ -69,7 +69,7 @@ Skills are YAML pipeline files with a `when:` block for conditional activation:
 
 The `when:` block controls when a skill is available. Listed files use OR logic - any match activates the skill. File patterns search upward from the current directory.
 
-Atkins expands a pattern carrying `*`, `?` or `[...]` as a glob, so a skill can activate on what a folder holds, whatever its name:
+Atkins expands a pattern carrying `*`, `?` or `[...]` as a glob. A skill can activate on what a folder holds, whatever its name:
 
 ```yaml
 when:
@@ -79,7 +79,7 @@ when:
 
 Two keys narrow the match:
 
-- `here: true` keeps the search to the current directory. A `compose.yml` in a parent folder doesn't activate the skill, so a compose skill shows up only in the folder holding the file.
+- `here: true` keeps the search to the current directory. A compose skill with `here: true` shows up only in the folder holding `compose.yml`.
 - `contains: <regexp>` requires the matched file to match a Go regular expression. With `contains:`, a folder never matches, and for a glob any matching file counts. Atkins reads up to 1 MiB of each candidate.
 
 ```yaml
@@ -131,7 +131,7 @@ atkins compose:custom -- ps -a       # runs: docker compose ps -a
 atkins compose:custom -- '; id'      # docker compose gets one argument, "; id"
 ```
 
-An `exec:` step lists the program and its arguments and runs them without a shell. Atkins interpolates `${{ }}` in each item, and each item stays one argument. The arguments from the command line stay untouched: no interpolation, no globbing, no word splitting, so `$(id)`, `*` and `;` reach the program as typed. Atkins prints the output of an `exec:` step; `passthru: false` on the step turns that off.
+An `exec:` step lists the program and its arguments and runs the program directly. Atkins interpolates `${{ }}` in each item, and each item stays one argument. Atkins passes the arguments from the command line through as typed: `$(id)`, `*` and `;` reach the program unchanged. Atkins prints the output of an `exec:` step; `passthru: false` on the step turns that off.
 
 Arguments need exactly one job on the command line, and that job must set `args: true`; anything else fails before a step runs. A `run:` or `cmd:` step of the same job never sees the arguments. A job that `task:` invokes from an `args: true` job gets them when it sets `args: true` itself.
 
@@ -189,9 +189,9 @@ Now `atkins build` invokes `go:build`.
 
 ### Alias Conflicts
 
-Explicit job aliases take precedence over auto-generated aliases. For example, if a job has `aliases: [go]`, it overrides the automatic `go` to `go:default` mapping.
+An explicit job alias sets the name it lists. For example, `aliases: [go]` on a job maps `go` to that job.
 
-When two or more skills define the same explicit alias, project skills win over global skills.
+When two or more skills define the same explicit alias, the alias resolves to the project skill.
 
 To target explicitly:
 
@@ -441,15 +441,15 @@ Found usage for 3 skills.
 Installed: docker, mdox.
 ```
 
-Vendoring writes skills to `.atkins/skills/` next to `.git`, so they apply to the whole repository, and creates the folder if it doesn't exist yet. The copies are ordinary repository content: commit them like any other dependency, and an update is a re-run and a diff.
+Vendoring writes skills to `.atkins/skills/` next to `.git`, where they apply to the whole repository, and creates the folder when needed. The copies are ordinary repository content: commit them like any other dependency, and an update is a re-run and a diff.
 
-A vendored copy that has drifted from its source is overwritten. Skills are files under version control, so reverting a change you wanted to keep is `git checkout`. The dry run shows the diff first for that reason.
+A vendored copy that has drifted from its source is overwritten. Skills are files under version control, and `git checkout` restores a change you wanted to keep. The dry run shows the diff first for that reason.
 
 ### Selection Rules
 
 Vendoring selects a skill when any of these hold:
 
-- Its `when:` block matches a path anywhere in the repository. The search descends the tree and never climbs it, so a `schema/*.up.sql` file in a submodule selects the schema skill, the same way it activates there.
+- Its `when:` block matches a path anywhere in the repository. The search descends the tree from the repository root. A `schema/*.up.sql` file in a submodule selects the schema skill, the same way it activates there.
 - It has no `when:` block, which makes it active everywhere.
 - A pipeline in the repository names one of its jobs through `task:` or `depends_on:`. A reference to `docker:build` selects the docker skill even without a `docker/Dockerfile`.
 - A skill already selected names one of its jobs. A release skill calling `:docker:build` brings the docker skill with it.
@@ -533,7 +533,7 @@ Go build and test
 | `cmds[].exec` | For a job with `args`, the `exec:` argv of its first such step          |
 | `cmds[].when` | The job's own `when:` block and its match                               |
 
-`--all` adds the skills whose `when:` block doesn't match, with `active: false`, so a caller sees every skill installed for a folder. A job whose own `when:` block doesn't match stays out, with or without `--all`.
+`--all` adds the skills whose `when:` block doesn't match, with `active: false`. A caller sees every skill installed for a folder. A job whose own `when:` block doesn't match stays out, with or without `--all`.
 
 ## See Also
 

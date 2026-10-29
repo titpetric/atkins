@@ -50,7 +50,7 @@ jobs:
 
 ### No Triggers, No Runners
 
-Atkins has no counterpart to `on:`. Nothing watches your repository for pushes, tags or pull requests; a run starts when something invokes `atkins`. Use your existing CI, a cron job, a webhook receiver, or a dashboard such as [task-ui](https://github.com/titpetric/task-ui) to do the invoking.
+Atkins runs when something invokes `atkins`. The caller handles pushes, tags and pull requests. Use your existing CI, a cron job, a webhook receiver, or a dashboard such as [task-ui](https://github.com/titpetric/task-ui) to do the invoking.
 
 `runs-on:` has no counterpart either. A run happens on the machine that started it. Choosing a machine is the job of whatever invokes atkins.
 

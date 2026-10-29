@@ -114,8 +114,8 @@ jobs:
 ### Many Tasks Per Step
 
 A single `task:` may name more than one job, separated by whitespace. They run in
-sequence and the step fails on the first job that fails, so this matches
-writing one `task:` step per job:
+sequence and the step fails on the first job that fails. This behaves the
+same as one `task:` step per job:
 
 ```yaml
 jobs:
@@ -125,7 +125,7 @@ jobs:
 ```
 
 Names may repeat (`task: build build`), and Atkins resolves each name
-independently, so one `task:` can mix namespaced and `:`-prefixed references
+on its own. One `task:` can mix namespaced and `:`-prefixed references
 (`task: go:lint :build test`).
 
 ### Cross-Pipeline References

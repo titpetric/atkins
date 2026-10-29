@@ -2,7 +2,7 @@ A pipeline file declares jobs; a job runs steps. `atkins --lint` checks a file, 
 
 ### One idea, two spellings
 
-atkins reads the GitHub Actions vocabulary and the Taskfile vocabulary as one schema, so a pipeline states intent and picks no dialect. Each pair below is the same field. Both spellings may appear in the same file; set on the same object, the first column wins.
+atkins reads the GitHub Actions vocabulary and the Taskfile vocabulary as one schema. A pipeline states intent in either spelling. Each pair below is the same field. Both spellings may appear in the same file; when one object sets both, atkins uses the first column.
 
 | Key              | Same as   | Where     | Note                                     |
 |------------------|-----------|-----------|------------------------------------------|
@@ -83,7 +83,7 @@ Four more shorthands, in the same spirit:
 
 A step names a command or a job, not both: `run`, `cmd`, `cmds` and `task` are alternatives, read in the order `task`, `run`, `cmd`, `cmds`.
 
-Every step or job gets a PTY when stdout is a terminal, so colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences.
+Every step or job gets a PTY when stdout is a terminal, and colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences.
 
 Declare a deferred step where it reads best, often first; it runs last. Every plain step of the job runs, then the job joins the detached ones, then the deferred ones run in declaration order. A job that fails still runs them.
 

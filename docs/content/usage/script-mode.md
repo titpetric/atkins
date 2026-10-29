@@ -20,7 +20,7 @@ chmod +x script.yml
 ./script.yml
 ```
 
-Atkins strips the shebang line before parsing, so the file remains valid YAML for other tools.
+Atkins strips the shebang line before parsing. The file stays valid YAML for other tools.
 
 ## Stdin Input
 

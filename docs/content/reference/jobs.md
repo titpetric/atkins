@@ -34,7 +34,7 @@ A pipeline defines jobs with either `jobs:` (GitHub Actions style) or `tasks:` (
 | `passthru`    | bool        | `false` | Print output with tree indentation       |
 | `interactive` | bool        | `false` | Stream output live, connect stdin        |
 
-A job gets a PTY when stdout is a terminal, so colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences.
+A job gets a PTY when stdout is a terminal, and colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences.
 
 ## Basic Job
 

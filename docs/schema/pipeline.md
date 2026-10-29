@@ -117,7 +117,7 @@ jobs:
       - run: go build ./...
 ```
 
-The `when.files` condition activates this skill when `go.mod` exists. Atkins expands entries carrying `*`, `?` or `[...]` as globs, so `schema/*.up.sql` activates on a folder of migrations and skips a `schema` folder without them.
+The `when.files` condition activates this skill when `go.mod` exists. Atkins expands entries carrying `*`, `?` or `[...]` as globs. `schema/*.up.sql` activates on a `schema` folder that holds migrations.
 
 ## Multi-Document Pipelines
 
