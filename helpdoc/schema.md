@@ -81,7 +81,7 @@ Four more shorthands, in the same spirit:
 | `summarize`         | bool         | false       | collapse output to the last lines    |
 | `quiet`             | bool         | false       | drop the output                      |
 
-A step names a command or a job, not both: `run`, `cmd`, `cmds` and `task` are alternatives, read in the order `task`, `run`, `cmd`, `cmds`.
+A step names one command or one job: `run`, `cmd`, `cmds` and `task` are alternatives, read in the order `task`, `run`, `cmd`, `cmds`.
 
 Every step or job gets a PTY when stdout is a terminal, and colour follows terminal detection: a run redirected to a pipe or a file captures no escape sequences.
 

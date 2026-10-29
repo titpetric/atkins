@@ -55,7 +55,7 @@ jobs:
       - run: echo "Commit is $GIT_COMMIT on $GIT_BRANCH"
 ```
 
-Step-level environment overrides:
+Step-level environment:
 
 ```yaml
 jobs:
@@ -91,7 +91,7 @@ jobs:
       - run: echo "Deploying to ${{ environment }}"
 ```
 
-It merges variables, not jobs: Atkins ignores an included file's own `jobs:` section, if it has one, does not expand paths as globs, and reads a relative path from the current working directory, not from the pipeline file's directory. See [Includes](../reference/includes) for the merge order and `env: include:`'s dotenv form. To share jobs across files, use [Skills](./skills).
+It merges variables: Atkins reads an included file's variables and skips its `jobs:` section, reads each path as a literal filename, and resolves a relative path from the current working directory. See [Includes](../reference/includes) for the merge order and `env: include:`'s dotenv form. To share jobs across files, use [Skills](./skills).
 
 ## Conditional Activation (`when:`)
 

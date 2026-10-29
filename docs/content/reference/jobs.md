@@ -23,7 +23,7 @@ A pipeline defines jobs with either `jobs:` (GitHub Actions style) or `tasks:` (
 | `env`         | object      | `{}`    | Job-level environment                    |
 | `include`     | string/list | -       | Include external files                   |
 | `if`          | string/list | -       | Conditional execution (list items ANDed) |
-| `dir`         | string      | -       | Working directory override               |
+| `dir`         | string      | -       | Working directory for the job's steps    |
 | `aliases`     | list        | `[]`    | Alternative names for invoking this job  |
 | `requires`    | list        | `[]`    | Variables required when invoked in loop  |
 | `timeout`     | string      | -       | Execution timeout (e.g., `10m`, `300s`)  |

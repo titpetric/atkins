@@ -4,7 +4,7 @@ subtitle: When and why to choose Atkins
 layout: page
 ---
 
-Atkins is a command runner that works the same way on your laptop and in CI. It emphasizes simplicity and YAML-friendly syntax. Atkins is no hosted CI platform: there are no managed runners, no marketplace and no secrets vault. It runs the jobs a source tree declares, shows what they are doing, and records what they cost.
+Atkins is a command runner that works the same way on your laptop and in CI. It emphasizes simplicity and YAML-friendly syntax. Atkins is a local binary. It runs the jobs a source tree declares, shows what they are doing, and records what they cost.
 
 ## When to Choose Atkins
 

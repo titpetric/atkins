@@ -185,7 +185,7 @@ When you invoke `atkins <name>`, resolution follows this precedence:
 
 If nothing matches, Atkins returns an error.
 
-Main pipeline jobs and aliases take precedence over skills. If your main pipeline has a job with `aliases: [default]`, running `atkins default` will invoke it even if a skill has a job literally named `default`.
+Atkins resolves a name against the main pipeline's jobs and aliases first. If your main pipeline has a job with `aliases: [default]`, `atkins default` invokes that job.
 
 ## Fuzzy Matching
 

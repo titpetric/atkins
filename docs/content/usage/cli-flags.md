@@ -20,10 +20,10 @@ Running jobs is the default: `atkins build` and `atkins run build` are the same 
 
 | Flag                  | Short | Description                                                                                                      |
 |-----------------------|-------|------------------------------------------------------------------------------------------------------------------|
-| `--file`              | `-f`  | Pipeline file to use, instead of the discovered one                                                              |
+| `--file`              | `-f`  | Pipeline file to use; skips discovery                                                                            |
 | `--working-directory` | `-w`  | Change to this directory before running                                                                          |
 | `--jail`              |       | Load skills from the project only, ignoring parent folders and `$HOME/.atkins`                                   |
-| `--list`              | `-l`  | List the jobs and dependencies instead of running them                                                           |
+| `--list`              | `-l`  | List the jobs and dependencies and exit                                                                          |
 | `--all`               |       | With `--list`, include the skills whose `when:` block doesn't match; with `--stats`, list every recorded command |
 | `--lint`              |       | Check the pipeline for errors and exit                                                                           |
 
@@ -69,7 +69,7 @@ By default, Atkins auto-discovers pipeline files in this order:
 3. `atkins.yml`
 4. `atkins.yaml`
 
-Override with `-f`:
+Name another file with `-f`:
 
 ```bash
 # Use a specific file

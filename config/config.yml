@@ -1,8 +1,8 @@
 # atkins configuration.
 #
-# This document ships inside the binary as the runtime default. A
-# project copy at .atkins/config.yml overrides it, and ATKINS_*
-# environment variables overlay individual fields on top of that.
+# This document ships inside the binary as the runtime default. atkins
+# reads a project copy at .atkins/config.yml on top of it, and then the
+# ATKINS_* environment variables, field by field.
 #
 # Edit it with `atkins --config`.
 
@@ -10,7 +10,7 @@ version: 1
 
 # What a run records, and where.
 storage:
-  # The workspace's file in place of $HOME/.atkins/atkins.db, or a list
+  # The workspace's file, $HOME/.atkins/atkins.db when unset, or a list
   # of files in the form of PATH: the first is the workspace's, the rest
   # are mirrors that take the same rows and are never read. The project's,
   # the atkins.db of the nearest .atkins folder, records as well.

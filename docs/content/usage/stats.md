@@ -162,7 +162,7 @@ On a terminal, or redirected as markdown, `--all` adds a table after the command
 
 A run records twice, because the two answer different questions.
 
-The **project's** is the `atkins.db` of the nearest `.atkins` folder, found by walking up from the directory atkins runs in. Every run in a checkout counts towards the same history, whichever subdirectory it started in, and it says what standing in that checkout costs.
+The **project's** is the `atkins.db` of the nearest `.atkins` folder, found by walking up from the directory atkins runs in. Every run in a checkout counts towards the same history, from any subdirectory, and it says what standing in that checkout costs.
 
 The **workspace's** is `$HOME/.atkins/atkins.db`, which every run records to. It holds every project on the machine together, and says where a week went across them. A command run in a directory outside any project lands here alone, and a stray `sleep` in `/tmp` counts too. `ATKINS_DB` names another file for it.
 
@@ -175,7 +175,7 @@ A directory inside `$HOME` whose nearest `.atkins` folder is the workspace's own
 | `/tmp/scratch`, under no project     | none                          | `$HOME/.atkins/atkins.db` |
 | `$HOME/notes`, under `$HOME/.atkins` | none                          | `$HOME/.atkins/atkins.db` |
 
-`storage.database` in `.atkins/config.yml`, or `ATKINS_DB`, names the workspace's database in place of `$HOME/.atkins/atkins.db`; the project's records as before. A list of files in the form of `PATH` (`a.db:b.db`) names the workspace's first and **mirrors** after it: each mirror takes every row the workspace's takes, and no report reads one. A runner that sets a `$HOME` per checkout names the checkout's file first and its own second, and keeps one history across them. atkins reports a mirror that fails to open once, and the other databases still take the row.
+`storage.database` in `.atkins/config.yml`, or `ATKINS_DB`, names the workspace's database, `$HOME/.atkins/atkins.db` when unset; the project's records as usual. A list of files in the form of `PATH` (`a.db:b.db`) names the workspace's first and **mirrors** after it: each mirror takes every row the workspace's takes, and reports read the project's file and the workspace's. A runner that sets a `$HOME` per checkout names the checkout's file first and its own second, and keeps one history across them. atkins reports a mirror that fails to open once, and the other databases still take the row.
 
 ## What a run records
 

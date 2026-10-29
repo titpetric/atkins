@@ -27,7 +27,7 @@ Pipeline (atkins.yml)
 | `jobs:`  | Job definitions (map of name to job)           |
 | `tasks:` | Alias for `jobs:` (Taskfile-style)             |
 
-`jobs:` and `tasks:` are interchangeable. Use whichever style you prefer.
+`jobs:` and `tasks:` are interchangeable. Use the style you prefer.
 
 ## Examples
 

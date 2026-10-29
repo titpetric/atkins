@@ -290,7 +290,7 @@ Collapse output after completion:
 ```yaml
 steps:
   - run: npm install
-    summarize: true  # Shows summary instead of full output
+    summarize: true  # Shows a summary of the output
 ```
 
 ## Named Steps

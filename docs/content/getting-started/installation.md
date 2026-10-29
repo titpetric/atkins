@@ -4,7 +4,7 @@ subtitle: How to install Atkins
 layout: page
 ---
 
-Atkins ships as a single binary with no runtime dependencies. You can install it from source using Go, download a pre-built binary, or copy it from the official Docker image. Choose whichever method fits your environment.
+Atkins ships as a single binary with no runtime dependencies. You can install it from source using Go, download a pre-built binary, or copy it from the official Docker image. Pick the method that fits your environment.
 
 ## From Source (Go)
 

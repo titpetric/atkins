@@ -113,7 +113,7 @@ Execute steps conditionally using `if`:
 
 ## Step Environment
 
-Override environment for a single step:
+Set environment for a single step:
 
 @tabs
 @file "Pipeline" steps/with-env.yml

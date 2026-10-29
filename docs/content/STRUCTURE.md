@@ -114,22 +114,22 @@ Command-line options reference: file discovery order, running and listing jobs, 
 
 | Flag                  | Short | Description                                                                    |
 |-----------------------|-------|--------------------------------------------------------------------------------|
-| `--file`              | `-f`  | Pipeline file to use, instead of the discovered one                            |
+| `--file`              | `-f`  | Pipeline file to use; skips discovery                                          |
 | `--working-directory` | `-w`  | Change to this directory before running                                        |
 | `--jail`              |       | Load skills from the project only, ignoring parent folders and `$HOME/.atkins` |
-| `--list`              | `-l`  | List the jobs and dependencies instead of running them                         |
+| `--list`              | `-l`  | List the jobs and dependencies and exit                                        |
 | `--lint`              |       | Check the pipeline for errors and exit                                         |
 
 **Output**
 
-| Flag        | Short | Description                                             |
-|-------------|-------|---------------------------------------------------------|
-| `--json`    | `-j`  | Emit the run, or the listing, as JSON                   |
-| `--yaml`    | `-y`  | Emit the run, or the listing, as YAML                   |
-| `--final`   |       | Print the tree once at the end rather than redrawing it |
-| `--log`     |       | Write an execution log to this file                     |
-| `--debug`   |       | Print interpolation, evaluation and timing detail       |
-| `--version` | `-v`  | Print the version and build information                 |
+| Flag        | Short | Description                                       |
+|-------------|-------|---------------------------------------------------|
+| `--json`    | `-j`  | Emit the run, or the listing, as JSON             |
+| `--yaml`    | `-y`  | Emit the run, or the listing, as YAML             |
+| `--final`   |       | Print the tree once, at the end                   |
+| `--log`     |       | Write an execution log to this file               |
+| `--debug`   |       | Print interpolation, evaluation and timing detail |
+| `--version` | `-v`  | Print the version and build information           |
 
 **Statistics**
 

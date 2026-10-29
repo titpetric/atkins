@@ -154,10 +154,10 @@ vars:
 jobs:
   test:
     vars:
-      message: "job"  # Overrides pipeline
+      message: "job"  # Job scope: the steps of this job read it
     steps:
       - vars:
-          message: "step"  # Overrides job
+          message: "step"  # Step scope: this step reads it
         run: echo ${{ message }}  # Outputs: step
 ```
 

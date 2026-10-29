@@ -36,7 +36,7 @@ jobs:       # or 'tasks:'
 
 ## Jobs vs Tasks
 
-`jobs` and `tasks` are functionally identical - use whichever style you prefer:
+`jobs` and `tasks` are functionally identical - use the style you prefer:
 
 ```yaml
 # GitHub Actions style
@@ -52,7 +52,7 @@ tasks:
       - go build
 ```
 
-If a pipeline declares both, `jobs` takes precedence.
+If a pipeline declares both, atkins reads `jobs`.
 
 ## Pipeline Variables
 

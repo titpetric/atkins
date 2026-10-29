@@ -40,7 +40,7 @@ $HOME/
         └── node.yml      (available in all projects)
 ```
 
-Project skills take precedence over global skills with the same name.
+For a name both define, atkins loads the project skill.
 
 ### Skills from Parent Folders
 
@@ -69,12 +69,12 @@ Skills are YAML pipeline files with a `when:` block for conditional activation:
 
 The `when:` block controls when a skill is available. Listed files use OR logic - any match activates the skill. File patterns search upward from the current directory.
 
-Atkins expands a pattern carrying `*`, `?` or `[...]` as a glob. A skill can activate on what a folder holds, whatever its name:
+Atkins expands a pattern carrying `*`, `?` or `[...]` as a glob. A skill can activate on what a folder holds, under any folder name:
 
 ```yaml
 when:
   files:
-    - schema/*.up.sql    # a folder of migrations, not any folder called schema
+    - schema/*.up.sql    # a schema folder holding migrations
 ```
 
 Two keys narrow the match:
@@ -146,7 +146,7 @@ help: >-
   coverage profile pkg.cov; go:build writes bin/<name>-<goos>-<goarch>.
 ```
 
-A skill may also carry a markdown file of the same base name beside it, `go.md` next to `go.yml`. This file is an optional usage guide for a skill whose typical use is not obvious from the job list, and `atkins --help` prints it under the skill. It documents typical use, not every job: the job list is already decoded from the YAML.
+A skill may also carry a markdown file of the same base name beside it, `go.md` next to `go.yml`. This file is an optional usage guide for a skill, and `atkins --help` prints it under the skill. It documents typical use; `atkins --help` decodes the job list from the YAML.
 
 ```markdown
 `atkins go` runs the whole lifecycle: generate, fmt, lint, test, build.
@@ -387,7 +387,7 @@ The main pipeline and `.atkins/` folder define workspace boundaries:
 
 From `/project/app/sub/`, atkins searches upward to find configuration and skills. A compose skill with `when: files: [compose.yml]` would match `/project/app/compose.yml` and run from `/project/app/`.
 
-A nested `.atkins/` folder or pipeline starts its own workspace. It still sees the skills of the workspaces above it, and its own skills shadow theirs.
+A nested `.atkins/` folder or pipeline starts its own workspace. It still sees the skills of the workspaces above it, and for a name both define it loads its own skill.
 
 ## Jail Mode
 

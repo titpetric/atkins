@@ -48,11 +48,11 @@ jobs:
 
 ## Key Differences
 
-### No Triggers, No Runners
+### Triggers and Runners
 
 Atkins runs when something invokes `atkins`. The caller handles pushes, tags and pull requests. Use your existing CI, a cron job, a webhook receiver, or a dashboard such as [task-ui](https://github.com/titpetric/task-ui) to do the invoking.
 
-`runs-on:` has no counterpart either. A run happens on the machine that started it. Choosing a machine is the job of whatever invokes atkins.
+A run happens on the machine that started it, and the caller that invokes atkins picks the machine. Atkins reads no `runs-on:` key.
 
 ### No `uses:` Actions
 
