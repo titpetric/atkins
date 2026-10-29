@@ -63,12 +63,12 @@ func TestMatchWhen_Contains(t *testing.T) {
 	_, ok = runner.MatchWhen(build, task)
 	assert.False(t, ok, "task/compose.yml has no build:")
 
-	// A folder never satisfies contains:, whatever its name.
+	// A folder never satisfies contains:, for any folder name.
 	assert.NoError(t, os.MkdirAll(filepath.Join(task, "build.d"), 0o755))
 	_, ok = runner.MatchWhen(&model.PipelineWhen{Files: []string{"build.d"}, Contains: "."}, task)
 	assert.False(t, ok)
 
-	// A glob tries every match, not only the first.
+	// A glob tries every match.
 	writeWhenFile(t, root, "glob/a.yml", "image: a\n")
 	writeWhenFile(t, root, "glob/b.yml", "build: .\n")
 	match, ok = runner.MatchWhen(&model.PipelineWhen{Files: []string{"*.yml"}, Here: true, Contains: "build:"}, filepath.Join(root, "glob"))

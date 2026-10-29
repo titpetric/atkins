@@ -289,7 +289,7 @@ func (e *Executor) RunWithIO(ctx context.Context, stdout io.Writer, stdin io.Rea
 			defer wg.Done()
 			if _, err := io.Copy(stdout, ptmx); err != nil && !errors.Is(err, io.EOF) {
 				// Ignore I/O errors when reading from PTY (for example after PTY close or in containers)
-				// These errors are normal and not critical to operation
+				// These errors are expected when the PTY closes
 				// log.Printf("psexec: stdout copy error: %v", err)
 			}
 		}()

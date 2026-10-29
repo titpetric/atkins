@@ -201,7 +201,7 @@ func (p *Pipeline) planJobs(pipelineCtx *ExecutionContext, tree *treeview.Builde
 
 			// The label a person reads carries the description, which an
 			// author edits freely. A recorder grouping one job's runs over
-			// months needs a key that survives that, so the node keeps the
+			// months needs a key that survives that. The node keeps the
 			// job's canonical name in the same scheme its steps use.
 			jobNode.SetID("jobs." + displayName)
 

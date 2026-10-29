@@ -57,7 +57,7 @@ func Normalize(command string) (normalized, tool string) {
 }
 
 // split returns the words of a command the way a shell breaks them. A
-// quoted run makes one word that keeps the quote, so its text never
+// quoted run makes one word that keeps the quote. Its text never
 // counts as a flag or a subcommand.
 func split(command string) []string {
 	var (

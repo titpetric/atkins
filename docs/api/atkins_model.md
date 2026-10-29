@@ -334,7 +334,7 @@ type PipelineWhen struct {
 	// folder, nearest first.
 	Files []string `yaml:"files" json:"files"`
 
-	// Here restricts the search to the starting folder, so a match in
+	// Here restricts the search to the starting folder. A match in
 	// a parent folder does not count.
 	Here bool `yaml:"here,omitempty" json:"here,omitempty"`
 
@@ -1804,7 +1804,7 @@ func (*Step) IsDeferred() bool
 
 `Label` returns a structured label for the step with information about how to display it.
 showPrefix controls whether to include the type prefix (e.g., "run:", "task:").
-HidePrefix overrides this to never show the prefix (for simple shorthand tasks).
+HidePrefix hides the prefix in every case (for simple shorthand tasks).
 
 ```go
 func (*Step) Label(showPrefix bool) *Label

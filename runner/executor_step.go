@@ -46,8 +46,8 @@ func (e *Executor) executeSteps(ctx context.Context, execCtx *ExecutionContext, 
 			step := steps[idx]
 			idx := idx
 			eg.Go(func() error {
-				// Each detached task tree gets its own cancellable context
-				// so that an error cancels only this tree
+				// Each detached task tree gets its own cancellable context.
+				// An error cancels only this tree.
 				treeCtx, cancel := context.WithCancel(ctx)
 				defer cancel()
 				return e.executeStep(treeCtx, execCtx, step, idx)
@@ -73,7 +73,7 @@ func (e *Executor) executeSteps(ctx context.Context, execCtx *ExecutionContext, 
 		stepIdx := deferredIndices[i]
 
 		// Find the deferred step node by looking for deferred nodes in the tree
-		// We need to find it by matching deferred status, not by index (since for loops may have expanded)
+		// Match it by deferred status: for loops may have expanded the step indexes
 		var stepNode *treeview.Node
 		if execCtx.CurrentJob != nil {
 			children := execCtx.CurrentJob.GetChildren()
@@ -286,7 +286,7 @@ func (e *Executor) prepareStepContext(parentCtx *ExecutionContext, ctx context.C
 	}
 	stepCtx.Env = env
 
-	// Resolve step-level working directory (overrides job dir)
+	// Resolve step-level working directory (set on top of the job dir)
 	// Skip for steps with for loops - each iteration resolves dir
 	if step.For.IsEmpty() {
 		if err := evaluateStepDir(stepCtx); err != nil {

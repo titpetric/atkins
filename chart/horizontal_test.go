@@ -36,11 +36,11 @@ func TestHorizontal(t *testing.T) {
 	assert.Equal(t, 4, count(rows[1], '█'))
 	assert.Equal(t, 0, count(rows[2], '█'))
 
-	// Padding to the widest label starts every bar in one column
-	// whatever its name is.
+	// Padding to the widest label starts every bar in one column,
+	// for a label of any length.
 	assert.Equal(t, strings.Index(rows[0], "█"), strings.Index(rows[1], "█"))
 
-	// Values are right-aligned to the widest, so they read as a column.
+	// Values are right-aligned to the widest. They read as a column.
 	assert.Contains(t, rows[0], "100")
 	assert.Contains(t, rows[1], " 50")
 }
@@ -80,7 +80,7 @@ func TestHorizontalWithoutAFormat(t *testing.T) {
 		Width: 4,
 	})
 
-	// No format, no values: the bars alone.
+	// Without a format, the chart draws the bars and leaves the values out.
 	assert.Contains(t, rendered, "████")
 	assert.NotContains(t, rendered, "100")
 }

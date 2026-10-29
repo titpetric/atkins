@@ -8,7 +8,7 @@ import (
 
 Package `config` owns the atkins configuration document, .atkins/config.yml.
 
-Configuration comes in layers, each overriding the last: the embedded
+Configuration comes in layers, each read on top of the last: the embedded
 default (RuntimeDefaultConfig), the user document at
 $HOME/.atkins/config.yml, the project document found by walking up from
 the working directory, and the ATKINS_* environment overlay. Load
@@ -23,7 +23,7 @@ document, comments and all, when a project has none yet. The file a
 user first opens explains itself.
 
 The environment overlay serves containers and CI. `env` struct tags
-drive it, and a field added to the document gains an override with no
+drive it, and a field added to the document gains its variable with no
 further code. It applies a variable only when the variable holds a
 value: an empty ATKINS_* variable means "not configured here". A
 container can set one field and keep the rest of the document. It skips
@@ -65,7 +65,7 @@ type Field struct {
 	// Path is the dotted document path, e.g. "storage.retention".
 	Path string
 
-	// Env is the variable that overrides it at runtime, if any.
+	// Env is the variable that sets it at runtime, if any.
 	Env string
 
 	// value points at the live field so Set writes through.
@@ -102,8 +102,8 @@ type Menu struct {
 // StorageConfig is the event database: the file every run appends a row
 // per job and per command to, and what it holds.
 type StorageConfig struct {
-	// Database is the workspace's file in place of
-	// $HOME/.atkins/atkins.db, or a list of files in the form of PATH:
+	// Database is the workspace's file, $HOME/.atkins/atkins.db when
+	// unset, or a list of files in the form of PATH:
 	// the first is the workspace's, the rest are mirrors that take the
 	// same rows and are never read. The project's, the atkins.db of the
 	// nearest .atkins folder, records as well either way.
@@ -211,7 +211,7 @@ func Discover(dir string) string
 
 ### `EnvironmentNames`
 
-`EnvironmentNames` returns the override variable of each field, keyed by field path.
+`EnvironmentNames` returns the environment variable of each field, keyed by field path.
 
 ```go
 func EnvironmentNames() map[string]string
@@ -330,7 +330,7 @@ func (*Menu) Run() error
 
 ### `SetIO`
 
-`SetIO` points the menu at w and r in place of the terminal.
+`SetIO` points the menu at w and r.
 
 ```go
 func (*Menu) SetIO(w io.Writer, r io.Reader)

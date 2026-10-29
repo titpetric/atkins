@@ -174,7 +174,7 @@ run: go test ./...
 	assert.False(t, job.Passthru)
 }
 
-// TestJobUnmarshalYAML_CmdTakesPrecedenceOverRun tests that cmd takes precedence over run
+// TestJobUnmarshalYAML_CmdTakesPrecedenceOverRun checks a job with cmd and run set reads cmd.
 func TestJobUnmarshalYAML_CmdTakesPrecedenceOverRun(t *testing.T) {
 	yamlContent := `
 desc: Test precedence
@@ -255,7 +255,7 @@ func TestJob_GetAliases(t *testing.T) {
 }
 
 // TestJob_ShouldShow checks a root job shows, a nested job hides, and show:
-// overrides both.
+// sets the visibility of either.
 func TestJob_ShouldShow(t *testing.T) {
 	t.Parallel()
 

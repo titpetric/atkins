@@ -181,14 +181,14 @@ func TestEnvDeclPrecedence(t *testing.T) {
 	envDecl := &model.EnvDecl{
 		Include: &model.IncludeDecl{Files: []string{envFile}},
 		Vars: map[string]any{
-			"KEY":   "from_vars", // Should override file
+			"KEY":   "from_vars", // Should replace the file value
 			"OTHER": "value",
 		},
 	}
 
 	result, err := processEnv(ctx, envDecl)
 	assert.NoError(t, err)
-	assert.Equal(t, "from_vars", result["KEY"], "vars should override include files")
+	assert.Equal(t, "from_vars", result["KEY"], "vars should set the value of an included key")
 	assert.Equal(t, "value", result["OTHER"])
 }
 

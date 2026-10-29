@@ -127,7 +127,7 @@ func TestFindFile(t *testing.T) {
 		assert.NoError(t, os.WriteFile(filepath.Join(tmpDir, "docker-compose.yml"), []byte(""), 0o644))
 		assert.NoError(t, os.WriteFile(filepath.Join(subDir, "compose.yml"), []byte(""), 0o644))
 
-		// Should find compose.yml in subDir (closer), not docker-compose.yml in parent
+		// Should find compose.yml in subDir, the nearer folder
 		loader := runner.NewSkillsLoader(tmpDir, subDir)
 		matchDir, found := loader.FindFile([]string{"compose.yml", "docker-compose.yml"}, subDir)
 		assert.True(t, found)
@@ -315,7 +315,7 @@ jobs:
 		assert.Equal(t, appDir, pipelines[0].Dir)
 	})
 
-	t.Run("local skills override global by ID", func(t *testing.T) {
+	t.Run("local skills come first by ID", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		homeDir := t.TempDir()
 
@@ -344,7 +344,7 @@ jobs:
 
 		assert.NoError(t, err)
 		assert.Len(t, pipelines, 1)
-		assert.Equal(t, "Local Go", pipelines[0].Name) // Local takes precedence
+		assert.Equal(t, "Local Go", pipelines[0].Name) // Local comes first
 	})
 
 	t.Run("multiple when patterns use closest match", func(t *testing.T) {

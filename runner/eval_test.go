@@ -320,7 +320,7 @@ func TestEvaluateIfInContext(t *testing.T) {
 			wantBool: false,
 		},
 		{
-			name:     "failed command output does not override exit status",
+			name:     "exit status decides when the output reads true",
 			ifCond:   "$(printf true; false)",
 			vars:     make(map[string]any),
 			env:      make(map[string]string),

@@ -281,7 +281,7 @@ func TestContextVariables_LoopPattern(t *testing.T) {
 		assert.Nil(t, parent.Get("index"), "parent should not have loop var")
 	})
 
-	t.Run("loop var shadows parent var", func(t *testing.T) {
+	t.Run("loop var sets the value of a parent var name", func(t *testing.T) {
 		parent := runner.NewContextVariables(map[string]any{
 			"item": "parent-value",
 		})

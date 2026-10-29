@@ -33,7 +33,7 @@ var ErrNotFound = errors.New("not found")
 // Storage is one atkins event database: it applies the migrations on
 // open, writes the rows of finished runs and answers the reports. Every
 // method takes a context and one request value. A nil Storage records
-// nothing and closes nothing, so a caller that failed to open one has no
+// nothing and closes nothing. A caller that failed to open one has no
 // branch to write.
 type Storage struct {
 	db   *sqlx.DB
@@ -166,7 +166,7 @@ func newID() string {
 }
 
 // stamp returns nil for a zero time, else the time in UTC to the
-// millisecond, so a text column compares in one zone.
+// millisecond. A text column compares in one zone.
 func stamp(at time.Time) *time.Time {
 	if at.IsZero() {
 		return nil
@@ -206,7 +206,7 @@ type Paths struct {
 	Mirrors []string
 }
 
-// EnvDB names the workspace's database in place of $HOME/.atkins/atkins.db,
+// EnvDB names the workspace's database, $HOME/.atkins/atkins.db when unset,
 // a list in the form of PATH: the first file is the workspace's, the rest
 // are its mirrors.
 const EnvDB = "ATKINS_DB"

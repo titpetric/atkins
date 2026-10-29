@@ -103,9 +103,9 @@ type ExecError struct {
 ```go
 // ExecutionContext holds the state of a run as a job and its steps see it.
 // A job, a step and a loop iteration each run in a copy of their parent's
-// context. Copy clones the variables and the environment, so a step's vars
-// stay in the step, and shares the job tracker and the substitution memo,
-// so every copy agrees on which jobs finished and on what a `$(...)`
+// context. Copy clones the variables and the environment, and a step's vars
+// stay in the step. It shares the job tracker and the substitution memo, and
+// every copy agrees on which jobs finished and on what a `$(...)`
 // produced. A task name resolves in the skill's own pipeline first, then in
 // every loaded pipeline; a leading colon skips the skill.
 type ExecutionContext struct {
@@ -143,8 +143,8 @@ type ExecutionContext struct {
 	// Shared across copies so the mutex protects the map consistently.
 	jobTracker *jobTracker
 
-	// substitutions memoises the `$(...)` results of one step execution,
-	// so the passes that interpolate a step - the label, the condition,
+	// substitutions memoises the `$(...)` results of one step execution.
+	// The passes that interpolate a step - the label, the condition,
 	// the command - run the shell inside it once between them. Shared
 	// across copies, and replaced for each step and each loop iteration.
 	substitutions *substitutionCache
@@ -329,7 +329,7 @@ type OutputItem struct {
 	DependsOn []string `json:"depends_on,omitempty" yaml:"depends_on,omitempty"`
 
 	// Steps are the step labels, the lines `atkins -l` prints under the
-	// job, so a caller can show what a job does without reading the
+	// job. A caller can show what a job does without reading the
 	// file itself.
 	Steps []string `json:"steps,omitempty" yaml:"steps,omitempty"`
 
@@ -337,7 +337,7 @@ type OutputItem struct {
 	Env []string `json:"env,omitempty" yaml:"env,omitempty"`
 
 	// Hidden reports a job with show: false, a job the file keeps out of
-	// menus. The listing carries it, so a caller knows the job exists and
+	// menus. The listing carries it. A caller knows the job exists and
 	// what it does, and decides for itself whether to show it.
 	Hidden bool `json:"hidden,omitempty" yaml:"hidden,omitempty"`
 
@@ -614,7 +614,7 @@ type Skill struct {
 // no active skill carries, for `atkins -l --json --all`.
 type SkillsLoader struct {
 	// SkillsDirs are the directories to search for skill files, in priority order.
-	// First directory takes precedence for skills with the same ID.
+	// The first directory holding an ID supplies that skill.
 	SkillsDirs []string
 
 	// StartDir is the directory from which to start searching for when: files.
@@ -747,7 +747,7 @@ type VendorStatus string
 
 ```go
 // Vendorer copies the skills a repository uses out of a shared skills
-// directory and into the repository, so a clone or a CI agent gets the same
+// directory and into the repository. A clone or a CI agent gets the same
 // jobs without a personal $HOME/.atkins/skills.
 //
 // A repository uses a skill whose when: block matches a path in it, a skill
@@ -970,7 +970,7 @@ var ErrJobSkipped = errors.New("job skipped")
 
 ### `ActivePipelines`
 
-`ActivePipelines` returns the pipelines a run sees: no inactive skills, no inactive jobs.
+`ActivePipelines` returns the pipelines a run sees: the active skills with their active jobs.
 
 ```go
 func ActivePipelines(pipelines []*model.Pipeline) []*model.Pipeline
@@ -1677,7 +1677,7 @@ func (*SkillsLoader) LoadAll() ([]*model.Pipeline, error)
 
 ### `Scan`
 
-`Scan` returns every skill in directory order, active or not, a shadowed one included,
+`Scan` returns every skill in directory order, active and inactive, with each ID's later copies,
 or the error of a directory that does not read
 or a skill that does not load.
 

@@ -48,7 +48,7 @@ func TestExtractRepoFromURL(t *testing.T) {
 }
 
 func TestCaptureGitInfo(t *testing.T) {
-	// This test runs in a git repository, so CaptureGitInfo returns metadata
+	// This test runs in a git repository. CaptureGitInfo returns metadata
 	info := CaptureGitInfo()
 
 	// Nil outside a git repository
@@ -59,7 +59,7 @@ func TestCaptureGitInfo(t *testing.T) {
 }
 
 func TestCaptureModulePath(t *testing.T) {
-	// This test runs in a Go module, so CaptureModulePath returns the path
+	// This test runs in a Go module. CaptureModulePath returns the path
 	path := CaptureModulePath()
 
 	// Should find the atkins module path

@@ -268,7 +268,7 @@ func TestExecutor_DefaultTimeout_Override(t *testing.T) {
 	ctx := context.Background()
 
 	cmd := psexec.NewShellCommand("sleep 10")
-	cmd.Timeout = 50 * time.Millisecond // short override
+	cmd.Timeout = 50 * time.Millisecond // short timeout
 	result := exec.Run(ctx, cmd)
 
 	assert.False(t, result.Success())
@@ -328,8 +328,8 @@ func TestExecutor_Interactive_NoTerminal(t *testing.T) {
 }
 
 func TestExecutor_Interactive_NoTerminal_ProcessCleanup(t *testing.T) {
-	// When term.MakeRaw fails, Run must wait for the already-started process
-	// so it does not become a zombie.
+	// When term.MakeRaw fails, Run must wait for and reap the
+	// already-started process.
 	exec := psexec.New()
 	ctx := context.Background()
 

@@ -12,7 +12,7 @@ import (
 // the embedded document from `config.RuntimeDefaultConfig`, overlaid with
 // the user and project documents, then with the environment.
 //
-// atkins loads it once and shares it, so every command sees the same values
+// atkins loads it once and shares it. Every command sees the same values
 // and a configuration error surfaces once and never per subsystem.
 var runtimeConfig *config.Config
 
@@ -37,7 +37,7 @@ func loadRuntimeConfig(dir string) (*config.Config, error) {
 // runConfig runs the configuration menu.
 //
 // It edits the project document (.atkins/config.yml, created from the
-// embedded default when absent) and leaves the merged view alone, so the
+// embedded default when absent) and leaves the merged view alone. The
 // saved file holds only what this project chose.
 func runConfig(dir string) error {
 	path := config.ProjectPath(dir)

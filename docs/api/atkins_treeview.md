@@ -34,8 +34,8 @@ type Builder struct {
 // Display renders the tree in place with ANSI cursor control. On a terminal
 // each Render rolls back the lines of the previous one; Invalidate forgets
 // them when output from outside the tree, such as an interactive command,
-// lands between two renders. RenderFinal prints the whole tree once execution ends, so
-// the output stays scrollable. A silent display, for JSON and YAML output,
+// lands between two renders. RenderFinal prints the whole tree once execution ends.
+// The output stays scrollable. A silent display, for JSON and YAML output,
 // prints nothing live.
 type Display struct {
 	lastLineCount int
@@ -65,7 +65,7 @@ type ExecutionTree struct {
 
 ```go
 // Node is a job, step or iteration in the tree. Its accessors lock the node,
-// so the renderer reads it while the runner updates it, and its setters are
+// the renderer reads it while the runner updates it, and its setters are
 // no-ops on a nil node. A multi-line name keeps its first line with a
 // summary of the rest, as TrimMultilineLabel writes it.
 type Node struct {

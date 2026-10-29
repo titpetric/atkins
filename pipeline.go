@@ -98,14 +98,14 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 
 	cwd, _ := os.Getwd()
 
-	// Configuration resolves before anything reads a setting, so a
+	// Configuration resolves before anything reads a setting. A
 	// broken document surfaces once and by name.
 	settings, err := loadRuntimeConfig(cwd)
 	if err != nil {
 		return fmt.Errorf("%s %v", colors.BrightRed("ERROR:"), err)
 	}
 
-	// These flags take over the whole invocation: they open the
+	// These flags handle the whole invocation: they open the
 	// configuration menu, vendor skills into the repository or report
 	// the recorded runs, and exit.
 	switch {
@@ -240,7 +240,7 @@ func runPipeline(ctx context.Context, opts *Options, args []string) error {
 pipelineReady:
 
 	// Always merge global skills from $HOME/.atkins/skills/ (unless jailed).
-	// Local .atkins/skills/ takes precedence: skip globals already loaded by ID.
+	// Local .atkins/skills/ load first: skip globals already loaded by ID.
 	if !opts.Jail {
 		if home, err := os.UserHomeDir(); err == nil {
 			globalLoader := runner.NewSkillsLoader(originalCwd, originalCwd)
@@ -254,7 +254,7 @@ pipelineReady:
 	// A job's own when: block gates it on the folder atkins runs from.
 	runner.ApplyJobWhen(pipelines, originalCwd)
 
-	// Handle working directory override (applies to both stdin and file modes)
+	// Change to the --working-directory folder (applies to both stdin and file modes)
 	if opts.WorkingDirectory != "" {
 		if err := os.Chdir(opts.WorkingDirectory); err != nil {
 			return fmt.Errorf("%s failed to change directory to %s: %v", colors.BrightRed("ERROR:"), opts.WorkingDirectory, err)
@@ -364,7 +364,7 @@ pipelineReady:
 		os.Exit(1)
 	}
 
-	// The event database records what ran and how long it took, so
+	// The event database records what ran and how long it took.
 	// `atkins --stats` and task-ui can report on it. When no database
 	// opens, the recorder stays nil and the pipeline runs unrecorded.
 	recorder := openRecorder(settings, opts)
@@ -452,7 +452,7 @@ func runPipelines(
 
 // recording is the event databases for one invocation, and the recorder
 // over them. Both are empty when nothing is recording, and Close
-// tolerates that, so the caller has one branch and not three.
+// tolerates that. The caller has one branch.
 type recording struct {
 	stores   []*storage.Storage
 	recorder runner.Recorder
@@ -489,7 +489,7 @@ func openRecorder(settings *config.Config, opts *Options) recording {
 }
 
 // openStorage opens the databases a run records to: the project's, the
-// workspace's, which the configuration names in place of $HOME's, and the
+// workspace's, which the configuration names or $HOME holds, and the
 // mirrors named after it.
 func openStorage(settings *config.Config) ([]*storage.Storage, error) {
 	return storage.NewStorage(settings.Storage.Database)

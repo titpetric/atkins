@@ -33,7 +33,7 @@ func TestRecordKeepsTheJobAndItsCommands(t *testing.T) {
 	assert.Equal(t, int64(2), pipelines[0].Steps)
 
 	// The job costs the three seconds of both sleeps, which is the whole
-	// point of recording the tree and not only the commands.
+	// point of recording the tree along with the commands.
 	jobs, err := store.Runs(ctx, storage.RunFilter{Kind: "job"})
 	assert.NoError(t, err)
 	assert.Len(t, jobs, 1)

@@ -152,8 +152,8 @@ func (e *Executor) executeTaskRef(ctx context.Context, execCtx *ExecutionContext
 		if err := evaluateDirAndVars(taskCtx, taskJob, false, "task"); err != nil {
 			return err
 		}
-		// Merge step-level vars (call-site overrides)
-		// This lets interpolated step vars override task defaults
+		// Merge step-level vars (call-site values)
+		// Interpolated step vars set the names the task defaults declare
 		if err := MergeVariables(taskCtx, step.Decl); err != nil {
 			return err
 		}
@@ -367,7 +367,7 @@ func (e *Executor) executeTaskStepWithLoop(ctx context.Context, execCtx *Executi
 				return err
 			}
 
-			// Merge step-level vars (call-site overrides) with iteration context
+			// Merge step-level vars (call-site values) with iteration context
 			// This lets interpolation resolve step vars like `path: $(dirname "${{item}}")`
 			if err := MergeVariables(iterCtx, iterationDecl); err != nil {
 				iterTreeNode.SetStatus(treeview.StatusFailed)

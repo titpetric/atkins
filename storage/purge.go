@@ -11,7 +11,7 @@ type PurgeRequest struct {
 	// time removes nothing.
 	Before time.Time
 
-	// Batch bounds one DELETE and Batches how many it runs, so a first
+	// Batch bounds one DELETE and Batches how many it runs. A first
 	// pass over a year of history holds the write lock for a moment.
 	// Zero means 500 rows and 20 batches, and the next pass takes the
 	// rows beyond them.

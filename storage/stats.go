@@ -27,7 +27,7 @@ type StatsRequest struct {
 
 // statRow is one normalized form as the query returns it, for the report
 // to fold into its key. MAX(started_at) has no declared column type for
-// the driver to convert by, so the newest time arrives as text and
+// the driver to convert by. The newest time arrives as text and
 // parseStamp reads it.
 type statRow struct {
 	Normalized string `db:"normalized"`

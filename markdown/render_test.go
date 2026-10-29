@@ -47,7 +47,7 @@ func TestRenderColorizesSubheading(t *testing.T) {
 // TestRenderDoesNotDoubleColorHeading checks Render leaves alone a heading
 // the caller already coloured, as helpdoc does with its own headings:
 // Sections isolates it same as a plain one, but it starts with an escape
-// code and not `#`, so the heading regexp does not match it.
+// code. The heading regexp needs a leading `#` and skips it.
 func TestRenderDoesNotDoubleColorHeading(t *testing.T) {
 	coloured := colors.BrightCyan("# Title")
 	out := Render(coloured+"\n\nProse.\n", true)

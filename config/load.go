@@ -107,7 +107,7 @@ func (c *Config) mergeFile(path string) error {
 	}
 
 	// Unmarshalling over the existing struct leaves fields the
-	// document doesn't mention alone, so each document is a layer
+	// document doesn't mention alone. Each document is a layer
 	// and never a replacement.
 	if err := yaml.Unmarshal(contents, c); err != nil {
 		return fmt.Errorf("parse %s: %w", path, err)

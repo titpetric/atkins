@@ -86,7 +86,7 @@ func processCursorUpClear(in string) string {
 		// Now cutPos is either at a \n or at position 0
 		// The cut starts at the start of the line we landed on
 		if cutPos > 0 {
-			// We're at a \n, so the cut starts after this \n
+			// We're at a \n. The cut starts after this \n
 			// But we need to go back one more to get the start of that line
 			// Keep everything before this line
 			// Find the previous newline to keep

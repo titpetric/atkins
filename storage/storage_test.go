@@ -15,7 +15,7 @@ import (
 	"github.com/titpetric/atkins/storage"
 )
 
-// base is the moment the fixture runs start, so a test can assert on a
+// base is the moment the fixture runs start. A test can assert on a
 // window without a clock of its own.
 var base = time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
 
@@ -32,7 +32,7 @@ func newStorage(t *testing.T) *storage.Storage {
 	return store
 }
 
-// sleepRun is a job that runs two sleeps, so the commands cost a second
+// sleepRun is a job that runs two sleeps. The commands cost a second
 // and two, and the job that holds them costs three.
 func sleepRun(at time.Time) *eventlog.Log {
 	return &eventlog.Log{
@@ -52,7 +52,7 @@ func sleepRun(at time.Time) *eventlog.Log {
 			Name: "Demo", Result: eventlog.ResultPass, Duration: 3,
 			Children: []*eventlog.StateNode{{
 				// The tree shows a job with its description; the row keeps
-				// the canonical name out of the id, so a year of runs of
+				// the canonical name out of the id. A year of runs of
 				// `default` stays one group when the description changes.
 				Name: "default - Run everything", ID: "jobs.default", Result: eventlog.ResultPass, Duration: 3, Steps: 2,
 				Children: []*eventlog.StateNode{
@@ -78,8 +78,8 @@ func TestDiscoverWalksUpToTheProject(t *testing.T) {
 	assert.NoError(t, os.MkdirAll(nested, 0o755))
 	assert.NoError(t, os.MkdirAll(filepath.Join(root, ".atkins"), 0o755))
 
-	// Every run in a checkout records to the same file, whichever
-	// directory inside it the run happens in, and to the workspace's
+	// Every run in a checkout records to the same file, from any
+	// directory inside it, and to the workspace's
 	// beside it.
 	paths, err := storage.Discover(nested, "")
 	assert.NoError(t, err)
@@ -92,7 +92,7 @@ func TestDiscoverFallsBackToHome(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	// A directory that belongs to no project still records, so the
+	// A directory that belongs to no project still records. The
 	// report counts a stray command in /tmp too. With no project, the
 	// workspace's is the one database and the run records once.
 	paths, err := storage.Discover(t.TempDir(), "")
@@ -156,7 +156,7 @@ func TestDatabases(t *testing.T) {
 }
 
 // A directory inside $HOME whose nearest .atkins is the workspace's own
-// has no project: the run records once and not twice to one file.
+// has no project: the run records to that one file once.
 func TestDiscoverInsideHome(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -171,7 +171,7 @@ func TestDiscoverInsideHome(t *testing.T) {
 	assert.Equal(t, filepath.Join(home, ".atkins", "atkins.db"), paths.Workspace)
 }
 
-// OpenAll keeps what opened and reports the first failure, so a run
+// OpenAll keeps what opened and reports the first failure. A run
 // records to the database that works.
 func TestOpenAll(t *testing.T) {
 	ctx := context.Background()
@@ -251,7 +251,7 @@ func TestNewStorage(t *testing.T) {
 }
 
 // A run records to the project's, the workspace's and every mirror, the
-// same rows in each, so the mirror's reader sees what the workspace's does.
+// same rows in each. The mirror's reader sees what the workspace's does.
 func TestNewStorageWithMirror(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv(storage.EnvDB, "")

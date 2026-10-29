@@ -71,8 +71,8 @@ jobs:
 }
 
 // TestSkillsLoader_ScanKeepsDirectoryOrder checks the same skill ID from
-// two directories appears twice, the higher-priority directory first, so
-// a caller can report precedence.
+// two directories appears twice, the higher-priority directory first,
+// and a caller can report the directory order.
 func TestSkillsLoader_ScanKeepsDirectoryOrder(t *testing.T) {
 	root := t.TempDir()
 	local := filepath.Join(root, ".atkins", "skills")
@@ -119,8 +119,8 @@ jobs:
 	assert.Equal(t, root, pipelines[0].Dir)
 }
 
-// TestSkillsLoader_LoadSkipsShadowedInactive checks an inactive skill
-// does not shadow the active one of the same ID in a later directory.
+// TestSkillsLoader_LoadSkipsShadowedInactive checks Load returns the active
+// skill of an ID from a later directory when the earlier copy is inactive.
 func TestSkillsLoader_LoadSkipsShadowedInactive(t *testing.T) {
 	root := t.TempDir()
 	local := filepath.Join(root, ".atkins", "skills")
@@ -199,7 +199,7 @@ func TestSkillsLoader_ParentWorkspace(t *testing.T) {
 }
 
 // TestSkillsLoader_AddWorkspace checks a skill without when: from an
-// added workspace runs in that workspace, not in WorkspaceDir.
+// added workspace runs in that workspace.
 func TestSkillsLoader_AddWorkspace(t *testing.T) {
 	root := t.TempDir()
 	other := filepath.Join(root, "other")
@@ -273,7 +273,7 @@ func TestMergeSkills(t *testing.T) {
 
 	assert.Len(t, got, 4)
 	assert.True(t, got[0] == main)
-	assert.True(t, got[1] == localGo, "the local go skill shadows the global one")
+	assert.True(t, got[1] == localGo, "the local go skill comes first")
 	assert.True(t, got[2] == globalNode, "an active skill replaces an inactive one")
 	assert.True(t, got[3] == globalRust)
 }

@@ -30,7 +30,7 @@ func TestRecorders(t *testing.T) {
 
 	assert.NoError(t, storage.NewRecorders(stores).Record(ctx, sleepRun(time.Now())))
 
-	// The same tree and the same commands in each, so a report of
+	// The same tree and the same commands in each. A report of
 	// either answers the same questions.
 	for _, store := range stores {
 		runs, err := store.Runs(ctx, storage.RunFilter{})

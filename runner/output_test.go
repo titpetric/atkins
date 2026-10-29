@@ -458,7 +458,7 @@ func TestBuildPipelineSectionCarriesTheWholeJob(t *testing.T) {
 	assert.Equal(t, []string{".env.job"}, byName["default"].Env)
 	assert.False(t, byName["default"].Hidden)
 
-	// A job the file keeps out of menus stays in the listing, marked, so
-	// a caller knows it exists and decides for itself.
+	// A job the file keeps out of menus stays in the listing, marked.
+	// A caller knows it exists and decides for itself.
 	assert.True(t, byName["hide"].Hidden)
 }

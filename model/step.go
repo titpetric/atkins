@@ -42,7 +42,7 @@ func (s *Step) String() string {
 	case s.Task != "":
 		return "task: " + s.Task
 	case s.Run != "":
-		// If Run contains newlines, display <script> in place of the full command
+		// If Run contains newlines, display <script> as the command
 		if strings.Contains(s.Run, "\n") {
 			return "run: <script>"
 		}
@@ -67,7 +67,7 @@ func (s *Step) DisplayLabel() string {
 	case s.Task != "":
 		return "task: " + s.Task
 	case s.Run != "":
-		// If Run contains newlines, display <script> in place of the full command
+		// If Run contains newlines, display <script> as the command
 		if strings.Contains(s.Run, "\n") {
 			return "run: <script>"
 		}
@@ -84,7 +84,7 @@ func (s *Step) DisplayLabel() string {
 
 // Label returns a structured label for the step with information about how to display it.
 // showPrefix controls whether to include the type prefix (e.g., "run:", "task:").
-// HidePrefix overrides this to never show the prefix (for simple shorthand tasks).
+// HidePrefix hides the prefix in every case (for simple shorthand tasks).
 func (s *Step) Label(showPrefix bool) *Label {
 	switch {
 	case s.Task != "":

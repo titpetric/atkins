@@ -29,13 +29,13 @@ func TestLoad(t *testing.T) {
 	writeDocument(t, home, "storage:\n  record: false\n")
 	writeDocument(t, project, "storage:\n  database: /project.db\n")
 
-	// The project document overrides the user document field by field.
+	// The project document sets its fields on top of the user document.
 	cfg, err := config.Load(project)
 	assert.NoError(t, err)
 	assert.Equal(t, "/project.db", cfg.Storage.Database)
 	assert.False(t, cfg.Storage.Record)
 
-	// The environment overrides both.
+	// The environment sets ATKINS_DB last.
 	t.Setenv("ATKINS_DB", "/env.db")
 	cfg, err = config.Load(project)
 	assert.NoError(t, err)

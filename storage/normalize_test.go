@@ -137,7 +137,7 @@ func TestKey(t *testing.T) {
 			assert.Equal(t, test.tool, tool)
 
 			// A normalized command keys the same as the command it came
-			// from, so old rows group by the key.
+			// from. Old rows group by the key.
 			normalized, _ := storage.Normalize(test.command)
 			again, _ := storage.Key(normalized)
 			assert.Equal(t, test.want, again)

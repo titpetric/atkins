@@ -26,7 +26,7 @@ func (r *recordingTB) FailNow() {
 
 // mustFail calls a failing assertion against a recordingTB, which records the
 // failure and leaves the test that drives it passing. Every assertion prints
-// its message to stdout when it fails, so a passing run prints one line per
+// its message to stdout when it fails. A passing run prints one line per
 // case. Those lines come from the reporter working; no test fails.
 func mustFail(t *testing.T, name string, failing func(testing.TB)) {
 	t.Helper()

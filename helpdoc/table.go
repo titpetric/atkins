@@ -12,7 +12,7 @@ import (
 //
 // The padding is what makes one renderer enough for both destinations: a
 // padded table is a readable column layout in a terminal and a valid
-// markdown table in a file, so `atkins --help > help.md` and
+// markdown table in a file. `atkins --help > help.md` and
 // `atkins --help` differ only in the colour on the headings.
 type table struct {
 	w       io.Writer
@@ -26,7 +26,7 @@ func newTable(w io.Writer, headers ...string) *table {
 }
 
 // row appends one row. It pads a row shorter than the header list with
-// empty cells and truncates a longer one, so a caller cannot produce
+// empty cells and truncates a longer one. A caller cannot produce
 // a table markdown will not parse.
 func (t *table) row(cells ...string) {
 	out := make([]string, len(t.headers))
@@ -39,7 +39,7 @@ func (t *table) row(cells ...string) {
 }
 
 // flush writes the table and resets it. A table with no rows writes
-// nothing, so a section with nothing to say stays out of the document.
+// nothing. A section with nothing to say stays out of the document.
 func (t *table) flush() {
 	if len(t.rows) == 0 {
 		return
@@ -60,7 +60,7 @@ func (t *table) flush() {
 	t.line(t.headers, widths)
 
 	// The rule row spans the padding as well as the cell, which is the
-	// shape mdox writes, so a help document redirected to a file is
+	// shape mdox writes. A help document redirected to a file is
 	// already formatted the way the repository formats markdown.
 	rule := make([]string, len(t.headers))
 	for i := range rule {

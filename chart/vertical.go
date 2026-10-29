@@ -41,7 +41,7 @@ func Vertical(opts VerticalOptions) string {
 		filled = append(filled, eighths(bar.Value, most, height))
 	}
 
-	// The axis column is as wide as the peak's label, so the bars start
+	// The axis column is as wide as the peak's label. The bars start
 	// where the gutter ends on every row.
 	ceiling := ""
 	if opts.Format != nil && most > 0 {

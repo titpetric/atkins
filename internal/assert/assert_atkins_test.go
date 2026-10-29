@@ -37,7 +37,7 @@ func assertAtkins(t *testing.T) {
 
 	assert.FileExists(t, file)
 	assert.NoFileExists(t, filepath.Join(dir, "absent"))
-	// A directory is not a file, so NoFileExists holds on one.
+	// NoFileExists holds on a directory.
 	assert.NoFileExists(t, dir)
 	assert.DirExists(t, dir)
 	assert.NoDirExists(t, filepath.Join(dir, "absent"))
@@ -53,7 +53,7 @@ func assertAtkins(t *testing.T) {
 	assert.ElementsMatch(t, []int{1, 2, 2}, []int{2, 1, 2})
 	assert.ElementsMatch(t, []string(nil), []string{})
 
-	// The condition is already true, so Eventually returns on the first
+	// The condition is already true. Eventually returns on the first
 	// read without waiting for a tick.
 	assert.Eventually(t, func() bool { return true }, time.Second, time.Millisecond)
 
@@ -108,8 +108,8 @@ func assertAtkinsFailure(t *testing.T) {
 	})
 }
 
-// fixturePaths returns a regular file and a directory that both exist,
-// so the four existence assertions have something to read.
+// fixturePaths returns a regular file and a directory that both exist.
+// The four existence assertions have something to read.
 func fixturePaths(t *testing.T) (file, dir string) {
 	t.Helper()
 

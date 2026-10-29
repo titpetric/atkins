@@ -88,8 +88,8 @@ func TestMenuMarksEnvironmentOverrides(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".atkins", "config.yml")
 	output := runMenu(t, path, "q\n")
 
-	// Editing a field the environment overrides would look like it did
-	// nothing, so the menu says so.
+	// The menu names the variable that sets a field from the
+	// environment.
 	assert.Contains(t, output, "ATKINS_DB")
 }
 

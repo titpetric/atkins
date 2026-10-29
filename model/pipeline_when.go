@@ -12,7 +12,7 @@ type PipelineWhen struct {
 	// folder, nearest first.
 	Files []string `yaml:"files" json:"files"`
 
-	// Here restricts the search to the starting folder, so a match in
+	// Here restricts the search to the starting folder. A match in
 	// a parent folder does not count.
 	Here bool `yaml:"here,omitempty" json:"here,omitempty"`
 

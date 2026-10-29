@@ -289,7 +289,7 @@ func prepareStepLoopVariables(ctx *ExecutionContext, step *model.Step) error {
 
 	// Resolve the first source's unified declaration closure before installing
 	// the remaining lazy vars. Later iterator sources may depend on iterator
-	// variables, so they remain pending until expansion reaches them.
+	// variables. They remain pending until expansion reaches them.
 	resolvedVars := map[string]bool{}
 	resolvedEnv := map[string]bool{}
 	if len(step.For) > 0 {

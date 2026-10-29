@@ -26,7 +26,7 @@ func (v *Vendorer) compareFile(path string) (status VendorStatus, added, removed
 
 	switch {
 	case readErr != nil:
-		// Nothing to diff against, so the whole file is the addition.
+		// With no file to diff against, the whole file is the addition.
 		return VendorNew, len(to), 0, ""
 	case bytes.Equal(existing, data):
 		return VendorCurrent, 0, 0, ""

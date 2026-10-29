@@ -77,7 +77,7 @@ func openStatsStorage(settings *config.Config) ([]*storage.Storage, error) {
 // checkout has been running, and what every checkout on the machine has
 // been running between them.
 //
-// A run records to both databases, so the two answer different
+// A run records to both databases. The two answer different
 // questions of the same rows. The project's says what standing here
 // costs; the workspace's says where a week went across every project
 // atkins ran in.
@@ -106,7 +106,7 @@ func (r *StatsReport) Scopes() []*StatsScope {
 // `--stats --json` needs to draw it again elsewhere.
 //
 // Durations are milliseconds throughout, as the database keeps them: a
-// chart takes a number and not a word.
+// chart takes a number.
 type StatsScope struct {
 	// Name names the scope, project or workspace.
 	Name string `json:"name" yaml:"name"`
@@ -256,7 +256,7 @@ func collectScope(ctx context.Context, store *storage.Storage, name string, samp
 		To:       now.Format(time.DateOnly),
 	}
 
-	// A project is one checkout, so the repository its runs name is the
+	// A project is one checkout. The repository its runs name is the
 	// repository. A workspace holds many and names none.
 	if name == projectScope {
 		report.Repository = repositoryOf(ctx, store, since)
@@ -275,8 +275,8 @@ func collectScope(ctx context.Context, store *storage.Storage, name string, samp
 		})
 	}
 
-	// The totals come from the tools, which roll up every command and
-	// not only the ones that fit the table.
+	// The totals come from the tools, which roll up every command,
+	// including the ones past the end of the table.
 	for _, tool := range tools {
 		report.Tools = append(report.Tools, ToolReport(tool))
 		report.Runs += tool.Runs

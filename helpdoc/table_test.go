@@ -27,7 +27,7 @@ func TestTable(t *testing.T) {
 	assert.Equal(t, "| --working-directory | Change directory |", lines[3])
 }
 
-// TestTableEmpty checks a table with no rows writes nothing, so a
+// TestTableEmpty checks a table with no rows writes nothing. A
 // section with nothing to report stays out of the document.
 func TestTableEmpty(t *testing.T) {
 	var out bytes.Buffer
@@ -37,8 +37,8 @@ func TestTableEmpty(t *testing.T) {
 	assert.Empty(t, out.String())
 }
 
-// TestTableShortRow checks row pads a row with fewer cells than headers,
-// so the table stays one markdown can parse.
+// TestTableShortRow checks row pads a row with fewer cells than headers.
+// The table stays one markdown can parse.
 func TestTableShortRow(t *testing.T) {
 	var out bytes.Buffer
 
@@ -51,7 +51,7 @@ func TestTableShortRow(t *testing.T) {
 	}
 }
 
-// TestTableColoredCell checks padding measures the visible width, so a
+// TestTableColoredCell checks padding measures the visible width. A
 // coloured cell does not push its column out.
 func TestTableColoredCell(t *testing.T) {
 	var out bytes.Buffer

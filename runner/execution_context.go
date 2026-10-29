@@ -35,9 +35,9 @@ func (jt *jobTracker) IsCompleted(jobName string) bool {
 // ExecutionContext holds the state of a run as a job and its steps see it.
 //
 // A job, a step and a loop iteration each run in a copy of their parent's
-// context. Copy clones the variables and the environment, so a step's vars
-// stay in the step, and shares the job tracker and the substitution memo,
-// so every copy agrees on which jobs finished and on what a `$(...)`
+// context. Copy clones the variables and the environment, and a step's vars
+// stay in the step. It shares the job tracker and the substitution memo, and
+// every copy agrees on which jobs finished and on what a `$(...)`
 // produced. A task name resolves in the skill's own pipeline first, then in
 // every loaded pipeline; a leading colon skips the skill.
 type ExecutionContext struct {
@@ -75,8 +75,8 @@ type ExecutionContext struct {
 	// Shared across copies so the mutex protects the map consistently.
 	jobTracker *jobTracker
 
-	// substitutions memoises the `$(...)` results of one step execution,
-	// so the passes that interpolate a step - the label, the condition,
+	// substitutions memoises the `$(...)` results of one step execution.
+	// The passes that interpolate a step - the label, the condition,
 	// the command - run the shell inside it once between them. Shared
 	// across copies, and replaced for each step and each loop iteration.
 	substitutions *substitutionCache
@@ -135,7 +135,7 @@ func (e *ExecutionContext) Copy() *ExecutionContext {
 		StepSequence: e.StepSequence,
 		jobTracker:   e.jobTracker,
 
-		// Shared, not cloned: the copies a step makes of itself are the
+		// Shared across clones: the copies a step makes of itself are the
 		// passes that must agree on one answer.
 		substitutions: e.substitutions,
 

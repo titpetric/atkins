@@ -42,7 +42,7 @@ type Sample struct {
 	ExitCode   int64
 
 	// Pipeline and Job are what ran it, and InvocationID the atkins
-	// process, so the commands of one run group together.
+	// process. The commands of one run group together.
 	Pipeline     string
 	Job          string
 	InvocationID string

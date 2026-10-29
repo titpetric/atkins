@@ -35,7 +35,7 @@ func ranCount(t *testing.T, path string) int {
 // substitution executes once for the step that holds it.
 //
 // The tree renders a step with its label interpolated, and the step then
-// runs with its command interpolated. Both read the same text, so without
+// runs with its command interpolated. Both read the same text. Without
 // a memo the shell command inside it runs twice: once for a label nobody
 // asked to have side effects, and once for the step itself.
 func TestSubstitutionRunsOncePerStep(t *testing.T) {

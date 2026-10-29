@@ -64,9 +64,9 @@ func TestStatsRanksByTotalTime(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, stats, 2)
 
-	// The three test runs are twelve seconds between them, whatever
-	// their flags, and outrank the nine second build: the report ranks
-	// on the total and not on the single slowest command.
+	// The three test runs are twelve seconds between them, across
+	// their flags, and rank above the nine second build: the report
+	// ranks on the total time of a key.
 	assert.Equal(t, "go test", stats[0].Command)
 	assert.Equal(t, int64(3), stats[0].Runs)
 	assert.Equal(t, int64(12000), stats[0].TotalMs)
@@ -130,7 +130,7 @@ func TestStatsNarrows(t *testing.T) {
 	assert.Len(t, byTool, 1)
 	assert.Equal(t, "npm run build", byTool[0].Command)
 
-	// A directory keeps what ran below it too, so a workspace reports
+	// A directory keeps what ran below it too. A workspace reports
 	// its projects.
 	byDir, err := store.Stats(ctx, storage.StatsRequest{Dir: "/w/one"})
 	assert.NoError(t, err)

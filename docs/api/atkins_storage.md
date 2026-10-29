@@ -61,7 +61,7 @@ Record writes the rows of one run in one transaction. A report reads
 a run as a whole, the job's time against its steps', and a half
 written run would pass for a complete one.
 
-A job row takes the canonical name out of the node id, so `jobs.release`
+A job row takes the canonical name out of the node id. `jobs.release`
 groups as release from one month to the next while the author edits
 its description. A step row keeps the command it ran, the name a reader
 of one run looks for. Durations round to the millisecond: truncation
@@ -98,7 +98,7 @@ git rev-parse HEAD | cut -c1-8        git rev-parse HEAD
 Sorting makes `go test -v -cover` and `go test -cover -v` one row.
 Operands drop out, and a flag's argument drops with them with no table
 of the flags that take one: `--cpuprofile cpu.out` keeps the flag and
-the file reads as an operand. A flag made of digits goes too, so
+the file reads as an operand. A flag made of digits goes too.
 `head -20` and `head -50` count together.
 
 Key is the name the reports group by: the words of a command up to the
@@ -163,7 +163,7 @@ type CommandFilter struct {
 // command report.
 type CommandStat struct {
 	// Command is the key the rows group by, as Key names it: `go test`
-	// counts every test run whatever its flags and packages.
+	// counts every test run, with any flags and packages.
 	Command string
 
 	// Tool is the first word of it.
@@ -250,7 +250,7 @@ type PurgeRequest struct {
 	// time removes nothing.
 	Before time.Time
 
-	// Batch bounds one DELETE and Batches how many it runs, so a first
+	// Batch bounds one DELETE and Batches how many it runs. A first
 	// pass over a year of history holds the write lock for a moment.
 	// Zero means 500 rows and 20 batches, and the next pass takes the
 	// rows beyond them.
@@ -391,7 +391,7 @@ type Sample struct {
 	ExitCode   int64
 
 	// Pipeline and Job are what ran it, and InvocationID the atkins
-	// process, so the commands of one run group together.
+	// process. The commands of one run group together.
 	Pipeline     string
 	Job          string
 	InvocationID string
@@ -455,7 +455,7 @@ type StatsRequest struct {
 // Storage is one atkins event database: it applies the migrations on
 // open, writes the rows of finished runs and answers the reports. Every
 // method takes a context and one request value. A nil Storage records
-// nothing and closes nothing, so a caller that failed to open one has no
+// nothing and closes nothing. A caller that failed to open one has no
 // branch to write.
 type Storage struct {
 	db   *sqlx.DB
@@ -542,7 +542,7 @@ type UsageRequest struct {
 <summary><code>const EnvDB</code></summary>
 
 ```go
-// EnvDB names the workspace's database in place of $HOME/.atkins/atkins.db,
+// EnvDB names the workspace's database, $HOME/.atkins/atkins.db when unset,
 // a list in the form of PATH: the first file is the workspace's, the rest
 // are its mirrors.
 const EnvDB = "ATKINS_DB"

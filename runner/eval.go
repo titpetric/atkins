@@ -149,8 +149,8 @@ func expandSingleIterator(ctx *ExecutionContext, contexts []IterationContext, fo
 
 	// For each existing context, expand with this iterator's items
 	for _, parentCtx := range contexts {
-		// Create a temporary execution context with the parent's variables
-		// so that item resolution can reference loop variables bound by earlier iterators
+		// Create a temporary execution context with the parent's variables.
+		// Item resolution reads the loop variables bound by earlier iterators from it.
 		tempCtx := &ExecutionContext{
 			Variables: parentCtx.Variables,
 			Env:       ctx.Env,

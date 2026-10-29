@@ -53,8 +53,8 @@ func TestWriteStatsPlain(t *testing.T) {
 	writeStats(&out, sample(), false)
 	text := out.String()
 
-	// Not a terminal, so plain markdown and no escape codes: the same
-	// command serves a terminal and a document.
+	// The writer is a buffer, and the output is plain markdown with no
+	// escape codes: the same command serves a terminal and a document.
 	assert.NotContains(t, text, "\x1b[")
 	assert.Contains(t, text, "/w/.atkins/atkins.db")
 	assert.Contains(t, text, "31 days, 2026-10-21 to 2026-10-23, 3m04s across 44 runs")
@@ -91,7 +91,7 @@ func TestWriteStatsOnATerminal(t *testing.T) {
 func TestWriteStatsAsJSONAndYAML(t *testing.T) {
 	report := sample()
 
-	// The machine-readable output carries milliseconds, not words, and
+	// The machine-readable output carries milliseconds as numbers, and
 	// the per-day series a chart of tool use over time draws.
 	var asJSON bytes.Buffer
 	assert.NoError(t, writeJSON(&asJSON, report))
@@ -116,8 +116,7 @@ func TestWriteStatsOnNothingRecorded(t *testing.T) {
 	assert.Contains(t, out.String(), "nothing recorded")
 }
 
-// A day nothing ran is a bar of zero and not a missing bar, so a run of
-// days reads as time.
+// A day nothing ran is a bar of zero. A run of days reads as time.
 func TestDailyBarsCoverEveryDay(t *testing.T) {
 	bars := dailyBars(sampleScope())
 
@@ -339,7 +338,7 @@ func TestCollectStatsSamples(t *testing.T) {
 }
 
 // A mirror in the database setting takes the rows of a run and nothing
-// else: the report opens the project's and the workspace's alone, so its
+// else: the report opens the project's and the workspace's alone. Its
 // output stays the same with or without one.
 func TestOpenStatsStorageSkipsMirrors(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())

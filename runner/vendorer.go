@@ -11,8 +11,8 @@ import (
 )
 
 // vendorSkipDirs are directory names the walk skips when looking for
-// when: matches and pipeline files. The walk skips dot directories too, so
-// the repository's own .atkins/ never matches a skill against itself.
+// when: matches and pipeline files. The walk skips dot directories too.
+// The repository's own .atkins/ never matches a skill against itself.
 var vendorSkipDirs = []string{
 	"node_modules",
 	"vendor",
@@ -23,7 +23,7 @@ var vendorSkipDirs = []string{
 }
 
 // Vendorer copies the skills a repository uses out of a shared skills
-// directory and into the repository, so a clone or a CI agent gets the same
+// directory and into the repository. A clone or a CI agent gets the same
 // jobs without a personal $HOME/.atkins/skills.
 //
 // A repository uses a skill whose when: block matches a path in it, a skill
@@ -122,8 +122,8 @@ func (v *Vendorer) Plan() (*VendorResult, error) {
 	for _, path := range v.pipelineFiles(dirs) {
 		pipelines, err := LoadPipeline(path)
 		if err != nil {
-			// A pipeline that doesn't parse is a problem for the run
-			// that uses it, not for vendoring; take what we can read.
+			// The run that uses a pipeline reports its parse error;
+			// vendoring takes what it can read.
 			continue
 		}
 
@@ -167,8 +167,8 @@ func (v *Vendorer) Plan() (*VendorResult, error) {
 // compare diffs a skill against the copy the repository carries, and
 // records what installing it would change.
 //
-// A skill is its YAML file and the markdown companion beside it, so
-// compare diffs both and sums the counts. The status is New when the
+// A skill is its YAML file and the markdown companion beside it.
+// Compare diffs both and sums the counts. The status is New when the
 // repository has no copy of the YAML file, and Changed when either file
 // differs.
 func (v *Vendorer) compare(skill *VendorSkill) {
@@ -295,7 +295,7 @@ func (v *Vendorer) walk() ([]string, error) {
 
 // matchWhen reports whether a skill's when: block matches anywhere
 // in the repository, and by what. A skill without when: is active
-// everywhere, so it matches by definition.
+// everywhere. It matches by definition.
 func (v *Vendorer) matchWhen(pipeline *model.Pipeline, dirs []string) (reason string, matched bool) {
 	if pipeline.When == nil || len(pipeline.When.Files) == 0 {
 		return "always active", true

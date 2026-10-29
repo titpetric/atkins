@@ -13,7 +13,7 @@ func TestUsageBuckets(t *testing.T) {
 	ctx := context.Background()
 	store := newStorage(t)
 
-	// Two days of runs, so a daily bucket has two points and an hourly
+	// Two days of runs. A daily bucket has two points and an hourly
 	// one keeps them apart by hour as well.
 	for _, at := range []time.Time{base, base.Add(2 * time.Hour), base.Add(26 * time.Hour)} {
 		_, err := store.Record(ctx, storage.RecordRequest{Log: commandRun(at, []commandFixture{
@@ -34,7 +34,7 @@ func TestUsageBuckets(t *testing.T) {
 	assert.Len(t, hourly, 3)
 	assert.Equal(t, "2026-03-01T12:00", hourly[0].Bucket)
 
-	// A week carries the label of its Monday, so the Sunday run and the
+	// A week carries the label of its Monday. The Sunday run and the
 	// Monday run after it fall in the two weeks they belong to.
 	weekly, err := store.Usage(ctx, storage.UsageRequest{Bucket: storage.BucketWeek})
 	assert.NoError(t, err)

@@ -17,8 +17,8 @@ import (
 // than --older-than from the database --db names and releases the space,
 // or with --dry-run counts them and changes nothing, and prints one
 // line: what went, what remains and the file's size before and
-// after. A database that is not there is an error, so a typo makes no
-// empty file.
+// after. A missing database is an error, and a typo in the path
+// creates no file.
 func runPrune(ctx context.Context, stdout io.Writer, opts *Options) error {
 	if opts.DB == "" {
 		return errors.New("--prune needs --db, the database to prune")

@@ -53,7 +53,7 @@
 // a run as a whole, the job's time against its steps', and a half
 // written run would pass for a complete one.
 //
-// A job row takes the canonical name out of the node id, so `jobs.release`
+// A job row takes the canonical name out of the node id. `jobs.release`
 // groups as release from one month to the next while the author edits
 // its description. A step row keeps the command it ran, the name a reader
 // of one run looks for. Durations round to the millisecond: truncation
@@ -88,7 +88,7 @@
 // Sorting makes `go test -v -cover` and `go test -cover -v` one row.
 // Operands drop out, and a flag's argument drops with them with no table
 // of the flags that take one: `--cpuprofile cpu.out` keeps the flag and
-// the file reads as an operand. A flag made of digits goes too, so
+// the file reads as an operand. A flag made of digits goes too.
 // `head -20` and `head -50` count together.
 //
 // Key is the name the reports group by: the words of a command up to the

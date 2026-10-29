@@ -19,7 +19,7 @@ func FindRepositoryRoot(startDir string) (string, error) {
 	}
 
 	for {
-		// A worktree or a submodule has .git as a file in place of a folder.
+		// A worktree or a submodule has .git as a file.
 		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
 			return dir, nil
 		}

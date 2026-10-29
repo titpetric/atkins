@@ -8,7 +8,7 @@ import (
 // command report.
 type CommandStat struct {
 	// Command is the key the rows group by, as Key names it: `go test`
-	// counts every test run whatever its flags and packages.
+	// counts every test run, with any flags and packages.
 	Command string
 
 	// Tool is the first word of it.

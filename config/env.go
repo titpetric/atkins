@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// EnvironmentNames returns the override variable of each field, keyed by field path.
+// EnvironmentNames returns the environment variable of each field, keyed by field path.
 func EnvironmentNames() map[string]string {
 	names := map[string]string{}
 	collectEnvironment(reflect.TypeOf(Config{}), "", names)

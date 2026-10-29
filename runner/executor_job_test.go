@@ -87,7 +87,7 @@ func TestExecuteJob_SkipsWhenIfConditionFalse(t *testing.T) {
 }
 
 // TestExecuteJob_DirBeforeVars verifies that ExecuteJob evaluates job.Dir
-// BEFORE merging variables, so $(cmd) in vars runs in the correct directory.
+// BEFORE merging variables. $(cmd) in vars runs in the correct directory.
 func TestExecuteJob_DirBeforeVars(t *testing.T) {
 	t.Run("subshell pwd uses job dir", func(t *testing.T) {
 		tmpDir, err := os.MkdirTemp("", "test-workdir-*")

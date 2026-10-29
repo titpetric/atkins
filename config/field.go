@@ -13,7 +13,7 @@ type Field struct {
 	// Path is the dotted document path, e.g. "storage.retention".
 	Path string
 
-	// Env is the variable that overrides it at runtime, if any.
+	// Env is the variable that sets it at runtime, if any.
 	Env string
 
 	// value points at the live field so Set writes through.

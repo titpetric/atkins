@@ -225,7 +225,7 @@ func TestSkillFromParentFolderJailed(t *testing.T) {
 }
 
 // TestSkillFromParentFolderExplicitFile checks a pipeline file passed
-// with -f sees the skills of the folders above it, so its jobs can
+// with -f sees the skills of the folders above it. Its jobs can
 // reference them.
 func TestSkillFromParentFolderExplicitFile(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())

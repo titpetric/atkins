@@ -117,8 +117,8 @@ func (p *Pipeline) runPipeline(ctx context.Context, logger *eventlog.Logger) err
 		}
 	}
 
-	// Resolve pipeline-level working directory BEFORE merging variables,
-	// so that $(command) interpolation in vars runs from the correct directory.
+	// Resolve pipeline-level working directory BEFORE merging variables.
+	// $(command) interpolation in vars then runs from the pipeline directory.
 	if pipeline.Dir != "" {
 		dir, err := InterpolateString(pipeline.Dir, pipelineCtx)
 		if err != nil {

@@ -126,7 +126,7 @@ func runRows(req RecordRequest) ([]*model.Run, map[string]string) {
 			ids[node.ID] = row.ID
 		}
 		// A $() substitution outside any step names its job as the
-		// parent, so the map holds the job name too.
+		// parent. The map holds the job name too.
 		if depth == 1 && node.Name != "" {
 			ids[node.Name] = row.ID
 		}

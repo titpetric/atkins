@@ -12,8 +12,8 @@ import (
 )
 
 // TestTTYFollowsTerminalDetection runs a job whose command reports
-// whether it got a pseudo-terminal. Under go test stdout is a pipe, so
-// no step gets one, with or without passthru.
+// whether it got a pseudo-terminal. Under go test stdout is a pipe.
+// No step gets one, with or without passthru.
 func TestTTYFollowsTerminalDetection(t *testing.T) {
 	run := func(t *testing.T, job *model.Job) string {
 		t.Helper()

@@ -68,7 +68,7 @@ func TestProcessDecl(t *testing.T) {
 		Vars:    map[string]any{"name": "${{ env }}-app"},
 	})
 	assert.NoError(t, err)
-	assert.Equal(t, "prod-app", vars["name"], "vars override included values")
+	assert.Equal(t, "prod-app", vars["name"], "vars set the value of an included name")
 	assert.Equal(t, "eu", vars["region"])
 
 	_, err = runner.ProcessDecl(ctx, &model.Decl{Include: &model.IncludeDecl{Files: []string{include + ".missing"}}})

@@ -365,7 +365,7 @@ func TestNewCmdNode(t *testing.T) {
 	assert.Equal(t, "echo a [... and 1 more]", node.GetName())
 }
 
-// TestNode_Label checks the label carries the name whatever the status.
+// TestNode_Label checks the label carries the name for every status.
 func TestNode_Label(t *testing.T) {
 	t.Parallel()
 

@@ -10,7 +10,7 @@ import (
 
 // writeTranscript writes the finished tree to the caller's writer.
 //
-// It renders the same thing RenderFinal prints, colours included, so a
+// It renders the same thing RenderFinal prints, colours included. A
 // job page reads like the terminal the run happened in, with no second,
 // plainer account of it.
 func (p *Pipeline) writeTranscript(root *treeview.Node) {

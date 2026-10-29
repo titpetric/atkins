@@ -17,7 +17,7 @@ func TestStepWithMultipleCmds(t *testing.T) {
 			Cmds: []string{"echo cmd1", "echo cmd2", "echo cmd3"},
 		}
 
-		// String() should show count, not expanded commands
+		// String() should show the command count
 		result := step.String()
 		assert.Equal(t, "cmds: <3 commands>", result)
 		assert.NotContains(t, result, "&&")

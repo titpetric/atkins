@@ -321,7 +321,7 @@ func (r *Renderer) renderStaticNode(node *Node, prefix string, isLast bool) stri
 		}
 	}
 
-	// Add status indicator only for jobs, not for steps (in list view)
+	// Add status indicator for jobs alone (in list view)
 	nodeName := node.GetName()
 	isStep := strings.Contains(nodeName, "task:") || strings.Contains(nodeName, "run:") ||
 		strings.Contains(nodeName, "cmd:") || strings.Contains(nodeName, "cmds:")

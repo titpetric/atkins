@@ -265,19 +265,19 @@ func TestNullCoalescingOperator(t *testing.T) {
 			expected:  "default",
 		},
 		{
-			name:      "?? with empty string (returns empty string, not default)",
+			name:      "?? with empty string (returns empty string)",
 			expr:      `a ?? 'default'`,
 			variables: map[string]any{"a": ""},
 			expected:  "",
 		},
 		{
-			name:      "?? with zero (returns zero, not default)",
+			name:      "?? with zero (returns zero)",
 			expr:      `a ?? 1`,
 			variables: map[string]any{"a": 0},
 			expected:  0,
 		},
 		{
-			name:      "?? with false (returns false, not default)",
+			name:      "?? with false (returns false)",
 			expr:      `a ?? 'default'`,
 			variables: map[string]any{"a": false},
 			expected:  false,

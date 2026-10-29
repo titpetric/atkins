@@ -151,7 +151,7 @@ func TestJobChildrenConsistency(t *testing.T) {
 	}
 	assert.Nil(t, job3.Children())
 
-	// Test that Steps takes precedence over Cmds
+	// Test that Children returns Steps for a job with Steps and Cmds
 	job4 := &model.Job{
 		Name: "job4",
 		Steps: []*model.Step{
@@ -196,7 +196,7 @@ func TestFindDefaultJob(t *testing.T) {
 		assert.False(t, found)
 	})
 
-	t.Run("direct default takes precedence over alias", func(t *testing.T) {
+	t.Run("a job named default is the default job when an alias names it too", func(t *testing.T) {
 		jobs := map[string]*model.Job{
 			"default": {Name: "default"},
 			"build":   {Name: "build", Aliases: []string{"default"}},

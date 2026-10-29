@@ -122,7 +122,7 @@ func TestDiscoverConfig_ConfigFilePreferredOverAtkinsFolder(t *testing.T) {
 	err = os.MkdirAll(atkinsDir, 0o755)
 	assert.NoError(t, err)
 
-	// Config file should take precedence
+	// DiscoverConfig returns .atkins.yml when the folder sits beside it
 	foundPath, foundDir, err := runner.DiscoverConfig(tmpDir)
 	assert.NoError(t, err)
 	assert.Equal(t, configPath, foundPath)

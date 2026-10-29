@@ -12,11 +12,11 @@ import (
 
 // runVendor handles `atkins --vendor`, which copies the skills this
 // repository uses out of $HOME/.atkins/skills and into .atkins/skills
-// next to .git, so a clone or a CI agent runs the same jobs as the
+// next to .git. A clone or a CI agent runs the same jobs as the
 // machine where the pipeline originated.
 //
 // It reports what it would do and writes nothing until the user passes
-// --write, so the user can review the selection before the tree changes.
+// --write. The user can review the selection before the tree changes.
 func runVendor(dir string, opts *Options) error {
 	if opts.Jail {
 		return fmt.Errorf("%s --vendor reads $HOME/.atkins/skills, which --jail excludes", colors.BrightRed("ERROR:"))

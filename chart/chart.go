@@ -68,7 +68,7 @@ func cell(row, filled int) rune {
 }
 
 // pad returns a string padded to a width in runes with spaces on the
-// right, so a command of any runes keeps the next column aligned.
+// right. A command of any runes keeps the next column aligned.
 func pad(text string, width int) string {
 	if gap := width - utf8.RuneCountInString(text); gap > 0 {
 		return text + strings.Repeat(" ", gap)

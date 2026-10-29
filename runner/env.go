@@ -103,7 +103,7 @@ func mergeEnv(ctx *ExecutionContext, decl *model.EnvDecl) error {
 // It handles:
 // - Manual vars with interpolation ($(...), ${{ ... }})
 // - Include files (.env format)
-// Vars take precedence over included files.
+// Vars are set after included files, and a var sets a name both define.
 func processEnv(ctx *ExecutionContext, decl *model.EnvDecl) (map[string]string, error) {
 	result := make(map[string]string)
 
@@ -116,7 +116,7 @@ func processEnv(ctx *ExecutionContext, decl *model.EnvDecl) (map[string]string, 
 		}
 	}
 
-	// Then, process and interpolate vars (they override included values)
+	// Then, process and interpolate vars (set after included values)
 	if decl != nil && decl.Vars != nil {
 		interpolated, err := interpolateVariables(ctx, decl.Vars)
 		if err != nil {

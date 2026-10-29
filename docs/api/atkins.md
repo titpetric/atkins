@@ -154,7 +154,7 @@ type SampleReport struct {
 // checkout has been running, and what every checkout on the machine has
 // been running between them.
 //
-// A run records to both databases, so the two answer different
+// A run records to both databases. The two answer different
 // questions of the same rows. The project's says what standing here
 // costs; the workspace's says where a week went across every project
 // atkins ran in.
@@ -179,7 +179,7 @@ type StatsReport struct {
 // `--stats --json` needs to draw it again elsewhere.
 //
 // Durations are milliseconds throughout, as the database keeps them: a
-// chart takes a number and not a word.
+// chart takes a number.
 type StatsScope struct {
 	// Name names the scope, project or workspace.
 	Name string `json:"name" yaml:"name"`

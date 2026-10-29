@@ -9,7 +9,7 @@ import (
 )
 
 // Node is a job, step or iteration in the tree. Its accessors lock the node,
-// so the renderer reads it while the runner updates it, and its setters are
+// the renderer reads it while the runner updates it, and its setters are
 // no-ops on a nil node. A multi-line name keeps its first line with a
 // summary of the rest, as TrimMultilineLabel writes it.
 type Node struct {
@@ -88,7 +88,7 @@ func (n *Node) StatusColor() string {
 	if status == "" && (haveChildren || haveDeps) {
 		return colors.Green("●")
 	}
-	// For leaf nodes (no children, no deps), show a status indicator if in pending state
+	// For leaf nodes (without children or deps), show a status indicator if in pending state
 	if status == "" && !haveChildren && !haveDeps {
 		return colors.Green("●")
 	}

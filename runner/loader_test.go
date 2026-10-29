@@ -71,12 +71,12 @@ jobs:
 	testJob := pipeline.Jobs["test"]
 	assert.NotNil(t, testJob)
 
-	// The current loader expands for loops, so we should have 1 step
+	// The current loader expands for loops. We should have 1 step
 	assert.Len(t, testJob.Steps, 1)
 }
 
 // TestLoadPipeline_WithForLoopsIndexPattern tests loading with (index, item) pattern
-// Note: The old loader doesn't support (idx, item) syntax, so this tests the new Step.ExpandFor()
+// Note: The old loader doesn't support (idx, item) syntax. This tests the new Step.ExpandFor()
 func TestLoadPipeline_WithForLoopsIndexPattern(t *testing.T) {
 	yamlContent := `
 name: For Index Pattern Test

@@ -5,7 +5,7 @@ import (
 )
 
 // substitutionResult is what one `$(...)` produced: everything the
-// caller reads off the process, so a memo of it behaves as the run did.
+// caller reads off the process. A memo of it behaves as the run did.
 type substitutionResult struct {
 	output   string
 	success  bool
@@ -17,8 +17,8 @@ type substitutionResult struct {
 //
 // The runner interpolates a step more than once before it runs: the
 // tree renders its label, the condition may read it, and the command
-// itself comes last. Every one of those passes over the same text, so
-// without a memo the shell command inside it runs once per pass. A
+// itself comes last. Every one of those passes over the same text.
+// Without a memo the shell command inside it runs once per pass. A
 // substitution that appends to a file, bumps a counter or takes a lock
 // would do it once per pass, and a slow one would cost its time over
 // again.
@@ -28,7 +28,7 @@ type substitutionResult struct {
 // between two steps its output may have changed: a pipeline runs its
 // steps in order for exactly that reason.
 //
-// A nil cache memoises nothing and every method tolerates it, so a
+// A nil cache memoises nothing and every method tolerates it. A
 // context assembled without one still runs.
 type substitutionCache struct {
 	mu      sync.Mutex

@@ -23,7 +23,7 @@ func TestFields(t *testing.T) {
 
 	assert.Contains(t, paths, "storage.database")
 	assert.Contains(t, paths, "storage.record")
-	// Retention is no setting, so the menu lists no field for it.
+	// Retention is fixed, and the menu lists no field for it.
 	assert.NotContains(t, paths, "storage.retention")
 	// Load derives the document version; the menu never edits it.
 	assert.NotContains(t, paths, "version")

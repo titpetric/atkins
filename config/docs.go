@@ -1,6 +1,6 @@
 // Package config owns the atkins configuration document, .atkins/config.yml.
 //
-// Configuration comes in layers, each overriding the last: the embedded
+// Configuration comes in layers, each read on top of the last: the embedded
 // default (RuntimeDefaultConfig), the user document at
 // $HOME/.atkins/config.yml, the project document found by walking up from
 // the working directory, and the ATKINS_* environment overlay. Load
@@ -15,7 +15,7 @@
 // user first opens explains itself.
 //
 // The environment overlay serves containers and CI. `env` struct tags
-// drive it, and a field added to the document gains an override with no
+// drive it, and a field added to the document gains its variable with no
 // further code. It applies a variable only when the variable holds a
 // value: an empty ATKINS_* variable means "not configured here". A
 // container can set one field and keep the rest of the document. It skips

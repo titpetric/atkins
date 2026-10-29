@@ -62,7 +62,7 @@ func FileExists(t testing.TB, path string, msg ...any) {
 	case err != nil:
 		Errorf(t, "%q does not exist: %v", path, msg)
 	case info.IsDir():
-		Errorf(t, "%q is a directory, not a file: %v", path, msg)
+		Errorf(t, "%q is a directory, want a file: %v", path, msg)
 	}
 }
 
@@ -81,7 +81,7 @@ func DirExists(t testing.TB, path string, msg ...any) {
 	case err != nil:
 		Errorf(t, "%q does not exist: %v", path, msg)
 	case !info.IsDir():
-		Errorf(t, "%q is a file, not a directory: %v", path, msg)
+		Errorf(t, "%q is a file, want a directory: %v", path, msg)
 	}
 }
 

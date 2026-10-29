@@ -40,7 +40,7 @@ func TestVertical(t *testing.T) {
 	assert.Contains(t, rows[5], "Wed")
 }
 
-// A bar measures from zero, so an empty day stays empty and a day with
+// A bar measures from zero. An empty day stays empty and a day with
 // anything in it shows: a blank column would say nothing ran.
 func TestVerticalDrawsTheSmallestValue(t *testing.T) {
 	rendered := chart.Vertical(chart.VerticalOptions{

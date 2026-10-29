@@ -12,7 +12,7 @@ import (
 )
 
 // fakeRecorder is a runner.Recorder that keeps the documents it receives,
-// and optionally fails, so a test can check both that the document arrives
+// and optionally fails. A test can check both that the document arrives
 // and that a failure to store it never reaches the caller.
 type fakeRecorder struct {
 	log  *eventlog.Log
@@ -24,7 +24,7 @@ func (f *fakeRecorder) Record(_ context.Context, log *eventlog.Log) error {
 	return f.fail
 }
 
-// twoStepPipeline is a job whose two steps each run a command, so the
+// twoStepPipeline is a job whose two steps each run a command. The
 // document has a tree to walk and events to count.
 func twoStepPipeline() *model.Pipeline {
 	return &model.Pipeline{

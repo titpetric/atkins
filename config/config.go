@@ -28,8 +28,8 @@ type Config struct {
 // StorageConfig is the event database: the file every run appends a row
 // per job and per command to, and what it holds.
 type StorageConfig struct {
-	// Database is the workspace's file in place of
-	// $HOME/.atkins/atkins.db, or a list of files in the form of PATH:
+	// Database is the workspace's file, $HOME/.atkins/atkins.db when
+	// unset, or a list of files in the form of PATH:
 	// the first is the workspace's, the rest are mirrors that take the
 	// same rows and are never read. The project's, the atkins.db of the
 	// nearest .atkins folder, records as well either way.
@@ -81,7 +81,7 @@ func (c *Config) Save(path string) error {
 		return err
 	}
 
-	// The document can carry a signing key and an agent token, so Save
+	// The document can carry a signing key and an agent token. Save
 	// writes it for its owner only.
 	if err := os.WriteFile(path, encoded, 0o600); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)

@@ -61,7 +61,7 @@ type document struct {
 
 // gap writes the blank line that separates two blocks, and writes
 // nothing when the last block already ended with one. All block spacing
-// calls it, so a section that ends in a table and one that ends in a
+// calls it. A section that ends in a table and one that ends in a
 // paragraph both get the same single blank line after them.
 func (d *document) gap() {
 	if d.started && !d.blank {
@@ -117,7 +117,7 @@ func (d *document) commands(commands []Command) {
 	for _, command := range commands {
 		title := command.Title
 		if command.Default {
-			title += " (the default, so the word is optional)"
+			title += " (the default; the word is optional)"
 		}
 		t.row("`"+command.Name+"`", title)
 	}
@@ -220,7 +220,7 @@ func (d *document) skill(skill *runner.Skill) {
 		names = append(names, name)
 	}
 
-	// The default job runs when the user names the skill on its own, so it
+	// The default job runs when the user names the skill on its own. It
 	// heads the list; the rest are alphabetical.
 	sort.Slice(names, func(i, j int) bool {
 		if (names[i] == "default") != (names[j] == "default") {

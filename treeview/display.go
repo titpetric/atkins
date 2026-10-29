@@ -14,8 +14,8 @@ import (
 // Display renders the tree in place with ANSI cursor control. On a terminal
 // each Render rolls back the lines of the previous one; Invalidate forgets
 // them when output from outside the tree, such as an interactive command,
-// lands between two renders. RenderFinal prints the whole tree once execution ends, so
-// the output stays scrollable. A silent display, for JSON and YAML output,
+// lands between two renders. RenderFinal prints the whole tree once execution ends.
+// The output stays scrollable. A silent display, for JSON and YAML output,
 // prints nothing live.
 type Display struct {
 	lastLineCount int
@@ -131,7 +131,7 @@ func (d *Display) RenderFinal(root *Node) {
 }
 
 // plainWithoutTerminal strips ANSI escape sequences when stdout is a
-// pipe or a file, so colour follows terminal detection and a captured
+// pipe or a file. Colour follows terminal detection and a captured
 // log keeps its escape sequences out.
 func plainWithoutTerminal(output string) string {
 	if colors.StdoutIsTerminal() {

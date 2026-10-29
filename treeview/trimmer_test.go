@@ -127,7 +127,7 @@ func TestTrimmer_TrimLabel(t *testing.T) {
 		label := "run: go build --ldflags=-X_main.version=very-long-version-string-here"
 		result := trimmer.TrimLabel(label, 15, 10)
 
-		// Should have compacted the ldflags (no spaces in value, so it gets compacted)
+		// Should have compacted the ldflags (the value holds no spaces and gets compacted)
 		assert.Contains(t, result, "<...")
 		// Should end with ... if trimmed to viewport
 		assert.True(t, len(result) > 0)

@@ -58,7 +58,7 @@ type OutputItem struct {
 	DependsOn []string `json:"depends_on,omitempty" yaml:"depends_on,omitempty"`
 
 	// Steps are the step labels, the lines `atkins -l` prints under the
-	// job, so a caller can show what a job does without reading the
+	// job. A caller can show what a job does without reading the
 	// file itself.
 	Steps []string `json:"steps,omitempty" yaml:"steps,omitempty"`
 
@@ -66,7 +66,7 @@ type OutputItem struct {
 	Env []string `json:"env,omitempty" yaml:"env,omitempty"`
 
 	// Hidden reports a job with show: false, a job the file keeps out of
-	// menus. The listing carries it, so a caller knows the job exists and
+	// menus. The listing carries it. A caller knows the job exists and
 	// what it does, and decides for itself whether to show it.
 	Hidden bool `json:"hidden,omitempty" yaml:"hidden,omitempty"`
 
@@ -192,7 +192,7 @@ func ListPipelinesYAML(pipelines []*model.Pipeline, opts ...OutputOptions) error
 	return PrintYAML(buildListOutput(pipelines, opts...))
 }
 
-// ActivePipelines returns the pipelines a run sees: no inactive skills, no inactive jobs.
+// ActivePipelines returns the pipelines a run sees: the active skills with their active jobs.
 func ActivePipelines(pipelines []*model.Pipeline) []*model.Pipeline {
 	result := make([]*model.Pipeline, 0, len(pipelines))
 	for _, p := range pipelines {

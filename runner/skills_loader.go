@@ -21,7 +21,7 @@ import (
 // no active skill carries, for `atkins -l --json --all`.
 type SkillsLoader struct {
 	// SkillsDirs are the directories to search for skill files, in priority order.
-	// First directory takes precedence for skills with the same ID.
+	// The first directory holding an ID supplies that skill.
 	SkillsDirs []string
 
 	// StartDir is the directory from which to start searching for when: files.
@@ -169,7 +169,7 @@ func MergeSkills(pipelines, more []*model.Pipeline) []*model.Pipeline {
 	return pipelines
 }
 
-// Scan returns every skill in directory order, active or not, a shadowed one included,
+// Scan returns every skill in directory order, active and inactive, with each ID's later copies,
 // or the error of a directory that does not read
 // or a skill that does not load.
 func (l *SkillsLoader) Scan() ([]*Skill, error) {

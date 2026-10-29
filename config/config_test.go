@@ -13,7 +13,7 @@ import (
 func TestDefaultIsComplete(t *testing.T) {
 	t.Parallel()
 
-	// The embedded document is the source of every default, so a field
+	// The embedded document is the source of every default. A field
 	// missing from it would silently default to a zero value.
 	cfg, err := config.Default()
 	assert.NoError(t, err)

@@ -25,7 +25,7 @@ type Options struct {
 	SkillDirs []string
 
 	// Color turns on ANSI colour for headings. Callers set it from a
-	// terminal check on the writer, so a redirected help document is
+	// terminal check on the writer. A redirected help document is
 	// plain markdown.
 	Color bool
 }

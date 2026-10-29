@@ -41,7 +41,7 @@ func NewMenu(path string) (*Menu, error) {
 	}, nil
 }
 
-// SetIO points the menu at w and r in place of the terminal.
+// SetIO points the menu at w and r.
 func (m *Menu) SetIO(w io.Writer, r io.Reader) {
 	m.in = bufio.NewReader(r)
 	m.out = w
@@ -114,7 +114,7 @@ func (m *Menu) render(fields []Field) {
 		name := strings.TrimPrefix(field.Path, section+".")
 		fmt.Fprintf(m.out, "  %2d) %-20s %s", i+1, name, field.Display())
 
-		// While an env override is set, the running value comes from the
+		// While an environment variable sets the field, the running value comes from the
 		// environment. Mark the field up front.
 		if field.Env != "" && os.Getenv(field.Env) != "" {
 			fmt.Fprintf(m.out, "  %s", colors.BrightYellow("← "+field.Env))
@@ -134,7 +134,7 @@ func (m *Menu) edit(field Field) error {
 	fmt.Fprintf(m.out, "  current: %s\n", field.Display())
 	fmt.Fprintf(m.out, "  expects: %s\n", colors.Dim(field.Kind()))
 	if field.Env != "" {
-		fmt.Fprintf(m.out, "  overridden by: %s\n", colors.Dim(field.Env))
+		fmt.Fprintf(m.out, "  set by: %s\n", colors.Dim(field.Env))
 	}
 
 	value, err := m.prompt("  new value (empty clears): ")

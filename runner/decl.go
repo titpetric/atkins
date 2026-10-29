@@ -24,7 +24,7 @@ func ProcessDecl(ctx *ExecutionContext, decl *model.Decl) (map[string]any, error
 		}
 	}
 
-	// Then, process and interpolate vars (they override included values)
+	// Then, process and interpolate vars (set after included values)
 	if decl != nil && decl.Vars != nil {
 		interpolated, err := interpolateVariables(ctx, decl.Vars)
 		if err != nil {
@@ -69,7 +69,7 @@ func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error {
 	if err := MergeVariables(ctx, decl); err != nil {
 		return err
 	}
-	// Restore: existing values take precedence over newly merged ones
+	// Restore: put the existing values back on top of the merged ones
 	for k, v := range existing {
 		ctx.Variables.Set(k, v)
 	}

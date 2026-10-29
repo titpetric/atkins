@@ -11,8 +11,8 @@
 // Write builds the document as plain markdown throughout, with padded
 // table cells so it reads as columns in a file too. Write adds colour -
 // on the headings, and on every table, which the markdown package redraws
-// with borders - only when the caller says the writer is a terminal, so
-// `atkins --help > help.md` is a document and not a screenshot of one.
+// with borders - only when the caller says the writer is a terminal.
+// `atkins --help > help.md` writes a plain markdown document.
 //
 // A person writes schema.md by hand; no generator touches it. It reduces
 // the JSON Schema `splint -schema -i model` prints: the keys an author
