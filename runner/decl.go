@@ -48,8 +48,8 @@ func loadVarsFile(filename string, vars map[string]any) error {
 }
 
 // MergeSkillVariables merges variables from a skill's Decl into the context.
-// When depth > 1, variables are already on the stack from a parent pipeline,
-// so new vars act only as defaults (existing keys win).
+// When depth > 1, variables are already on the stack from a parent pipeline.
+// The skill's vars fill in missing keys and keep the existing values.
 // At depth <= 1 it behaves identically to MergeVariables.
 func MergeSkillVariables(ctx *ExecutionContext, decl *model.Decl) error {
 	if decl == nil {

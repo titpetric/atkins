@@ -60,7 +60,7 @@ func (d *Display) IsTerminal() bool {
 	return d.isTerminal
 }
 
-// Invalidate resets the line counter, so the next Render rolls nothing back.
+// Invalidate resets the line counter. The next Render draws below the current output.
 func (d *Display) Invalidate() {
 	d.mu.Lock()
 	defer d.mu.Unlock()

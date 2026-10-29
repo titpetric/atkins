@@ -138,8 +138,8 @@ func TestDiscoverList(t *testing.T) {
 	assert.Equal(t, []string{paths.Project, workspace, mirror}, paths.All())
 	assert.DirExists(t, filepath.Dir(mirror))
 
-	// The setting wins over the environment, which holds the same list
-	// through the configuration anyway.
+	// Discover reads ATKINS_DB only when the setting is empty. The
+	// configuration already carries the environment's list.
 	t.Setenv(storage.EnvDB, filepath.Join(t.TempDir(), "env.db"))
 	paths, err = storage.Discover(root, workspace)
 	assert.NoError(t, err)

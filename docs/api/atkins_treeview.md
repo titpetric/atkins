@@ -449,7 +449,7 @@ func (*Display) Cleanup()
 
 ### `Invalidate`
 
-`Invalidate` resets the line counter, so the next Render rolls nothing back.
+`Invalidate` resets the line counter. The next Render draws below the current output.
 
 ```go
 func (*Display) Invalidate()

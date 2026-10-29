@@ -102,8 +102,8 @@ jobs:
 	assert.Equal(t, "1.0.0", pipeline.Vars["version"])
 }
 
-// TestPipeline_GetJobs checks jobs: wins over tasks:, and tasks: fills in
-// when jobs: is empty.
+// TestPipeline_GetJobs checks GetJobs returns jobs: when both are set,
+// and tasks: when jobs: is empty.
 func TestPipeline_GetJobs(t *testing.T) {
 	t.Parallel()
 

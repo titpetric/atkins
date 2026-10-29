@@ -8,6 +8,6 @@
 // decides whether Write writes the YAML document of --log.
 //
 // Document assembles the finished Log. Write marshals it and the storage
-// recorder stores it, so the file and the event database read the same
+// recorder stores it. The file and the event database read the same
 // document.
 package eventlog

@@ -58,9 +58,8 @@ func Paths(dir string) []string {
 	return paths
 }
 
-// Discover walks up from dir looking for .atkins/config.yml, so a
-// command run deep inside a project still finds the project's
-// configuration.
+// Discover walks up from dir looking for .atkins/config.yml. A command
+// run deep inside a project finds the project's configuration.
 func Discover(dir string) string {
 	if dir == "" {
 		dir, _ = os.Getwd()

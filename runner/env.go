@@ -10,8 +10,8 @@ import (
 )
 
 // Env is the environment a command runs with, read by NewEnv from the
-// KEY=VALUE strings os.Environ and exec.Cmd use. A later entry wins, as exec
-// treats a duplicate name, and an entry without a name drops out.
+// KEY=VALUE strings os.Environ and exec.Cmd use. For a duplicate name Env
+// keeps the later entry, as exec does, and an entry without a name drops out.
 //
 // Sanitized drops atkins' own ATKINS_ and PLATFORM_ settings, for an agent
 // that runs a job's command with the machine's environment and sets that

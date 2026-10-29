@@ -16,7 +16,7 @@ import (
 
 // jobPlan is what a run resolves before it starts any job: the requested
 // jobs and their dependencies in run order, and a tree node for every job a
-// step can invoke, so the first render already shows the whole run.
+// step can invoke. The first render shows the whole run.
 type jobPlan struct {
 	allJobs  map[string]*model.Job
 	jobOrder []string

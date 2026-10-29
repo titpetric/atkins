@@ -8,8 +8,8 @@
 //
 // RunPipeline runs the requested jobs. Before any job starts, the pipeline
 // resolves the jobs and their dependencies into a run order and builds a
-// tree node for every job a step can invoke, so the first render of the
-// tree shows the whole run. An Executor then runs each job's steps, with
+// tree node for every job a step can invoke. The first render of the tree
+// shows the whole run. An Executor then runs each job's steps, with
 // their for: loops, task: references and conditions, and the tree and the
 // event log record what each step did.
 //

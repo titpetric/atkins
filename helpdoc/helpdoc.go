@@ -175,7 +175,7 @@ func (d *document) skills(opts *Options) {
 		d.text("Skills are read from, in precedence order:\n\n" + strings.Join(lines, "\n"))
 	}
 
-	d.text("The first directory wins: a repository's own `go.yml` shadows the one in `$HOME`. `atkins --vendor` reports which skills a repository uses and `--write` copies them into `.atkins/skills` next to `.git`, so a clone or a CI agent runs the same jobs. `--jail` ignores `$HOME` and runs on the repository's skills alone.")
+	d.text("atkins loads each skill from the first directory that holds it: a repository's own `go.yml` serves that repository. `atkins --vendor` reports which skills a repository uses and `--write` copies them into `.atkins/skills` next to `.git`. A clone or a CI agent then runs the same jobs. `--jail` ignores `$HOME` and runs on the repository's skills alone.")
 
 	d.text("A skill may carry a markdown file of the same name beside it, `go.md` beside `go.yml`, which is printed below as its usage guide. It travels with the skill when vendored.")
 

@@ -114,8 +114,8 @@ func (m *Menu) render(fields []Field) {
 		name := strings.TrimPrefix(field.Path, section+".")
 		fmt.Fprintf(m.out, "  %2d) %-20s %s", i+1, name, field.Display())
 
-		// An env override wins at runtime, so an edit here would look
-		// like it did nothing. Say so up front.
+		// While an env override is set, the running value comes from the
+		// environment. Mark the field up front.
 		if field.Env != "" && os.Getenv(field.Env) != "" {
 			fmt.Fprintf(m.out, "  %s", colors.BrightYellow("← "+field.Env))
 		}

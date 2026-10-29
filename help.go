@@ -16,10 +16,10 @@ import (
 // HelpRequested reports whether a command line requests the help
 // document and no run.
 //
-// A -h or --help that is the value of a string flag is not a help
-// request: `atkins -x "--help"` runs a prompt. The flag set says which
-// flags take a value, so the same rules tell the two cases apart that
-// pflag parses by. Everything after a bare -- is an argument.
+// A -h or --help that is the value of a string flag is a flag value:
+// `atkins -x "--help"` runs a prompt. The flag set says which flags take
+// a value, and HelpRequested reads the arguments by the same rules pflag
+// parses by. Everything after a bare -- is an argument.
 func HelpRequested(flags *pflag.FlagSet, args []string) bool {
 	for index := 0; index < len(args); index++ {
 		arg := args[index]

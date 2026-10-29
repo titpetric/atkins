@@ -39,7 +39,7 @@ func TestNewTaskResolver(t *testing.T) {
 	main, skill := resolverPipelines()
 	resolved, err := runner.NewTaskResolver([]*model.Pipeline{main, skill}).Resolve("build")
 	assert.NoError(t, err)
-	assert.Equal(t, main, resolved.Pipeline, "the project's own job wins an exact name")
+	assert.Equal(t, main, resolved.Pipeline, "an exact name resolves to the project's own job")
 }
 
 func TestNewSkillResolver(t *testing.T) {

@@ -19,8 +19,8 @@ const whenContainsLimit = 1 << 20
 // An absolute pattern resolves on its own. A relative pattern resolves in
 // the starting folder and then in every parent folder, nearest first, unless
 // the block sets here: true, which keeps the search to the starting folder.
-// In each folder the search tries every pattern, so a closer match wins over
-// pattern order. With contains: set, only a regular file whose contents match the
+// In each folder the search tries every pattern before it moves to the
+// parent folder, and the nearest folder with a match decides. With contains: set, only a regular file whose contents match the
 // regular expression counts. An invalid contains: expression never matches;
 // the linter reports it.
 type WhenMatch struct {

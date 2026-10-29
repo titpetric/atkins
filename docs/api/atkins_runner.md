@@ -16,8 +16,8 @@ directory, or when it has no when: block.
 
 RunPipeline runs the requested jobs. Before any job starts, the pipeline
 resolves the jobs and their dependencies into a run order and builds a
-tree node for every job a step can invoke, so the first render of the
-tree shows the whole run. An Executor then runs each job's steps, with
+tree node for every job a step can invoke. The first render of the tree
+shows the whole run. An Executor then runs each job's steps, with
 their for: loops, task: references and conditions, and the tree and the
 event log record what each step did.
 
@@ -59,8 +59,8 @@ type ContextVariables struct {
 
 ```go
 // Env is the environment a command runs with, read by NewEnv from the
-// KEY=VALUE strings os.Environ and exec.Cmd use. A later entry wins, as exec
-// treats a duplicate name, and an entry without a name drops out.
+// KEY=VALUE strings os.Environ and exec.Cmd use. For a duplicate name Env
+// keeps the later entry, as exec does, and an entry without a name drops out.
 //
 // Sanitized drops atkins' own ATKINS_ and PLATFORM_ settings, for an agent
 // that runs a job's command with the machine's environment and sets that
@@ -603,11 +603,11 @@ type Skill struct {
 
 ```go
 // SkillsLoader loads the skill pipelines of .atkins/skills/ directories,
-// in priority order: a skill shadows one of the same ID from a later
-// directory, so a project skill wins over a global one. A skill runs in the
-// folder of the file its when: block matched, or without one, in the folder
-// holding its .atkins/. A skill whose when: block does not match is inactive
-// and shadows nothing.
+// in priority order: for each ID the first directory that holds an active
+// skill supplies it, and the project directory comes first, the global one
+// last. A skill runs in the folder of the file its when: block matched, or
+// without one, in the folder holding its .atkins/. A skill whose when: block
+// does not match is inactive and leaves the ID to the next directory.
 //
 // Load returns the active skills, the ones a run uses. Scan returns every
 // skill for `atkins --help`, and LoadAll adds the inactive skills of an ID
@@ -780,8 +780,8 @@ type Vendorer struct {
 // An absolute pattern resolves on its own. A relative pattern resolves in
 // the starting folder and then in every parent folder, nearest first, unless
 // the block sets here: true, which keeps the search to the starting folder.
-// In each folder the search tries every pattern, so a closer match wins over
-// pattern order. With contains: set, only a regular file whose contents match the
+// In each folder the search tries every pattern before it moves to the
+// parent folder, and the nearest folder with a match decides. With contains: set, only a regular file whose contents match the
 // regular expression counts. An invalid contains: expression never matches;
 // the linter reports it.
 type WhenMatch struct {
@@ -1174,8 +1174,8 @@ func MatchWhenPattern(dir, pattern string) (string, bool)
 ### `MergeSkillVariables`
 
 `MergeSkillVariables` merges variables from a skill's Decl into the context.
-When depth > 1, variables are already on the stack from a parent pipeline,
-so new vars act only as defaults (existing keys win).
+When depth > 1, variables are already on the stack from a parent pipeline.
+The skill's vars fill in missing keys and keep the existing values.
 At depth <= 1 it behaves identically to MergeVariables.
 
 ```go
@@ -1642,8 +1642,8 @@ func (*SkillsLoader) AddWorkspace(dir string)
 
 ### `FindFile`
 
-`FindFile` returns the nearest folder from startDir up where any pattern matches,
-so a closer match wins over pattern order.
+`FindFile` returns the nearest folder from startDir up where any pattern matches.
+It checks every pattern in a folder before moving to the parent.
 
 ```go
 func (*SkillsLoader) FindFile(patterns []string, startDir string) (string, bool)

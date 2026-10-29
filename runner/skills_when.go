@@ -41,8 +41,8 @@ func (l *SkillsLoader) FindFolder(name, startDir string) (containingDir string, 
 	}
 }
 
-// FindFile returns the nearest folder from startDir up where any pattern matches,
-// so a closer match wins over pattern order.
+// FindFile returns the nearest folder from startDir up where any pattern matches.
+// It checks every pattern in a folder before moving to the parent.
 func (l *SkillsLoader) FindFile(patterns []string, startDir string) (matchDir string, found bool) {
 	// First, check absolute paths (no traversal needed)
 	for _, pattern := range patterns {

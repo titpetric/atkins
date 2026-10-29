@@ -169,7 +169,7 @@ func TestParentWorkspaces(t *testing.T) {
 
 // TestSkillsLoader_ParentWorkspace checks a project inside a workspace
 // checkout loads the workspace's skills, runs one without when: in the
-// workspace, and lets its own skill of the same ID win.
+// workspace, and loads its own skill for an ID both define.
 func TestSkillsLoader_ParentWorkspace(t *testing.T) {
 	ws := t.TempDir()
 	proj := filepath.Join(ws, "proj")

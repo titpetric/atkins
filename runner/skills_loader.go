@@ -10,11 +10,11 @@ import (
 )
 
 // SkillsLoader loads the skill pipelines of .atkins/skills/ directories,
-// in priority order: a skill shadows one of the same ID from a later
-// directory, so a project skill wins over a global one. A skill runs in the
-// folder of the file its when: block matched, or without one, in the folder
-// holding its .atkins/. A skill whose when: block does not match is inactive
-// and shadows nothing.
+// in priority order: for each ID the first directory that holds an active
+// skill supplies it, and the project directory comes first, the global one
+// last. A skill runs in the folder of the file its when: block matched, or
+// without one, in the folder holding its .atkins/. A skill whose when: block
+// does not match is inactive and leaves the ID to the next directory.
 //
 // Load returns the active skills, the ones a run uses. Scan returns every
 // skill for `atkins --help`, and LoadAll adds the inactive skills of an ID

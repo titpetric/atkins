@@ -16,7 +16,7 @@ them, and a collected event costs one slice append. The file path
 decides whether Write writes the YAML document of --log.
 
 Document assembles the finished Log. Write marshals it and the storage
-recorder stores it, so the file and the event database read the same
+recorder stores it. The file and the event database read the same
 document.
 
 ## Types

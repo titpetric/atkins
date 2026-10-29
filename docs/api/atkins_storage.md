@@ -32,27 +32,27 @@ names the checkout's file first and its own second, and keeps one
 history across them. atkins reports a mirror that fails to open once,
 and the rest take the row.
 
-Both files hold the same rows, so a report of the workspace answers
-the questions of a project report: which command, how often, how
-long. A database that opens stays in use when the other fails: half a
-history beats none, and the report names the file each half comes
-from. A failed write to one database leaves the other one's row in
+Both files hold the same rows. A report of the workspace answers the
+questions of a project report: which command, how often, how long. A
+database that opens stays in use when the other fails: atkins keeps
+the half of the history it can reach, and the report names the file
+each half comes from. A failed write to one database leaves the other one's row in
 place, and the caller sees the first error.
 
 # One surface
 
 One type, Storage, owns a database. Every method takes a context and
-one request value and returns one result and an error, so a reader,
-the --stats report today and task-ui later, has one surface to learn.
+one request value and returns one result and an error. A reader, the
+--stats report today and task-ui later, has one surface to learn.
 Queries go through github.com/titpetric/pdo, whose generic methods
 scan straight into the mig generated types in ../model. A *pdo.PDO
-serves one request and does not support concurrent use, so every
-method allocates one over the shared pool.
+serves one request at a time, and every method allocates one over the
+shared pool.
 
 A file opens with a busy timeout and the write-ahead log: two atkins
 runs in one checkout write at the same moment, and the second waits
 for the first to finish. The driver writes a time in a layout strftime
-reads, so the usage buckets group by it; time.Time's own String form
+reads, and the usage buckets group by it; time.Time's own String form
 leaves every bucket empty.
 
 # Recording
@@ -72,8 +72,7 @@ rows comes up seconds short.
 
 Retention, thirty-one days, bounds the history. A month of work fits
 in it, this week compares against the last, and a checkout nobody
-prunes stops growing. Nobody configures it, so it holds on every
-machine. The Recorder purges after each write: the command that
+prunes stops growing. Every machine uses the same period. The Recorder purges after each write: the command that
 records has the database open anyway, and atkins stays a command with
 no service beside it. Purge deletes in bounded batches and leaves the
 rest for the next pass, because one DELETE over a year of commands
@@ -83,8 +82,7 @@ waits on it.
 # Command keys
 
 Normalize reduces a command to the form a row stores: the tool and its
-subcommands, then the flags with their values removed, sorted, and
-nothing else.
+subcommands, then the flags with their values removed, sorted.
 
 ```go
 go test -v ./...                      go test -v
@@ -113,8 +111,8 @@ docker compose up -d    docker compose up
 git clone --depth 1 x   git clone
 ```
 
-A normalized command keys the same as the command it came from, so the
-reports group rows by key with no migration of the stored form. A shell
+A normalized command has the same key as the command it came from. The
+reports group rows by key, and the stored form needs no migration. A shell
 builtin, `set -eu` at the top of a script among them, never reaches a
 row or a report.
 
@@ -788,8 +786,8 @@ func (*Storage) Path() string
 
 `Prune` removes every run and command started before a time, batch
 after batch until none remains, then releases the space: it vacuums
-the file and truncates its write-ahead log. A zero time removes
-nothing.
+the file and truncates its write-ahead log. A zero time keeps every
+row.
 
 ```go
 func (*Storage) Prune(ctx context.Context, before time.Time) (*PurgeResult, error)
