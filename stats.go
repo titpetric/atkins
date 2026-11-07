@@ -22,7 +22,7 @@ import (
 // statsLimit is how many commands the report lists: twenty fit a terminal.
 const statsLimit = 20
 
-// toolsLimit is how many tools the ranking lists.
+// toolsLimit is how many tools the chart draws; the report carries them all.
 const toolsLimit = 8
 
 // chartHeight is the row count of the daily chart: six rows of eighths
@@ -233,7 +233,10 @@ func collectScope(ctx context.Context, store *storage.Storage, name string, samp
 		return nil, err
 	}
 
-	tools, err := store.Tools(ctx, storage.StatsRequest{Since: since, Limit: toolsLimit})
+	// Every tool, not the ranking's eight: the totals below are summed
+	// from these rows, and a report that drops a tool drops its time
+	// from the window's own total.
+	tools, err := store.Tools(ctx, storage.StatsRequest{Since: since, Limit: storage.NoLimit})
 	if err != nil {
 		return nil, err
 	}
@@ -436,9 +439,10 @@ func toolChart(report *StatsScope, color bool) string {
 		return ""
 	}
 
-	bars := make([]chart.Bar, 0, len(report.Tools))
+	ranked := report.Tools[:min(len(report.Tools), toolsLimit)]
+	bars := make([]chart.Bar, 0, len(ranked))
 	runs := map[string]int64{}
-	for _, tool := range report.Tools {
+	for _, tool := range ranked {
 		bars = append(bars, chart.Bar{Label: tool.Tool, Value: tool.TotalMs})
 		runs[tool.Tool] = tool.Runs
 	}

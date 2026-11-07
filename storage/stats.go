@@ -2,13 +2,17 @@ package storage
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strings"
 	"time"
 )
 
-// StatsRequest narrows the statistics. A zero value reports every
-// command the database holds, the slowest first.
+// NoLimit asks for every row, where a zero Limit asks for a screenful.
+const NoLimit = -1
+
+// StatsRequest narrows the statistics. A zero value reports the twenty
+// slowest command keys the database holds.
 type StatsRequest struct {
 	// Since and Until bound when a command started. A zero time is no
 	// bound at that end.
@@ -21,7 +25,8 @@ type StatsRequest struct {
 	// Dir keeps the commands that ran in a directory or below it.
 	Dir string
 
-	// Limit caps the rows. Zero means twenty, which is a screen.
+	// Limit caps the rows. Zero means twenty, which is a screen, and
+	// NoLimit every row there is.
 	Limit int
 }
 
@@ -122,9 +127,12 @@ func (s *Storage) keyed(ctx context.Context, req StatsRequest) ([]CommandStat, e
 	return stats, nil
 }
 
-// limitOf is a request's row cap. Zero means twenty, which is a screen.
+// limitOf is a request's row cap. Zero means twenty, which is a screen, and NoLimit every row.
 func limitOf(limit int) int {
-	if limit <= 0 {
+	switch {
+	case limit < 0:
+		return math.MaxInt
+	case limit == 0:
 		return 20
 	}
 	return limit

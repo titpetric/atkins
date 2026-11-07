@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/titpetric/atkins/internal/assert"
@@ -37,6 +38,34 @@ func TestToolsRollUpTheirCommands(t *testing.T) {
 	byLimit, err := store.Tools(ctx, storage.StatsRequest{Limit: 1})
 	assert.NoError(t, err)
 	assert.Len(t, byLimit, 1)
+}
+
+// NoLimit answers every tool, where the default twenty and a ranking's
+// eight both cut the window's own total short.
+func TestToolsWithNoLimit(t *testing.T) {
+	ctx := context.Background()
+	store := newStorage(t)
+
+	fixtures := make([]commandFixture, 0, 25)
+	for i := range 25 {
+		fixtures = append(fixtures, commandFixture{command: fmt.Sprintf("tool%02d run", i), seconds: float64(i + 1)})
+	}
+	_, err := store.Record(ctx, storage.RecordRequest{Log: commandRun(base, fixtures)})
+	assert.NoError(t, err)
+
+	all, err := store.Tools(ctx, storage.StatsRequest{Limit: storage.NoLimit})
+	assert.NoError(t, err)
+	assert.Len(t, all, 25)
+
+	var total int64
+	for _, tool := range all {
+		total += tool.TotalMs
+	}
+	assert.Equal(t, int64(325000), total)
+
+	capped, err := store.Tools(ctx, storage.StatsRequest{})
+	assert.NoError(t, err)
+	assert.Len(t, capped, 20)
 }
 
 func TestToolsOnAnEmptyDatabase(t *testing.T) {
