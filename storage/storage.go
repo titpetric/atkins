@@ -149,7 +149,7 @@ func open(path string) (*sqlx.DB, error) {
 
 // client returns a request scoped pdo client over the shared pool.
 func (s *Storage) client() *pdo.PDO {
-	return pdo.New(s.db)
+	return pdo.New(s.db.DB)
 }
 
 // notFound maps the driver's missing row to ErrNotFound.

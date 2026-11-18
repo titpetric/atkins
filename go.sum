@@ -59,10 +59,10 @@ github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWD
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/titpetric/cli v0.7.0 h1:+fc6m6gcaQ5N05rXEj/apMjvIwCOgZ60zbnXScIJerc=
 github.com/titpetric/cli v0.7.0/go.mod h1:hsJbPqoIAFF5z1qswZ/O8AcMCl5Pk2cE2oFcPHhi3c8=
-github.com/titpetric/pdo v0.2.5 h1:bu+s9kE6cbeN/EaLoFUYtboA9tSCJ72p6ws8GY5kAa4=
-github.com/titpetric/pdo v0.2.5/go.mod h1:npqO0/jbyCjjNGFH0VrHHivjQCCE1BnI4LtLnfWeW6U=
-go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
-go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
+github.com/titpetric/pdo v0.3.0 h1:L90+0ZAAmnWs6Gztm1EB7KYaJfRmlwAQz9r9Eif5Ksk=
+github.com/titpetric/pdo v0.3.0/go.mod h1:DvZ4gtHpFPuas28xFd6CCRgqPq4twP5jZcQSEkgEXzo=
+go.yaml.in/yaml/v3 v3.0.6 h1:zcDfvjXEqTQmpjniUBLc91xYJMB2c4QOFxEF/LCEckM=
+go.yaml.in/yaml/v3 v3.0.6/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
 golang.org/x/mod v0.42.0 h1:ICeL3t2L30ljSPHHxDnR4fqVcBt/zR2zJAb9juavmQg=
 golang.org/x/mod v0.42.0/go.mod h1:u5fzIrRInkL8MaO1cbRkUHT64v303YIT5KEqpNr7jRs=
 golang.org/x/sync v0.25.0 h1:dJnifr0nMV8/SBnBvdo4eSGGnrc3O4FFx6IqvtLcmRs=
