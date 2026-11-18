@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/go-bridget/mig/migrate"
-	"github.com/jmoiron/sqlx"
 	ulid "github.com/oklog/ulid/v2"
 	"github.com/titpetric/pdo"
 
@@ -36,7 +35,7 @@ var ErrNotFound = errors.New("not found")
 // nothing and closes nothing. A caller that failed to open one has no
 // branch to write.
 type Storage struct {
-	db   *sqlx.DB
+	db   *sql.DB
 	path string
 }
 
@@ -125,7 +124,7 @@ const timeFormat = "_time_format=sqlite"
 
 // open returns the sqlite pool for path, with a busy timeout and the
 // write-ahead log on a file. main and the tests link the driver.
-func open(path string) (*sqlx.DB, error) {
+func open(path string) (*sql.DB, error) {
 	memory := path == "" || path == Memory
 	dsn := path
 	switch {
@@ -137,7 +136,7 @@ func open(path string) (*sqlx.DB, error) {
 		dsn += "?" + timeFormat + "&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)"
 	}
 
-	db, err := sqlx.Open("sqlite", dsn)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +148,7 @@ func open(path string) (*sqlx.DB, error) {
 
 // client returns a request scoped pdo client over the shared pool.
 func (s *Storage) client() *pdo.PDO {
-	return pdo.New(s.db.DB)
+	return pdo.New(s.db)
 }
 
 // notFound maps the driver's missing row to ErrNotFound.

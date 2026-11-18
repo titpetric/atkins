@@ -458,7 +458,7 @@ type StatsRequest struct {
 // nothing and closes nothing. A caller that failed to open one has no
 // branch to write.
 type Storage struct {
-	db   *sqlx.DB
+	db   *sql.DB
 	path string
 }
 ```
